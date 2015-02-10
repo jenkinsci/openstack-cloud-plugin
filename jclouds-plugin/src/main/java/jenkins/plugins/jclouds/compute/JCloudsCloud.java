@@ -2,15 +2,12 @@ package jenkins.plugins.jclouds.compute;
 
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -45,7 +42,6 @@ import org.jclouds.enterprise.config.EnterpriseConfigurationModule;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.logging.jdk.config.JDKLoggingModule;
 import org.jclouds.providers.Providers;
-import org.jclouds.ssh.SshKeys;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -73,8 +69,6 @@ public class JCloudsCloud extends Cloud {
     public final Secret credential;
     public final String providerName;
 
-    public final String privateKey;
-    public final String publicKey;
     public final String endPointUrl;
     public final String profile;
     private final int retentionTime;
@@ -101,16 +95,13 @@ public class JCloudsCloud extends Cloud {
     }
 
     @DataBoundConstructor
-    public JCloudsCloud(final String profile, final String providerName, final String identity, final String credential, final String privateKey,
-                        final String publicKey, final String endPointUrl, final int instanceCap, final int retentionTime, final int scriptTimeout, final int startTimeout,
-                        final String zones, final List<JCloudsSlaveTemplate> templates) {
+    public JCloudsCloud(final String profile, final String providerName, final String identity, final String credential, final String endPointUrl, final int instanceCap,
+                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zones, final List<JCloudsSlaveTemplate> templates) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
         this.providerName = Util.fixEmptyAndTrim(providerName);
         this.identity = Util.fixEmptyAndTrim(identity);
         this.credential = Secret.fromString(credential);
-        this.privateKey = privateKey;
-        this.publicKey = publicKey;
         this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         this.instanceCap = instanceCap;
         this.retentionTime = retentionTime;
@@ -326,13 +317,11 @@ public class JCloudsCloud extends Cloud {
         }
 
         public FormValidation doTestConnection(@QueryParameter String providerName, @QueryParameter String identity, @QueryParameter String credential,
-                                               @QueryParameter String privateKey, @QueryParameter String endPointUrl, @QueryParameter String zones)  throws IOException {
+                                               @QueryParameter String endPointUrl, @QueryParameter String zones)  throws IOException {
             if (identity == null)
                 return FormValidation.error("Invalid (AccessId).");
             if (credential == null)
                 return FormValidation.error("Invalid credential (secret key).");
-            if (privateKey == null)
-                return FormValidation.error("Private key is not specified. Click 'Generate Key' to generate one.");
 
             // Remove empty text/whitespace from the fields.
             providerName = Util.fixEmptyAndTrim(providerName);
@@ -358,32 +347,6 @@ public class JCloudsCloud extends Cloud {
                 Closeables.close(ctx,true);
             }
             return result;
-        }
-
-        public FormValidation doGenerateKeyPair(StaplerResponse rsp, String identity, String credential) throws IOException, ServletException {
-            Map<String, String> keyPair = SshKeys.generate();
-            rsp.addHeader("script", "findPreviousFormItem(button,'privateKey').value='" + keyPair.get("private").replace("\n", "\\n") + "';"
-                    + "findPreviousFormItem(button,'publicKey').value='" + keyPair.get("public").replace("\n", "\\n") + "';");
-            return FormValidation.ok("Successfully generated private Key!");
-        }
-
-        public FormValidation doCheckPrivateKey(@QueryParameter String value) throws IOException, ServletException {
-            boolean hasStart = false, hasEnd = false;
-            BufferedReader br = new BufferedReader(new StringReader(value));
-            String line;
-            while ((line = br.readLine()) != null) {
-                if (line.equals("-----BEGIN RSA PRIVATE KEY-----"))
-                    hasStart = true;
-                if (line.equals("-----END RSA PRIVATE KEY-----"))
-                    hasEnd = true;
-            }
-            if (!hasStart)
-                return FormValidation.error("Please make sure that the private key starts with '-----BEGIN RSA PRIVATE KEY-----'");
-            if (!hasEnd)
-                return FormValidation.error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
-            if (SshKeys.fingerprintPrivateKey(value) == null)
-                return FormValidation.error("Invalid private key, please check again or click on 'Generate Key' to generate a new key");
-            return FormValidation.ok();
         }
 
         public ListBoxModel doFillProviderNameItems() {
@@ -432,10 +395,6 @@ public class JCloudsCloud extends Cloud {
         }
 
         public FormValidation doCheckProviderName(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckPublicKey(@QueryParameter String value) {
             return FormValidation.validateRequired(value);
         }
 

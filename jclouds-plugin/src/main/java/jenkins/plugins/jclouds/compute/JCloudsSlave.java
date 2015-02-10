@@ -35,10 +35,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private boolean waitPhoneHome;
     private final int overrideRetentionTime;
     private final int waitPhoneHomeTimeout;
-    private final String user;
-    private final String password;
-    private final String privateKey;
-    private final boolean authSudo;
     private final String jvmOptions;
     private final String credentialsId;
 
@@ -46,16 +42,12 @@ public class JCloudsSlave extends AbstractCloudSlave {
     @SuppressWarnings("rawtypes")
     public JCloudsSlave(String cloudName, String name, String nodeDescription, String remoteFS, String numExecutors, Mode mode, String labelString,
                         ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties, boolean stopOnTerminate,
-                        int overrideRetentionTime, String user, String password, String privateKey, boolean authSudo, String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId) throws Descriptor.FormException,
+                        int overrideRetentionTime, String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId) throws Descriptor.FormException,
             IOException {
         super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
         this.stopOnTerminate = stopOnTerminate;
         this.cloudName = cloudName;
         this.overrideRetentionTime = overrideRetentionTime;
-        this.user = user;
-        this.password = password;
-        this.privateKey = privateKey;
-        this.authSudo = authSudo;
         this.jvmOptions = jvmOptions;
         this.waitPhoneHome = waitPhoneHome;
         this.waitPhoneHomeTimeout = waitPhoneHomeTimeout;
@@ -85,9 +77,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
             String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId) throws IOException, Descriptor.FormException {
         this(cloudName, metadata.getName(), description, fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
-                stopOnTerminate, overrideRetentionTime, metadata.getCredentials().getUser(),
-                metadata.getCredentials().getPassword(), metadata.getCredentials().getPrivateKey(),
-                metadata.getCredentials().shouldAuthenticateSudo(), jvmOptions, waitPhoneHome, waitPhoneHomeTimeout, credentialsId);
+                stopOnTerminate, overrideRetentionTime, jvmOptions, waitPhoneHome, waitPhoneHomeTimeout, credentialsId);
         this.nodeMetaData = metadata;
         this.nodeId = nodeMetaData.getId();
     }
@@ -112,24 +102,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
      */
     public String getJvmOptions() {
         return jvmOptions;
-    }
-
-    /**
-     * Get Jclouds LoginCredentials associated with this Slave.
-     * <p/>
-     * If Jclouds doesn't provide credentials, use stored ones.
-     *
-     * @return {@link LoginCredentials}
-     */
-    public LoginCredentials getCredentials() {
-        LoginCredentials credentials = getNodeMetaData().getCredentials();
-        if (credentials == null) {
-            LOGGER.info("Using credentials from CloudSlave instance");
-            credentials = LoginCredentials.builder().user(user).password(password).privateKey(privateKey).authenticateSudo(authSudo).build();
-        } else {
-            LOGGER.info("Using credentials from JClouds");
-        }
-        return credentials;
     }
 
     /**

@@ -32,7 +32,6 @@ The above command will start jenkins with JClouds plugin pre-configured.
   - Retention Time: How long, in minutes, to wait for a slave to remain idle before disconnecting and terminating it. Defaults to 30.
   - Identity : your accessId
   - Credential: your secret key
-  - RSA Private Key/Public Key: If you have a keypair, then just copy paste the public and private key parts, otherwise click on `Generate Key Pair` button.
   - Click on `Test Connection` to validate the cloud settings.
   
 * Add Cloud Instance Template by clicking on the Add button

@@ -3,7 +3,6 @@ package jenkins.plugins.jclouds.compute;
 import static shaded.com.google.common.base.Throwables.propagate;
 import static shaded.com.google.common.collect.Iterables.getOnlyElement;
 import static shaded.com.google.common.collect.Lists.newArrayList;
-import static org.jclouds.scriptbuilder.domain.Statements.newStatementList;
 import static java.util.Collections.sort;
 
 import java.io.IOException;
@@ -16,6 +15,11 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPassword;
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.common.UsernameCredentials;
 import hudson.Extension;
 import hudson.RelativePath;
 import hudson.Util;
@@ -52,8 +56,6 @@ import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.jclouds.scriptbuilder.domain.Statements;
-import org.jclouds.scriptbuilder.statements.java.InstallJDK;
-import org.jclouds.scriptbuilder.statements.login.AdminAccess;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -93,13 +95,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String userData;
     public final String numExecutors;
     public final boolean stopOnTerminate;
-    public final String vmUser;
-    public final String vmPassword;
     private final String jvmOptions;
-    public final boolean preExistingJenkinsUser;
-    private final String jenkinsUser;
     private final String fsRoot;
-    public final boolean allowSudo;
     public final boolean installPrivateKey;
     public final int overrideRetentionTime;
     public final int spoolDelayMs;
@@ -120,9 +117,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId, final double cores,
                                 final int ram, final String osFamily, final String osVersion, final String locationId, final String labelString, final String description,
-                                final String initScript, final String userData, final String numExecutors, final boolean stopOnTerminate, final String vmPassword,
-                                final String vmUser, final String jvmOptions, final boolean preExistingJenkinsUser,
-                                final String fsRoot, final boolean allowSudo, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
+                                final String initScript, final String userData, final String numExecutors, final boolean stopOnTerminate, final String jvmOptions,
+                                final String fsRoot, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
                                 final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName,
                                 final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
 
@@ -143,9 +139,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
         this.stopOnTerminate = stopOnTerminate;
 
-        this.preExistingJenkinsUser = preExistingJenkinsUser;
         this.fsRoot = Util.fixEmptyAndTrim(fsRoot);
-        this.allowSudo = allowSudo;
         this.installPrivateKey = installPrivateKey;
         this.overrideRetentionTime = overrideRetentionTime;
         this.spoolDelayMs = spoolDelayMs;
@@ -157,9 +151,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.networks = networks;
         this.securityGroups = securityGroups;
         this.credentialsId = credentialsId;
-        jenkinsUser = (null == credentialsId) ? "" : SSHLauncher.lookupSystemCredentials(credentialsId).getUsername();
-        this.vmPassword = Util.fixEmptyAndTrim(vmPassword);
-        this.vmUser = Util.fixEmptyAndTrim(vmUser);
         readResolve();
     }
 
@@ -173,14 +164,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     protected Object readResolve() {
         labelSet = Label.parse(labelString);
         return this;
-    }
-
-    public String getJenkinsUser() {
-        if (jenkinsUser == null || jenkinsUser.equals("")) {
-            return "jenkins";
-        } else {
-            return jenkinsUser;
-        }
     }
 
     public String getJvmOptions() {
@@ -284,19 +267,22 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.as(CloudStackTemplateOptions.class).setupStaticNat(assignPublicIp);
         }
 
-        String adminUser = vmUser;
-        if (this.preExistingJenkinsUser && Strings.isNullOrEmpty(adminUser)) {
-            adminUser = getJenkinsUser();
+        StandardUsernameCredentials credentials = SSHLauncher.lookupSystemCredentials(credentialsId);
+        LoginCredentials loginCredentials = null;
+
+        if (credentials instanceof StandardUsernamePasswordCredentials) {
+            loginCredentials = LoginCredentials.builder()
+                .user(credentials.getUsername())
+                .password(((StandardUsernamePasswordCredentials) credentials).getPassword().getPlainText())
+                .build();
+        } else if (credentials instanceof SSHUserPrivateKey) {
+            loginCredentials = LoginCredentials.builder().
+                user(credentials.getUsername()).
+                privateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey()).build();
+        } else {
+            throw new AssertionError("Invalid configuration. Cant use neither privateKey auth not password");
         }
-        if (!Strings.isNullOrEmpty(vmPassword)) {
-            LoginCredentials lc = LoginCredentials.builder().user(adminUser).password(vmPassword).build();
-            options.overrideLoginCredentials(lc);
-        } else if (!Strings.isNullOrEmpty(getCloud().privateKey) && !Strings.isNullOrEmpty(adminUser)) {
-            // Skip overriding the credentials if we don't have a VM admin user specified - there are cases where we want the private
-            // key but we don't to use it for the admin user creds.
-            LoginCredentials lc = LoginCredentials.builder().user(adminUser).privateKey(getCloud().privateKey).build();
-            options.overrideLoginCredentials(lc);
-        }
+        options.overrideLoginCredentials(loginCredentials);
 
         if (spoolDelayMs > 0) {
             // (JENKINS-15970) Add optional delay before spooling. Author: Adam Rofer
@@ -309,32 +295,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         }
 
-        Statement initStatement = null;
-        if (this.preExistingJenkinsUser) {
-            if (this.initScript.length() > 0) {
-                initStatement = Statements.exec(this.initScript);
-            }
-        } else {
-            // setup the jcloudTemplate to customize the nodeMetadata with jdk, etc. also opening ports
-            AdminAccess adminAccess = AdminAccess.builder().adminUsername(getJenkinsUser())
-                    .installAdminPrivateKey(installPrivateKey) // some VCS such as Git use SSH authentication
-                    .grantSudoToAdminUser(allowSudo) // no need
-                    .adminPrivateKey(getCloud().privateKey) // temporary due to jclouds bug
-                    .authorizeAdminPublicKey(true).adminPublicKey(getCloud().publicKey).adminHome(getFsRoot()).build();
-
-            // Jenkins needs /jenkins dir.
-            Statement jenkinsDirStatement = newStatementList(Statements.exec("mkdir -p " + getFsRoot()),
-                    Statements.exec("chown " + getJenkinsUser() + " " + getFsRoot()));
-
-            initStatement = newStatementList(adminAccess, jenkinsDirStatement, Statements.exec(this.initScript));
-        }
-
         options.inboundPorts(22).userMetadata(userMetadata);
 
-        Statement bootstrap = initStatement;
-        if (bootstrap != null) {
-            options.runScript(bootstrap);
-        }
+        options.runScript(Statements.exec(this.initScript));
 
         if (userData != null) {
             try {
@@ -347,7 +310,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         NodeMetadata nodeMetadata = null;
-
         try {
             nodeMetadata = getOnlyElement(getCloud().getCompute().createNodesInGroup(name, 1, template));
         } catch (RunNodesException e) {
