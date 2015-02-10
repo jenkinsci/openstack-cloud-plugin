@@ -36,8 +36,6 @@ public class JCloudsLauncher extends ComputerLauncher {
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
         final String[] addresses = getConnectionAddresses(slave.getNodeMetaData(), logger);
 
-        slave.waitForPhoneHome(logger);
-
         String host = addresses[0];
         if ("0.0.0.0".equals(host)) {
             logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");

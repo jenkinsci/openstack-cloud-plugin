@@ -21,11 +21,7 @@
   <f:entry title="Number of Instances" field="count">
     <f:textbox />
   </f:entry>
-  
-  <f:entry title="${%Stop on Terminate}" field="suspendOrTerminate">
-    <f:checkbox />
-  </f:entry>
-  
+
   <f:entry>
     <div align="right">
       <f:repeatableDeleteButton />

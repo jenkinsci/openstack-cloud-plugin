@@ -21,13 +21,13 @@
         <f:password/>
     </f:entry>
     <f:advanced>
-        <f:entry title="Init Script Timeout" field="scriptTimeout">
+        <f:entry title="Default Init Script Timeout" field="scriptTimeout">
             <f:textbox default="600000"/>
         </f:entry>
-        <f:entry title="Instance Startup Timeout" field="startTimeout">
+        <f:entry title="Default Instance Startup Timeout" field="startTimeout">
             <f:textbox default="600000"/>
         </f:entry>
-        <f:entry title="Available Openstack Zones" field="zones">
+        <f:entry title="Default Openstack Zones" field="zones">
             <f:textbox/>
         </f:entry>
     </f:advanced>

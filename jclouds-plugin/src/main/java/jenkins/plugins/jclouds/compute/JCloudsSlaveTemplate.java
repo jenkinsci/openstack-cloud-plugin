@@ -7,19 +7,13 @@ import static java.util.Collections.sort;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPassword;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import com.cloudbees.plugins.credentials.common.UsernameCredentials;
 import hudson.Extension;
 import hudson.RelativePath;
 import hudson.Util;
@@ -36,27 +30,18 @@ import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
-import org.jclouds.cloudstack.compute.options.CloudStackTemplateOptions;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.RunNodesException;
-import org.jclouds.compute.domain.Hardware;
-import org.jclouds.compute.domain.Image;
-import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.compute.domain.OsFamily;
-import org.jclouds.compute.domain.Template;
-import org.jclouds.compute.domain.TemplateBuilder;
+import org.jclouds.compute.domain.*;
 import org.jclouds.compute.options.TemplateOptions;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.predicates.validators.DnsNameValidator;
-import org.jclouds.scriptbuilder.domain.Statement;
 import org.jclouds.scriptbuilder.domain.Statements;
-import org.jclouds.scriptbuilder.statements.login.AdminAccess;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -85,15 +70,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String imageId;
     public final String imageNameRegex;
     public final String hardwareId;
-    public final double cores;
-    public final int ram;
-    public final String osFamily;
     public final String labelString;
-    public final String description;
-    public final String osVersion;
     public final String locationId;
     public final String initScript;
-    public final String userData;
     public final String numExecutors;
     public final boolean stopOnTerminate;
     private final String jvmOptions;
@@ -102,11 +81,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final int overrideRetentionTime;
     public final int spoolDelayMs;
     private final Object delayLockObject = new Object();
-    public final boolean assignFloatingIp;
-    public final boolean waitPhoneHome;
-    public final int waitPhoneHomeTimeout;
     public final String keyPairName;
-    public final boolean assignPublicIp;
     public final String networks;
     public final String securityGroups;
     public final String credentialsId;
@@ -116,26 +91,19 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     protected transient JCloudsCloud cloud;
 
     @DataBoundConstructor
-    public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId, final double cores,
-                                final int ram, final String osFamily, final String osVersion, final String locationId, final String labelString, final String description,
-                                final String initScript, final String userData, final String numExecutors, final boolean stopOnTerminate, final String jvmOptions,
+    public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId,
+                                final String locationId, final String labelString,
+                                final String initScript, final String numExecutors, final boolean stopOnTerminate, final String jvmOptions,
                                 final String fsRoot, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
-                                final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName,
-                                final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
+                                final String keyPairName, final String networks, final String securityGroups, final String credentialsId) {
 
         this.name = Util.fixEmptyAndTrim(name);
         this.imageId = Util.fixEmptyAndTrim(imageId);
         this.imageNameRegex = Util.fixEmptyAndTrim(imageNameRegex);
         this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
-        this.cores = cores;
-        this.ram = ram;
-        this.osFamily = Util.fixNull(osFamily);
-        this.osVersion = Util.fixNull(osVersion);
         this.locationId = Util.fixEmptyAndTrim(locationId);
         this.labelString = Util.fixNull(labelString);
-        this.description = Util.fixNull(description);
         this.initScript = Util.fixNull(initScript);
-        this.userData = Util.fixNull(userData);
         this.numExecutors = Util.fixNull(numExecutors);
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
         this.stopOnTerminate = stopOnTerminate;
@@ -144,11 +112,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.installPrivateKey = installPrivateKey;
         this.overrideRetentionTime = overrideRetentionTime;
         this.spoolDelayMs = spoolDelayMs;
-        this.assignFloatingIp = assignFloatingIp;
-        this.waitPhoneHome = waitPhoneHome;
-        this.waitPhoneHomeTimeout = waitPhoneHomeTimeout;
         this.keyPairName = keyPairName;
-        this.assignPublicIp = assignPublicIp;
         this.networks = networks;
         this.securityGroups = securityGroups;
         this.credentialsId = credentialsId;
@@ -195,9 +159,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         NodeMetadata nodeMetadata = get();
 
         try {
-            return new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString, description,
-                    numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), waitPhoneHome,
-                    waitPhoneHomeTimeout, credentialsId);
+            return new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString,
+                    numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), credentialsId);
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }
@@ -214,22 +177,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         } else if (!Strings.isNullOrEmpty(imageNameRegex)) {
             LOGGER.info("Setting image name regex to " + imageNameRegex);
             templateBuilder.imageNameMatches(imageNameRegex);
-        } else {
-            if (!Strings.isNullOrEmpty(osFamily)) {
-                LOGGER.info("Setting osFamily to " + osFamily);
-                templateBuilder.osFamily(OsFamily.fromValue(osFamily));
-            }
-            if (!Strings.isNullOrEmpty(osVersion)) {
-                LOGGER.info("Setting osVersion to " + osVersion);
-                templateBuilder.osVersionMatches(osVersion);
-            }
         }
         if (!Strings.isNullOrEmpty((hardwareId))) {
             LOGGER.info("Setting hardware Id to " + hardwareId);
             templateBuilder.hardwareId(hardwareId);
-        } else {
-            LOGGER.info("Setting minRam " + ram + " and minCores " + cores);
-            templateBuilder.minCores(cores).minRam(ram);
         }
         if (!Strings.isNullOrEmpty(locationId)) {
             LOGGER.info("Setting location Id to " + locationId);
@@ -249,23 +200,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.securityGroups(csvToArray(securityGroups));
         }
 
-        if (assignFloatingIp && options instanceof NovaTemplateOptions) {
-            LOGGER.info("Setting autoAssignFloatingIp to true");
-            options.as(NovaTemplateOptions.class).autoAssignFloatingIp(true);
-        }
-
         if (!Strings.isNullOrEmpty((keyPairName)) && options instanceof NovaTemplateOptions) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
             options.as(NovaTemplateOptions.class).keyPairName(keyPairName);
-        }
-
-        if (options instanceof CloudStackTemplateOptions) {
-            /**
-             * This tells jclouds cloudstack module to assign a public ip, setup staticnat and configure the firewall when true. Only interesting when using
-             * cloudstack advanced networking.
-             */
-            LOGGER.info("Setting setupStaticNat to " + assignPublicIp);
-            options.as(CloudStackTemplateOptions.class).setupStaticNat(assignPublicIp);
         }
 
         StandardUsernameCredentials credentials = SSHLauncher.lookupSystemCredentials(credentialsId);
@@ -302,16 +239,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         options.inboundPorts(22).userMetadata(userMetadata);
         options.runScript(Statements.exec(this.initScript));
-
-        if (userData != null) {
-            try {
-                Method userDataMethod = options.getClass().getMethod("userData", new byte[0].getClass());
-                LOGGER.info("Setting userData to " + userData);
-                userDataMethod.invoke(options, userData.getBytes());
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "userData is not supported by provider options class " + options.getClass().getName(), e);
-            }
-        }
 
         NodeMetadata nodeMetadata = null;
         try {
@@ -364,14 +291,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         }
 
-        public FormValidation doCheckCores(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckRam(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
         public AutoCompletionCandidates doAutoCompleteOsFamily(@QueryParameter final String value) {
             OsFamily[] osFamilies = OsFamily.values();
 
@@ -389,251 +308,80 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return FormValidation.validatePositiveInteger(value);
         }
 
-        public FormValidation doValidateImageId(@QueryParameter String providerName, @QueryParameter String identity, @QueryParameter String credential,
-                                                @QueryParameter String endPointUrl, @QueryParameter String imageId, @QueryParameter String zones) {
-
-            final FormValidation computeContextValidationResult = validateComputeContextParameters(providerName, identity, credential, endPointUrl, zones);
-            if (computeContextValidationResult != null) {
-                return computeContextValidationResult;
-            }
-            if (Strings.isNullOrEmpty(imageId)) {
-                return FormValidation.error("Image Id shouldn't be empty");
-            }
-
-            // Remove empty text/whitespace from the fields.
-            imageId = Util.fixEmptyAndTrim(imageId);
-
-            try {
-                final Set<? extends Image> images = listImages(providerName, identity, Secret.fromString(credential).getPlainText(), endPointUrl, zones);
-                if (images != null) {
-                    for (final Image image : images) {
-                        if (!image.getId().equals(imageId)) {
-                            if (image.getId().contains(imageId)) {
-                                return FormValidation.warning("Sorry cannot find the image id, " + "Did you mean: " + image.getId() + "?\n" + image);
-                            }
-                        } else {
-                            return FormValidation.ok("Image Id is valid.");
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                return FormValidation.error("Unable to check the image id, " + "please check if the credentials you provided are correct.", ex);
-            }
-            return FormValidation.error("Invalid Image Id, please check the value and try again.");
+        public ListBoxModel doFillImageIdItems(@RelativePath("..") @QueryParameter String providerName,
+                                               @RelativePath("..") @QueryParameter String identity,
+                                               @RelativePath("..") @QueryParameter String credential,
+                                               @RelativePath("..") @QueryParameter String endPointUrl,
+                                               @RelativePath("..") @QueryParameter String zones) {
+            return doFillItems(providerName, identity, credential, endPointUrl, zones, new ListImages());
         }
 
-        public FormValidation doValidateImageNameRegex(@QueryParameter String providerName, @QueryParameter String identity, @QueryParameter String credential,
-                                                       @QueryParameter String endPointUrl, @QueryParameter String imageNameRegex, @QueryParameter String zones) {
-
-            final FormValidation computeContextValidationResult = validateComputeContextParameters(providerName, identity, Secret.fromString(credential).getPlainText(), endPointUrl, zones);
-            if (computeContextValidationResult != null) {
-                return computeContextValidationResult;
-            }
-            if (Strings.isNullOrEmpty(imageNameRegex)) {
-                return FormValidation.error("Image Name Regex shouldn't be empty");
-            }
-
-            // Remove empty text/whitespace from the fields.
-            imageNameRegex = Util.fixEmptyAndTrim(imageNameRegex);
-
-            try {
-                final Set<? extends Image> images = listImages(providerName, identity, Secret.fromString(credential).getPlainText(), endPointUrl, zones);
-                if (images != null) {
-                    for (final Image image : images) {
-                        if (image.getName().matches(imageNameRegex)) {
-                            return FormValidation.ok("Image Name Regex is valid.");
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                return FormValidation.error("Unable to check the image name regex, " + "please check if the credentials you provided are correct.", ex);
-            }
-            return FormValidation.error("Invalid Image Name Regex, please check the value and try again.");
-        }
-
-        private FormValidation validateComputeContextParameters(@QueryParameter String providerName, @QueryParameter String identity,
-                                                                @QueryParameter String credential, @QueryParameter String endPointUrl, @QueryParameter String zones) {
-            if (Strings.isNullOrEmpty(identity)) {
-                return FormValidation.error("Invalid identity (AccessId).");
-            }
-            if (Strings.isNullOrEmpty(credential)) {
-                return FormValidation.error("Invalid credential (secret key).");
-            }
-            if (Strings.isNullOrEmpty(providerName)) {
-                return FormValidation.error("Provider Name shouldn't be empty");
-            }
-
-            return null;
-        }
-
-        private Set<? extends Image> listImages(String providerName, String identity, String credential, String endPointUrl, String zones) {
-            // Remove empty text/whitespace from the fields.
-            providerName = Util.fixEmptyAndTrim(providerName);
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-            zones = Util.fixEmptyAndTrim(zones);
-            ComputeService computeService = null;
-
-            try {
-                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
-                return computeService.listImages();
-            } finally {
-                if (computeService != null) {
-                    computeService.getContext().close();
-                }
-            }
-        }
-
-        public ListBoxModel doFillHardwareIdItems(@RelativePath("..") @QueryParameter String providerName, @RelativePath("..") @QueryParameter String identity,
-                                                  @RelativePath("..") @QueryParameter String credential, @RelativePath("..") @QueryParameter String endPointUrl,
+        public ListBoxModel doFillHardwareIdItems(@RelativePath("..") @QueryParameter String providerName,
+                                                  @RelativePath("..") @QueryParameter String identity,
+                                                  @RelativePath("..") @QueryParameter String credential,
+                                                  @RelativePath("..") @QueryParameter String endPointUrl,
                                                   @RelativePath("..") @QueryParameter String zones) {
+            return doFillItems(providerName, identity, credential, endPointUrl, zones, new ListHardwareProfiles());
+        }
 
-            ListBoxModel m = new ListBoxModel();
+        public ListBoxModel doFillLocationIdItems(@RelativePath("..") @QueryParameter String providerName,
+                                                  @RelativePath("..") @QueryParameter String identity,
+                                                  @RelativePath("..") @QueryParameter String credential,
+                                                  @RelativePath("..") @QueryParameter String endPointUrl,
+                                                  @RelativePath("..") @QueryParameter String zones) {
+            return doFillItems(providerName, identity, credential, endPointUrl, zones, new ListLocations());
+        }
+
+        private ListBoxModel doFillItems(String providerName,
+                                         String identity,
+                                         String credential,
+                                         String endPointUrl,
+                                         String zones,
+                                         ListMetadataCommand command) {
+
+            ListBoxModel listBox = new ListBoxModel();
 
             if (Strings.isNullOrEmpty(identity)) {
                 LOGGER.warning("identity is null or empty");
-                return m;
+                return listBox;
             }
             if (Strings.isNullOrEmpty(credential)) {
                 LOGGER.warning("credential is null or empty");
-                return m;
+                return listBox;
             }
             if (Strings.isNullOrEmpty(providerName)) {
                 LOGGER.warning("providerName is null or empty");
-                return m;
+                return listBox;
+            }
+            if (Strings.isNullOrEmpty(zones)) {
+                LOGGER.warning("zones is null or empty");
+                return listBox;
             }
 
-            // Remove empty text/whitespace from the fields.
             providerName = Util.fixEmptyAndTrim(providerName);
             identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-
-            ComputeService computeService = null;
-            m.add("None specified", "");
-            try {
-                // TODO: endpoint is ignored
-                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
-
-                ArrayList<Hardware> hws = newArrayList(computeService.listHardwareProfiles());
-                sort(hws);
-
-                for (Hardware hardware : hws) {
-                    m.add(String.format("%s (%s)", hardware.getId(), hardware.getName()), hardware.getId());
-                }
-            } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-            } finally {
-                if (computeService != null) {
-                    computeService.getContext().close();
-                }
-            }
-
-            return m;
-        }
-
-        public FormValidation doValidateHardwareId(@QueryParameter String providerName, @QueryParameter String identity, @QueryParameter String credential,
-                                                   @QueryParameter String endPointUrl, @QueryParameter String hardwareId, @QueryParameter String zones) {
-
-            if (Strings.isNullOrEmpty(identity)) {
-                return FormValidation.error("Invalid identity (AccessId).");
-            }
-            if (Strings.isNullOrEmpty(credential)) {
-                return FormValidation.error("Invalid credential (secret key).");
-            }
-            if (Strings.isNullOrEmpty(providerName)) {
-                return FormValidation.error("Provider Name shouldn't be empty");
-            }
-            if (Strings.isNullOrEmpty(hardwareId)) {
-                return FormValidation.error("Hardware Id shouldn't be empty");
-            }
-
-            // Remove empty text/whitespace from the fields.
-            providerName = Util.fixEmptyAndTrim(providerName);
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            hardwareId = Util.fixEmptyAndTrim(hardwareId);
+            credential = Util.fixEmptyAndTrim(credential);
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             zones = Util.fixEmptyAndTrim(zones);
 
-            FormValidation result = FormValidation.error("Invalid Hardware Id, please check the value and try again.");
             ComputeService computeService = null;
+            listBox.add("None specified", "");
             try {
-                // TODO: endpoint is ignored
                 computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
-                Set<? extends Hardware> hardwareProfiles = computeService.listHardwareProfiles();
-                for (Hardware hardware : hardwareProfiles) {
-                    if (!hardware.getId().equals(hardwareId)) {
-                        if (hardware.getId().contains(hardwareId)) {
-                            return FormValidation.warning("Sorry cannot find the hardware id, " + "Did you mean: " + hardware.getId() + "?\n" + hardware);
-                        }
-                    } else {
-                        return FormValidation.ok("Hardware Id is valid.");
-                    }
+                Set<? extends ComputeMetadata> computeMetadata = command.execute(computeService);
+                for (ComputeMetadata metadata : computeMetadata) {
+                    listBox.add(String.format("%s (%s)", metadata.getId(), metadata.getName()), metadata.getId());
                 }
 
             } catch (Exception ex) {
-                result = FormValidation.error("Unable to check the hardware id, " + "please check if the credentials you provided are correct.", ex);
-            } finally {
-                if (computeService != null) {
-                    computeService.getContext().close();
-                }
-            }
-            return result;
-        }
 
-        public ListBoxModel doFillLocationIdItems(@RelativePath("..") @QueryParameter String providerName, @RelativePath("..") @QueryParameter String identity,
-                                                  @RelativePath("..") @QueryParameter String credential, @RelativePath("..") @QueryParameter String endPointUrl,
-                                                  @RelativePath("..") @QueryParameter String zones) {
-
-            ListBoxModel m = new ListBoxModel();
-
-            if (Strings.isNullOrEmpty(identity)) {
-                LOGGER.warning("identity is null or empty");
-                return m;
-            }
-            if (Strings.isNullOrEmpty(credential)) {
-                LOGGER.warning("credential is null or empty");
-                return m;
-            }
-            if (Strings.isNullOrEmpty(providerName)) {
-                LOGGER.warning("providerName is null or empty");
-                return m;
-            }
-
-            // Remove empty text/whitespace from the fields.
-            providerName = Util.fixEmptyAndTrim(providerName);
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-
-            ComputeService computeService = null;
-            m.add("None specified", "");
-            try {
-                // TODO: endpoint is ignored
-                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
-
-                ArrayList<Location> locations = newArrayList(computeService.listAssignableLocations());
-                sort(locations, new Comparator<Location>() {
-                    @Override
-                    public int compare(Location o1, Location o2) {
-                        return o1.getId().compareTo(o2.getId());
-                    }
-                });
-
-                for (Location location : locations) {
-                    m.add(String.format("%s (%s)", location.getId(), location.getDescription()), location.getId());
-                }
-            } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
             } finally {
                 if (computeService != null) {
                     computeService.getContext().close();
                 }
             }
 
-            return m;
+            return listBox;
         }
 
         public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
@@ -643,57 +391,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return new StandardUsernameListBoxModel().withMatching(SSHAuthenticator.matcher(Connection.class),
                     CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class, context,
                             ACL.SYSTEM, SSHLauncher.SSH_SCHEME));
-        }
-
-        public FormValidation doValidateLocationId(@QueryParameter String providerName, @QueryParameter String identity, @QueryParameter String credential,
-                                                   @QueryParameter String endPointUrl, @QueryParameter String locationId, @QueryParameter String zones) {
-
-            if (Strings.isNullOrEmpty(identity)) {
-                return FormValidation.error("Invalid identity (AccessId).");
-            }
-            if (Strings.isNullOrEmpty(credential)) {
-                return FormValidation.error("Invalid credential (secret key).");
-            }
-            if (Strings.isNullOrEmpty(providerName)) {
-                return FormValidation.error("Provider Name shouldn't be empty");
-            }
-
-            if (Strings.isNullOrEmpty(locationId)) {
-                return FormValidation.ok("No location configured. jclouds automatically will choose one.");
-            }
-
-            // Remove empty text/whitespace from the fields.
-            providerName = Util.fixEmptyAndTrim(providerName);
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Util.fixEmptyAndTrim(credential);
-            locationId = Util.fixEmptyAndTrim(locationId);
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-            zones = Util.fixEmptyAndTrim(zones);
-
-            FormValidation result = FormValidation.error("Invalid Location Id, please check the value and try again.");
-            ComputeService computeService = null;
-            try {
-                // TODO: endpoint is ignored
-                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
-                Set<? extends Location> locations = computeService.listAssignableLocations();
-                for (Location location : locations) {
-                    if (!location.getId().equals(locationId)) {
-                        if (location.getId().contains(locationId)) {
-                            return FormValidation.warning("Sorry cannot find the location id, " + "Did you mean: " + location.getId() + "?\n" + location);
-                        }
-                    } else {
-                        return FormValidation.ok("Location Id is valid.");
-                    }
-                }
-
-            } catch (Exception ex) {
-                result = FormValidation.error("Unable to check the location id, " + "please check if the credentials you provided are correct.", ex);
-            } finally {
-                if (computeService != null) {
-                    computeService.getContext().close();
-                }
-            }
-            return result;
         }
 
         public FormValidation doCheckOverrideRetentionTime(@QueryParameter String value) {
@@ -708,6 +405,139 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         public FormValidation doCheckSpoolDelayMs(@QueryParameter String value) {
             return FormValidation.validateNonNegativeInteger(value);
+        }
+
+        interface ComputeMetadataBehavior {
+            public String getName();
+            public Set<? extends ComputeMetadata> list(ComputeService computeService);
+        }
+
+        private class ImageBehavior implements ComputeMetadataBehavior {
+            public String getName() { return Image.class.getSimpleName(); }
+            public Set<? extends Image> list(ComputeService computeService) {
+                return computeService.listImages();
+            }
+        }
+
+        private class HardwareBehavior implements ComputeMetadataBehavior {
+            public String getName() { return Hardware.class.getSimpleName(); }
+            public Set<? extends Hardware> list(ComputeService computeService) {
+                return computeService.listHardwareProfiles();
+            }
+        }
+
+        private class LocationBehavior implements ComputeMetadataBehavior {
+            public String getName() { return Location.class.getSimpleName(); }
+            public Set<? extends Hardware> list(ComputeService computeService) {
+                return computeService.listHardwareProfiles();
+            }
+        }
+
+        public FormValidation doValidateImageId(@QueryParameter String providerName,
+                                                @QueryParameter String identity,
+                                                @QueryParameter String credential,
+                                                @QueryParameter String endPointUrl,
+                                                @QueryParameter String zones,
+                                                @QueryParameter String imageId) {
+            return doValidateId(providerName, identity, credential, endPointUrl, zones, imageId, new ImageBehavior());
+        }
+
+        public FormValidation doValidateHardwareId(@QueryParameter String providerName,
+                                                   @QueryParameter String identity,
+                                                   @QueryParameter String credential,
+                                                   @QueryParameter String endPointUrl,
+                                                   @QueryParameter String zones,
+                                                   @QueryParameter String hardwareId) {
+            return doValidateId(providerName, identity, credential, endPointUrl, zones, hardwareId, new HardwareBehavior());
+        }
+
+        public FormValidation doValidateLocationId(@QueryParameter String providerName,
+                                                @QueryParameter String identity,
+                                                @QueryParameter String credential,
+                                                @QueryParameter String endPointUrl,
+                                                @QueryParameter String zones,
+                                                @QueryParameter String imageId) {
+            return doValidateId(providerName, identity, credential, endPointUrl, zones, imageId, new LocationBehavior());
+        }
+
+        private FormValidation doValidateId(String providerName,
+                                            String identity,
+                                            String credential,
+                                            String endPointUrl,
+                                            String thingId,
+                                            String zones,
+                                            ComputeMetadataBehavior computeMetadataBehavior) {
+
+            if (Strings.isNullOrEmpty(identity))
+                return FormValidation.error("Invalid identity (AccessId).");
+            if (Strings.isNullOrEmpty(credential))
+                return FormValidation.error("Invalid credential.");
+            if (Strings.isNullOrEmpty(providerName))
+                return FormValidation.error("Provider Name shouldn't be empty");
+            if (Strings.isNullOrEmpty(zones))
+                return FormValidation.error("Zones shouldn't be empty");
+
+            String computeMetadataName = computeMetadataBehavior.getName();
+            if (Strings.isNullOrEmpty(thingId)) {
+                return FormValidation.error(String.format("%s Id shouldn't be empty", computeMetadataName));
+            }
+
+            providerName = Util.fixEmptyAndTrim(providerName);
+            identity = Util.fixEmptyAndTrim(identity);
+            credential = Util.fixEmptyAndTrim(credential);
+            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
+            thingId = Util.fixEmptyAndTrim(thingId);
+            zones = Util.fixEmptyAndTrim(zones);
+
+            FormValidation result = FormValidation.error(
+                    String.format("Invalid %s Id, please check the value and try again.", computeMetadataName));
+            ComputeService computeService = null;
+            try {
+                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
+                Set<? extends ComputeMetadata> computeMetadata = computeMetadataBehavior.list(computeService);
+                for (ComputeMetadata metadata : computeMetadata) {
+                    String metadataId = metadata.getId();
+                    if (!metadataId.equals(thingId)) {
+                        if (metadataId.contains(thingId)) {
+                            result = FormValidation.warning(String.format("Sorry cannot find the %s id, " +
+                                    "Did you mean: %s ?\n" + metadata, computeMetadataName, metadataId));
+                        }
+                    } else {
+                        result = FormValidation.ok(String.format("%s Id is valid.", computeMetadataName));
+                    }
+                }
+
+            } catch (Exception ex) {
+                result = FormValidation.error(String.format("Unable to check the %s id, " +
+                        "please check if the credentials you provided are correct.", computeMetadataName), ex);
+            } finally {
+                if (computeService != null) {
+                    computeService.getContext().close();
+                }
+            }
+            return result;
+        }
+
+        interface ListMetadataCommand {
+            public Set<? extends ComputeMetadata> execute(ComputeService cs);
+        }
+
+        class ListImages implements ListMetadataCommand {
+            public Set<? extends ComputeMetadata> execute(ComputeService cs) {
+                return cs.listImages();
+            }
+        }
+
+        class ListHardwareProfiles implements ListMetadataCommand {
+            public Set<? extends ComputeMetadata> execute(ComputeService cs) {
+                return cs.listHardwareProfiles();
+            }
+        }
+
+        class ListLocations implements ListMetadataCommand {
+            public Set<? extends ComputeMetadata> execute(ComputeService cs) {
+                return cs.listHardwareProfiles();
+            }
         }
     }
 }

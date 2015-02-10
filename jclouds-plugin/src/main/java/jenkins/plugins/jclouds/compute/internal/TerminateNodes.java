@@ -26,11 +26,7 @@ public class TerminateNodes implements Function<Iterable<RunningNode>, Void> {
         Builder<String, String> cloudNodesToSuspendBuilder = ImmutableMultimap.<String, String>builder();
         Builder<String, String> cloudNodesToDestroyBuilder = ImmutableMultimap.<String, String>builder();
         for (RunningNode cloudTemplateNode : runningNode) {
-            if (cloudTemplateNode.isSuspendOrTerminate()) {
-                cloudNodesToSuspendBuilder.put(cloudTemplateNode.getCloudName(), cloudTemplateNode.getNode().getId());
-            } else {
-                cloudNodesToDestroyBuilder.put(cloudTemplateNode.getCloudName(), cloudTemplateNode.getNode().getId());
-            }
+            cloudNodesToDestroyBuilder.put(cloudTemplateNode.getCloudName(), cloudTemplateNode.getNode().getId());
         }
         Multimap<String, String> cloudNodesToSuspend = cloudNodesToSuspendBuilder.build();
         Multimap<String, String> cloudNodesToDestroy = cloudNodesToDestroyBuilder.build();
