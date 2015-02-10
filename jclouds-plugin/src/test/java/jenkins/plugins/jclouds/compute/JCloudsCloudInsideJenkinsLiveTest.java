@@ -24,13 +24,13 @@ public class JCloudsCloudInsideJenkinsLiveTest extends HudsonTestCase {
 
         // TODO: this may need to vary per test
         cloud = new JCloudsCloud(fixture.getProvider() + "-profile", fixture.getProvider(), fixture.getIdentity(), fixture.getCredential(),
-                generatedKeys.get("private"), generatedKeys.get("public"), fixture.getEndpoint(), 1, 30, 600 * 1000, 600 * 1000, null,
+                fixture.getEndpoint(), 1, 30, 600 * 1000, 600 * 1000, null,
                 Collections.<JCloudsSlaveTemplate>emptyList());
     }
 
     public void testDoTestConnectionCorrectCredentialsEtc() throws IOException {
         FormValidation result = new JCloudsCloud.DescriptorImpl().doTestConnection(fixture.getProvider(), fixture.getIdentity(), fixture.getCredential(),
-                generatedKeys.get("private"), fixture.getEndpoint(), null);
+                fixture.getEndpoint(), null);
         assertEquals("Connection succeeded!", result.getMessage());
     }
 

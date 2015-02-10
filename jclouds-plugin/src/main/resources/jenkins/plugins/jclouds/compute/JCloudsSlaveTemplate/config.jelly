@@ -96,7 +96,7 @@
           <f:textarea />
         </f:entry>
 
-        <f:entry title="${%Jenkins Credentials}" field="credentialsId">
+        <f:entry title="${%SSH Credentials}" field="credentialsId">
             <c:select/>
         </f:entry>
 
