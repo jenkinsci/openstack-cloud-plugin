@@ -56,6 +56,7 @@ import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.jclouds.scriptbuilder.domain.Statements;
+import org.jclouds.scriptbuilder.statements.login.AdminAccess;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -284,6 +285,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
         options.overrideLoginCredentials(loginCredentials);
 
+        if (installPrivateKey && credentials instanceof SSHUserPrivateKey) {
+            options.installPrivateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey());
+        }
+
         if (spoolDelayMs > 0) {
             // (JENKINS-15970) Add optional delay before spooling. Author: Adam Rofer
             synchronized (delayLockObject) {
@@ -296,7 +301,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         options.inboundPorts(22).userMetadata(userMetadata);
-
         options.runScript(Statements.exec(this.initScript));
 
         if (userData != null) {
