@@ -95,7 +95,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final boolean stopOnTerminate;
     public final String vmUser;
     public final String vmPassword;
-    public final boolean preInstalledJava;
     private final String jvmOptions;
     public final boolean preExistingJenkinsUser;
     private final String jenkinsUser;
@@ -122,7 +121,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId, final double cores,
                                 final int ram, final String osFamily, final String osVersion, final String locationId, final String labelString, final String description,
                                 final String initScript, final String userData, final String numExecutors, final boolean stopOnTerminate, final String vmPassword,
-                                final String vmUser, final boolean preInstalledJava, final String jvmOptions, final boolean preExistingJenkinsUser,
+                                final String vmUser, final String jvmOptions, final boolean preExistingJenkinsUser,
                                 final String fsRoot, final boolean allowSudo, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
                                 final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName,
                                 final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
@@ -141,7 +140,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.initScript = Util.fixNull(initScript);
         this.userData = Util.fixNull(userData);
         this.numExecutors = Util.fixNull(numExecutors);
-        this.preInstalledJava = preInstalledJava;
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
         this.stopOnTerminate = stopOnTerminate;
 
@@ -312,8 +310,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         Statement initStatement = null;
-        Statement bootstrap = null;
-
         if (this.preExistingJenkinsUser) {
             if (this.initScript.length() > 0) {
                 initStatement = Statements.exec(this.initScript);
@@ -333,18 +329,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             initStatement = newStatementList(adminAccess, jenkinsDirStatement, Statements.exec(this.initScript));
         }
 
-        if (preInstalledJava) {
-            bootstrap = initStatement;
-        } else {
-            if (null == initStatement) {
-                bootstrap = newStatementList(InstallJDK.fromOpenJDK());
-            } else {
-                bootstrap = newStatementList(initStatement, InstallJDK.fromOpenJDK());
-            }
-        }
-
         options.inboundPorts(22).userMetadata(userMetadata);
 
+        Statement bootstrap = initStatement;
         if (bootstrap != null) {
             options.runScript(bootstrap);
         }
