@@ -217,7 +217,7 @@ public class JCloudsCloud extends Cloud {
 
     private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
         jcloudsSlave.waitForPhoneHome(null);
-        Integer launchTimeoutSec = 5 * 60;
+        Integer launchTimeoutSec = this.startTimeout;
         Computer computer = jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
