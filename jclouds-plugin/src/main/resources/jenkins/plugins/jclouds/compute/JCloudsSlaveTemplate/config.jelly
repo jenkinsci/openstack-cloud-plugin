@@ -11,10 +11,10 @@
     </f:section>
     
     <f:section title="Cloud Server Options">
-        <f:entry title="Image Id" field="imageId">
+        <f:entry title="Image" field="imageId">
             <f:select />
         </f:entry>
-        <f:entry title="Hardware Id" field="hardwareId">
+        <f:entry title="Hardware" field="hardwareId">
             <f:select />
         </f:entry>
         <f:entry title="Network" field="networkId">

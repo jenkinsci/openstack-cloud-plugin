@@ -7,6 +7,8 @@ import static java.util.Collections.sort;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -76,6 +78,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String hardwareId;
     public final String labelString;
     public final String initScript;
+    public final String userData;
     public final String numExecutors;
     public final boolean stopOnTerminate;
     private final String jvmOptions;
@@ -95,10 +98,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId,
-                                final String labelString,
-                                final String initScript, final String numExecutors, final boolean stopOnTerminate, final String jvmOptions,
-                                final String fsRoot, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
-                                final String keyPairName, final String networkId, final String securityGroups, final String credentialsId) {
+                                final String labelString, final String initScript, final String userData, final String numExecutors,
+                                final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
+                                final int overrideRetentionTime, final int spoolDelayMs, final String keyPairName, final String networkId,
+                                final String securityGroups, final String credentialsId) {
 
         this.name = Util.fixEmptyAndTrim(name);
         this.imageId = Util.fixEmptyAndTrim(imageId);
@@ -106,6 +109,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
         this.labelString = Util.fixNull(labelString);
         this.initScript = Util.fixNull(initScript);
+        this.userData = Util.fixNull(userData);
         this.numExecutors = Util.fixNull(numExecutors);
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
         this.stopOnTerminate = stopOnTerminate;
@@ -237,6 +241,16 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         options.inboundPorts(22).userMetadata(userMetadata);
         options.runScript(Statements.exec(this.initScript));
+
+        if (!userData.isEmpty()) {
+            try {
+                Method userDataMethod = options.getClass().getMethod("userData");
+                LOGGER.info("Setting userData to " + userData);
+                userDataMethod.invoke(options, userData.getBytes(StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "userData is not supported by provider options class " + options.getClass().getName(), e);
+            }
+        }
 
         NodeMetadata nodeMetadata = null;
         try {
