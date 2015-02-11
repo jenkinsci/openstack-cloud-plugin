@@ -17,8 +17,6 @@
         <f:entry title="Hardware Id" field="hardwareId">
           <f:select />
         </f:entry>
-        <f:validateButton title="${%Check Hardware Id}" progress="${%Checking...}" method="validateHardwareId"
-                            with="providerName,identity,credential,endPointUrl,zones,hardwareId"/>
     </f:section>
 
     <f:section title="Image/OS Options">
@@ -26,8 +24,6 @@
         <f:entry title="Image Id" field="imageId">
           <f:select />
         </f:entry>
-        <f:validateButton title="${%Check Image Id}" progress="${%Checking...}" method="validateImageId"
-                          with="providerName,identity,credential,endPointUrl,zones,imageId"/>
     </f:section>
 
     <f:advanced>
@@ -35,8 +31,6 @@
         <f:entry title="Location Id" field="locationId">
           <f:select />
         </f:entry>
-        <f:validateButton title="${%Check Location Id}" progress="${%Checking...}" method="validateLocationId"
-                          with="providerName,identity,credential,endPointUrl,zones,locationId"/>
       </f:section>
       <f:section title="General Options">
         <f:entry title="Override Retention Time" field="overrideRetentionTime">
@@ -66,8 +60,8 @@
           <f:textbox />
         </f:entry>
 
-        <f:entry title="Networks" field="networks">
-          <f:textbox />
+        <f:entry title="Network" field="networkId">
+          <f:select />
         </f:entry>
 
         <f:entry title="Security Groups" field="securityGroups">

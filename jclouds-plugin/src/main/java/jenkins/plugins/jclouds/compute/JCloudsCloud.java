@@ -41,12 +41,14 @@ import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.enterprise.config.EnterpriseConfigurationModule;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.logging.jdk.config.JDKLoggingModule;
+import org.jclouds.openstack.neutron.v2.NeutronApiMetadata;
 import org.jclouds.providers.Providers;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
+import org.jclouds.openstack.neutron.v2.NeutronApi;
 import shaded.com.google.common.base.Objects;
 import shaded.com.google.common.base.Predicate;
 import shaded.com.google.common.base.Strings;
@@ -148,6 +150,15 @@ public class JCloudsCloud extends Cloud {
         Thread.currentThread().setContextClassLoader(Apis.class.getClassLoader());
         return ContextBuilder.newBuilder(providerName).credentials(identity, credential).overrides(overrides).modules(MODULES)
                 .buildView(ComputeServiceContext.class);
+    }
+
+    static NeutronApi na(String providerName, String identity, String credential, String endPointUrl) {
+        Thread.currentThread().setContextClassLoader(NeutronApiMetadata.class.getClassLoader());
+        return ContextBuilder.newBuilder(new NeutronApiMetadata())
+                        .credentials(identity, credential)
+                        .endpoint(endPointUrl)
+                        .modules(MODULES)
+                        .buildApi(NeutronApi.class);
     }
 
     public ComputeService getCompute() {
