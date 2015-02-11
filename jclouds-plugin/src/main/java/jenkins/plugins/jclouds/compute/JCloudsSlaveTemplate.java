@@ -305,6 +305,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return FormValidation.validatePositiveInteger(value);
         }
 
+        public ListBoxModel doFillSlaveTypeItems(@QueryParameter String name) {
+            ListBoxModel items = new ListBoxModel();
+            items.add("SSH", "SSH");
+            items.add("JNLP", "JNLP");
+
+            return items;
+        }
+
         public ListBoxModel doFillHardwareIdItems(@RelativePath("..") @QueryParameter String identity,
                                                   @RelativePath("..") @QueryParameter String credential,
                                                   @RelativePath("..") @QueryParameter String endPointUrl,
