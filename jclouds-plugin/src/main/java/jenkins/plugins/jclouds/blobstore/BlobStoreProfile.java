@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
 import shaded.com.google.common.collect.ImmutableSet;
 import com.google.inject.Module;
 import hudson.FilePath;
@@ -25,14 +26,12 @@ public class BlobStoreProfile {
     private static final Logger LOGGER = Logger.getLogger(BlobStoreProfile.class.getName());
 
     private String profileName;
-    private String providerName;
     private String identity;
     private String credential;
 
     @DataBoundConstructor
-    public BlobStoreProfile(final String profileName, final String providerName, final String identity, final String credential) {
+    public BlobStoreProfile(final String profileName, final String identity, final String credential) {
         this.profileName = profileName;
-        this.providerName = providerName;
         this.identity = identity;
         this.credential = credential;
     }
@@ -44,15 +43,6 @@ public class BlobStoreProfile {
      */
     public String getProfileName() {
         return profileName;
-    }
-
-    /**
-     * Provider Name as per the JClouds Blobstore supported providers.
-     *
-     * @return - providerName String
-     */
-    public String getProviderName() {
-        return providerName;
     }
 
     /**
@@ -75,8 +65,8 @@ public class BlobStoreProfile {
 
     static final Iterable<Module> MODULES = ImmutableSet.<Module>of(new EnterpriseConfigurationModule());
 
-    static BlobStoreContext ctx(String providerName, String identity, String credential, Properties overrides) {
-        return ContextBuilder.newBuilder(providerName).credentials(identity, credential).overrides(overrides).modules(MODULES)
+    static BlobStoreContext ctx(String identity, String credential, Properties overrides) {
+        return ContextBuilder.newBuilder(new NovaApiMetadata()).credentials(identity, credential).overrides(overrides).modules(MODULES)
                 .buildView(BlobStoreContext.class);
     }
 
@@ -97,7 +87,7 @@ public class BlobStoreProfile {
         // correct the classloader so that extensions can be found
         Thread.currentThread().setContextClassLoader(Apis.class.getClassLoader());
         // TODO: endpoint
-        final BlobStoreContext context = ctx(this.providerName, this.identity, this.credential, new Properties());
+        final BlobStoreContext context = ctx(this.identity, this.credential, new Properties());
         try {
             final BlobStore blobStore = context.getBlobStore();
             if (!blobStore.containerExists(container)) {

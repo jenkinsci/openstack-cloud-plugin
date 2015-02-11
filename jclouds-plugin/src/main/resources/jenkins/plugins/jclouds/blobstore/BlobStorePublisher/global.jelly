@@ -8,9 +8,6 @@
                     <f:entry title="Profile name">
                         <f:textbox name="jcblobstore.profileName" value="${profile.profileName}"/>
                     </f:entry>
-                    <f:entry title="Provider Name">
-                        <f:textbox name="jcblobstore.providerName" value="${profile.providerName}"/>
-                    </f:entry>
                     <f:entry title="Identity">
                         <f:textbox name="jcblobstore.identity" value="${profile.identity}"/>
                     </f:entry>

@@ -2,9 +2,6 @@
     <f:entry title="Profile" field="profile">
         <f:textbox/>
     </f:entry>
-    <f:entry title="Provider Name" field="providerName">
-        <f:select/>
-    </f:entry>
     <f:entry title="End Point URL" field="endPointUrl">
         <f:textbox/>
     </f:entry>
@@ -36,5 +33,5 @@
             <st:include page="config.jelly" class="${descriptor.clazz}"/>
         </f:repeatable>
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="providerName,identity,credential,privateKey,endPointUrl"/>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="identity,credential,privateKey,endPointUrl"/>
 </j:jelly>

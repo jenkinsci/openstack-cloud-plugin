@@ -52,17 +52,17 @@ public class JCloudsCloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
 
-        JCloudsCloud original = new JCloudsCloud("aws-profile", "aws-ec2", "identity", "credential", "endPointUrl", 1, 30,
+        JCloudsCloud original = new JCloudsCloud("openstack-profile", "identity", "credential", "endPointUrl", 1, 30,
                 600 * 1000, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList());
 
         j.getInstance().clouds.add(original);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
         j.assertEqualBeans(original, j.getInstance().clouds.getByName("aws-profile"),
-                "profile,providerName,identity,credential,endPointUrl,instanceCap,retentionTime");
+                "profile,identity,credential,endPointUrl,instanceCap,retentionTime");
 
         j.assertEqualBeans(original, JCloudsCloud.getByName("aws-profile"),
-                "profile,providerName,identity,credential,endPointUrl,instanceCap,retentionTime");
+                "profile,identity,credential,endPointUrl,instanceCap,retentionTime");
     }
 
 }

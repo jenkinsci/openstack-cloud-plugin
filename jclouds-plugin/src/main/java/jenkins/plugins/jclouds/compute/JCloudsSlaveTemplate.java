@@ -300,8 +300,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return FormValidation.validatePositiveInteger(value);
         }
 
-        public ListBoxModel doFillHardwareIdItems(@RelativePath("..") @QueryParameter String providerName,
-                                                  @RelativePath("..") @QueryParameter String identity,
+        public ListBoxModel doFillHardwareIdItems(@RelativePath("..") @QueryParameter String identity,
                                                   @RelativePath("..") @QueryParameter String credential,
                                                   @RelativePath("..") @QueryParameter String endPointUrl,
                                                   @RelativePath("..") @QueryParameter String zones) {
@@ -316,13 +315,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 LOGGER.warning("credential is null or empty");
                 return m;
             }
-            if (Strings.isNullOrEmpty(providerName)) {
-                LOGGER.warning("providerName is null or empty");
-                return m;
-            }
 
-            // Remove empty text/whitespace from the fields.
-            providerName = Util.fixEmptyAndTrim(providerName);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
@@ -331,7 +324,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             m.add("None specified", "");
             try {
                 // TODO: endpoint is ignored
-                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
+                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zones).getComputeService();
 
                 ArrayList<Hardware> hws = newArrayList(computeService.listHardwareProfiles());
                 sort(hws);
@@ -350,8 +343,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
-        public ListBoxModel doFillImageIdItems(@RelativePath("..") @QueryParameter String providerName,
-                                               @RelativePath("..") @QueryParameter String identity,
+        public ListBoxModel doFillImageIdItems(@RelativePath("..") @QueryParameter String identity,
                                                @RelativePath("..") @QueryParameter String credential,
                                                @RelativePath("..") @QueryParameter String endPointUrl,
                                                @RelativePath("..") @QueryParameter String zones) {
@@ -366,12 +358,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 LOGGER.warning("credential is null or empty");
                 return m;
             }
-            if (Strings.isNullOrEmpty(providerName)) {
-                LOGGER.warning("providerName is null or empty");
-                return m;
-            }
 
-            providerName = Util.fixEmptyAndTrim(providerName);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
@@ -379,7 +366,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             ComputeService computeService = null;
             m.add("None specified", "");
             try {
-                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
+                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zones).getComputeService();
 
                 ArrayList<Image> hws = newArrayList(computeService.listImages());
                 sort(hws, new Comparator<Image>() {
@@ -403,8 +390,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
-        public ListBoxModel doFillLocationIdItems(@RelativePath("..") @QueryParameter String providerName,
-                                                  @RelativePath("..") @QueryParameter String identity,
+        public ListBoxModel doFillLocationIdItems(@RelativePath("..") @QueryParameter String identity,
                                                   @RelativePath("..") @QueryParameter String credential,
                                                   @RelativePath("..") @QueryParameter String endPointUrl,
                                                   @RelativePath("..") @QueryParameter String zones) {
@@ -419,12 +405,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 LOGGER.warning("credential is null or empty");
                 return m;
             }
-            if (Strings.isNullOrEmpty(providerName)) {
-                LOGGER.warning("providerName is null or empty");
-                return m;
-            }
 
-            providerName = Util.fixEmptyAndTrim(providerName);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
@@ -432,7 +413,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             ComputeService computeService = null;
             m.add("None specified", "");
             try {
-                computeService = JCloudsCloud.ctx(providerName, identity, credential, endPointUrl, zones).getComputeService();
+                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zones).getComputeService();
 
                 ArrayList<Location> locations = newArrayList(computeService.listAssignableLocations());
                 sort(locations, new Comparator<Location>() {
@@ -456,8 +437,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
-        public ListBoxModel doFillNetworkIdItems(@RelativePath("..") @QueryParameter String providerName,
-                                                 @RelativePath("..") @QueryParameter String identity,
+        public ListBoxModel doFillNetworkIdItems(@RelativePath("..") @QueryParameter String identity,
                                                  @RelativePath("..") @QueryParameter String credential,
                                                  @RelativePath("..") @QueryParameter String endPointUrl,
                                                  @RelativePath("..") @QueryParameter String zones) {
@@ -472,12 +452,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 LOGGER.warning("credential is null or empty");
                 return m;
             }
-            if (Strings.isNullOrEmpty(providerName)) {
-                LOGGER.warning("providerName is null or empty");
-                return m;
-            }
 
-            providerName = Util.fixEmptyAndTrim(providerName);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
@@ -486,7 +461,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             m.add("None specified", "");
             try {
 
-                networkApi = JCloudsCloud.na(providerName, identity, credential, endPointUrl).getNetworkApi(zones);
+                networkApi = JCloudsCloud.na(identity, credential, endPointUrl).getNetworkApi(zones);
 
                 List<? extends Network> networks = networkApi.list().concat().toSortedList(new Comparator<Network>() {
                     @Override

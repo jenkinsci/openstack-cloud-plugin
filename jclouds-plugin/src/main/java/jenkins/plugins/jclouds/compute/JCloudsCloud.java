@@ -42,7 +42,8 @@ import org.jclouds.enterprise.config.EnterpriseConfigurationModule;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.logging.jdk.config.JDKLoggingModule;
 import org.jclouds.openstack.neutron.v2.NeutronApiMetadata;
-import org.jclouds.providers.Providers;
+import org.jclouds.openstack.nova.v2_0.NovaApi;
+import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -69,7 +70,6 @@ public class JCloudsCloud extends Cloud {
 
     public final String identity;
     public final Secret credential;
-    public final String providerName;
 
     public final String endPointUrl;
     public final String profile;
@@ -97,11 +97,10 @@ public class JCloudsCloud extends Cloud {
     }
 
     @DataBoundConstructor
-    public JCloudsCloud(final String profile, final String providerName, final String identity, final String credential, final String endPointUrl, final int instanceCap,
+    public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
                         final int retentionTime, final int scriptTimeout, final int startTimeout, final String zones, final List<JCloudsSlaveTemplate> templates) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
-        this.providerName = Util.fixEmptyAndTrim(providerName);
         this.identity = Util.fixEmptyAndTrim(identity);
         this.credential = Secret.fromString(credential);
         this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
@@ -134,25 +133,29 @@ public class JCloudsCloud extends Cloud {
         }
     }, new EnterpriseConfigurationModule());
 
-    static ComputeServiceContext ctx(String providerName, String identity, String credential, String endPointUrl, String zones) {
+    static ComputeServiceContext ctx(String identity, String credential, String endPointUrl, String zones) {
         Properties overrides = new Properties();
         if (!Strings.isNullOrEmpty(endPointUrl)) {
             overrides.setProperty(Constants.PROPERTY_ENDPOINT, endPointUrl);
         }
-        return ctx(providerName, identity, credential, overrides, zones);
+        return ctx(identity, credential, overrides, zones);
     }
 
-    static ComputeServiceContext ctx(String providerName, String identity, String credential, Properties overrides, String zones) {
+    static ComputeServiceContext ctx(String identity, String credential, Properties overrides, String zones) {
         if (!Strings.isNullOrEmpty(zones)) {
             overrides.setProperty(LocationConstants.PROPERTY_ZONES, zones);
         }
         // correct the classloader so that extensions can be found
         Thread.currentThread().setContextClassLoader(Apis.class.getClassLoader());
-        return ContextBuilder.newBuilder(providerName).credentials(identity, credential).overrides(overrides).modules(MODULES)
+        return ContextBuilder
+                .newBuilder(new NovaApiMetadata())
+                .credentials(identity, credential)
+                .overrides(overrides)
+                .modules(MODULES)
                 .buildView(ComputeServiceContext.class);
     }
 
-    static NeutronApi na(String providerName, String identity, String credential, String endPointUrl) {
+    static NeutronApi na(String identity, String credential, String endPointUrl) {
         Thread.currentThread().setContextClassLoader(NeutronApiMetadata.class.getClassLoader());
         return ContextBuilder.newBuilder(new NeutronApiMetadata())
                         .credentials(identity, credential)
@@ -173,7 +176,7 @@ public class JCloudsCloud extends Cloud {
             if (startTimeout > 0) {
                 overrides.setProperty(ComputeServiceProperties.TIMEOUT_NODE_RUNNING, String.valueOf(startTimeout));
             }
-            this.compute = ctx(this.providerName, this.identity, Secret.toString(credential), overrides, this.zones).getComputeService();
+            this.compute = ctx(this.identity, Secret.toString(credential), overrides, this.zones).getComputeService();
         }
         return compute;
     }
@@ -326,15 +329,15 @@ public class JCloudsCloud extends Cloud {
             return "Cloud (JClouds)";
         }
 
-        public FormValidation doTestConnection(@QueryParameter String providerName, @QueryParameter String identity, @QueryParameter String credential,
-                                               @QueryParameter String endPointUrl, @QueryParameter String zones)  throws IOException {
+        public FormValidation doTestConnection(@QueryParameter String identity,
+                                               @QueryParameter String credential,
+                                               @QueryParameter String endPointUrl,
+                                               @QueryParameter String zones)  throws IOException {
             if (identity == null)
                 return FormValidation.error("Invalid (AccessId).");
             if (credential == null)
                 return FormValidation.error("Invalid credential (secret key).");
 
-            // Remove empty text/whitespace from the fields.
-            providerName = Util.fixEmptyAndTrim(providerName);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
@@ -348,7 +351,7 @@ public class JCloudsCloud extends Cloud {
                     overrides.setProperty(Constants.PROPERTY_ENDPOINT, endPointUrl);
                 }
 
-                ctx = ctx(providerName, identity, credential, overrides, zones);
+                ctx = ctx(identity, credential, overrides, zones);
 
                 ctx.getComputeService().listNodes();
             } catch (Exception ex) {
@@ -359,52 +362,7 @@ public class JCloudsCloud extends Cloud {
             return result;
         }
 
-        public ListBoxModel doFillProviderNameItems() {
-            ListBoxModel m = new ListBoxModel();
-
-            // correct the classloader so that extensions can be found
-            Thread.currentThread().setContextClassLoader(Apis.class.getClassLoader());
-            // TODO: apis need endpoints, providers don't; do something smarter
-            // with this stuff :)
-            Builder<String> builder = ImmutableSet.<String> builder();
-            builder.addAll(Iterables.transform(Apis.viewableAs(ComputeServiceContext.class), Apis.idFunction()));
-            builder.addAll(Iterables.transform(Providers.viewableAs(ComputeServiceContext.class), Providers.idFunction()));
-            Iterable<String> supportedProviders = ImmutableSortedSet.copyOf(builder.build());
-
-            for (String supportedProvider : supportedProviders) {
-                m.add(supportedProvider, supportedProvider);
-            }
-            return m;
-        }
-
-        public AutoCompletionCandidates doAutoCompleteProviderName(@QueryParameter final String value) {
-            // correct the classloader so that extensions can be found
-            Thread.currentThread().setContextClassLoader(Apis.class.getClassLoader());
-            // TODO: apis need endpoints, providers don't; do something smarter
-            // with this stuff :)
-            Builder<String> builder = ImmutableSet.<String> builder();
-            builder.addAll(Iterables.transform(Apis.viewableAs(ComputeServiceContext.class), Apis.idFunction()));
-            builder.addAll(Iterables.transform(Providers.viewableAs(ComputeServiceContext.class), Providers.idFunction()));
-            Iterable<String> supportedProviders = builder.build();
-
-            Iterable<String> matchedProviders = Iterables.filter(supportedProviders, new Predicate<String>() {
-                public boolean apply(@Nullable String input) {
-                    return input != null && input.startsWith(value.toLowerCase());
-                }
-            });
-
-            AutoCompletionCandidates candidates = new AutoCompletionCandidates();
-            for (String matchedProvider : matchedProviders) {
-                candidates.add(matchedProvider);
-            }
-            return candidates;
-        }
-
         public FormValidation doCheckProfile(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckProviderName(@QueryParameter String value) {
             return FormValidation.validateRequired(value);
         }
 

@@ -250,8 +250,7 @@ public class BlobStorePublisher extends Recorder implements Describable<Publishe
             if (name == null) {// name is not entered yet
                 return FormValidation.ok();
             }
-            BlobStoreProfile profile = new BlobStoreProfile(name, req.getParameter("providerName"), req.getParameter("identity"),
-                    req.getParameter("credential"));
+            BlobStoreProfile profile = new BlobStoreProfile(name, req.getParameter("identity"), req.getParameter("credential"));
             return FormValidation.ok();
         }
 
