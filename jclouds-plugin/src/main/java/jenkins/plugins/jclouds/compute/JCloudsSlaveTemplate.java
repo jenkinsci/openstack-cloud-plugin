@@ -40,7 +40,6 @@ import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.options.TemplateOptions;
-import org.jclouds.domain.Location;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.openstack.neutron.v2.domain.Network;
 import org.jclouds.openstack.neutron.v2.features.NetworkApi;
@@ -76,7 +75,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String imageNameRegex;
     public final String hardwareId;
     public final String labelString;
-    public final String locationId;
     public final String initScript;
     public final String numExecutors;
     public final boolean stopOnTerminate;
@@ -97,7 +95,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId,
-                                final String locationId, final String labelString,
+                                final String labelString,
                                 final String initScript, final String numExecutors, final boolean stopOnTerminate, final String jvmOptions,
                                 final String fsRoot, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
                                 final String keyPairName, final String networkId, final String securityGroups, final String credentialsId) {
@@ -106,7 +104,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.imageId = Util.fixEmptyAndTrim(imageId);
         this.imageNameRegex = Util.fixEmptyAndTrim(imageNameRegex);
         this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
-        this.locationId = Util.fixEmptyAndTrim(locationId);
         this.labelString = Util.fixNull(labelString);
         this.initScript = Util.fixNull(initScript);
         this.numExecutors = Util.fixNull(numExecutors);
@@ -187,10 +184,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             LOGGER.info("Setting hardware Id to " + hardwareId);
             templateBuilder.hardwareId(hardwareId);
         }
-        if (!Strings.isNullOrEmpty(locationId)) {
-            LOGGER.info("Setting location Id to " + locationId);
-            templateBuilder.locationId(locationId);
-        }
 
         Template template = templateBuilder.build();
         TemplateOptions options = template.getOptions();
@@ -200,9 +193,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.networks(networkId);
         }
 
-        if (!Strings.isNullOrEmpty(securityGroups)) {
+        if (!Strings.isNullOrEmpty(securityGroups) && options instanceof NovaTemplateOptions) {
             LOGGER.info("Setting security groups to " + securityGroups);
-            options.securityGroups(csvToArray(securityGroups));
+            options.as(NovaTemplateOptions.class).securityGroupNames(csvToArray(securityGroups));
         }
 
         if (!Strings.isNullOrEmpty((keyPairName)) && options instanceof NovaTemplateOptions) {
@@ -330,7 +323,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 sort(hws);
 
                 for (Hardware hardware : hws) {
-                    m.add(String.format("%s (%s)", hardware.getId(), hardware.getName()), hardware.getId());
+                    m.add(String.format("%s (%s)", hardware.getName(), hardware.getId()), hardware.getId());
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -378,53 +371,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
                 for (Image image : hws) {
                     m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
-                }
-            } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-            } finally {
-                if (computeService != null) {
-                    computeService.getContext().close();
-                }
-            }
-
-            return m;
-        }
-
-        public ListBoxModel doFillLocationIdItems(@RelativePath("..") @QueryParameter String identity,
-                                                  @RelativePath("..") @QueryParameter String credential,
-                                                  @RelativePath("..") @QueryParameter String endPointUrl,
-                                                  @RelativePath("..") @QueryParameter String zones) {
-
-            ListBoxModel m = new ListBoxModel();
-
-            if (Strings.isNullOrEmpty(identity)) {
-                LOGGER.warning("identity is null or empty");
-                return m;
-            }
-            if (Strings.isNullOrEmpty(credential)) {
-                LOGGER.warning("credential is null or empty");
-                return m;
-            }
-
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-
-            ComputeService computeService = null;
-            m.add("None specified", "");
-            try {
-                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zones).getComputeService();
-
-                ArrayList<Location> locations = newArrayList(computeService.listAssignableLocations());
-                sort(locations, new Comparator<Location>() {
-                    @Override
-                    public int compare(Location o1, Location o2) {
-                        return o1.getId().compareTo(o2.getId());
-                    }
-                });
-
-                for (Location location : locations) {
-                    m.add(String.format("%s (%s)", location.getId(), location.getDescription()), location.getId());
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
