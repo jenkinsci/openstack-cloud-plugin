@@ -3,14 +3,15 @@ package jenkins.plugins.jclouds.compute;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
 import hudson.slaves.ComputerLauncher;
+import hudson.slaves.JNLPLauncher;
 import hudson.slaves.SlaveComputer;
 import hudson.plugins.sshslaves.SSHLauncher;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.text.MessageFormat;
 
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.domain.LoginCredentials;
 
 /**
  * The launcher that launches the jenkins slave.jar on the Slave. Uses the SSHKeyPair configured in the cloud profile settings, and logs in to the server via
@@ -42,8 +43,15 @@ public class JCloudsLauncher extends ComputerLauncher {
             throw new IOException("goto sleep");
         }
 
-        SSHLauncher launcher = new SSHLauncher(host, 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
-        launcher.launch(computer, listener);
+        if (slave.getSlaveType() == JCloudsCloud.SlaveType.SSH) {
+            SSHLauncher launcher = new SSHLauncher(host, 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
+            launcher.launch(computer, listener);
+        } else if (slave.getSlaveType() == JCloudsCloud.SlaveType.JNLP) {
+            JNLPLauncher launcher = new JNLPLauncher();
+            launcher.launch(computer, listener);
+        } else {
+            throw new IOException(MessageFormat.format("Unknown slave type: {0}", slave.getSlaveType()));
+        }
     }
 
     /**

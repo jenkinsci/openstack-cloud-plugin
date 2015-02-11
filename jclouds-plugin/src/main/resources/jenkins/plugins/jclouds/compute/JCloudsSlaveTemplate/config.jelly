@@ -20,9 +20,16 @@
         <f:entry title="Network" field="networkId">
             <f:select />
         </f:entry>
-        <f:entry title="${%SSH Credentials}" field="credentialsId">
-            <c:select/>
-        </f:entry>
+
+        <f:radioBlock inline="true" name="slaveType" value="SSH" title="SSH Slave" checked="${(instance.slaveType == null) || instance.slaveType.isEmpty() || (instance.slaveType == 'SSH')}">
+            <f:entry title="${%SSH Credentials}" field="credentialsId">
+                <c:select/>
+            </f:entry>
+        </f:radioBlock>
+
+        <f:radioBlock inline="true" name="slaveType" value="JNLP" title="JNLP Slave" checked="${instance.slaveType == 'JNLP'}">
+        </f:radioBlock>
+
     </f:section>
 
     <f:advanced>

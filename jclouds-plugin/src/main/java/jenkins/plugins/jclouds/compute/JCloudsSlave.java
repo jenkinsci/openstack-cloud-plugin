@@ -10,7 +10,6 @@ import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
@@ -34,12 +33,13 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private final int overrideRetentionTime;
     private final String jvmOptions;
     private final String credentialsId;
+    private final JCloudsCloud.SlaveType slaveType;
 
     @DataBoundConstructor
     @SuppressWarnings("rawtypes")
     public JCloudsSlave(String cloudName, String name, String remoteFS, String numExecutors, Mode mode, String labelString,
                         ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties, boolean stopOnTerminate,
-                        int overrideRetentionTime, String jvmOptions, final String credentialsId) throws Descriptor.FormException,
+                        int overrideRetentionTime, String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws Descriptor.FormException,
             IOException {
         super(name, null, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
         this.stopOnTerminate = stopOnTerminate;
@@ -47,6 +47,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
         this.overrideRetentionTime = overrideRetentionTime;
         this.jvmOptions = jvmOptions;
         this.credentialsId = credentialsId;
+        this.slaveType = slaveType;
     }
 
     /**
@@ -66,10 +67,10 @@ public class JCloudsSlave extends AbstractCloudSlave {
      */
     public JCloudsSlave(final String cloudName, final String fsRoot, NodeMetadata metadata, final String labelString,
             final String numExecutors, final boolean stopOnTerminate, final int overrideRetentionTime,
-            String jvmOptions, final String credentialsId) throws IOException, Descriptor.FormException {
+            String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
         this(cloudName, metadata.getName(), fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
-                stopOnTerminate, overrideRetentionTime, jvmOptions, credentialsId);
+                stopOnTerminate, overrideRetentionTime, jvmOptions, credentialsId, slaveType);
         this.nodeMetaData = metadata;
         this.nodeId = nodeMetaData.getId();
     }
@@ -128,6 +129,10 @@ public class JCloudsSlave extends AbstractCloudSlave {
 
     public String getCredentialsId() {
         return credentialsId;
+    }
+
+    public JCloudsCloud.SlaveType getSlaveType() {
+        return slaveType;
     }
 
     /**

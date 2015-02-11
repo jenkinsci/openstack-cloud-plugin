@@ -1,6 +1,5 @@
 package jenkins.plugins.jclouds.compute;
 
-import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -16,7 +15,6 @@ import java.util.logging.Logger;
 import com.google.inject.Module;
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.AutoCompletionCandidates;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
@@ -26,7 +24,6 @@ import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
@@ -42,7 +39,6 @@ import org.jclouds.enterprise.config.EnterpriseConfigurationModule;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.logging.jdk.config.JDKLoggingModule;
 import org.jclouds.openstack.neutron.v2.NeutronApiMetadata;
-import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -70,7 +66,6 @@ public class JCloudsCloud extends Cloud {
 
     public final String identity;
     public final Secret credential;
-
     public final String endPointUrl;
     public final String profile;
     private final int retentionTime;
@@ -80,6 +75,8 @@ public class JCloudsCloud extends Cloud {
     public final int startTimeout;
     private transient ComputeService compute;
     public final String zones;
+
+    public enum SlaveType {SSH, JNLP}
 
     public static List<String> getCloudNames() {
         List<String> cloudNames = new ArrayList<String>();

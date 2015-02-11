@@ -7,7 +7,6 @@ import static java.util.Collections.sort;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
@@ -91,6 +90,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String networkId;
     public final String securityGroups;
     public final String credentialsId;
+    public final JCloudsCloud.SlaveType slaveType;
 
     private transient Set<LabelAtom> labelSet;
 
@@ -101,7 +101,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                 final String labelString, final String initScript, final String userData, final String numExecutors,
                                 final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
                                 final int overrideRetentionTime, final int spoolDelayMs, final String keyPairName, final String networkId,
-                                final String securityGroups, final String credentialsId) {
+                                final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType) {
 
         this.name = Util.fixEmptyAndTrim(name);
         this.imageId = Util.fixEmptyAndTrim(imageId);
@@ -122,6 +122,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.networkId = networkId;
         this.securityGroups = securityGroups;
         this.credentialsId = credentialsId;
+        this.slaveType = slaveType;
+
         readResolve();
     }
 
@@ -166,7 +168,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         try {
             return new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString,
-                    numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), credentialsId);
+                    numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), credentialsId, slaveType);
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }
@@ -175,8 +177,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     @Override
     public NodeMetadata get() {
         LOGGER.info("Provisioning new jclouds node");
+
         ImmutableMap<String, String> userMetadata = ImmutableMap.of("Name", name);
         TemplateBuilder templateBuilder = getCloud().getCompute().templateBuilder();
+
         if (!Strings.isNullOrEmpty(imageId)) {
             LOGGER.info("Setting image id to " + imageId);
             templateBuilder.imageId(imageId);
@@ -197,12 +201,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.networks(networkId);
         }
 
-        if (!Strings.isNullOrEmpty(securityGroups) && options instanceof NovaTemplateOptions) {
+        if (!Strings.isNullOrEmpty(securityGroups)) {
             LOGGER.info("Setting security groups to " + securityGroups);
             options.as(NovaTemplateOptions.class).securityGroupNames(csvToArray(securityGroups));
         }
 
-        if (!Strings.isNullOrEmpty((keyPairName)) && options instanceof NovaTemplateOptions) {
+        if (!Strings.isNullOrEmpty((keyPairName))) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
             options.as(NovaTemplateOptions.class).keyPairName(keyPairName);
         }
@@ -243,13 +247,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         options.runScript(Statements.exec(this.initScript));
 
         if (!userData.isEmpty()) {
-            try {
-                Method userDataMethod = options.getClass().getMethod("userData");
-                LOGGER.info("Setting userData to " + userData);
-                userDataMethod.invoke(options, userData.getBytes(StandardCharsets.UTF_8));
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "userData is not supported by provider options class " + options.getClass().getName(), e);
-            }
+            options.as(NovaTemplateOptions.class).userData(userData.getBytes(StandardCharsets.UTF_8));
         }
 
         NodeMetadata nodeMetadata = null;
