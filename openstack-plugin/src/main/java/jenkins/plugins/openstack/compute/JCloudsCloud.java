@@ -229,7 +229,7 @@ public class JCloudsCloud extends Cloud {
                 LOGGER.warning(String.format("Error while launching slave: %s", e));
             }
 
-            if ((System.currentTimeMillis() - startMoment) > 1000l * launchTimeoutSec) {
+            if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {
                 String message = String.format("Failed to connect to slave within timeout (%d s).", launchTimeoutSec);
                 LOGGER.warning(message);
                 throw new ExecutionException(new Throwable(message));
