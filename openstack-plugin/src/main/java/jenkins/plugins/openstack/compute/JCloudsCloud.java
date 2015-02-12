@@ -225,7 +225,7 @@ public class JCloudsCloud extends Cloud {
                 LOGGER.info(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
                 computer.connect(false).get();
                 Thread.sleep(5000l);
-            } catch (InterruptedException|ExecutionException e) {
+            } catch (InterruptedException|ExecutionException|NullPointerException e) {
                 LOGGER.warning(String.format("Error while launching slave: %s", e));
             }
 
