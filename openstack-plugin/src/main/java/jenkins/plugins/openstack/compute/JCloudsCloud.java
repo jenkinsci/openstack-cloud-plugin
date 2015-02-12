@@ -232,6 +232,7 @@ public class JCloudsCloud extends Cloud {
             if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {
                 String message = String.format("Failed to connect to slave within timeout (%d s).", launchTimeoutSec);
                 LOGGER.warning(message);
+                jcloudsSlave.setPendingDelete(true);
                 throw new ExecutionException(new Throwable(message));
             }
         }
