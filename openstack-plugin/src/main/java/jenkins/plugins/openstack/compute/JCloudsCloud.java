@@ -222,11 +222,11 @@ public class JCloudsCloud extends Cloud {
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
             try {
-                LOGGER.info(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
+                LOGGER.fine(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
                 computer.connect(false).get();
                 Thread.sleep(5000l);
             } catch (InterruptedException|ExecutionException|NullPointerException e) {
-                LOGGER.warning(String.format("Error while launching slave: %s", e));
+                LOGGER.fine(String.format("Error while launching slave: %s", e));
             }
 
             if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {

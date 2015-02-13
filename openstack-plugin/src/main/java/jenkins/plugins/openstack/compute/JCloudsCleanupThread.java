@@ -50,9 +50,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                             logger.log(Level.INFO, "Deleting pending node " + comp.getName());
                             try {
                                 comp.getNode().terminate();
-                            } catch (IOException e) {
-                                logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
-                            } catch (InterruptedException e) {
+                            } catch (IOException|InterruptedException e) {
                                 logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
                             }
                         }
@@ -67,9 +65,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         for (JCloudsComputer c : computersToDeleteBuilder.build()) {
             try {
                 c.deleteSlave();
-            } catch (IOException e) {
-                logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
-            } catch (InterruptedException e) {
+            } catch (IOException|InterruptedException e) {
                 logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
             }
 
