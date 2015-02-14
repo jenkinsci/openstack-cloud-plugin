@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
     <name>Openstack Jenkins Plugin parent POM</name>
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/JClouds+Plugin</url>
+    <url>https://wiki.jenkins-ci.org/display/JENKINS/Openstack+Jenkins+Plugin</url>
     <properties>
         <jclouds.version>1.8.0</jclouds.version>
         <guava.version>18.0</guava.version>
@@ -83,7 +83,9 @@
         </plugins>
     </build>
     <scm>
-        <url>https://github.com/mavlyutov/openstack-jenkins-plugin</url>
+        <connection>scm:git:git://github.com/jenkinsci/openstack-jenkins-plugin.git</connection>
+        <developerConnection>scm:git:git@github.com:jenkinsci/openstack-jenkins-plugin.git</developerConnection>
+        <url>https://github.com/jenkinsci/openstack-jenkins-plugin</url>
     </scm>
     <repositories>
         <repository>
