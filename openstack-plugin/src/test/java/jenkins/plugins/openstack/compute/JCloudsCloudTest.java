@@ -31,10 +31,9 @@ public class JCloudsCloudTest {
         final HtmlForm configForm = page.getFormByName("config");
         final HtmlButton buttonByCaption = configForm.getButtonByCaption("Add a new cloud");
         HtmlPage page1 = buttonByCaption.click();
-        WebAssert.assertLinkPresentWithText(page1, "Cloud (JClouds)");
+        WebAssert.assertLinkPresentWithText(page1, "Cloud (Openstack)");
 
-        HtmlPage page2 = page.getAnchorByText("Cloud (JClouds)").click();
-        WebAssert.assertInputPresent(page2, "_.profile");
+        HtmlPage page2 = page.getAnchorByText("Cloud (Openstack)").click();
         WebAssert.assertInputPresent(page2, "_.endPointUrl");
         WebAssert.assertInputPresent(page2, "_.identity");
         WebAssert.assertInputPresent(page2, "_.credential");
@@ -58,11 +57,11 @@ public class JCloudsCloudTest {
         j.getInstance().clouds.add(original);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
-        j.assertEqualBeans(original, j.getInstance().clouds.getByName("aws-profile"),
-                "profile,identity,credential,endPointUrl,instanceCap,retentionTime");
+        j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack-profile"),
+                "identity,credential,endPointUrl,instanceCap,retentionTime");
 
-        j.assertEqualBeans(original, JCloudsCloud.getByName("aws-profile"),
-                "profile,identity,credential,endPointUrl,instanceCap,retentionTime");
+        j.assertEqualBeans(original, JCloudsCloud.getByName("openstack-profile"),
+                "identity,credential,endPointUrl,instanceCap,retentionTime");
     }
 
 }

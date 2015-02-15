@@ -12,9 +12,9 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
 
     public void testConfigRoundtrip() throws Exception {
         String name = "testSlave";
-        JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(name, "imageId", null, "hardwareId", 1, 512,
-                "openstack-slave-type1 openstack-type2", "Description", "initScript", null, "1", false, null, null, true, 0, 0, true, false, 0,
-                "keyPair", true, "network1_id,network2_id", "default", null);
+        JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(name, "imageId", "hardwareId",
+                "openstack-slave-type1 openstack-type2", "initScript", "userData", "1", false, null, null, true, 0, 0,
+                "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH);
 
         List<JCloudsSlaveTemplate> templates = new ArrayList<JCloudsSlaveTemplate>();
         templates.add(originalTemplate);

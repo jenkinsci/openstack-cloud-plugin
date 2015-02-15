@@ -14,7 +14,7 @@ public class BlobStoreProfileInsideJenkinsLiveTest extends HudsonTestCase {
         fixture.setUp();
 
         // TODO: this may need to vary per test
-        profile = new BlobStoreProfile(fixture.getProvider() + "-profile", fixture.getProvider(), fixture.getIdentity(), fixture.getCredential());
+        profile = new BlobStoreProfile("profile", fixture.getIdentity(), fixture.getCredential());
     }
 
     public static final String CONTAINER_PREFIX = System.getProperty("user.name") + "-blobstore-profile";

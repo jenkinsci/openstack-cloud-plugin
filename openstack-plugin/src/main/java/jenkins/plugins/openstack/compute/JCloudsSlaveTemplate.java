@@ -73,7 +73,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     public final String name;
     public final String imageId;
-    public final String imageNameRegex;
     public final String hardwareId;
     public final String labelString;
     public final String initScript;
@@ -97,7 +96,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     protected transient JCloudsCloud cloud;
 
     @DataBoundConstructor
-    public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId,
+    public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
                                 final String labelString, final String initScript, final String userData, final String numExecutors,
                                 final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
                                 final int overrideRetentionTime, final int spoolDelayMs, final String keyPairName, final String networkId,
@@ -105,7 +104,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         this.name = Util.fixEmptyAndTrim(name);
         this.imageId = Util.fixEmptyAndTrim(imageId);
-        this.imageNameRegex = Util.fixEmptyAndTrim(imageNameRegex);
         this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
         this.labelString = Util.fixNull(labelString);
         this.initScript = Util.fixNull(initScript);
@@ -184,9 +182,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         if (!Strings.isNullOrEmpty(imageId)) {
             LOGGER.info("Setting image id to " + imageId);
             templateBuilder.imageId(imageId);
-        } else if (!Strings.isNullOrEmpty(imageNameRegex)) {
-            LOGGER.info("Setting image name regex to " + imageNameRegex);
-            templateBuilder.imageNameMatches(imageNameRegex);
         }
         if (!Strings.isNullOrEmpty((hardwareId))) {
             LOGGER.info("Setting hardware Id to " + hardwareId);
