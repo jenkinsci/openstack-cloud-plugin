@@ -81,8 +81,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private final String fsRoot;
     public final boolean installPrivateKey;
     public final int overrideRetentionTime;
-    public final int spoolDelayMs;
-    private final Object delayLockObject = new Object();
     public final String keyPairName;
     public final String networkId;
     public final String securityGroups;
@@ -97,7 +95,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
                                 final String labelString, final String userData, final String numExecutors,
                                 final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
-                                final int overrideRetentionTime, final int spoolDelayMs, final String keyPairName, final String networkId,
+                                final int overrideRetentionTime, final String keyPairName, final String networkId,
                                 final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType) {
 
         this.name = Util.fixEmptyAndTrim(name);
@@ -112,7 +110,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.fsRoot = Util.fixEmptyAndTrim(fsRoot);
         this.installPrivateKey = installPrivateKey;
         this.overrideRetentionTime = overrideRetentionTime;
-        this.spoolDelayMs = spoolDelayMs;
         this.keyPairName = keyPairName;
         this.networkId = networkId;
         this.securityGroups = securityGroups;
@@ -221,17 +218,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         if (installPrivateKey && credentials instanceof SSHUserPrivateKey) {
             options.installPrivateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey());
-        }
-
-        if (spoolDelayMs > 0) {
-            // (JENKINS-15970) Add optional delay before spooling. Author: Adam Rofer
-            synchronized (delayLockObject) {
-                LOGGER.info("Delaying " + spoolDelayMs + " milliseconds. Current ms -> " + System.currentTimeMillis());
-                try {
-                    Thread.sleep(spoolDelayMs);
-                } catch (InterruptedException e) {
-                }
-            }
         }
 
         if (!userData.isEmpty()) {
@@ -453,8 +439,5 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return FormValidation.validateNonNegativeInteger(value);
         }
 
-        public FormValidation doCheckSpoolDelayMs(@QueryParameter String value) {
-            return FormValidation.validateNonNegativeInteger(value);
-        }
     }
 }
