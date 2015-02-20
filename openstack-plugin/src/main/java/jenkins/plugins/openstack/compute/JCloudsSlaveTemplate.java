@@ -46,7 +46,6 @@ import org.jclouds.openstack.neutron.v2.domain.Network;
 import org.jclouds.openstack.neutron.v2.features.NetworkApi;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.predicates.validators.DnsNameValidator;
-import org.jclouds.scriptbuilder.domain.Statements;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -305,7 +304,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         public ListBoxModel doFillHardwareIdItems(@RelativePath("..") @QueryParameter String identity,
                                                   @RelativePath("..") @QueryParameter String credential,
                                                   @RelativePath("..") @QueryParameter String endPointUrl,
-                                                  @RelativePath("..") @QueryParameter String zones) {
+                                                  @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
 
@@ -326,7 +325,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             m.add("None specified", "");
             try {
                 // TODO: endpoint is ignored
-                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zones).getComputeService();
+                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zone).getComputeService();
 
                 ArrayList<Hardware> hws = newArrayList(computeService.listHardwareProfiles());
                 sort(hws);
@@ -348,7 +347,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         public ListBoxModel doFillImageIdItems(@RelativePath("..") @QueryParameter String identity,
                                                @RelativePath("..") @QueryParameter String credential,
                                                @RelativePath("..") @QueryParameter String endPointUrl,
-                                               @RelativePath("..") @QueryParameter String zones) {
+                                               @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
 
@@ -368,7 +367,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             ComputeService computeService = null;
             m.add("None specified", "");
             try {
-                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zones).getComputeService();
+                computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zone).getComputeService();
 
                 ArrayList<Image> hws = newArrayList(computeService.listImages());
                 sort(hws, new Comparator<Image>() {
@@ -395,7 +394,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         public ListBoxModel doFillNetworkIdItems(@RelativePath("..") @QueryParameter String identity,
                                                  @RelativePath("..") @QueryParameter String credential,
                                                  @RelativePath("..") @QueryParameter String endPointUrl,
-                                                 @RelativePath("..") @QueryParameter String zones) {
+                                                 @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
 
@@ -416,7 +415,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             m.add("None specified", "");
             try {
 
-                networkApi = JCloudsCloud.na(identity, credential, endPointUrl).getNetworkApi(zones);
+                networkApi = JCloudsCloud.na(identity, credential, endPointUrl).getNetworkApi(zone);
 
                 List<? extends Network> networks = networkApi.list().concat().toSortedList(new Comparator<Network>() {
                     @Override

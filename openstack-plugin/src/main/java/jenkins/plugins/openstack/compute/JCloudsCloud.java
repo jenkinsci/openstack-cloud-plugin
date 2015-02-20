@@ -73,7 +73,7 @@ public class JCloudsCloud extends Cloud {
     public final int scriptTimeout;
     public final int startTimeout;
     private transient ComputeService compute;
-    public final String zones;
+    public final String zone;
 
     public enum SlaveType {SSH, JNLP}
 
@@ -94,7 +94,7 @@ public class JCloudsCloud extends Cloud {
 
     @DataBoundConstructor
     public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
-                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zones, final List<JCloudsSlaveTemplate> templates) {
+                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
         this.identity = Util.fixEmptyAndTrim(identity);
@@ -105,7 +105,7 @@ public class JCloudsCloud extends Cloud {
         this.scriptTimeout = scriptTimeout;
         this.startTimeout = startTimeout;
         this.templates = Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList());
-        this.zones = Util.fixEmptyAndTrim(zones);
+        this.zone = Util.fixEmptyAndTrim(zone);
         readResolve();
     }
 
@@ -129,17 +129,17 @@ public class JCloudsCloud extends Cloud {
         }
     }, new EnterpriseConfigurationModule());
 
-    static ComputeServiceContext ctx(String identity, String credential, String endPointUrl, String zones) {
+    static ComputeServiceContext ctx(String identity, String credential, String endPointUrl, String zone) {
         Properties overrides = new Properties();
         if (!Strings.isNullOrEmpty(endPointUrl)) {
             overrides.setProperty(Constants.PROPERTY_ENDPOINT, endPointUrl);
         }
-        return ctx(identity, credential, overrides, zones);
+        return ctx(identity, credential, overrides, zone);
     }
 
-    static ComputeServiceContext ctx(String identity, String credential, Properties overrides, String zones) {
-        if (!Strings.isNullOrEmpty(zones)) {
-            overrides.setProperty(LocationConstants.PROPERTY_ZONES, zones);
+    static ComputeServiceContext ctx(String identity, String credential, Properties overrides, String zone) {
+        if (!Strings.isNullOrEmpty(zone)) {
+            overrides.setProperty(LocationConstants.PROPERTY_ZONES, zone);
         }
         // correct the classloader so that extensions can be found
         Thread.currentThread().setContextClassLoader(Apis.class.getClassLoader());
@@ -172,7 +172,7 @@ public class JCloudsCloud extends Cloud {
             if (startTimeout > 0) {
                 overrides.setProperty(ComputeServiceProperties.TIMEOUT_NODE_RUNNING, String.valueOf(startTimeout));
             }
-            this.compute = ctx(this.identity, Secret.toString(credential), overrides, this.zones).getComputeService();
+            this.compute = ctx(this.identity, Secret.toString(credential), overrides, this.zone).getComputeService();
         }
         return compute;
     }
@@ -327,7 +327,7 @@ public class JCloudsCloud extends Cloud {
         public FormValidation doTestConnection(@QueryParameter String identity,
                                                @QueryParameter String credential,
                                                @QueryParameter String endPointUrl,
-                                               @QueryParameter String zones) throws IOException {
+                                               @QueryParameter String zone) throws IOException {
             if (identity == null)
                 return FormValidation.error("Invalid (AccessId).");
             if (credential == null)
@@ -336,7 +336,7 @@ public class JCloudsCloud extends Cloud {
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-            zones = Util.fixEmptyAndTrim(zones);
+            zone = Util.fixEmptyAndTrim(zone);
 
             FormValidation result = FormValidation.ok("Connection succeeded!");
             ComputeServiceContext ctx = null;
@@ -346,7 +346,7 @@ public class JCloudsCloud extends Cloud {
                     overrides.setProperty(Constants.PROPERTY_ENDPOINT, endPointUrl);
                 }
 
-                ctx = ctx(identity, credential, overrides, zones);
+                ctx = ctx(identity, credential, overrides, zone);
 
                 ctx.getComputeService().listNodes();
             } catch (Exception ex) {
