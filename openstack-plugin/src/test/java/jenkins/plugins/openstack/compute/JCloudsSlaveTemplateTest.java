@@ -13,7 +13,7 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
     public void testConfigRoundtrip() throws Exception {
         String name = "testSlave";
         JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(name, "imageId", "hardwareId",
-                "openstack-slave-type1 openstack-type2", "initScript", "userData", "1", false, null, null, true, 0, 0,
+                "openstack-slave-type1 openstack-type2", "userData", "1", false, null, null, true, 0, 0,
                 "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH);
 
         List<JCloudsSlaveTemplate> templates = new ArrayList<JCloudsSlaveTemplate>();
@@ -28,7 +28,7 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
         assertEqualBeans(originalCloud, JCloudsCloud.getByName("openstack-profile"), "profile,identity,credential,privateKey,publicKey,endPointUrl");
 
         assertEqualBeans(originalTemplate, JCloudsCloud.getByName("aws-profile").getTemplate(name),
-                "name,labelString,description,initScript,numExecutors,stopOnTerminate");
+                "name,labelString,description,numExecutors,stopOnTerminate");
 
     }
 

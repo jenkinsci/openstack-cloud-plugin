@@ -75,7 +75,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String imageId;
     public final String hardwareId;
     public final String labelString;
-    public final String initScript;
     public final String userData;
     public final String numExecutors;
     public final boolean stopOnTerminate;
@@ -97,7 +96,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
-                                final String labelString, final String initScript, final String userData, final String numExecutors,
+                                final String labelString, final String userData, final String numExecutors,
                                 final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
                                 final int overrideRetentionTime, final int spoolDelayMs, final String keyPairName, final String networkId,
                                 final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType) {
@@ -106,7 +105,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.imageId = Util.fixEmptyAndTrim(imageId);
         this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
         this.labelString = Util.fixNull(labelString);
-        this.initScript = Util.fixNull(initScript);
         this.userData = Util.fixNull(userData);
         this.numExecutors = Util.fixNull(numExecutors);
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
@@ -176,7 +174,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public NodeMetadata get() {
         LOGGER.info("Provisioning new openstack node");
 
-        ImmutableMap<String, String> userMetadata = ImmutableMap.of("Name", name);
         TemplateBuilder templateBuilder = getCloud().getCompute().templateBuilder();
 
         if (!Strings.isNullOrEmpty(imageId)) {
@@ -237,9 +234,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 }
             }
         }
-
-        options.inboundPorts(22).userMetadata(userMetadata);
-        options.runScript(Statements.exec(this.initScript));
 
         if (!userData.isEmpty()) {
             options.as(NovaTemplateOptions.class).userData(userData.getBytes(StandardCharsets.UTF_8));
