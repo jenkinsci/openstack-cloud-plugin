@@ -18,6 +18,10 @@ public class UserDataConfig extends Config {
     @Extension(ordinal = 70)
     public static class UserDataConfigProvider extends AbstractConfigProviderImpl {
 
+        public UserDataConfigProvider() {
+            load();
+        }
+
         @Override
         public ContentType getContentType() {
             return ContentType.DefinedType.HTML;
