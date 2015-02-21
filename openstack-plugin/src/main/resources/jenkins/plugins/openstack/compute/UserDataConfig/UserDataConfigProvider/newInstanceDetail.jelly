@@ -1,0 +1,3 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+ Create a reusable windows batch which every user can use as a build step within their jobs. Environments variables and parameters can be passed to the script by the user. Build will be considered a failure if at the end of the execution %ERRORLEVEL% is not 0.
+</j:jelly>

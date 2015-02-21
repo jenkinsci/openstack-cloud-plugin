@@ -37,8 +37,8 @@
         <f:entry title="Override Retention Time" field="overrideRetentionTime">
             <f:textbox default="0"/>
         </f:entry>
-        <f:entry title="User Data" field="userData">
-            <f:textarea />
+        <f:entry title="User Data" field="userDataId">
+            <f:select/>
         </f:entry>
         <f:entry title="Install Private Key" field="installPrivateKey">
             <f:checkbox />

@@ -1,0 +1,36 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
+	xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+			   		<p>
+			   		 This batch can be used by every user as a build step. A job is able to pass the environments variables and parameters to this script. <br />Environments variables and parameters can be passed to the script by the user. Build will be considered a failure if at the end of the execution %ERRORLEVEL% is not 0.
+			   		</p>
+
+					<f:entry title="${%ID}" >
+						<f:textbox readonly="readonly" name="config.id" value="${config.id}" />
+					</f:entry>
+					<f:entry title="${%Name}">
+						<f:textbox name="config.name" value="${config.name}" />
+					</f:entry>
+					<f:entry title="${%Comment}">
+						<f:textbox name="config.comment" value="${config.comment}" />
+					</f:entry>
+					<f:block>
+					  <table>
+					      <f:entry title="${%Argument list}" field="config.args">
+								<f:repeatable var="arg" items="${config.args}" name="args" noAddButton="true" minimum="1">
+									<table width="100%">
+										<f:entry>
+											<input type="text" name="name" value="${arg.name}" size="40" />
+											<input type="button" name="delete_button" value="${%Delete}" class="repeatable-delete show-if-not-only" style="margin-left: 1em;" />
+											<input type="button" name="add_button" value="${%Add argument}" class="repeatable-add show-if-last" />
+										</f:entry>
+									</table>
+								</f:repeatable>
+						</f:entry>
+					  </table>
+					</f:block>
+					<f:entry title="${%Content}">
+						<f:textarea id="config.content" name="config.content" value="${config.content}" />
+					</f:entry>
+
+</j:jelly>
