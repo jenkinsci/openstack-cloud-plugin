@@ -1,27 +1,27 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-	<f:entry title="${%ID}">
-		<f:textbox readonly="readonly" name="config.id" value="${config.id}" />
-	</f:entry>
-	<f:entry title="${%Name}">
-		<f:textbox readonly="readonly" name="config.name" value="${config.name}" />
-	</f:entry>
-	<f:entry title="${%Comment}">
-		<f:textbox readonly="readonly" name="config.comment" value="${config.comment}" />
-	</f:entry>
-	<f:block>
-		<table>
-			<f:entry title="${%Argument list}" field="config.args">
-				<f:repeatable var="arg" items="${config.args}" name="args" noAddButton="true" minimum="1">
-					<table width="100%">
-						<f:entry>
-							<input type="text" readonly="readonly" name="name" value="${arg.name}" />
-						</f:entry>
-					</table>
-				</f:repeatable>
-			</f:entry>
-		</table>
-	</f:block>
-	<f:entry title="${%Content}">
-		<f:textarea readonly="readonly" id="config.content" name="config.content" value="${config.content}" />
-	</f:entry>
+    <f:entry title="${%ID}" >
+        <f:textbox readonly="readonly" name="config.id" value="${config.id}" />
+    </f:entry>
+    <f:entry title="${%Name}">
+        <f:textbox readonly="readonly" name="config.name" value="${config.name}" />
+    </f:entry>
+    <f:entry title="${%Comment}">
+        <f:textbox readonly="readonly" name="config.comment" value="${config.comment}" />
+    </f:entry>
+    <f:block>
+        <table>
+            <f:entry title="${%Argument list}" field="config.args">
+                <f:repeatable var="arg" items="${config.args}" name="args" noAddButton="true" minimum="1">
+                    <table width="100%">
+                        <f:entry>
+                            <input type="text" readonly="readonly" name="name" value="${arg.name}" />
+                        </f:entry>
+                    </table>
+                </f:repeatable>
+            </f:entry>
+        </table>
+    </f:block>
+    <f:entry title="${%Content}">
+        <f:textarea readonly="readonly" id="config.content" name="config.content" value="${config.content}" />
+    </f:entry>
 </j:jelly>
