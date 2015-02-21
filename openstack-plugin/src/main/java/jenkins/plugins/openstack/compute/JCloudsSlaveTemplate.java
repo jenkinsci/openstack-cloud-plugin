@@ -223,10 +223,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.installPrivateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey());
         }
 
-
         ExtensionList<ConfigProvider> providers = ConfigProvider.all();
         UserDataConfig.UserDataConfigProvider myProvider = providers.get(UserDataConfig.UserDataConfigProvider.class);
-        UserDataConfig userData = (UserDataConfig) myProvider.getConfigById(userDataId);
+        Config userData = myProvider.getConfigById(userDataId);
         if (userData != null && !userData.content.isEmpty()) {
             options.as(NovaTemplateOptions.class).userData(userData.content.getBytes(StandardCharsets.UTF_8));
         }
@@ -459,7 +458,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
-        public ConfigProvider getConfigProvider() {
+        private ConfigProvider getConfigProvider() {
             ExtensionList<ConfigProvider> providers = ConfigProvider.all();
             return providers.get(UserDataConfig.UserDataConfigProvider.class);
         }
