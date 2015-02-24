@@ -9,7 +9,7 @@
     <artifactId>openstack-cloud</artifactId>
     <version>1.5-SNAPSHOT</version>
     <packaging>hpi</packaging>
-    <name>Openstack Jenkins Plugin</name>
+    <name>Openstack Cloud Plugin</name>
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Openstack+Jenkins+Plugin</url>
 
