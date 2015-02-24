@@ -5,8 +5,7 @@
         <artifactId>plugin</artifactId>
         <version>1.580.3</version>
     </parent>
-    <groupId>org.jenkins-ci.plugins</groupId>
-    <artifactId>openstack-jenkins-parent</artifactId>
+    <artifactId>openstack-cloud-parent</artifactId>
     <version>1.5-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Openstack Jenkins Plugin parent POM</name>
@@ -23,7 +22,7 @@
     </properties>
     <modules>
         <module>openstack-shaded</module>
-        <module>openstack-plugin</module>
+        <module>openstack-cloud</module>
     </modules>
     <developers>
         <developer>

@@ -2,12 +2,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>openstack-jenkins-parent</artifactId>
+        <artifactId>openstack-cloud-parent</artifactId>
         <version>1.5-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
-    <groupId>org.jenkins-ci.plugins</groupId>
-    <artifactId>openstack-plugin</artifactId>
+    <artifactId>openstack-cloud</artifactId>
     <version>1.5-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Openstack Jenkins Plugin</name>
