@@ -3,11 +3,11 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>openstack-cloud-parent</artifactId>
-        <version>1.5-SNAPSHOT</version>
+        <version>1.5</version>
         <relativePath>..</relativePath>
     </parent>
     <artifactId>openstack-shaded</artifactId>
-    <version>1.5-SNAPSHOT</version>
+    <version>1.5</version>
     <packaging>jar</packaging>
     <name>openstack shaded jar for Jenkins plugin</name>
 
