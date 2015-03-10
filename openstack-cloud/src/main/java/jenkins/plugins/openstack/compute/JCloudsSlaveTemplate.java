@@ -187,7 +187,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         Template template = templateBuilder.build();
-        TemplateOptions options = template.getOptions();
+        NovaTemplateOptions options = template.getOptions().as(NovaTemplateOptions.class);
 
         if (!Strings.isNullOrEmpty(networkId)) {
             LOGGER.info("Setting network to " + networkId);
@@ -196,17 +196,17 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         if (!Strings.isNullOrEmpty(securityGroups)) {
             LOGGER.info("Setting security groups to " + securityGroups);
-            options.as(NovaTemplateOptions.class).securityGroupNames(csvToArray(securityGroups));
+            options.securityGroups(csvToArray(securityGroups));
         }
 
-        if (!Strings.isNullOrEmpty((keyPairName))) {
+        if (!Strings.isNullOrEmpty(keyPairName)) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
-            options.as(NovaTemplateOptions.class).keyPairName(keyPairName);
+            options.keyPairName(keyPairName);
         }
 
-        if (!Strings.isNullOrEmpty((availabilityZone))) {
+        if (!Strings.isNullOrEmpty(availabilityZone)) {
             LOGGER.info("Setting availabilityZone to " + availabilityZone);
-            options.as(NovaTemplateOptions.class).availabilityZone(availabilityZone);
+            options.availabilityZone(availabilityZone);
         }
 
         StandardUsernameCredentials credentials = SSHLauncher.lookupSystemCredentials(credentialsId);
