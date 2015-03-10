@@ -89,6 +89,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String securityGroups;
     public final String credentialsId;
     public final JCloudsCloud.SlaveType slaveType;
+    public final String availabilityZone;
 
     private transient Set<LabelAtom> labelSet;
 
@@ -99,7 +100,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                 final String labelString, final String userDataId, final String numExecutors,
                                 final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
                                 final int overrideRetentionTime, final String keyPairName, final String networkId,
-                                final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType) {
+                                final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType, final String availabilityZone) {
 
         this.name = Util.fixEmptyAndTrim(name);
         this.imageId = Util.fixEmptyAndTrim(imageId);
@@ -118,6 +119,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.securityGroups = securityGroups;
         this.credentialsId = credentialsId;
         this.slaveType = slaveType;
+        this.availabilityZone = availabilityZone;
 
         readResolve();
     }
@@ -200,6 +202,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         if (!Strings.isNullOrEmpty((keyPairName))) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
             options.as(NovaTemplateOptions.class).keyPairName(keyPairName);
+        }
+
+        if (!Strings.isNullOrEmpty((availabilityZone))) {
+            LOGGER.info("Setting availabilityZone to " + availabilityZone);
+            options.as(NovaTemplateOptions.class).availabilityZone(availabilityZone);
         }
 
         StandardUsernameCredentials credentials = SSHLauncher.lookupSystemCredentials(credentialsId);
