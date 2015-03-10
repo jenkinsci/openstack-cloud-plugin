@@ -3,11 +3,11 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>openstack-cloud-parent</artifactId>
-        <version>1.7-SNAPSHOT</version>
+        <version>1.7</version>
         <relativePath>..</relativePath>
     </parent>
     <artifactId>openstack-cloud</artifactId>
-    <version>1.7-SNAPSHOT</version>
+    <version>1.7</version>
     <packaging>hpi</packaging>
     <name>Openstack Cloud Plugin</name>
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>openstack-shaded</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.7</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -195,7 +195,8 @@
         <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openstack-cloud-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
-    </scm>
+      <tag>openstack-cloud-parent-1.7</tag>
+  </scm>
     <repositories>
         <repository>
             <id>repo.jenkins-ci.org</id>
