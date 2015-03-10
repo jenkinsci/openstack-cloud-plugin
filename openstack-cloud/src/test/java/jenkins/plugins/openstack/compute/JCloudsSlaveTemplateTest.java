@@ -14,7 +14,7 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
         String name = "testSlave";
         JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(name, "imageId", "hardwareId",
                 "openstack-slave-type1 openstack-type2", "userData", "1", false, null, null, true, 0,
-                "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH);
+                "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH, null);
 
         List<JCloudsSlaveTemplate> templates = new ArrayList<JCloudsSlaveTemplate>();
         templates.add(originalTemplate);
