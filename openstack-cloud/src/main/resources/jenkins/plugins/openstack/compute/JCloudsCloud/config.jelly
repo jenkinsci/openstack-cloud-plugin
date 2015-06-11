@@ -14,6 +14,7 @@
     <f:entry title="Default Openstack Region" field="zone">
         <f:textbox/>
     </f:entry>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="identity,credential,privateKey,endPointUrl"/>
     <f:advanced>
         <f:entry title="Max. No. of Instances" field="instanceCap">
             <f:textbox default="10" />
@@ -33,5 +34,4 @@
             <st:include page="config.jelly" class="${descriptor.clazz}"/>
         </f:repeatable>
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="identity,credential,privateKey,endPointUrl"/>
 </j:jelly>
