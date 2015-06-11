@@ -199,6 +199,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.securityGroups(csvToArray(securityGroups));
         }
 
+        if (cloud.isFloatingIps()) {
+            LOGGER.info("Asking for floating IP");
+            options.as(NovaTemplateOptions.class).autoAssignFloatingIp(true);
+        }
+
         if (!Strings.isNullOrEmpty(keyPairName)) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
             options.keyPairName(keyPairName);

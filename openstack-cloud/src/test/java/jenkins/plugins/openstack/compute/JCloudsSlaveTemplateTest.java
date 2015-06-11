@@ -22,7 +22,7 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
         templates.add(originalTemplate);
 
         JCloudsCloud originalCloud = new JCloudsCloud("aws-profile", "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, 600 * 1000, null, templates);
+                600 * 1000, 600 * 1000, null, templates, true);
 
         hudson.clouds.add(originalCloud);
         submit(createWebClient().goTo("configure").getFormByName("config"));

@@ -53,16 +53,16 @@ public class JCloudsCloudTest {
     public void testConfigRoundtrip() throws Exception {
 
         JCloudsCloud original = new JCloudsCloud("openstack-profile", "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList());
+                600 * 1000, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList(), true);
 
         j.getInstance().clouds.add(original);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
         j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack-profile"),
-                "identity,credential,endPointUrl,instanceCap,retentionTime");
+                "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
 
         j.assertEqualBeans(original, JCloudsCloud.getByName("openstack-profile"),
-                "identity,credential,endPointUrl,instanceCap,retentionTime");
+                "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
     }
 
 }

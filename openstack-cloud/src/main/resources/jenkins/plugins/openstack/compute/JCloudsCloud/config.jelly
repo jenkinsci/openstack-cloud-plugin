@@ -22,6 +22,9 @@
         <f:entry title="Retention Time" field="retentionTime">
             <f:textbox default="30" />
         </f:entry>
+        <f:entry title="Associate floating IP" field="floatingIps">
+            <f:checkbox/>
+        </f:entry>
         <f:entry title="Default Init Script Timeout" field="scriptTimeout">
             <f:textbox default="600000"/>
         </f:entry>

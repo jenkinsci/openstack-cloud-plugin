@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import javax.servlet.ServletException;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
 import com.google.inject.Module;
+
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
@@ -26,6 +28,7 @@ import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
+
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.apis.Apis;
@@ -40,11 +43,14 @@ import org.jclouds.logging.jdk.config.JDKLoggingModule;
 import org.jclouds.openstack.neutron.v2.NeutronApiMetadata;
 import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
 import org.jclouds.sshj.config.SshjSshClientModule;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.jclouds.openstack.neutron.v2.NeutronApi;
+
 import shaded.com.google.common.base.Objects;
 import shaded.com.google.common.base.Predicate;
 import shaded.com.google.common.base.Strings;
@@ -70,12 +76,15 @@ public class JCloudsCloud extends Cloud {
     public final String endPointUrl;
     public final String profile;
     private final int retentionTime;
-    public int instanceCap;
+    public final int instanceCap;
     public final List<JCloudsSlaveTemplate> templates;
     public final int scriptTimeout;
     public final int startTimeout;
-    private transient ComputeService compute;
     public final String zone;
+    // Ask for a floating IP to be associated for every machine provisioned
+    private final boolean floatingIps;
+
+    private transient ComputeService compute;
 
     public enum SlaveType {SSH, JNLP}
 
@@ -94,9 +103,11 @@ public class JCloudsCloud extends Cloud {
         return (JCloudsCloud) Jenkins.getInstance().clouds.getByName(name);
     }
 
-    @DataBoundConstructor
+    @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
-                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates) {
+                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
+                        final boolean floatingIps
+    ) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
         this.identity = Util.fixEmptyAndTrim(identity);
@@ -108,6 +119,7 @@ public class JCloudsCloud extends Cloud {
         this.startTimeout = startTimeout;
         this.templates = Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList());
         this.zone = Util.fixEmptyAndTrim(zone);
+        this.floatingIps = floatingIps;
         readResolve();
     }
 
@@ -123,6 +135,10 @@ public class JCloudsCloud extends Cloud {
      */
     public int getRetentionTime() {
         return retentionTime == 0 ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : retentionTime;
+    }
+
+    /*package*/ boolean isFloatingIps() {
+        return floatingIps;
     }
 
     static final Iterable<Module> MODULES = ImmutableSet.<Module>of(new SshjSshClientModule(), new JDKLoggingModule() {
