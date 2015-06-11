@@ -137,7 +137,7 @@ public class JCloudsCloud extends Cloud {
         return retentionTime == 0 ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : retentionTime;
     }
 
-    /*package*/ boolean isFloatingIps() {
+    public boolean isFloatingIps() {
         return floatingIps;
     }
 
