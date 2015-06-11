@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
@@ -62,7 +63,6 @@ import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-
 import com.trilead.ssh2.Connection;
 
 /**
@@ -222,7 +222,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 user(credentials.getUsername()).
                 privateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey()).build();
         } else {
-            throw new AssertionError("Invalid configuration. Cant use neither privateKey auth not password");
+            throw new AssertionError("Unknown credential type configured: " + credentials);
         }
         options.overrideLoginCredentials(loginCredentials);
 
