@@ -132,7 +132,7 @@ public class JCloudsCloud extends Cloud {
         }
     }, new EnterpriseConfigurationModule());
 
-    static ComputeServiceContext ctx(String identity, String credential, String endPointUrl, String zone) {
+    /*package*/ static ComputeServiceContext ctx(String identity, String credential, String endPointUrl, String zone) {
         Properties overrides = new Properties();
         if (!Strings.isNullOrEmpty(endPointUrl)) {
             overrides.setProperty(Constants.PROPERTY_ENDPOINT, endPointUrl);
@@ -140,7 +140,7 @@ public class JCloudsCloud extends Cloud {
         return ctx(identity, credential, overrides, zone);
     }
 
-    static ComputeServiceContext ctx(String identity, String credential, Properties overrides, String zone) {
+    /*package*/ static ComputeServiceContext ctx(String identity, String credential, Properties overrides, String zone) {
         if (!Strings.isNullOrEmpty(zone)) {
             overrides.setProperty(LocationConstants.PROPERTY_ZONES, zone);
         }
@@ -154,7 +154,7 @@ public class JCloudsCloud extends Cloud {
                 .buildView(ComputeServiceContext.class);
     }
 
-    static NeutronApi na(String identity, String credential, String endPointUrl) {
+    /*package*/ static NeutronApi na(String identity, String credential, String endPointUrl) {
         Thread.currentThread().setContextClassLoader(NeutronApiMetadata.class.getClassLoader());
         return ContextBuilder.newBuilder(new NeutronApiMetadata())
                         .credentials(identity, credential)
