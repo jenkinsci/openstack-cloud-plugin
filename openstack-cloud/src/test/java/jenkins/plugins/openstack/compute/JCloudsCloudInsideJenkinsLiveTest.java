@@ -27,7 +27,7 @@ public class JCloudsCloudInsideJenkinsLiveTest extends HudsonTestCase {
         // TODO: this may need to vary per test
         cloud = new JCloudsCloud("profile", fixture.getIdentity(), fixture.getCredential(),
                 fixture.getEndpoint(), 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, 600 * 1000, null,
-                Collections.<JCloudsSlaveTemplate>emptyList());
+                Collections.<JCloudsSlaveTemplate>emptyList(), true);
     }
 
     public void testDoTestConnectionCorrectCredentialsEtc() throws IOException {
