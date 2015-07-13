@@ -369,12 +369,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 computeService = JCloudsCloud.ctx(identity, credential, endPointUrl, zone).getComputeService();
 
                 ArrayList<Image> hws = newArrayList(computeService.listImages());
-                sort(hws, new Comparator<Image>() {
-                    @Override
-                    public int compare(Image o1, Image o2) {
-                        return o1.getName().compareTo(o2.getName());
-                    }
-                });
+                sort(hws, IMAGE_COMPARATOR);
 
                 for (Image image : hws) {
                     m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
@@ -416,12 +411,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
                 networkApi = JCloudsCloud.na(identity, credential, endPointUrl).getNetworkApi(zone);
 
-                List<? extends Network> networks = networkApi.list().concat().toSortedList(new Comparator<Network>() {
-                    @Override
-                    public int compare(Network o1, Network o2) {
-                        return o1.getName().compareTo(o2.getName());
-                    }
-                });
+                List<? extends Network> networks = networkApi.list().concat().toSortedList(NETWORK_COMPARATOR);
 
                 for (Network network : networks) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
@@ -470,5 +460,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return providers.get(UserDataConfig.UserDataConfigProvider.class);
         }
 
+        private static final Comparator<Network> NETWORK_COMPARATOR = new Comparator<Network>() {
+            @Override
+            public int compare(Network o1, Network o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        };
+
+        private static final Comparator<Image> IMAGE_COMPARATOR = new Comparator<Image>() {
+            @Override
+            public int compare(Image o1, Image o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        };
     }
 }
