@@ -6,7 +6,7 @@
         <version>1.580.3</version>
     </parent>
     <artifactId>openstack-cloud-parent</artifactId>
-    <version>1.8-SNAPSHOT</version>
+    <version>1.8</version>
     <packaging>pom</packaging>
     <name>Openstack Cloud Plugin parent POM</name>
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
@@ -86,7 +86,7 @@
         <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openstack-cloud-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
-      <tag>HEAD</tag>
+      <tag>openstack-cloud-parent-1.8</tag>
   </scm>
     <repositories>
         <repository>
