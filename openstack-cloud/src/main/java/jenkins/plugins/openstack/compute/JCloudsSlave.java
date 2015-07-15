@@ -108,7 +108,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * @see CloudInstanceDefaults#DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES
      */
     public int getRetentionTime() {
-        if (overrideRetentionTime > 0 || overrideRetentionTime < 0) {
+        if (overrideRetentionTime != 0) {
             return overrideRetentionTime;
         }
 
