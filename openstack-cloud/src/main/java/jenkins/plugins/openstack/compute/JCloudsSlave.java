@@ -108,7 +108,11 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * @see CloudInstanceDefaults#DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES
      */
     public int getRetentionTime() {
-        if (overrideRetentionTime > 0) {
+        /**
+         * Checks if retention time for this slave is set.
+         * -1 means - keep slave forever
+         */
+        if (overrideRetentionTime != 0) {
             return overrideRetentionTime;
         }
 
