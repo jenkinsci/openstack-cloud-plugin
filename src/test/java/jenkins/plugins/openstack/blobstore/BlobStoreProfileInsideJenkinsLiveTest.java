@@ -1,15 +1,20 @@
 package jenkins.plugins.openstack.blobstore;
 
-import org.jvnet.hudson.test.HudsonTestCase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
-public class BlobStoreProfileInsideJenkinsLiveTest extends HudsonTestCase {
+public class BlobStoreProfileInsideJenkinsLiveTest {
+
+    public @Rule JenkinsRule j = new JenkinsRule();
 
     private BlobStoreTestFixture fixture;
     private BlobStoreProfile profile;
 
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
+    @Before
+    public void setUp() {
         fixture = new BlobStoreTestFixture();
         fixture.setUp();
 
@@ -19,6 +24,7 @@ public class BlobStoreProfileInsideJenkinsLiveTest extends HudsonTestCase {
 
     public static final String CONTAINER_PREFIX = System.getProperty("user.name") + "-blobstore-profile";
 
+    @Test
     public void testUpload() {
         String container = CONTAINER_PREFIX + "-upload";
         try {
@@ -31,7 +37,7 @@ public class BlobStoreProfileInsideJenkinsLiveTest extends HudsonTestCase {
         }
     }
 
-    @Override
+    @After
     public void tearDown() {
         if (fixture != null)
             fixture.tearDown();

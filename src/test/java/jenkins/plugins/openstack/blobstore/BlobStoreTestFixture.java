@@ -1,13 +1,12 @@
 package jenkins.plugins.openstack.blobstore;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.Map;
 
 import org.jclouds.apis.BaseViewLiveTest;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.util.Maps2;
+import org.junit.Assume;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
@@ -16,7 +15,6 @@ import com.google.common.reflect.TypeToken;
 
 @SuppressWarnings("unchecked")
 public class BlobStoreTestFixture extends BaseViewLiveTest<BlobStoreContext> {
-    public static String PROVIDER;
 
     /**
      * base openstack tests expect properties to arrive in a different naming convention, based on provider name.
@@ -36,20 +34,19 @@ public class BlobStoreTestFixture extends BaseViewLiveTest<BlobStoreContext> {
      *  test.aws-s3.credential=secret
      * </pre>
      */
-    static {
-        PROVIDER = checkNotNull(System.getProperty("test.jenkins.blobstore.provider"), "test.blobstore.provider variable must be set!");
+    public BlobStoreTestFixture() {
+        final String PROVIDER = System.getProperty("test.jenkins.blobstore.provider");
+        Assume.assumeTrue("test.blobstore.provider variable must be set!", PROVIDER != null); // Skip the test
         Map<String, String> filtered = Maps.filterKeys(Map.class.cast(System.getProperties()), Predicates.containsPattern("^test\\.jenkins\\.blobstore"));
         Map<String, String> transformed = Maps2.transformKeys(filtered, new Function<String, String>() {
 
+            @Override
             public String apply(String arg0) {
                 return arg0.replaceAll("test.jenkins.blobstore", "test." + PROVIDER);
             }
 
         });
         System.getProperties().putAll(transformed);
-    }
-
-    public BlobStoreTestFixture() {
         provider = PROVIDER;
     }
 

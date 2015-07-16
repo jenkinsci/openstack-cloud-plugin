@@ -1,24 +1,25 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.junit.Assert.assertEquals;
 import hudson.util.FormValidation;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
-import junit.framework.TestCase;
-
 import org.jclouds.ssh.SshKeys;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-public class JCloudsCloudLiveTest extends TestCase {
+public class JCloudsCloudLiveTest {
 
     private ComputeTestFixture fixture;
     private JCloudsCloud cloud;
     private Map<String, String> generatedKeys;
 
-    @Override
+    @Before
     public void setUp() throws Exception {
-        super.setUp();
         fixture = new ComputeTestFixture();
         fixture.setUp();
         generatedKeys = SshKeys.generate();
@@ -29,13 +30,14 @@ public class JCloudsCloudLiveTest extends TestCase {
                 Collections.<JCloudsSlaveTemplate>emptyList());
     }
 
+    @Test
     public void testDoTestConnectionCorrectCredentialsEtc() throws IOException {
         FormValidation result = new JCloudsCloud.DescriptorImpl().doTestConnection(fixture.getIdentity(), fixture.getCredential(),
                 fixture.getEndpoint(), null);
         assertEquals("Connection succeeded!", result.getMessage());
     }
 
-    @Override
+    @After
     public void tearDown() {
         if (fixture != null)
             fixture.tearDown();

@@ -1,13 +1,12 @@
 package jenkins.plugins.openstack.compute;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.Map;
 
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.internal.BaseComputeServiceContextLiveTest;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.jclouds.util.Maps2;
+import org.junit.Assume;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
@@ -36,20 +35,19 @@ public class ComputeTestFixture extends BaseComputeServiceContextLiveTest {
      *  test.aws-ec2.credential=secret
      * </pre>
      */
-    static {
-        PROVIDER = checkNotNull(System.getProperty("test.jenkins.compute.provider"), "test.compute.provider variable must be set!");
+    public ComputeTestFixture() {
+        final String PROVIDER = System.getProperty("test.jenkins.compute.provider");
+        Assume.assumeTrue("test.jenkins.compute.provider variable must be set!", PROVIDER != null); // Skip the test
         Map<String, String> filtered = Maps.filterKeys(Map.class.cast(System.getProperties()), Predicates.containsPattern("^test\\.jenkins\\.compute"));
         Map<String, String> transformed = Maps2.transformKeys(filtered, new Function<String, String>() {
 
+            @Override
             public String apply(String arg0) {
                 return arg0.replaceAll("test.jenkins.compute", "test." + PROVIDER);
             }
 
         });
         System.getProperties().putAll(transformed);
-    }
-
-    public ComputeTestFixture() {
         provider = PROVIDER;
     }
 
