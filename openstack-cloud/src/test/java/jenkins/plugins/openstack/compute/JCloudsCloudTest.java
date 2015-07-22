@@ -52,7 +52,7 @@ public class JCloudsCloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
 
-        JCloudsCloud original = new JCloudsCloud("openstack-profile", "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
+        JCloudsCloud original = new JCloudsCloud("openstack-profile", "identity", "credential", "endPointUrl", 1, 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
                 600 * 1000, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList(), true);
 
         j.getInstance().clouds.add(original);

@@ -9,16 +9,22 @@ public class NodePlan {
     private final String templateName;
     private final int count;
     private final Supplier<NodeMetadata> nodeSupplier;
+    private final int retryTime;
 
-    public NodePlan(String cloud, String template, int count, Supplier<NodeMetadata> nodeSupplier) {
+    public NodePlan(String cloud, String template, int count, Supplier<NodeMetadata> nodeSupplier, int retryTime) {
         this.cloudName = cloud;
         this.templateName = template;
         this.count = count;
         this.nodeSupplier = nodeSupplier;
+        this.retryTime = retryTime;
     }
 
     public String getCloudName() {
         return cloudName;
+    }
+
+    public int getRetryTime() {
+        return retryTime;
     }
 
     public String getTemplateName() {
