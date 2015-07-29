@@ -340,7 +340,7 @@ public class JCloudsCloud extends Cloud {
          */
         @Override
         public String getDisplayName() {
-            return "Cloud (Openstack)";
+            return "Cloud (OpenStack)";
         }
 
         public FormValidation doTestConnection(@QueryParameter String identity,

@@ -29,7 +29,7 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
     public static final class DescriptorImpl extends Descriptor<PluginImpl> {
         @Override
         public String getDisplayName() {
-            return "Openstack Jenkins PluginImpl";
+            return "OpenStack Jenkins PluginImpl";
         }
     }
 }

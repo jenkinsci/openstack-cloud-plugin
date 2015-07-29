@@ -8,9 +8,9 @@
     <artifactId>openstack-cloud-parent</artifactId>
     <version>1.9-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Openstack Cloud Plugin parent POM</name>
-    <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/Openstack+Cloud+Plugin</url>
+    <name>OpenStack Cloud Plugin Parent</name>
+    <description>Allows Jenkins to build OpenStack Slaves via JClouds</description>
+    <url>https://wiki.jenkins-ci.org/display/JENKINS/OpenStack+Cloud+Plugin</url>
     <properties>
         <jclouds.version>1.8.1</jclouds.version>
         <guava.version>18.0</guava.version>

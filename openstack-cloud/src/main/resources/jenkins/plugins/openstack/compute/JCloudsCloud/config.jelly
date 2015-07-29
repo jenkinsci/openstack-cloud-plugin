@@ -11,7 +11,7 @@
     <f:entry title="Password" field="credential">
         <f:password/>
     </f:entry>
-    <f:entry title="Default Openstack Region" field="zone">
+    <f:entry title="Default OpenStack Region" field="zone">
         <f:textbox/>
     </f:entry>
     <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="identity,credential,privateKey,endPointUrl"/>

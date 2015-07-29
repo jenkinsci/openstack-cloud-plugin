@@ -49,7 +49,7 @@ public class JCloudsOneOffSlave extends BuildWrapper {
     public static final class DescriptorImpl extends BuildWrapperDescriptor {
         @Override
         public String getDisplayName() {
-            return "Openstack Single-Use Slave";
+            return "OpenStack Single-Use Slave";
         }
 
         @Override

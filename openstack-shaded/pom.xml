@@ -9,11 +9,11 @@
     <artifactId>openstack-shaded</artifactId>
     <version>1.9-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <name>openstack shaded jar for Jenkins plugin</name>
+    <name>OpenStack Cloud Plugin Shaded JAR</name>
 
     <dependencies>
 
-        <!-- openstack dependencies -->
+        <!-- OpenStack dependencies -->
         <dependency>
             <groupId>org.apache.jclouds.driver</groupId>
             <artifactId>jclouds-slf4j</artifactId>
@@ -25,7 +25,7 @@
             <version>${jclouds.version}</version>
         </dependency>
 
-        <!-- Common openstack stuff dependencies -->
+        <!-- Common OpenStack stuff dependencies -->
         <dependency>
             <groupId>org.apache.jclouds</groupId>
             <artifactId>jclouds-allblobstore</artifactId>
@@ -37,7 +37,7 @@
             <version>${jclouds.version}</version>
         </dependency>
 
-        <!-- Openstack dependencies -->
+        <!-- OpenStack dependencies -->
         <dependency>
             <groupId>org.apache.jclouds.api</groupId>
             <artifactId>openstack-keystone</artifactId>

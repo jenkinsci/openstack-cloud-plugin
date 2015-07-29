@@ -32,9 +32,9 @@ public class JCloudsCloudTest {
         final HtmlForm configForm = page.getFormByName("config");
         final HtmlButton buttonByCaption = configForm.getButtonByCaption("Add a new cloud");
         HtmlPage page1 = buttonByCaption.click();
-        WebAssert.assertLinkPresentWithText(page1, "Cloud (Openstack)");
+        WebAssert.assertLinkPresentWithText(page1, "Cloud (OpenStack)");
 
-        HtmlPage page2 = page.getAnchorByText("Cloud (Openstack)").click();
+        HtmlPage page2 = page.getAnchorByText("Cloud (OpenStack)").click();
         WebAssert.assertInputPresent(page2, "_.endPointUrl");
         WebAssert.assertInputPresent(page2, "_.identity");
         WebAssert.assertInputPresent(page2, "_.credential");
