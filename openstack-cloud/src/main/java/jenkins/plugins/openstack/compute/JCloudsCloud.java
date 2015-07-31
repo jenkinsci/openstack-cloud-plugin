@@ -78,6 +78,7 @@ public class JCloudsCloud extends Cloud {
     private final int retentionTime;
     public final int instanceCap;
     public final List<JCloudsSlaveTemplate> templates;
+    public final int sshLaunchDelay;
     public final int scriptTimeout;
     public final int startTimeout;
     public final String zone;
@@ -105,7 +106,7 @@ public class JCloudsCloud extends Cloud {
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
-                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
+                        final int retentionTime, final int sshLaunchDelay, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
                         final boolean floatingIps
     ) {
         super(Util.fixEmptyAndTrim(profile));
@@ -115,6 +116,7 @@ public class JCloudsCloud extends Cloud {
         this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         this.instanceCap = instanceCap;
         this.retentionTime = retentionTime;
+        this.sshLaunchDelay = sshLaunchDelay;
         this.scriptTimeout = scriptTimeout;
         this.startTimeout = startTimeout;
         this.templates = Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList());
@@ -135,6 +137,10 @@ public class JCloudsCloud extends Cloud {
      */
     public int getRetentionTime() {
         return retentionTime == 0 ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : retentionTime;
+    }
+
+    public int getSshLaunchDelay() {
+        return sshLaunchDelay;
     }
 
     public boolean isFloatingIps() {
@@ -398,6 +404,10 @@ public class JCloudsCloud extends Cloud {
                     return FormValidation.ok();
             } catch (NumberFormatException e) {
             }
+            return FormValidation.validateNonNegativeInteger(value);
+        }
+
+        public FormValidation doCheckSshLaunchDelay(@QueryParameter String value) {
             return FormValidation.validateNonNegativeInteger(value);
         }
 

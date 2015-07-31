@@ -10,6 +10,7 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.MessageFormat;
+import java.util.logging.Logger;
 
 import org.jclouds.compute.domain.NodeMetadata;
 
@@ -20,6 +21,7 @@ import org.jclouds.compute.domain.NodeMetadata;
  * @author Vijay Kiran
  */
 public class JCloudsLauncher extends ComputerLauncher {
+    private static final Logger LOGGER = Logger.getLogger(JCloudsLauncher.class.getName());
 
     /**
      * Launch the Jenkins Slave on the SlaveComputer.
@@ -43,7 +45,24 @@ public class JCloudsLauncher extends ComputerLauncher {
             throw new IOException("goto sleep");
         }
 
+        LOGGER.info("Launching host: " + host);
+
         if (slave.getSlaveType() == JCloudsCloud.SlaveType.SSH) {
+            // The SSHLauncher retry options do not seem to work reliably.
+            // As such, a configurable launch delay may be needed before
+            // attempting to launch over SSH.
+            JCloudsCloud cloud = JCloudsCloud.getByName(slave.getCloudName());
+            int sshLaunchDelay = cloud.getSshLaunchDelay();
+
+            if (sshLaunchDelay > 0) {
+                try {
+                    LOGGER.info(String.format("Delaying launch for %s milliseconds", sshLaunchDelay));
+                    Thread.sleep(sshLaunchDelay);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+
             SSHLauncher launcher = new SSHLauncher(host, 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
             launcher.launch(computer, listener);
         } else if (slave.getSlaveType() == JCloudsCloud.SlaveType.JNLP) {

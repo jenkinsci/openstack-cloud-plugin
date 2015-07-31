@@ -9,7 +9,7 @@
         <f:textbox/>
       </f:entry>
     </f:section>
-    
+
     <f:section title="Cloud Server Options">
         <f:entry title="Image" field="imageId">
             <f:select />
@@ -18,6 +18,9 @@
             <f:select />
         </f:entry>
         <f:entry title="Network" field="networkId">
+            <f:select />
+        </f:entry>
+        <f:entry title="Floating IP Pool" field="floatingIpPoolId">
             <f:select />
         </f:entry>
         <f:entry title="${%SSH Credentials}" field="credentialsId">
