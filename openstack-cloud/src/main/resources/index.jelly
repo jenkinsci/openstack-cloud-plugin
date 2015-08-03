@@ -1,3 +1,3 @@
 <div>
-    Allows Jenkins to build using Cloud Servers in OpenStack via jclouds.
+    Allows Jenkins to provision build nodes in an OpenStack cloud.
 </div>

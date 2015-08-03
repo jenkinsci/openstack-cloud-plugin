@@ -45,6 +45,7 @@ import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -407,6 +408,7 @@ public class JCloudsCloud extends Cloud {
             return FormValidation.validateNonNegativeInteger(value);
         }
 
+        @Restricted(NoExternalUse.class)
         public FormValidation doCheckSshLaunchDelay(@QueryParameter String value) {
             return FormValidation.validateNonNegativeInteger(value);
         }

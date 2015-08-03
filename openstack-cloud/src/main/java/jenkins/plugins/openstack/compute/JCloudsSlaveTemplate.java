@@ -50,6 +50,8 @@ import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -435,6 +437,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
+        @Restricted(NoExternalUse.class)
         public ListBoxModel doFillFloatingIpPoolIdItems(@RelativePath("..") @QueryParameter String identity,
                                                         @RelativePath("..") @QueryParameter String credential,
                                                         @RelativePath("..") @QueryParameter String endPointUrl,

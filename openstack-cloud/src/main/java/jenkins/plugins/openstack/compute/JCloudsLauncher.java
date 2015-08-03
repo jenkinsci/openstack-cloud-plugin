@@ -55,12 +55,8 @@ public class JCloudsLauncher extends ComputerLauncher {
             int sshLaunchDelay = cloud.getSshLaunchDelay();
 
             if (sshLaunchDelay > 0) {
-                try {
-                    LOGGER.info(String.format("Delaying launch for %s milliseconds", sshLaunchDelay));
-                    Thread.sleep(sshLaunchDelay);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                }
+                LOGGER.info(String.format("Delaying launch for %s milliseconds", sshLaunchDelay));
+                Thread.sleep(sshLaunchDelay);
             }
 
             SSHLauncher launcher = new SSHLauncher(host, 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
