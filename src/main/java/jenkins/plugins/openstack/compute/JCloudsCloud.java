@@ -158,7 +158,6 @@ public class JCloudsCloud extends Cloud {
     }
 
     static ComputeServiceContext ctx(String endPointUrl, String identity, String credential, Properties overrides) {
-        // correct the classloader so that extensions can be found
         Thread.currentThread().setContextClassLoader(NovaApiMetadata.class.getClassLoader());
         return ContextBuilder
                 .newBuilder(new NovaApiMetadata())
@@ -232,8 +231,8 @@ public class JCloudsCloud extends Cloud {
         while (computer.isOffline()) {
             try {
                 LOGGER.fine(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
+                Thread.sleep(2000l);
                 computer.connect(false).get();
-                Thread.sleep(5000l);
             } catch (InterruptedException|ExecutionException|NullPointerException e) {
                 LOGGER.fine(String.format("Error while launching slave: %s", e));
             }
@@ -339,6 +338,7 @@ public class JCloudsCloud extends Cloud {
                                             ) {
 
             ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential)) {
                 return m;
@@ -348,10 +348,8 @@ public class JCloudsCloud extends Cloud {
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
 
-            NovaApi nova = null;
-            m.add("None specified", "");
             try {
-                nova = nova(endPointUrl, identity, credential);
+                NovaApi nova = nova(endPointUrl, identity, credential);
                 List<? extends String> zones = new ArrayList<String>(nova.getConfiguredRegions());
                 Collections.sort(zones);
 
@@ -370,10 +368,7 @@ public class JCloudsCloud extends Cloud {
                                                @QueryParameter String credential,
                                                @QueryParameter String zone) throws IOException {
 
-            if (Strings.isNullOrEmpty(endPointUrl) ||
-                    Strings.isNullOrEmpty(identity) ||
-                    Strings.isNullOrEmpty(credential) ||
-                    Strings.isNullOrEmpty(zone)) {
+            if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential) || Strings.isNullOrEmpty(zone)) {
                 return FormValidation.error("Invalid parameters");
             }
 

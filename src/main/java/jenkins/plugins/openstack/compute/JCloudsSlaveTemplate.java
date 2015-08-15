@@ -2,8 +2,6 @@ package jenkins.plugins.openstack.compute;
 
 import static com.google.common.base.Throwables.propagate;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static com.google.common.collect.Lists.newArrayList;
-import static java.util.Collections.sort;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -35,20 +33,13 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
-import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.RunNodesException;
-import org.jclouds.compute.domain.Hardware;
-import org.jclouds.compute.domain.Image;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
-import org.jclouds.compute.options.TemplateOptions;
 import org.jclouds.domain.LoginCredentials;
-import org.jclouds.location.reference.LocationConstants;
-import org.jclouds.openstack.neutron.v2.NeutronApi;
 import org.jclouds.openstack.neutron.v2.domain.Network;
 import org.jclouds.openstack.neutron.v2.features.NetworkApi;
-import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.openstack.nova.v2_0.features.FlavorApi;
 import org.jclouds.openstack.nova.v2_0.features.ImageApi;
@@ -63,12 +54,12 @@ import org.kohsuke.stapler.QueryParameter;
 import au.com.bytecode.opencsv.CSVReader;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableMap;
 
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
+
 import com.trilead.ssh2.Connection;
 
 /**
@@ -317,6 +308,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                   @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
                     Strings.isNullOrEmpty(identity) ||
@@ -330,11 +322,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
-            FlavorApi flavorApi = null;
-            m.add("None specified", "");
             try {
-
-                flavorApi = JCloudsCloud.nova(endPointUrl, identity, credential).getFlavorApi(zone);
+                FlavorApi flavorApi = JCloudsCloud.nova(endPointUrl, identity, credential).getFlavorApi(zone);
                 List<Resource> flavors = flavorApi.list().concat().toSortedList(new Comparator<Resource>() {
                     @Override
                     public int compare(Resource o1, Resource o2) {
@@ -358,6 +347,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
                     Strings.isNullOrEmpty(identity) ||
@@ -371,16 +361,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
-            ImageApi imageApi = null;
-            m.add("None specified", "");
             try {
-                imageApi = JCloudsCloud.nova(endPointUrl, identity, credential).getImageApi(zone);
-                List<Resource> images = imageApi.list().concat().toSortedList(new Comparator<Resource>() {
-                    @Override
-                    public int compare(Resource o1, Resource o2) {
-                        return o1.getName().compareTo(o2.getName());
-                    }
-                });
+                ImageApi imageApi = JCloudsCloud.nova(endPointUrl, identity, credential).getImageApi(zone);
+                List<? extends Resource> images = imageApi.list().concat().toSortedList(IMAGE_COMPARATOR);
 
                 for (Resource image : images) {
                         m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
@@ -398,6 +381,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                  @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
                     Strings.isNullOrEmpty(identity) ||
@@ -411,11 +395,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             credential = Secret.fromString(credential).getPlainText();
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
-            NetworkApi networkApi = null;
-            m.add("None specified", "");
             try {
-                networkApi = JCloudsCloud.neutron(identity, credential, endPointUrl).getNetworkApi(zone);
-
+                NetworkApi networkApi = JCloudsCloud.neutron(identity, credential, endPointUrl).getNetworkApi(zone);
                 List<? extends Network> networks = networkApi.list().concat().toSortedList(NETWORK_COMPARATOR);
 
                 for (Network network : networks) {
@@ -438,12 +419,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         public FormValidation doCheckOverrideRetentionTime(@QueryParameter String value) {
-            try {
-                if (Integer.parseInt(value) == -1) {
-                    return FormValidation.ok();
-                }
-            } catch (NumberFormatException e) {
-            }
+            try {if (Integer.parseInt(value) == -1) {return FormValidation.ok();}
+                } catch (NumberFormatException e) {}
             return FormValidation.validateNonNegativeInteger(value);
         }
 
@@ -472,9 +449,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         };
 
-        private static final Comparator<Image> IMAGE_COMPARATOR = new Comparator<Image>() {
+        private static final Comparator<Resource> IMAGE_COMPARATOR = new Comparator<Resource>() {
             @Override
-            public int compare(Image o1, Image o2) {
+            public int compare(Resource o1, Resource o2) {
                 return o1.getName().compareTo(o2.getName());
             }
         };

@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>1.609.2</version>
+        <version>1.596.3</version>
     </parent>
     <artifactId>openstack-cloud</artifactId>
     <version>1.8-SNAPSHOT</version>
@@ -12,7 +12,7 @@
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Openstack+Cloud+Plugin</url>
     <properties>
-        <jclouds.version>1.9.0</jclouds.version>
+        <jclouds.version>1.9.1</jclouds.version>
         <guava.version>18.0</guava.version>
         <jsch.version>0.1.48</jsch.version>
         <stapler.version>1.237</stapler.version>
