@@ -139,7 +139,7 @@ public class JCloudsCloud extends Cloud {
         }
     }, new EnterpriseConfigurationModule());
 
-    static NeutronApi neutron(String identity, String credential, String endPointUrl) {
+    static NeutronApi neutron(String endPointUrl, String identity, String credential) {
         Thread.currentThread().setContextClassLoader(NeutronApiMetadata.class.getClassLoader());
         return ContextBuilder.newBuilder(new NeutronApiMetadata())
                 .credentials(identity, credential)
@@ -339,7 +339,6 @@ public class JCloudsCloud extends Cloud {
                                             ) {
 
             ListBoxModel m = new ListBoxModel();
-            if(Util.fixEmptyAndTrim(zone) != null) {m.add(zone);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential)) {
@@ -360,15 +359,17 @@ public class JCloudsCloud extends Cloud {
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                if(Util.fixEmptyAndTrim(zone) != null) {m.add(zone);}
             }
 
             return m;
         }
 
-        public FormValidation doTestConnection(@QueryParameter String endPointUrl,
+        public FormValidation doTestConnection(@QueryParameter String zone,
+                                               @QueryParameter String endPointUrl,
                                                @QueryParameter String identity,
-                                               @QueryParameter String credential,
-                                               @QueryParameter String zone) throws IOException {
+                                               @QueryParameter String credential
+                                               ) throws IOException {
 
             if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential) || Strings.isNullOrEmpty(zone)) {
                 return FormValidation.error("Invalid parameters");

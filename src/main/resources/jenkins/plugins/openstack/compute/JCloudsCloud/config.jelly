@@ -14,7 +14,7 @@
     <f:entry title="Default Openstack Region" field="zone">
         <f:select />
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="identity,credential,privateKey,endPointUrl"/>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="zone,endPointUrl,identity,credential"/>
     <f:advanced>
         <f:entry title="Max. No. of Instances" field="instanceCap">
             <f:textbox default="10" />
