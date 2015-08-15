@@ -9,7 +9,7 @@ import jenkins.model.Jenkins;
 /**
  * @author Vijay Kiran
  */
-@Extension
+@Extension @Deprecated // Usused API
 public class PluginImpl extends Plugin implements Describable<PluginImpl> {
 
     @Override
@@ -25,7 +25,7 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         return Jenkins.getInstance().getPlugin(PluginImpl.class);
     }
 
-    @Extension
+    @Extension @Deprecated // Usused API
     public static final class DescriptorImpl extends Descriptor<PluginImpl> {
         @Override
         public String getDisplayName() {

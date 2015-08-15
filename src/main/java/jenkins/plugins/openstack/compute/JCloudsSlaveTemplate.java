@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
@@ -68,7 +69,6 @@ import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-
 import com.trilead.ssh2.Connection;
 
 /**
@@ -205,6 +205,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.securityGroups(csvToArray(securityGroups));
         }
 
+        if (cloud.isFloatingIps()) {
+            LOGGER.info("Asking for floating IP");
+            options.as(NovaTemplateOptions.class).autoAssignFloatingIp(true);
+        }
+
         if (!Strings.isNullOrEmpty(keyPairName)) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
             options.keyPairName(keyPairName);
@@ -228,7 +233,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 user(credentials.getUsername()).
                 privateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey()).build();
         } else {
-            throw new AssertionError("Invalid configuration. Cant use neither privateKey auth not password");
+            throw new AssertionError("Unknown credential type configured: " + credentials);
         }
         options.overrideLoginCredentials(loginCredentials);
 
@@ -411,12 +416,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             try {
                 networkApi = JCloudsCloud.neutron(identity, credential, endPointUrl).getNetworkApi(zone);
 
-                List<? extends Network> networks = networkApi.list().concat().toSortedList(new Comparator<Network>() {
-                    @Override
-                    public int compare(Network o1, Network o2) {
-                        return o1.getName().compareTo(o2.getName());
-                    }
-                });
+                List<? extends Network> networks = networkApi.list().concat().toSortedList(NETWORK_COMPARATOR);
 
                 for (Network network : networks) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
@@ -465,5 +465,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return providers.get(UserDataConfig.UserDataConfigProvider.class);
         }
 
+        private static final Comparator<Network> NETWORK_COMPARATOR = new Comparator<Network>() {
+            @Override
+            public int compare(Network o1, Network o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        };
+
+        private static final Comparator<Image> IMAGE_COMPARATOR = new Comparator<Image>() {
+            @Override
+            public int compare(Image o1, Image o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        };
     }
 }

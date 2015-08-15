@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import javax.servlet.ServletException;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.*;
@@ -10,6 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.google.inject.Module;
+
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
@@ -24,6 +26,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
+
 import org.jclouds.ContextBuilder;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
@@ -38,6 +41,8 @@ import org.jclouds.openstack.neutron.v2.NeutronApiMetadata;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
 import org.jclouds.sshj.config.SshjSshClientModule;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -45,6 +50,8 @@ import org.kohsuke.stapler.StaplerResponse;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+
+import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 
 /**
  * The JClouds version of the Jenkins Cloud.
@@ -60,12 +67,15 @@ public class JCloudsCloud extends Cloud {
     public final String endPointUrl;
     public final String profile;
     private final int retentionTime;
-    public int instanceCap;
+    public final int instanceCap;
     public final List<JCloudsSlaveTemplate> templates;
     public final int scriptTimeout;
     public final int startTimeout;
-    private transient ComputeService compute;
     public final String zone;
+    // Ask for a floating IP to be associated for every machine provisioned
+    private final boolean floatingIps;
+
+    private transient ComputeService compute;
 
     public enum SlaveType {SSH, JNLP}
 
@@ -84,9 +94,11 @@ public class JCloudsCloud extends Cloud {
         return (JCloudsCloud) Jenkins.getInstance().clouds.getByName(name);
     }
 
-    @DataBoundConstructor
+    @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
-                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates) {
+                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
+                        final boolean floatingIps
+    ) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
         this.identity = Util.fixEmptyAndTrim(identity);
@@ -98,6 +110,7 @@ public class JCloudsCloud extends Cloud {
         this.startTimeout = startTimeout;
         this.templates = Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList());
         this.zone = Util.fixEmptyAndTrim(zone);
+        this.floatingIps = floatingIps;
         readResolve();
     }
 
@@ -108,10 +121,15 @@ public class JCloudsCloud extends Cloud {
     }
 
     /**
-     * Get the retention time, defaulting to 30 minutes.
+     * Get the retention time in minutes or default value from CloudInstanceDefaults if not set.
+     * @see CloudInstanceDefaults#DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES
      */
     public int getRetentionTime() {
-        return retentionTime == 0 ? 30 : retentionTime;
+        return retentionTime == 0 ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : retentionTime;
+    }
+
+    public boolean isFloatingIps() {
+        return floatingIps;
     }
 
     static final Iterable<Module> MODULES = ImmutableSet.<Module>of(new SshjSshClientModule(), new JDKLoggingModule() {
