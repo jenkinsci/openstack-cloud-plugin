@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.model.AbstractCIBase;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.SlaveComputer;
@@ -50,6 +51,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         JCloudsSlave slave = getNode();
         if (slave != null) {
             slave.setPendingDelete(true);
+        } else {
+            super.doDoDelete();
         }
         return new HttpRedirect("..");
     }
