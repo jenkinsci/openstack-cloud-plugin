@@ -332,12 +332,14 @@ public class JCloudsCloud extends Cloud {
             return "Cloud (Openstack)";
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter String endPointUrl,
+        public ListBoxModel doFillZoneItems(@QueryParameter String zone,
+                                            @QueryParameter String endPointUrl,
                                             @QueryParameter String identity,
                                             @QueryParameter String credential
                                             ) {
 
             ListBoxModel m = new ListBoxModel();
+            if(Util.fixEmptyAndTrim(zone) != null) {m.add(zone);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential)) {

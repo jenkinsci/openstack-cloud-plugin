@@ -33,6 +33,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
+import org.apache.commons.lang.StringUtils;
 import org.jclouds.compute.RunNodesException;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
@@ -294,7 +295,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return FormValidation.validatePositiveInteger(value);
         }
 
-        public ListBoxModel doFillSlaveTypeItems(@QueryParameter String name) {
+        public ListBoxModel doFillSlaveTypeItems() {
             ListBoxModel items = new ListBoxModel();
             items.add("SSH", "SSH");
             items.add("JNLP", "JNLP");
@@ -302,12 +303,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return items;
         }
 
-        public ListBoxModel doFillHardwareIdItems(@RelativePath("..") @QueryParameter String endPointUrl,
+        public ListBoxModel doFillHardwareIdItems(@QueryParameter String hardwareId,
+                                                  @RelativePath("..") @QueryParameter String endPointUrl,
                                                   @RelativePath("..") @QueryParameter String identity,
                                                   @RelativePath("..") @QueryParameter String credential,
                                                   @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
+            if(Util.fixEmptyAndTrim(hardwareId) != null) {m.add(hardwareId);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
@@ -332,7 +335,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 });
 
                 for (Resource flavor : flavors) {
-                    m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
+                    m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), String.format("%s/%s", zone, flavor.getId()));
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -341,12 +344,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
-        public ListBoxModel doFillImageIdItems(@RelativePath("..") @QueryParameter String endPointUrl,
+        public ListBoxModel doFillImageIdItems(@QueryParameter String imageId,
+                                               @RelativePath("..") @QueryParameter String endPointUrl,
                                                @RelativePath("..") @QueryParameter String identity,
                                                @RelativePath("..") @QueryParameter String credential,
                                                @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
+            if(Util.fixEmptyAndTrim(imageId) != null) {m.add(imageId);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
@@ -366,7 +371,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 List<? extends Resource> images = imageApi.list().concat().toSortedList(IMAGE_COMPARATOR);
 
                 for (Resource image : images) {
-                        m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
+                        m.add(String.format("%s (%s)", image.getName(), image.getId()), String.format("%s/%s", zone, image.getId()));
                     }
                 }catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -375,12 +380,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
-        public ListBoxModel doFillNetworkIdItems(@RelativePath("..") @QueryParameter String endPointUrl,
+        public ListBoxModel doFillNetworkIdItems(@QueryParameter String networkId,
+                                                 @RelativePath("..") @QueryParameter String endPointUrl,
                                                  @RelativePath("..") @QueryParameter String identity,
                                                  @RelativePath("..") @QueryParameter String credential,
                                                  @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
+            if(Util.fixEmptyAndTrim(networkId) != null) {m.add(networkId);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
