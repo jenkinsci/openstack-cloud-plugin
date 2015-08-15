@@ -355,8 +355,8 @@ public class JCloudsCloud extends Cloud {
                 List<? extends String> zones = new ArrayList<String>(nova.getConfiguredRegions());
                 Collections.sort(zones);
 
-                for (String zone : zones) {
-                    m.add(zone, zone);
+                for (String z : zones) {
+                    m.add(z, z);
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
