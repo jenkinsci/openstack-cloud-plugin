@@ -1,8 +1,10 @@
-package jenkins.plugins.openstack.compute.internal;
+package jenkins.plugins.openstack.compute;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import jenkins.plugins.openstack.compute.internal.RunningNode;
+import jenkins.plugins.openstack.compute.internal.TerminateNodes;
 import junit.framework.TestCase;
 
 import org.jclouds.ContextBuilder;
