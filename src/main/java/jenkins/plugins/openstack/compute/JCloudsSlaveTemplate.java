@@ -310,7 +310,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                   @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
-            if(Util.fixEmptyAndTrim(hardwareId) != null) {m.add(hardwareId);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
@@ -339,6 +338,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                if(Util.fixEmptyAndTrim(hardwareId) != null) {m.add(hardwareId);}
             }
 
             return m;
@@ -351,7 +351,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
-            if(Util.fixEmptyAndTrim(imageId) != null) {m.add(imageId);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
@@ -374,7 +373,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                         m.add(String.format("%s (%s)", image.getName(), image.getId()), String.format("%s/%s", zone, image.getId()));
                     }
                 }catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                    LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                    if(Util.fixEmptyAndTrim(imageId) != null) {m.add(imageId);}
             }
 
             return m;
@@ -387,7 +387,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                  @RelativePath("..") @QueryParameter String zone) {
 
             ListBoxModel m = new ListBoxModel();
-            if(Util.fixEmptyAndTrim(networkId) != null) {m.add(networkId);}
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
@@ -403,7 +402,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
             try {
-                NetworkApi networkApi = JCloudsCloud.neutron(identity, credential, endPointUrl).getNetworkApi(zone);
+                NetworkApi networkApi = JCloudsCloud.neutron(endPointUrl, identity, credential).getNetworkApi(zone);
                 List<? extends Network> networks = networkApi.list().concat().toSortedList(NETWORK_COMPARATOR);
 
                 for (Network network : networks) {
@@ -411,6 +410,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                if(Util.fixEmptyAndTrim(networkId) != null) {m.add(networkId);}
             }
 
             return m;
@@ -434,9 +434,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         public ListBoxModel doFillUserDataIdItems() {
 
             ListBoxModel m = new ListBoxModel();
-            ConfigProvider provider = getConfigProvider();
             m.add("None specified", "");
 
+            ConfigProvider provider = getConfigProvider();
             for(Config config : provider.getAllConfigs()) {
                 m.add(config.name, config.id);
             }
