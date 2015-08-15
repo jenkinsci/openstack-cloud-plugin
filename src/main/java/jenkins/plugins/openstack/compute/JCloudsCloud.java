@@ -380,9 +380,8 @@ public class JCloudsCloud extends Cloud {
             zone = Util.fixEmptyAndTrim(zone);
 
             FormValidation result = FormValidation.ok("Connection succeeded!");
-            NovaApi nova = null;
             try {
-                nova = nova(endPointUrl, identity, credential);
+                NovaApi nova = nova(endPointUrl, identity, credential);
                 nova.getServerApi(zone).list();
             } catch (Exception ex) {
                 result = FormValidation.error("Cannot connect to specified cloud, please check the identity and credentials: " + ex.getMessage());
