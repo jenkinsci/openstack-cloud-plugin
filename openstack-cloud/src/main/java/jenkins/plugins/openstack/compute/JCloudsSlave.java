@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import hudson.Extension;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
@@ -17,8 +18,6 @@ import java.util.logging.Logger;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 
 /**
  * Jenkins Slave node - managed by JClouds.
@@ -70,7 +69,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
     public JCloudsSlave(final String cloudName, final String fsRoot, NodeMetadata metadata, final String labelString,
             final String numExecutors, final boolean stopOnTerminate, final int overrideRetentionTime,
             String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
-        this(cloudName, metadata.getName(), fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
+        this(cloudName, metadata.getName(), fsRoot, numExecutors, Mode.NORMAL, labelString,
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
                 stopOnTerminate, overrideRetentionTime, jvmOptions, credentialsId, slaveType);
         this.nodeMetaData = metadata;
