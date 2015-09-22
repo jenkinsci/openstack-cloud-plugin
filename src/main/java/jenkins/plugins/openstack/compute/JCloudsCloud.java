@@ -27,6 +27,7 @@ import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 
+import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
@@ -180,6 +181,9 @@ public class JCloudsCloud extends Cloud {
             if (!Strings.isNullOrEmpty(zone)) {
                 overrides.setProperty(LocationConstants.PROPERTY_ZONES, zone);
             }
+            overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "300000");
+            overrides.setProperty(Constants.PROPERTY_CONNECTION_TIMEOUT, "300000");
+            overrides.setProperty(Constants.PROPERTY_REQUEST_TIMEOUT, "300000");
             compute = ctx(endPointUrl, identity, Secret.toString(credential), overrides).getComputeService();
         }
         return compute;
