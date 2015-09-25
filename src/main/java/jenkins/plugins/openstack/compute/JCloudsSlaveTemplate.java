@@ -171,7 +171,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Override
     public NodeMetadata get() {
-        LOGGER.info("Provisioning new openstack node");
+        final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
+        LOGGER.info("Provisioning new openstack node " + nodeName);
 
         TemplateBuilder templateBuilder = getCloud().getCompute().templateBuilder();
 
@@ -186,6 +187,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         Template template = templateBuilder.build();
         NovaTemplateOptions options = template.getOptions().as(NovaTemplateOptions.class);
+
+        // Ensure predictable node name so we can inject it into user data
+        options.nodeNames(Arrays.asList(nodeName));
 
         if (!Strings.isNullOrEmpty(networkId)) {
             LOGGER.info("Setting network to " + networkId);
@@ -237,7 +241,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         UserDataConfig.UserDataConfigProvider myProvider = providers.get(UserDataConfig.UserDataConfigProvider.class);
         Config userData = myProvider.getConfigById(userDataId);
         if (userData != null && !userData.content.isEmpty()) {
-            options.as(NovaTemplateOptions.class).userData(userData.content.getBytes(StandardCharsets.UTF_8));
+            HashMap<String, String> vars = new HashMap<String, String>();
+            String rootUrl = Jenkins.getInstance().getRootUrl();
+            vars.put("JENKINS_URL", rootUrl);
+            vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
+            vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
+            String content = Util.replaceMacro(userData.content, vars);
+            LOGGER.info("Sending user-data:\n" + content);
+            options.as(NovaTemplateOptions.class).userData(content.getBytes(StandardCharsets.UTF_8));
         }
 
         NodeMetadata nodeMetadata = null;
