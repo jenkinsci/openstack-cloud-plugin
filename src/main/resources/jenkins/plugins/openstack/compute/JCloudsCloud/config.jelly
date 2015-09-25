@@ -1,0 +1,40 @@
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
+    <f:entry title="Profile Name" field="profile">
+        <f:textbox/>
+    </f:entry>
+    <f:entry title="End Point URL" field="endPointUrl">
+        <f:textbox/>
+    </f:entry>
+    <f:entry title="User Identity" field="identity">
+        <f:textbox/>
+    </f:entry>
+    <f:entry title="Password" field="credential">
+        <f:password/>
+    </f:entry>
+    <f:entry title="Default Openstack Region" field="zone">
+        <f:select />
+    </f:entry>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="zone,endPointUrl,identity,credential"/>
+    <f:advanced>
+        <f:entry title="Max. No. of Instances" field="instanceCap">
+            <f:textbox default="10" />
+        </f:entry>
+        <f:entry title="Retention Time" field="retentionTime">
+            <f:textbox default="30" />
+        </f:entry>
+        <f:entry title="Associate floating IP" field="floatingIps">
+            <f:checkbox/>
+        </f:entry>
+        <f:entry title="Default Init Script Timeout" field="scriptTimeout">
+            <f:textbox default="600000"/>
+        </f:entry>
+        <f:entry title="Default Instance Startup Timeout" field="startTimeout">
+            <f:textbox default="600000"/>
+        </f:entry>
+    </f:advanced>
+    <f:entry title="Cloud Instance Templates" description="${%List of Cloud Instances to be launched as slaves}">
+        <f:repeatable field="templates">
+            <st:include page="config.jelly" class="${descriptor.clazz}"/>
+        </f:repeatable>
+    </f:entry>
+</j:jelly>
