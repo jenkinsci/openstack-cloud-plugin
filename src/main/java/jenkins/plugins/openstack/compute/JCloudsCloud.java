@@ -179,7 +179,7 @@ public class JCloudsCloud extends Cloud {
                 overrides.setProperty(ComputeServiceProperties.TIMEOUT_NODE_RUNNING, String.valueOf(startTimeout));
             }
             if (!Strings.isNullOrEmpty(zone)) {
-                overrides.setProperty(LocationConstants.PROPERTY_ZONES, zone);
+                overrides.setProperty(LocationConstants.PROPERTY_REGIONS, zone);
             }
             overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "300000");
             overrides.setProperty(Constants.PROPERTY_CONNECTION_TIMEOUT, "300000");
