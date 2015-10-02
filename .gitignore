@@ -3,6 +3,7 @@ work
 /bin
 .settings
 .classpath
+.metadata
 .project
 release.properties
 .idea
