@@ -26,6 +26,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 
 import org.jclouds.ContextBuilder;
 import org.jclouds.compute.ComputeService;
@@ -43,10 +44,15 @@ import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
+import org.openstack4j.api.OSClient;
+import org.openstack4j.model.compute.ext.AvailabilityZone;
+import org.openstack4j.openstack.OSFactory;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
@@ -139,8 +145,12 @@ public class JCloudsCloud extends Cloud {
         }
     }, new EnterpriseConfigurationModule());
 
+    @Restricted(NoExternalUse.class)
+    public static Openstack getOpenstack(String endPointUrl, String identity, String credential) {
+        return new Openstack(endPointUrl, identity, credential);
+    }
+
     static NeutronApi neutron(String endPointUrl, String identity, String credential) {
-        Thread.currentThread().setContextClassLoader(NeutronApiMetadata.class.getClassLoader());
         return ContextBuilder.newBuilder(new NeutronApiMetadata())
                 .credentials(identity, credential)
                 .endpoint(endPointUrl)
@@ -149,7 +159,6 @@ public class JCloudsCloud extends Cloud {
     }
 
     static NovaApi nova(String endPointUrl, String identity, String credential) {
-        Thread.currentThread().setContextClassLoader(NeutronApiMetadata.class.getClassLoader());
         return ContextBuilder.newBuilder(new NovaApiMetadata())
                 .credentials(identity, credential)
                 .endpoint(endPointUrl)
@@ -158,7 +167,6 @@ public class JCloudsCloud extends Cloud {
     }
 
     static ComputeServiceContext ctx(String endPointUrl, String identity, String credential, Properties overrides) {
-        Thread.currentThread().setContextClassLoader(NovaApiMetadata.class.getClassLoader());
         return ContextBuilder
                 .newBuilder(new NovaApiMetadata())
                 .endpoint(endPointUrl)
@@ -350,13 +358,9 @@ public class JCloudsCloud extends Cloud {
             credential = Secret.fromString(credential).getPlainText();
 
             try {
-                NovaApi nova = nova(endPointUrl, identity, credential);
-                List<? extends String> zones = new ArrayList<String>(nova.getConfiguredRegions());
-                Collections.sort(zones);
-
-                for (String z : zones) {
-                    m.add(z, z);
-                }
+//                for (AvailabilityZone z : getOpenstack(endPointUrl, identity, credential).getSortedZones()) {
+//                    m.add(z.getZoneName(), z.getZoneName());
+//                }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
                 if(Util.fixEmptyAndTrim(zone) != null) {m.add(zone);}
@@ -369,9 +373,9 @@ public class JCloudsCloud extends Cloud {
                                                @QueryParameter String endPointUrl,
                                                @QueryParameter String identity,
                                                @QueryParameter String credential
-                                               ) throws IOException {
+        ) {
 
-            if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential) || Strings.isNullOrEmpty(zone)) {
+            if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential) /*|| Strings.isNullOrEmpty(zone)*/) {
                 return FormValidation.error("Invalid parameters");
             }
 
@@ -380,14 +384,12 @@ public class JCloudsCloud extends Cloud {
             credential = Secret.fromString(credential).getPlainText();
             zone = Util.fixEmptyAndTrim(zone);
 
-            FormValidation result = FormValidation.ok("Connection succeeded!");
             try {
-                NovaApi nova = nova(endPointUrl, identity, credential);
-                nova.getServerApi(zone).list();
+                getOpenstack(endPointUrl, identity, credential).getSortedNetworks();
             } catch (Exception ex) {
-                result = FormValidation.error("Cannot connect to specified cloud, please check the identity and credentials: " + ex.getMessage());
+                return FormValidation.error(ex, "Cannot connect to specified cloud, please check the identity and credentials: " + ex.getMessage());
             }
-            return result;
+            return FormValidation.ok("Connection succeeded!");
         }
 
         public FormValidation doCheckProfile(@QueryParameter String value) {

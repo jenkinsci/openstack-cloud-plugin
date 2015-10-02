@@ -33,17 +33,13 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
-import org.apache.commons.lang.StringUtils;
 import org.jclouds.compute.RunNodesException;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.domain.LoginCredentials;
-import org.jclouds.openstack.neutron.v2.domain.Network;
-import org.jclouds.openstack.neutron.v2.features.NetworkApi;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.openstack.nova.v2_0.features.FlavorApi;
-import org.jclouds.openstack.nova.v2_0.features.ImageApi;
 import org.jclouds.openstack.v2_0.domain.Resource;
 import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
@@ -51,6 +47,7 @@ import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.openstack4j.model.image.Image;
 
 import au.com.bytecode.opencsv.CSVReader;
 import com.google.common.base.Strings;
@@ -366,15 +363,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
             try {
-                ImageApi imageApi = JCloudsCloud.nova(endPointUrl, identity, credential).getImageApi(zone);
-                List<? extends Resource> images = imageApi.list().concat().toSortedList(IMAGE_COMPARATOR);
-
-                for (Resource image : images) {
-                        m.add(String.format("%s (%s)", image.getName(), image.getId()), String.format("%s/%s", zone, image.getId()));
-                    }
-                }catch (Exception ex) {
-                    LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-                    if(Util.fixEmptyAndTrim(imageId) != null) {m.add(imageId);}
+                for (Image image : JCloudsCloud.getOpenstack(endPointUrl, identity, zone).getSortedImages()) {
+                    m.add(String.format("%s (%s)", image.getName(), image.getId()), String.format("%s/%s", zone, image.getId()));
+                }
+            } catch (Exception ex) {
+                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                if(Util.fixEmptyAndTrim(imageId) != null) {m.add(imageId);}
             }
 
             return m;
@@ -402,10 +396,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
             try {
-                NetworkApi networkApi = JCloudsCloud.neutron(endPointUrl, identity, credential).getNetworkApi(zone);
-                List<? extends Network> networks = networkApi.list().concat().toSortedList(NETWORK_COMPARATOR);
-
-                for (Network network : networks) {
+                for (org.openstack4j.model.network.Network network: JCloudsCloud.getOpenstack(endPointUrl, identity, zone).getSortedNetworks()) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
                 }
             } catch (Exception ex) {
@@ -448,19 +439,5 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             ExtensionList<ConfigProvider> providers = ConfigProvider.all();
             return providers.get(UserDataConfig.UserDataConfigProvider.class);
         }
-
-        private static final Comparator<Network> NETWORK_COMPARATOR = new Comparator<Network>() {
-            @Override
-            public int compare(Network o1, Network o2) {
-                return o1.getName().compareTo(o2.getName());
-            }
-        };
-
-        private static final Comparator<Resource> IMAGE_COMPARATOR = new Comparator<Resource>() {
-            @Override
-            public int compare(Resource o1, Resource o2) {
-                return o1.getName().compareTo(o2.getName());
-            }
-        };
     }
 }

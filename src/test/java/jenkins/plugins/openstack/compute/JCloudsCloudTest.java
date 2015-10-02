@@ -1,15 +1,22 @@
 package jenkins.plugins.openstack.compute;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.Collections;
 
 import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+
+import hudson.util.FormValidation;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -20,6 +27,16 @@ import org.jvnet.hudson.test.JenkinsRule;
 public class JCloudsCloudTest {
     @Rule
     public JenkinsRule j = new JenkinsRule();
+    
+    @Test
+    public void failtoTestConnection() throws Exception {
+        FormValidation validation = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class)
+                .doTestConnection("a", "https://example.com", "a:b", "c")
+        ;
+
+        assertEquals(FormValidation.Kind.ERROR, validation.kind);
+        assertThat(validation.getMessage(), containsString("Cannot connect to specified cloud"));
+    }
 
     @Test
     public void testConfigurationUI() throws Exception {
@@ -46,7 +63,6 @@ public class JCloudsCloudTest {
         HtmlButton deleteCloudButton = configForm2.getButtonByCaption("Delete cloud");
         assertNotNull(testConnectionButton);
         assertNotNull(deleteCloudButton);
-
     }
 
     @Test
@@ -64,5 +80,4 @@ public class JCloudsCloudTest {
         j.assertEqualBeans(original, JCloudsCloud.getByName("openstack-profile"),
                 "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
     }
-
 }
