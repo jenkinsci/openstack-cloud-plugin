@@ -31,6 +31,7 @@ import java.util.List;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
+import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.Network;
@@ -82,7 +83,20 @@ public class Openstack {
             return o1.getName().compareTo(o2.getName());
         }
     };
-    
+
+    public List<? extends Flavor> getSortedFlavors() {
+        List<? extends Flavor> flavors = client.compute().flavors().list();
+        Collections.sort(flavors, FLAVOR_COMPARATOR);
+        return flavors;
+    }
+
+    private Comparator<Flavor> FLAVOR_COMPARATOR = new Comparator<Flavor>() {
+        @Override
+        public int compare(Flavor o1, Flavor o2) {
+            return o1.getName().compareTo(o2.getName());
+        }
+    };
+
 //    public List<? extends AvailabilityZone> getSortedRegions() {
 //        // TODO sort
 //        return client.compute().

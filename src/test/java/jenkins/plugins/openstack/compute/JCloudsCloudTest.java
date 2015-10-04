@@ -31,7 +31,7 @@ public class JCloudsCloudTest {
     @Test
     public void failtoTestConnection() throws Exception {
         FormValidation validation = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class)
-                .doTestConnection("a", "https://example.com", "a:b", "c")
+                .doTestConnection("a", "https://example.com", "a:b")
         ;
 
         assertEquals(FormValidation.Kind.ERROR, validation.kind);

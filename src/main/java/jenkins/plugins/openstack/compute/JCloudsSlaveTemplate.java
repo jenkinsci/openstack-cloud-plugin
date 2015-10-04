@@ -39,14 +39,13 @@ import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
-import org.jclouds.openstack.nova.v2_0.features.FlavorApi;
-import org.jclouds.openstack.v2_0.domain.Resource;
 import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.image.Image;
 
 import au.com.bytecode.opencsv.CSVReader;
@@ -303,16 +302,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         public ListBoxModel doFillHardwareIdItems(@QueryParameter String hardwareId,
                                                   @RelativePath("..") @QueryParameter String endPointUrl,
                                                   @RelativePath("..") @QueryParameter String identity,
-                                                  @RelativePath("..") @QueryParameter String credential,
-                                                  @RelativePath("..") @QueryParameter String zone) {
+                                                  @RelativePath("..") @QueryParameter String credential) {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
                     Strings.isNullOrEmpty(identity) ||
-                    Strings.isNullOrEmpty(credential) ||
-                    Strings.isNullOrEmpty(zone)) {
+                    Strings.isNullOrEmpty(credential)) {
                 LOGGER.warning("Cannot fetch login parameters");
                 return m;
             }
@@ -322,16 +319,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
             try {
-                FlavorApi flavorApi = JCloudsCloud.nova(endPointUrl, identity, credential).getFlavorApi(zone);
-                List<Resource> flavors = flavorApi.list().concat().toSortedList(new Comparator<Resource>() {
-                    @Override
-                    public int compare(Resource o1, Resource o2) {
-                        return o1.getName().compareTo(o2.getName());
-                    }
-                });
-
-                for (Resource flavor : flavors) {
-                    m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), String.format("%s/%s", zone, flavor.getId()));
+                for (Flavor flavor : JCloudsCloud.getOpenstack(endPointUrl, identity, credential).getSortedFlavors()) {
+                    m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -344,16 +333,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         public ListBoxModel doFillImageIdItems(@QueryParameter String imageId,
                                                @RelativePath("..") @QueryParameter String endPointUrl,
                                                @RelativePath("..") @QueryParameter String identity,
-                                               @RelativePath("..") @QueryParameter String credential,
-                                               @RelativePath("..") @QueryParameter String zone) {
+                                               @RelativePath("..") @QueryParameter String credential) {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
                     Strings.isNullOrEmpty(identity) ||
-                    Strings.isNullOrEmpty(credential) ||
-                    Strings.isNullOrEmpty(zone)) {
+                    Strings.isNullOrEmpty(credential)) {
                 LOGGER.warning("Cannot fetch login parameters");
                 return m;
             }
@@ -363,8 +350,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
             try {
-                for (Image image : JCloudsCloud.getOpenstack(endPointUrl, identity, zone).getSortedImages()) {
-                    m.add(String.format("%s (%s)", image.getName(), image.getId()), String.format("%s/%s", zone, image.getId()));
+                for (Image image : JCloudsCloud.getOpenstack(endPointUrl, identity, credential).getSortedImages()) {
+                    m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -377,16 +364,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         public ListBoxModel doFillNetworkIdItems(@QueryParameter String networkId,
                                                  @RelativePath("..") @QueryParameter String endPointUrl,
                                                  @RelativePath("..") @QueryParameter String identity,
-                                                 @RelativePath("..") @QueryParameter String credential,
-                                                 @RelativePath("..") @QueryParameter String zone) {
+                                                 @RelativePath("..") @QueryParameter String credential) {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
             if (Strings.isNullOrEmpty(endPointUrl) ||
                     Strings.isNullOrEmpty(identity) ||
-                    Strings.isNullOrEmpty(credential) ||
-                    Strings.isNullOrEmpty(zone)) {
+                    Strings.isNullOrEmpty(credential)) {
                 LOGGER.warning("Cannot fetch login parameters");
                 return m;
             }
@@ -396,7 +381,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
 
             try {
-                for (org.openstack4j.model.network.Network network: JCloudsCloud.getOpenstack(endPointUrl, identity, zone).getSortedNetworks()) {
+                for (org.openstack4j.model.network.Network network: JCloudsCloud.getOpenstack(endPointUrl, identity, credential).getSortedNetworks()) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
                 }
             } catch (Exception ex) {

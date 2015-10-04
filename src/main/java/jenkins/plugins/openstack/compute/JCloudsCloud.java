@@ -49,9 +49,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
-import org.openstack4j.api.OSClient;
-import org.openstack4j.model.compute.ext.AvailabilityZone;
-import org.openstack4j.openstack.OSFactory;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
@@ -369,8 +366,7 @@ public class JCloudsCloud extends Cloud {
             return m;
         }
 
-        public FormValidation doTestConnection(@QueryParameter String zone,
-                                               @QueryParameter String endPointUrl,
+        public FormValidation doTestConnection(@QueryParameter String endPointUrl,
                                                @QueryParameter String identity,
                                                @QueryParameter String credential
         ) {
@@ -382,7 +378,6 @@ public class JCloudsCloud extends Cloud {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Secret.fromString(credential).getPlainText();
-            zone = Util.fixEmptyAndTrim(zone);
 
             try {
                 getOpenstack(endPointUrl, identity, credential).getSortedNetworks();
