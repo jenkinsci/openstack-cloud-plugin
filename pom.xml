@@ -188,6 +188,12 @@
             <id>repo.jenkins-ci.org</id>
             <url>http://repo.jenkins-ci.org/public/</url>
         </repository>
+        <!-- Custom fixes in unreleased openstack4j 2.0.6 -->
+        <repository>
+          <id>st-snapshots</id>
+          <name>sonatype-snapshots</name>
+          <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </repository>
     </repositories>
     <pluginRepositories>
         <pluginRepository>
