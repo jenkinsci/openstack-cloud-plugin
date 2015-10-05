@@ -8,7 +8,6 @@ import java.io.StringWriter;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.google.inject.Module;
@@ -23,7 +22,6 @@ import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
@@ -37,7 +35,6 @@ import org.jclouds.compute.domain.ComputeMetadata;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.enterprise.config.EnterpriseConfigurationModule;
 import org.jclouds.location.reference.LocationConstants;
-import org.jclouds.logging.jdk.config.JDKLoggingModule;
 import org.jclouds.openstack.neutron.v2.NeutronApi;
 import org.jclouds.openstack.neutron.v2.NeutronApiMetadata;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
@@ -136,12 +133,7 @@ public class JCloudsCloud extends Cloud {
         return floatingIps;
     }
 
-    static final Iterable<Module> MODULES = ImmutableSet.<Module>of(new SshjSshClientModule(), new JDKLoggingModule() {
-        @Override
-        public org.jclouds.logging.Logger.LoggerFactory createLoggerFactory() {
-            return new ComputeLogger.Factory();
-        }
-    }, new EnterpriseConfigurationModule());
+    static final Iterable<Module> MODULES = ImmutableSet.<Module>of(new SshjSshClientModule(), new EnterpriseConfigurationModule());
 
     @Restricted(NoExternalUse.class)
     public static Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {

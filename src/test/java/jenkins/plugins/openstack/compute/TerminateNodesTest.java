@@ -12,7 +12,6 @@ import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.RunNodesException;
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.logging.Logger;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -23,6 +22,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
+import hudson.model.TaskListener;
 
 public class TerminateNodesTest extends TestCase {
 
@@ -36,7 +37,7 @@ public class TerminateNodesTest extends TestCase {
     private TerminateNodes newTerminateNodes(ComputeService compute) {
         LoadingCache<String, ComputeService> cache = CacheBuilder.newBuilder().build(
                 CacheLoader.<String, ComputeService>from(Functions.forMap(ImmutableMap.of("stub", compute))));
-        return new TerminateNodes(Logger.NULL, cache);
+        return new TerminateNodes(TaskListener.NULL, cache);
     }
 
     public void testDestroyOnlyDestroysNodesInQuestion() throws InterruptedException, ExecutionException, RunNodesException {

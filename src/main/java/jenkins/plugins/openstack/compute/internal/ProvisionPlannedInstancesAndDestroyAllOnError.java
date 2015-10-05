@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.logging.Logger;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
@@ -13,14 +12,17 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
+import hudson.Functions;
+import hudson.model.TaskListener;
+
 public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<Iterable<NodePlan>, Iterable<RunningNode>> {
     private final ListeningExecutorService executor;
-    private final Logger logger;
+    private final TaskListener listener;
     private final Function<Iterable<RunningNode>, Void> terminateNodes;
 
-    public ProvisionPlannedInstancesAndDestroyAllOnError(ListeningExecutorService executor, Logger logger, Function<Iterable<RunningNode>, Void> terminateNodes) {
+    public ProvisionPlannedInstancesAndDestroyAllOnError(ListeningExecutorService executor, TaskListener listener, Function<Iterable<RunningNode>, Void> terminateNodes) {
         this.executor = executor;
-        this.logger = logger;
+        this.listener = listener;
         this.terminateNodes = terminateNodes;
     }
 
@@ -34,9 +36,12 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
         for (final NodePlan nodePlan : nodePlans) {
             for (int i = 0; i < nodePlan.getCount(); i++) {
                 final int index = i;
-                logger.info("Queuing cloud instance: #%d %d, %s %s", index, nodePlan.getCount(), nodePlan.getCloudName(), nodePlan.getTemplateName());
+                listener.getLogger().printf(
+                        "Queuing cloud instance: #%d %d, %s %s%n",
+                        index, nodePlan.getCount(), nodePlan.getCloudName(), nodePlan.getTemplateName()
+                );
 
-                ListenableFuture<NodeMetadata> provisionTemplate = executor.submit(new RetrySupplierOnException(nodePlan.getNodeSupplier(), logger));
+                ListenableFuture<NodeMetadata> provisionTemplate = executor.submit(new RetrySupplierOnException(nodePlan.getNodeSupplier(), listener));
 
                 Futures.addCallback(provisionTemplate, new FutureCallback<NodeMetadata>() {
                     public void onSuccess(NodeMetadata result) {
@@ -49,8 +54,10 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
 
                     public void onFailure(Throwable t) {
                         failedLaunches.incrementAndGet();
-                        logger.warn(t, "Error while launching instance: #%d %d, %s %s", index, nodePlan.getCount(), nodePlan.getCloudName(),
-                                nodePlan.getTemplateName());
+                        listener.error(
+                                "Error while launching instance: #%d %d, %s %s:%n%s%n",
+                                index, nodePlan.getCount(), nodePlan.getCloudName(), nodePlan.getTemplateName(), Functions.printThrowable(t)
+                        );
                     }
                 });
 

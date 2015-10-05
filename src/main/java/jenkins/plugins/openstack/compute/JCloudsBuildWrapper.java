@@ -20,11 +20,9 @@ import jenkins.plugins.openstack.compute.internal.NodePlan;
 import jenkins.plugins.openstack.compute.internal.ProvisionPlannedInstancesAndDestroyAllOnError;
 import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
-import jenkins.plugins.openstack.internal.BuildListenerLogger;
 
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.logging.Logger;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.google.common.base.Function;
@@ -81,13 +79,10 @@ public class JCloudsBuildWrapper extends BuildWrapper {
 
         });
 
-        // converting to a logger as it is an interface and easier to test
-        final Logger logger = new BuildListenerLogger(listener);
-
-        final TerminateNodes terminateNodes = new TerminateNodes(logger, computeCache);
+        final TerminateNodes terminateNodes = new TerminateNodes(listener, computeCache);
 
         ProvisionPlannedInstancesAndDestroyAllOnError provisioner = new ProvisionPlannedInstancesAndDestroyAllOnError(
-                MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting), logger, terminateNodes);
+                MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting), listener, terminateNodes);
 
         final Iterable<RunningNode> runningNode = provisioner.apply(nodePlans);
 

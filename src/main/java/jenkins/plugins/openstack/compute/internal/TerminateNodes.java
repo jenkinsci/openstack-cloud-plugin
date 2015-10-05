@@ -4,21 +4,23 @@ import java.util.Collection;
 
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.logging.Logger;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+
+import hudson.model.TaskListener;
+
 import com.google.common.collect.ImmutableMultimap.Builder;
 
 public class TerminateNodes implements Function<Iterable<RunningNode>, Void> {
-    private final Logger logger;
+    private final TaskListener listener;
     private final LoadingCache<String, ComputeService> computeCache;
 
-    public TerminateNodes(Logger logger, LoadingCache<String, ComputeService> computeCache) {
-        this.logger = logger;
+    public TerminateNodes(TaskListener listener, LoadingCache<String, ComputeService> computeCache) {
+        this.listener = listener;
         this.computeCache = computeCache;
     }
 
@@ -39,7 +41,7 @@ public class TerminateNodes implements Function<Iterable<RunningNode>, Void> {
     private void destroy(Multimap<String, String> cloudNodesToDestroy) {
         for (String cloudToDestroy : cloudNodesToDestroy.keySet()) {
             final Collection<String> nodesToDestroy = cloudNodesToDestroy.get(cloudToDestroy);
-            logger.info("Destroying nodes: " + nodesToDestroy);
+            listener.getLogger().println("Destroying nodes: " + nodesToDestroy);
             computeCache.getUnchecked(cloudToDestroy).destroyNodesMatching(new Predicate<NodeMetadata>() {
 
                 public boolean apply(NodeMetadata input) {
@@ -54,7 +56,7 @@ public class TerminateNodes implements Function<Iterable<RunningNode>, Void> {
         for (String cloudToSuspend : cloudNodesToSuspend.keySet()) {
             final Collection<String> nodesToSuspend = cloudNodesToSuspend.get(cloudToSuspend);
             try {
-                logger.info("Suspending nodes: " + nodesToSuspend);
+                listener.getLogger().println("Suspending nodes: " + nodesToSuspend);
                 computeCache.getUnchecked(cloudToSuspend).suspendNodesMatching(new Predicate<NodeMetadata>() {
 
                     public boolean apply(NodeMetadata input) {
@@ -63,7 +65,7 @@ public class TerminateNodes implements Function<Iterable<RunningNode>, Void> {
 
                 });
             } catch (UnsupportedOperationException e) {
-                logger.info("Suspending unsupported on cloud: " + cloudToSuspend + "; nodes: " + nodesToSuspend + ": " + e);
+                listener.getLogger().println("Suspending unsupported on cloud: " + cloudToSuspend + "; nodes: " + nodesToSuspend + ": " + e);
             }
         }
     }

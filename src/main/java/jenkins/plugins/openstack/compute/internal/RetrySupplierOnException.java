@@ -3,18 +3,19 @@ package jenkins.plugins.openstack.compute.internal;
 import java.util.concurrent.Callable;
 
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.logging.Logger;
 
 import com.google.common.base.Supplier;
 
+import hudson.model.TaskListener;
+
 class RetrySupplierOnException implements Callable<NodeMetadata> {
     private final int MAX_ATTEMPTS = 5;
-    private final Logger logger;
+    private final TaskListener listener;
     private final Supplier<NodeMetadata> supplier;
 
-    RetrySupplierOnException(Supplier<NodeMetadata> supplier, Logger logger) {
+    RetrySupplierOnException(Supplier<NodeMetadata> supplier, TaskListener listener) {
         this.supplier = supplier;
-        this.logger = logger;
+        this.listener = listener;
     }
 
     public NodeMetadata call() throws Exception {
@@ -28,7 +29,7 @@ class RetrySupplierOnException implements Callable<NodeMetadata> {
                     return n;
                 }
             } catch (RuntimeException e) {
-                logger.warn("Exception creating a node: " + e.getMessage());
+                listener.error("Exception creating a node: " + e.getMessage());
                 // Something to log the e.getCause() which should be a
                 // RunNodesException
             }
