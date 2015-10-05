@@ -32,6 +32,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 
 import org.jclouds.compute.RunNodesException;
 import org.jclouds.compute.domain.NodeMetadata;
@@ -42,6 +43,8 @@ import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -299,27 +302,20 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return items;
         }
 
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillHardwareIdItems(@QueryParameter String hardwareId,
                                                   @RelativePath("..") @QueryParameter String endPointUrl,
                                                   @RelativePath("..") @QueryParameter String identity,
-                                                  @RelativePath("..") @QueryParameter String credential) {
+                                                  @RelativePath("..") @QueryParameter String credential,
+                                                  @RelativePath("..") @QueryParameter String zone
+        ) throws FormValidation {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
-            if (Strings.isNullOrEmpty(endPointUrl) ||
-                    Strings.isNullOrEmpty(identity) ||
-                    Strings.isNullOrEmpty(credential)) {
-                LOGGER.warning("Cannot fetch login parameters");
-                return m;
-            }
-
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-
+            final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
             try {
-                for (Flavor flavor : JCloudsCloud.getOpenstack(endPointUrl, identity, credential).getSortedFlavors()) {
+                for (Flavor flavor : openstack.getSortedFlavors()) {
                     m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
                 }
             } catch (Exception ex) {
@@ -330,27 +326,20 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillImageIdItems(@QueryParameter String imageId,
                                                @RelativePath("..") @QueryParameter String endPointUrl,
                                                @RelativePath("..") @QueryParameter String identity,
-                                               @RelativePath("..") @QueryParameter String credential) {
+                                               @RelativePath("..") @QueryParameter String credential,
+                                               @RelativePath("..") @QueryParameter String zone
+        ) throws FormValidation {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
-            if (Strings.isNullOrEmpty(endPointUrl) ||
-                    Strings.isNullOrEmpty(identity) ||
-                    Strings.isNullOrEmpty(credential)) {
-                LOGGER.warning("Cannot fetch login parameters");
-                return m;
-            }
-
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-
+            final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
             try {
-                for (Image image : JCloudsCloud.getOpenstack(endPointUrl, identity, credential).getSortedImages()) {
+                for (Image image : openstack.getSortedImages()) {
                     m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
                 }
             } catch (Exception ex) {
@@ -361,27 +350,20 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillNetworkIdItems(@QueryParameter String networkId,
                                                  @RelativePath("..") @QueryParameter String endPointUrl,
                                                  @RelativePath("..") @QueryParameter String identity,
-                                                 @RelativePath("..") @QueryParameter String credential) {
+                                                 @RelativePath("..") @QueryParameter String credential,
+                                                 @RelativePath("..") @QueryParameter String zone
+        ) throws FormValidation {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
-            if (Strings.isNullOrEmpty(endPointUrl) ||
-                    Strings.isNullOrEmpty(identity) ||
-                    Strings.isNullOrEmpty(credential)) {
-                LOGGER.warning("Cannot fetch login parameters");
-                return m;
-            }
-
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-
+            Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
             try {
-                for (org.openstack4j.model.network.Network network: JCloudsCloud.getOpenstack(endPointUrl, identity, credential).getSortedNetworks()) {
+                for (org.openstack4j.model.network.Network network: openstack.getSortedNetworks()) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
                 }
             } catch (Exception ex) {

@@ -28,11 +28,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.model.compute.Flavor;
-import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.OSFactory;
@@ -42,7 +44,7 @@ public class Openstack {
 
     private final OSClient client;
 
-    public Openstack(String endPointUrl, String identity, String credential) {
+    public Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region) {
         // TODO refactor to split username:tenant everywhere including UI
         String[] id = identity.split(":", 2);
         String username = id.length > 0 ? id[0] : "";
@@ -51,6 +53,7 @@ public class Openstack {
                 .credentials(username, credential)
                 .tenantName(tenant)
                 .authenticate()
+                .useRegion(region)
         ;
     }
 
@@ -96,9 +99,4 @@ public class Openstack {
             return o1.getName().compareTo(o2.getName());
         }
     };
-
-//    public List<? extends AvailabilityZone> getSortedRegions() {
-//        // TODO sort
-//        return client.compute().
-//    }
 }

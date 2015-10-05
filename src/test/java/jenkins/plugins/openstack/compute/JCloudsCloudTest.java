@@ -6,8 +6,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import java.io.IOException;
 import java.util.Collections;
 
 import com.gargoylesoftware.htmlunit.WebAssert;
@@ -16,22 +16,35 @@ import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import hudson.util.FormValidation;
+import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
-/**
- * @author Vijay Kiran
- */
 public class JCloudsCloudTest {
     @Rule
     public JenkinsRule j = new JenkinsRule();
     
     @Test
+    public void incompleteteTestConnection() {
+        DescriptorImpl desc = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class);
+        FormValidation v;
+
+        v = desc.doTestConnection("REGION", null, "a:b", "passwd");
+        assertEquals("Endpoint URL is required", FormValidation.Kind.ERROR, v.kind);
+
+        v = desc.doTestConnection("REGION", "https://example.com", null, "passwd");
+        assertEquals("Identity is required", FormValidation.Kind.ERROR, v.kind);
+
+        v = desc.doTestConnection("REGION", "https://example.com", "a:b", null);
+        assertEquals("Credential is required", FormValidation.Kind.ERROR, v.kind);
+    }
+
+    @Test
     public void failtoTestConnection() throws Exception {
         FormValidation validation = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class)
-                .doTestConnection("a", "https://example.com", "a:b")
+                .doTestConnection(null, "https://example.com", "a", "a:b")
         ;
 
         assertEquals(FormValidation.Kind.ERROR, validation.kind);

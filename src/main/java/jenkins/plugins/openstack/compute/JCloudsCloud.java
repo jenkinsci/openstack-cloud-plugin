@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
@@ -143,8 +144,18 @@ public class JCloudsCloud extends Cloud {
     }, new EnterpriseConfigurationModule());
 
     @Restricted(NoExternalUse.class)
-    public static Openstack getOpenstack(String endPointUrl, String identity, String credential) {
-        return new Openstack(endPointUrl, identity, credential);
+    public static Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
+        endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
+        identity = Util.fixEmptyAndTrim(identity);
+        credential = Util.fixEmptyAndTrim(credential);
+        region = Util.fixEmptyAndTrim(region);
+
+        if (endPointUrl == null || identity == null || credential == null) {
+            throw FormValidation.error("Invalid parameters");
+        }
+
+        credential = Secret.fromString(credential).getPlainText();
+        return new Openstack(endPointUrl, identity, credential, region);
     }
 
     static NeutronApi neutron(String endPointUrl, String identity, String credential) {
@@ -337,50 +348,16 @@ public class JCloudsCloud extends Cloud {
             return "Cloud (Openstack)";
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter String zone,
-                                            @QueryParameter String endPointUrl,
-                                            @QueryParameter String identity,
-                                            @QueryParameter String credential
-                                            ) {
-
-            ListBoxModel m = new ListBoxModel();
-            m.add("None specified", "");
-
-            if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential)) {
-                return m;
-            }
-
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-
-            try {
-//                for (AvailabilityZone z : getOpenstack(endPointUrl, identity, credential).getSortedZones()) {
-//                    m.add(z.getZoneName(), z.getZoneName());
-//                }
-            } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-                if(Util.fixEmptyAndTrim(zone) != null) {m.add(zone);}
-            }
-
-            return m;
-        }
-
-        public FormValidation doTestConnection(@QueryParameter String endPointUrl,
+        @Restricted(DoNotUse.class)
+        public FormValidation doTestConnection(@QueryParameter String zone,
+                                               @QueryParameter String endPointUrl,
                                                @QueryParameter String identity,
                                                @QueryParameter String credential
         ) {
-
-            if (Strings.isNullOrEmpty(endPointUrl) || Strings.isNullOrEmpty(identity) || Strings.isNullOrEmpty(credential) /*|| Strings.isNullOrEmpty(zone)*/) {
-                return FormValidation.error("Invalid parameters");
-            }
-
-            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Secret.fromString(credential).getPlainText();
-
             try {
-                getOpenstack(endPointUrl, identity, credential).getSortedNetworks();
+                getOpenstack(endPointUrl, identity, credential, zone);
+            } catch (FormValidation ex) {
+                return ex;
             } catch (Exception ex) {
                 return FormValidation.error(ex, "Cannot connect to specified cloud, please check the identity and credentials: " + ex.getMessage());
             }
