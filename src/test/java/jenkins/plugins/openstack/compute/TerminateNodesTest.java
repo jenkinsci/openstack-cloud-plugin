@@ -35,7 +35,7 @@ public class TerminateNodesTest {
 
         new TerminateNodes(TaskListener.NULL).apply(Arrays.asList(terminate));
 
-        verify(os).destroyServer("terminate");
+        verify(os).destroyServer(terminate.getNode());
         verifyNoMoreInteractions(os);
     }
 }

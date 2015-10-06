@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -35,7 +36,6 @@ import javax.annotation.Nonnull;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
-import org.openstack4j.model.compute.Action;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
@@ -46,9 +46,22 @@ import org.openstack4j.openstack.OSFactory;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
+/**
+ * Encapsulate {@link OSClient}.
+ *
+ * The is to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting.
+ *
+ * For server manipulation, this implementation provides metadata fingerprinting
+ * to identify machines started via this plugin from given instance so it will not
+ * manipulate servers it does not "own". In other words, pretends that there are no
+ * other machines running in connected tenant.
+ *
+ * @author ogondza
+ */
 @Restricted(NoExternalUse.class)
 public class Openstack {
 
+    private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
     private static final String FINGERPRINT_KEY = "openstack-cloud-instance";
 
     private final OSClient client;
@@ -111,7 +124,7 @@ public class Openstack {
         // List only current tenant
         String fingerprint = instanceFingerprint();
         for (Server n: client.compute().servers().list(false)) {
-            if (isRunning(n) && fingerprint.equals(n.getMetadata().get(FINGERPRINT_KEY))) {
+            if (isRunning(n) && isOurs(n)) {
                 running.add(n);
             }
         }
@@ -134,6 +147,10 @@ public class Openstack {
         }
     }
 
+    private boolean isOurs(@Nonnull Server server) {
+        return instanceFingerprint().equals(server.getMetadata().get(FINGERPRINT_KEY));
+    }
+
     /**
      * Identification for instances launched by this instance via this plugin.
      *
@@ -149,13 +166,10 @@ public class Openstack {
         return server;
     }
 
-    public void destroyServer(@Nonnull String id) {
-        ActionResponse res = client.compute().servers().delete(id);
-        ActionFailed.throwIfFailed(res);
-    }
-
-    public void suspendServer(@Nonnull String id) {
-        ActionResponse res = client.compute().servers().action(id, Action.SUSPEND);
+    public void destroyServer(@Nonnull Server server) {
+        // Do not checking fingerprint here presuming all Servers provided by
+        // this implementation are ours.
+        ActionResponse res = client.compute().servers().delete(server.getId());
         ActionFailed.throwIfFailed(res);
     }
 

@@ -8,14 +8,13 @@ import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
-import org.jclouds.compute.ComputeService;
-import org.jclouds.compute.domain.NodeMetadata;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.openstack4j.model.compute.Server;
 
@@ -30,14 +29,13 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
     private transient Server server;
     private final String cloudName;
-    private String nodeId;
     private boolean pendingDelete;
     private final int overrideRetentionTime;
     private final String jvmOptions;
     private final String credentialsId;
     private final JCloudsCloud.SlaveType slaveType;
 
-    @DataBoundConstructor
+    @DataBoundConstructor // TODO Is JCloudsSlave ever bound?
     @SuppressWarnings("rawtypes")
     public JCloudsSlave(String cloudName, String name, String remoteFS, String numExecutors, Mode mode, String labelString,
                         ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties,
@@ -52,7 +50,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
     }
 
     /**
-     * Constructs a new slave from JCloud's NodeMetadata
+     * Constructs a new slave.
      *
      * @param cloudName             - the name of the cloud that's provisioning this slave.
      * @param fsRoot                - Location of Jenkins root (homedir) on the slave.
@@ -72,7 +70,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
                 overrideRetentionTime, jvmOptions, credentialsId, slaveType);
         this.server = metadata;
-        this.nodeId = server.getId();
     }
 
     /**
@@ -165,16 +162,9 @@ public class JCloudsSlave extends AbstractCloudSlave {
         }
     }
 
-    /**
-     * Destroy the node calls {@link ComputeService#destroyNode}
-     */
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        final ComputeService compute = JCloudsCloud.getByName(cloudName).getCompute();
-        if (compute.getNodeMetadata(nodeId) != null && compute.getNodeMetadata(nodeId).getStatus().equals(NodeMetadata.Status.RUNNING)) {
-            compute.destroyNode(nodeId);
-        } else {
-            LOGGER.info("Slave " + getNodeName() + " is already not running.");
-        }
+        Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
+        os.destroyServer(server);
     }
 }
