@@ -274,13 +274,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
-        private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9][a-zA-Z0-9-]{2,79}");
+        private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9][-a-zA-Z0-9]{0,79}");
 
         @Override
         public String getDisplayName() {
             return null;
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckName(@QueryParameter String value) {
             // org.jclouds.predicates.validators.DnsNameValidator
             if (NAME_PATTERN.matcher(value).find()) return FormValidation.ok();
@@ -290,10 +291,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             );
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckNumExecutors(@QueryParameter String value) {
             return FormValidation.validatePositiveInteger(value);
         }
 
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillSlaveTypeItems() {
             ListBoxModel items = new ListBoxModel();
             items.add("SSH", "SSH");
@@ -308,13 +311,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                   @RelativePath("..") @QueryParameter String identity,
                                                   @RelativePath("..") @QueryParameter String credential,
                                                   @RelativePath("..") @QueryParameter String zone
-        ) throws FormValidation {
+        ) {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
-            final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
             try {
+                final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
                 for (Flavor flavor : openstack.getSortedFlavors()) {
                     m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
                 }
@@ -332,13 +335,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                @RelativePath("..") @QueryParameter String identity,
                                                @RelativePath("..") @QueryParameter String credential,
                                                @RelativePath("..") @QueryParameter String zone
-        ) throws FormValidation {
+        ) {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
-            final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
             try {
+                final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
                 for (Image image : openstack.getSortedImages()) {
                     m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
                 }
@@ -356,13 +359,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                                  @RelativePath("..") @QueryParameter String identity,
                                                  @RelativePath("..") @QueryParameter String credential,
                                                  @RelativePath("..") @QueryParameter String zone
-        ) throws FormValidation {
+        ) {
 
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
-            Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
             try {
+                Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
                 for (org.openstack4j.model.network.Network network: openstack.getSortedNetworks()) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
                 }
@@ -374,6 +377,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return m;
         }
 
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
             if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getInstance()).hasPermission(Computer.CONFIGURE)) {
                 return new ListBoxModel();
@@ -383,12 +387,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                             ACL.SYSTEM, SSHLauncher.SSH_SCHEME));
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckOverrideRetentionTime(@QueryParameter String value) {
             try {if (Integer.parseInt(value) == -1) {return FormValidation.ok();}
                 } catch (NumberFormatException e) {}
             return FormValidation.validateNonNegativeInteger(value);
         }
 
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillUserDataIdItems() {
 
             ListBoxModel m = new ListBoxModel();

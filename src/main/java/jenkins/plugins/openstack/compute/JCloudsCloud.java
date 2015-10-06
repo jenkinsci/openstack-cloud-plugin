@@ -116,7 +116,7 @@ public class JCloudsCloud extends Cloud {
     }
 
     @Restricted(NoExternalUse.class)
-    public static Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
+    public static @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
         endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         identity = Util.fixEmptyAndTrim(identity);
         credential = Util.fixEmptyAndTrim(credential);
