@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import org.kohsuke.accmod.Restricted;
@@ -124,9 +125,9 @@ public class Openstack {
     public @Nonnull List<? extends Server> getRunningNodes() {
         List<Server> running = new ArrayList<Server>();
 
-        // List only current tenant
-        String fingerprint = instanceFingerprint();
-        for (Server n: client.compute().servers().list(false)) {
+        // We need details to inspect state and metadata
+        boolean detailed = true;
+        for (Server n: client.compute().servers().list(detailed)) {
             if (isRunning(n) && isOurs(n)) {
                 running.add(n);
             }
@@ -146,7 +147,8 @@ public class Openstack {
             case SHUTOFF:
             case DELETED:
                 return false;
-            default: return true;
+            default:
+                return true;
         }
     }
 
@@ -169,9 +171,17 @@ public class Openstack {
         return server;
     }
 
-    public @Nonnull Server boot(@Nonnull ServerCreateBuilder request) {
+    public @Nonnull Server boot(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
         request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
-        return client.compute().servers().boot(request.build());
+        return client.compute().servers().bootAndWaitActive(request.build(), timeout);
+    }
+
+    public static @Nonnull String getDetails(@Nonnull Server server) {
+        return new StringBuilder("Server name=").append(server.getName())
+                .append(", id=").append(server.getId())
+                .append(", status=").append(server.getStatus())
+                .toString()
+        ;
     }
 
     public void destroyServer(@Nonnull Server server) {

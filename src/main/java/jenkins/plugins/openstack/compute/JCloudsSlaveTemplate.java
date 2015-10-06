@@ -252,8 +252,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 //            throw destroyBadNodesAndPropagate(e);
 //        }
 
-        // TODO Should we wait until active?
-        return cloud.getOpenstack().boot(builder);
+        final Server server = cloud.getOpenstack().boot(builder, cloud.startTimeout);
+        LOGGER.info("Provisioned: " + Openstack.getDetails(server));
+        return server;
     }
 
     private static String[] csvToArray(final String csv) {
