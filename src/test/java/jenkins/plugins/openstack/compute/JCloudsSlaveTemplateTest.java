@@ -11,7 +11,7 @@ import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_IN
 public class JCloudsSlaveTemplateTest extends HudsonTestCase {
     // Following will be null if can not be validated: imageId, hardwareId, networkId, availabilityZone
     // TODO test userDataId, credentialsId
-    final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,stopOnTerminate,jvmOptions,fsRoot,installPrivateKey,overrideRetentionTime,keyPairName,securityGroups,slaveType";
+    final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,jvmOptions,fsRoot,installPrivateKey,overrideRetentionTime,keyPairName,securityGroups,slaveType";
     final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,instanceCap,retentionTime,scriptTimeout,startTimeout,zone";
 
     public void testConfigRoundtrip() throws Exception {
@@ -19,7 +19,7 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
         final String CLOUD_NAME = "my-openstack";
 
         JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(TEMPLATE_NAME, "imageId", "hardwareId",
-                "openstack-slave-type1 openstack-type2", "userData", "1", false, null, null, true, 0,
+                "openstack-slave-type1 openstack-type2", "userData", "1", null, null, true, 0,
                 "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH, null);
 
         List<JCloudsSlaveTemplate> templates = new ArrayList<JCloudsSlaveTemplate>();
@@ -35,7 +35,5 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
 
         assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
         assertEqualBeans(originalTemplate, actualCloud.getTemplate(TEMPLATE_NAME), TEMPLATE_PROPERTIES);
-
     }
-
 }
