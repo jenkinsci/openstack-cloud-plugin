@@ -12,6 +12,7 @@ import hudson.tasks.BuildWrapperDescriptor;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -87,7 +88,14 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
         final List<String> ips = new ArrayList<String>(instancesToRun.size());
         for (RunningNode node : runningNodes) {
-            ips.add(node.getNode().getAccessIPv4());
+            String addr = node.getNode().getAccessIPv4();
+            if (addr != null) {
+                ips.add(addr);
+            } else {
+                // TODO this is serious enough to report that to user as the machine is practically inaccessible
+                // Putting in empty string not to shift the addresses to make this easier to debug
+                ips.add("");
+            }
         }
 
         return Util.join(ips, ",");
