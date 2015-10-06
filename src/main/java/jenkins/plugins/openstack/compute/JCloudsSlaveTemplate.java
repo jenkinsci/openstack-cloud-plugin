@@ -51,7 +51,7 @@ import au.com.bytecode.opencsv.CSVReader;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
@@ -242,7 +242,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
             String content = Util.replaceMacro(userData.content, vars);
             LOGGER.info("Sending user-data:\n" + content);
-            builder.userData(content);
+            builder.userData(Base64.encode(content.getBytes()));
         }
 
 //        NodeMetadata nodeMetadata = null;
