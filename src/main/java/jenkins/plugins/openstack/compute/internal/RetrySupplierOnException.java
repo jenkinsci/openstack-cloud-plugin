@@ -6,6 +6,7 @@ import org.openstack4j.model.compute.Server;
 
 import com.google.common.base.Supplier;
 
+import hudson.Functions;
 import hudson.model.TaskListener;
 
 class RetrySupplierOnException implements Callable<Server> {
@@ -29,7 +30,8 @@ class RetrySupplierOnException implements Callable<Server> {
                     return n;
                 }
             } catch (RuntimeException e) {
-                listener.error("Exception creating a node: " + e.getMessage());
+                listener.error("Exception creating a node");
+                listener.getLogger().println(Functions.printThrowable(e));
                 // Something to log the e.getCause() which should be a
                 // RunNodesException
             }
