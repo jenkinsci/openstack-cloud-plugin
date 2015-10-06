@@ -77,7 +77,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String labelString;
     public final String userDataId;
     public final String numExecutors;
-    public final boolean stopOnTerminate;
     private final String jvmOptions;
     private final String fsRoot;
     public final boolean installPrivateKey;
@@ -96,7 +95,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
                                 final String labelString, final String userDataId, final String numExecutors,
-                                final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
+                                final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
                                 final int overrideRetentionTime, final String keyPairName, final String networkId,
                                 final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType, final String availabilityZone) {
 
@@ -106,7 +105,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.labelString = Util.fixNull(labelString);
         this.numExecutors = Util.fixNull(numExecutors);
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
-        this.stopOnTerminate = stopOnTerminate;
         this.userDataId = userDataId;
 
         this.fsRoot = Util.fixEmptyAndTrim(fsRoot);
@@ -163,7 +161,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         try {
             return new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString,
-                    numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), credentialsId, slaveType);
+                    numExecutors, overrideRetentionTime, getJvmOptions(), credentialsId, slaveType);
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }

@@ -29,7 +29,6 @@ import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_IN
 public class JCloudsSlave extends AbstractCloudSlave {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
     private transient Server server;
-    public final boolean stopOnTerminate;
     private final String cloudName;
     private String nodeId;
     private boolean pendingDelete;
@@ -41,11 +40,10 @@ public class JCloudsSlave extends AbstractCloudSlave {
     @DataBoundConstructor
     @SuppressWarnings("rawtypes")
     public JCloudsSlave(String cloudName, String name, String remoteFS, String numExecutors, Mode mode, String labelString,
-                        ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties, boolean stopOnTerminate,
+                        ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties,
                         int overrideRetentionTime, String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws Descriptor.FormException,
             IOException {
         super(name, null, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
-        this.stopOnTerminate = stopOnTerminate;
         this.cloudName = cloudName;
         this.overrideRetentionTime = overrideRetentionTime;
         this.jvmOptions = jvmOptions;
@@ -61,7 +59,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * @param metadata              - node metadata
      * @param labelString           - Label(s) for this slave.
      * @param numExecutors          - Number of executors for this slave.
-     * @param stopOnTerminate       - if {@code true}, suspend the slave rather than terminating it.
      * @param overrideRetentionTime - Retention time to use specifically for this slave, overriding the cloud default.
      * @param jvmOptions            - Custom options for lauching the JVM on the slave.
      * @param credentialsId         - Id of the credentials in Jenkin's global credentials database.
@@ -69,11 +66,11 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * @throws Descriptor.FormException
      */
     public JCloudsSlave(final String cloudName, final String fsRoot, Server metadata, final String labelString,
-            final String numExecutors, final boolean stopOnTerminate, final int overrideRetentionTime,
+            final String numExecutors, final int overrideRetentionTime,
             String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
         this(cloudName, metadata.getName(), fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
-                stopOnTerminate, overrideRetentionTime, jvmOptions, credentialsId, slaveType);
+                overrideRetentionTime, jvmOptions, credentialsId, slaveType);
         this.server = metadata;
         this.nodeId = server.getId();
     }
@@ -175,13 +172,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         final ComputeService compute = JCloudsCloud.getByName(cloudName).getCompute();
         if (compute.getNodeMetadata(nodeId) != null && compute.getNodeMetadata(nodeId).getStatus().equals(NodeMetadata.Status.RUNNING)) {
-            if (stopOnTerminate) {
-                LOGGER.info("Suspending the Slave : " + getNodeName());
-                compute.suspendNode(nodeId);
-            } else {
-                LOGGER.info("Terminating the Slave : " + getNodeName());
-                compute.destroyNode(nodeId);
-            }
+            compute.destroyNode(nodeId);
         } else {
             LOGGER.info("Slave " + getNodeName() + " is already not running.");
         }
