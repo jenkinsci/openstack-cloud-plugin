@@ -42,6 +42,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.api.Builders;
+import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -322,9 +323,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 for (Flavor flavor : openstack.getSortedFlavors()) {
                     m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
                 }
+                return m;
+            } catch (AuthenticationException _) {
+                // Incorrect credentials - noop
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-                if(Util.fixEmptyAndTrim(hardwareId) != null) {m.add(hardwareId);}
+            }
+
+            if (Util.fixEmpty(hardwareId) != null) {
+                m.add(hardwareId);
             }
 
             return m;
@@ -346,9 +353,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 for (Image image : openstack.getSortedImages()) {
                     m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
                 }
+                return m;
+            } catch (AuthenticationException _) {
+                // Incorrect credentials - noop
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-                if(Util.fixEmptyAndTrim(imageId) != null) {m.add(imageId);}
+            }
+
+            if (Util.fixEmpty(imageId) != null) {
+                m.add(imageId);
             }
 
             return m;
@@ -370,9 +383,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 for (org.openstack4j.model.network.Network network: openstack.getSortedNetworks()) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
                 }
+                return m;
+            } catch (AuthenticationException _) {
+                // Incorrect credentials - noop
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-                if(Util.fixEmptyAndTrim(networkId) != null) {m.add(networkId);}
+            }
+
+            if (Util.fixEmpty(networkId) != null) {
+                m.add(networkId);
             }
 
             return m;
