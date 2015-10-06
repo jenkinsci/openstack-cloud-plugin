@@ -2,29 +2,29 @@ package jenkins.plugins.openstack.compute.internal;
 
 import java.util.concurrent.Callable;
 
-import org.jclouds.compute.domain.NodeMetadata;
+import org.openstack4j.model.compute.Server;
 
 import com.google.common.base.Supplier;
 
 import hudson.model.TaskListener;
 
-class RetrySupplierOnException implements Callable<NodeMetadata> {
+class RetrySupplierOnException implements Callable<Server> {
     private final int MAX_ATTEMPTS = 5;
     private final TaskListener listener;
-    private final Supplier<NodeMetadata> supplier;
+    private final Supplier<Server> supplier;
 
-    RetrySupplierOnException(Supplier<NodeMetadata> supplier, TaskListener listener) {
+    RetrySupplierOnException(Supplier<Server> supplier, TaskListener listener) {
         this.supplier = supplier;
         this.listener = listener;
     }
 
-    public NodeMetadata call() throws Exception {
+    public Server call() throws Exception {
         int attempts = 0;
 
         while (attempts < MAX_ATTEMPTS) {
             attempts++;
             try {
-                NodeMetadata n = supplier.get();
+                Server n = supplier.get();
                 if (n != null) {
                     return n;
                 }

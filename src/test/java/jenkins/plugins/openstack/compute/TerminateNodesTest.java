@@ -1,69 +1,41 @@
 package jenkins.plugins.openstack.compute;
 
-import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.Arrays;
 
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
-import junit.framework.TestCase;
 
-import org.jclouds.ContextBuilder;
-import org.jclouds.compute.ComputeService;
-import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.compute.RunNodesException;
-import org.jclouds.compute.domain.NodeMetadata;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import static org.mockito.Mockito.*;
+import org.openstack4j.model.compute.Server;
+
 
 import hudson.model.TaskListener;
 
-public class TerminateNodesTest extends TestCase {
+public class TerminateNodesTest {
 
-    private ComputeService compute;
+    @Rule public JenkinsRule j = new JenkinsRule();
 
-    @Override
-    protected void setUp() throws Exception {
-        compute = ContextBuilder.newBuilder("stub").buildView(ComputeServiceContext.class).getComputeService();
-    }
+    @Test
+    public void destroy() {
+        JCloudsCloud cloud = spy(new JCloudsCloud("stub", null, null, null, 0, 0, 0, 0, null, null, false));
+        j.jenkins.clouds.add(cloud);
 
-    private TerminateNodes newTerminateNodes(ComputeService compute) {
-        LoadingCache<String, ComputeService> cache = CacheBuilder.newBuilder().build(
-                CacheLoader.<String, ComputeService>from(Functions.forMap(ImmutableMap.of("stub", compute))));
-        return new TerminateNodes(TaskListener.NULL, cache);
-    }
+        Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
+        doReturn(os).when(cloud).getOpenstack();
 
-    public void testDestroyOnlyDestroysNodesInQuestion() throws InterruptedException, ExecutionException, RunNodesException {
+        RunningNode keep = new RunningNode("stub", "keep", mock(Server.class));
+        when(keep.getNode().getId()).thenReturn("keep");
+        RunningNode terminate = new RunningNode("stub", "terminate", mock(Server.class));
+        when(terminate.getNode().getId()).thenReturn("terminate");
 
-        List<NodeMetadata> nodes = ImmutableList.copyOf(compute.createNodesInGroup("destroy", 10));
-        List<List<NodeMetadata>> split = Lists.partition(nodes, 5);
+        new TerminateNodes(TaskListener.NULL).apply(Arrays.asList(terminate));
 
-        Iterable<RunningNode> runningNodesToDestroy = Iterables.transform(split.get(0), new Function<NodeMetadata, RunningNode>() {
-
-            public RunningNode apply(NodeMetadata input) {
-                return new RunningNode("stub", "template", input);
-            }
-
-        });
-
-        newTerminateNodes(compute).apply(runningNodesToDestroy);
-
-        for (NodeMetadata node : split.get(0))
-            assertEquals(null, compute.getNodeMetadata(node.getId()));
-        for (NodeMetadata node : split.get(1))
-            assertEquals(NodeMetadata.Status.RUNNING, compute.getNodeMetadata(node.getId()).getStatus());
-
-    }
-
-    @Override
-    protected void tearDown() throws Exception {
-        compute.getContext().close();
+        verify(os).destroyServer("terminate");
+        verifyNoMoreInteractions(os);
     }
 }

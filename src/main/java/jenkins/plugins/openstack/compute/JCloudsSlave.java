@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.openstack4j.model.compute.Server;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 
@@ -27,7 +28,7 @@ import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_IN
  */
 public class JCloudsSlave extends AbstractCloudSlave {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
-    private transient NodeMetadata nodeMetaData;
+    private transient Server server;
     public final boolean stopOnTerminate;
     private final String cloudName;
     private String nodeId;
@@ -57,7 +58,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
      *
      * @param cloudName             - the name of the cloud that's provisioning this slave.
      * @param fsRoot                - Location of Jenkins root (homedir) on the slave.
-     * @param metadata              - JCloudsNodeMetadata
+     * @param metadata              - node metadata
      * @param labelString           - Label(s) for this slave.
      * @param numExecutors          - Number of executors for this slave.
      * @param stopOnTerminate       - if {@code true}, suspend the slave rather than terminating it.
@@ -67,27 +68,14 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * @throws IOException
      * @throws Descriptor.FormException
      */
-    public JCloudsSlave(final String cloudName, final String fsRoot, NodeMetadata metadata, final String labelString,
+    public JCloudsSlave(final String cloudName, final String fsRoot, Server metadata, final String labelString,
             final String numExecutors, final boolean stopOnTerminate, final int overrideRetentionTime,
             String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
         this(cloudName, metadata.getName(), fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
                 stopOnTerminate, overrideRetentionTime, jvmOptions, credentialsId, slaveType);
-        this.nodeMetaData = metadata;
-        this.nodeId = nodeMetaData.getId();
-    }
-
-    /**
-     * Get Jclouds NodeMetadata associated with this Slave.
-     *
-     * @return {@link NodeMetadata}
-     */
-    public NodeMetadata getNodeMetaData() {
-        if (this.nodeMetaData == null) {
-            final ComputeService compute = JCloudsCloud.getByName(cloudName).getCompute();
-            this.nodeMetaData = compute.getNodeMetadata(nodeId);
-        }
-        return nodeMetaData;
+        this.server = metadata;
+        this.nodeId = server.getId();
     }
 
     /**
@@ -154,6 +142,15 @@ public class JCloudsSlave extends AbstractCloudSlave {
         return new JCloudsComputer(this);
     }
 
+    /**
+     * Get the potential addresses to connect to.
+     */
+    public String[] getConnectionAddresses() {
+        return new String[] {
+                server.getAccessIPv4()
+        };
+    }
+
     @Extension
     public static final class JCloudsSlaveDescriptor extends SlaveDescriptor {
 
@@ -189,5 +186,4 @@ public class JCloudsSlave extends AbstractCloudSlave {
             LOGGER.info("Slave " + getNodeName() + " is already not running.");
         }
     }
-
 }

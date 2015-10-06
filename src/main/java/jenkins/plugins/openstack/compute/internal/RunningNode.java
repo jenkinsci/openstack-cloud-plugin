@@ -1,13 +1,13 @@
 package jenkins.plugins.openstack.compute.internal;
 
-import org.jclouds.compute.domain.NodeMetadata;
+import org.openstack4j.model.compute.Server;
 
 public class RunningNode {
     private final String cloud;
     private final String template;
-    private final NodeMetadata node;
+    private final Server node;
 
-    public RunningNode(String cloud, String template, NodeMetadata node) {
+    public RunningNode(String cloud, String template, Server node) {
         this.cloud = cloud;
         this.template = template;
         this.node = node;
@@ -21,7 +21,7 @@ public class RunningNode {
         return template;
     }
 
-    public NodeMetadata getNode() {
+    public Server getNode() {
         return node;
     }
 }

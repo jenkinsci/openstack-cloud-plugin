@@ -49,6 +49,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.model.compute.Flavor;
+import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.image.Image;
 
 import au.com.bytecode.opencsv.CSVReader;
@@ -65,7 +66,7 @@ import com.trilead.ssh2.Connection;
 /**
  * @author Vijay Kiran
  */
-public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, Supplier<NodeMetadata> {
+public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, Supplier<Server> {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
     private static final char SEPARATOR_CHAR = ',';
@@ -158,7 +159,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     public JCloudsSlave provisionSlave(TaskListener listener) throws IOException {
-        NodeMetadata nodeMetadata = get();
+        Server nodeMetadata = get();
 
         try {
             return new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString,
@@ -168,8 +169,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
+    // TODO refactor
     @Override
-    public NodeMetadata get() {
+    public Server get() {
         LOGGER.info("Provisioning new openstack node");
 
         TemplateBuilder templateBuilder = getCloud().getCompute().templateBuilder();
@@ -245,9 +247,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         } catch (RunNodesException e) {
             throw destroyBadNodesAndPropagate(e);
         }
-
-        // Check if nodeMetadata is null and throw
-        return nodeMetadata;
+        
+        return cloud.getOpenstack().getServerById(nodeMetadata.getId());
     }
 
     private RuntimeException destroyBadNodesAndPropagate(RunNodesException e) {

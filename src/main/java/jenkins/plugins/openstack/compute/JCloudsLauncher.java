@@ -11,11 +11,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.MessageFormat;
 
-import org.jclouds.compute.domain.NodeMetadata;
-
 /**
- * The launcher that launches the jenkins slave.jar on the Slave. Uses the SSHKeyPair configured in the cloud profile settings, and logs in to the server via
- * SSH, and starts the slave.jar.
+ * The launcher that launches the jenkins slave.jar on the Slave.
  *
  * @author Vijay Kiran
  */
@@ -35,7 +32,7 @@ public class JCloudsLauncher extends ComputerLauncher {
         PrintStream logger = listener.getLogger();
 
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
-        final String[] addresses = getConnectionAddresses(slave.getNodeMetaData(), logger);
+        final String[] addresses = slave.getConnectionAddresses();
 
         String host = addresses[0];
         if ("0.0.0.0".equals(host)) {
@@ -54,21 +51,8 @@ public class JCloudsLauncher extends ComputerLauncher {
         }
     }
 
-    /**
-     * Get the potential addresses to connect to, opting for public first and then private.
-     */
-    public static String[] getConnectionAddresses(NodeMetadata nodeMetadata, PrintStream logger) {
-        if (nodeMetadata.getPublicAddresses().size() > 0) {
-            return nodeMetadata.getPublicAddresses().toArray(new String[nodeMetadata.getPublicAddresses().size()]);
-        } else {
-            logger.println("No public addresses found, so using private address.");
-            return nodeMetadata.getPrivateAddresses().toArray(new String[nodeMetadata.getPrivateAddresses().size()]);
-        }
-    }
-
     @Override
     public Descriptor<ComputerLauncher> getDescriptor() {
         throw new UnsupportedOperationException();
     }
-
 }

@@ -3,7 +3,7 @@ package jenkins.plugins.openstack.compute.internal;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.jclouds.compute.domain.NodeMetadata;
+import org.openstack4j.model.compute.Server;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
@@ -29,7 +29,7 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
     public Iterable<RunningNode> apply(Iterable<NodePlan> nodePlans) {
         final ImmutableList.Builder<RunningNode> cloudTemplateNodeBuilder = ImmutableList.<RunningNode>builder();
 
-        final ImmutableList.Builder<ListenableFuture<NodeMetadata>> plannedInstancesBuilder = ImmutableList.<ListenableFuture<NodeMetadata>>builder();
+        final ImmutableList.Builder<ListenableFuture<Server>> plannedInstancesBuilder = ImmutableList.<ListenableFuture<Server>>builder();
 
         final AtomicInteger failedLaunches = new AtomicInteger();
 
@@ -41,10 +41,10 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
                         index, nodePlan.getCount(), nodePlan.getCloudName(), nodePlan.getTemplateName()
                 );
 
-                ListenableFuture<NodeMetadata> provisionTemplate = executor.submit(new RetrySupplierOnException(nodePlan.getNodeSupplier(), listener));
+                ListenableFuture<Server> provisionTemplate = executor.submit(new RetrySupplierOnException(nodePlan.getNodeSupplier(), listener));
 
-                Futures.addCallback(provisionTemplate, new FutureCallback<NodeMetadata>() {
-                    public void onSuccess(NodeMetadata result) {
+                Futures.addCallback(provisionTemplate, new FutureCallback<Server>() {
+                    public void onSuccess(Server result) {
                         if (result != null) {
                             cloudTemplateNodeBuilder.add(new RunningNode(nodePlan.getCloudName(), nodePlan.getTemplateName(), result));
                         } else {
@@ -62,12 +62,11 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
                 });
 
                 plannedInstancesBuilder.add(provisionTemplate);
-
             }
         }
 
         // block until all complete
-        List<NodeMetadata> nodesActuallyLaunched = Futures.getUnchecked(Futures.successfulAsList(plannedInstancesBuilder.build()));
+        List<Server> nodesActuallyLaunched = Futures.getUnchecked(Futures.successfulAsList(plannedInstancesBuilder.build()));
 
         final ImmutableList<RunningNode> cloudTemplateNodes = cloudTemplateNodeBuilder.build();
 

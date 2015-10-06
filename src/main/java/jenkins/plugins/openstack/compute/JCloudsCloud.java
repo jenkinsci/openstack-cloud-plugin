@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
@@ -31,8 +32,6 @@ import org.jclouds.ContextBuilder;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.config.ComputeServiceProperties;
-import org.jclouds.compute.domain.ComputeMetadata;
-import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.enterprise.config.EnterpriseConfigurationModule;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.openstack.neutron.v2.NeutronApi;
@@ -50,6 +49,7 @@ import org.kohsuke.stapler.StaplerResponse;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
@@ -69,7 +69,7 @@ public class JCloudsCloud extends Cloud {
     public final String profile;
     private final int retentionTime;
     public final int instanceCap;
-    public final List<JCloudsSlaveTemplate> templates;
+    private final List<JCloudsSlaveTemplate> templates;
     public final int scriptTimeout;
     public final int startTimeout;
     public final String zone;
@@ -109,7 +109,7 @@ public class JCloudsCloud extends Cloud {
         this.retentionTime = retentionTime;
         this.scriptTimeout = scriptTimeout;
         this.startTimeout = startTimeout;
-        this.templates = Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList());
+        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
         this.zone = Util.fixEmptyAndTrim(zone);
         this.floatingIps = floatingIps;
         readResolve();
@@ -133,6 +133,7 @@ public class JCloudsCloud extends Cloud {
         return floatingIps;
     }
 
+    // TODO delete
     static final Iterable<Module> MODULES = ImmutableSet.<Module>of(new SshjSshClientModule(), new EnterpriseConfigurationModule());
 
     @Restricted(NoExternalUse.class)
@@ -146,26 +147,10 @@ public class JCloudsCloud extends Cloud {
             throw FormValidation.error("Invalid parameters");
         }
 
-        credential = Secret.fromString(credential).getPlainText();
-        return new Openstack(endPointUrl, identity, credential, region);
+        return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
     }
 
-    static NeutronApi neutron(String endPointUrl, String identity, String credential) {
-        return ContextBuilder.newBuilder(new NeutronApiMetadata())
-                .credentials(identity, credential)
-                .endpoint(endPointUrl)
-                .modules(MODULES)
-                .buildApi(NeutronApi.class);
-    }
-
-    static NovaApi nova(String endPointUrl, String identity, String credential) {
-        return ContextBuilder.newBuilder(new NovaApiMetadata())
-                .credentials(identity, credential)
-                .endpoint(endPointUrl)
-                .modules(MODULES)
-                .buildApi(NovaApi.class);
-    }
-
+    // TODO delete
     static ComputeServiceContext ctx(String endPointUrl, String identity, String credential, Properties overrides) {
         return ContextBuilder
                 .newBuilder(new NovaApiMetadata())
@@ -176,6 +161,7 @@ public class JCloudsCloud extends Cloud {
                 .buildView(ComputeServiceContext.class);
     }
 
+    // TODO delete
     public ComputeService getCompute() {
         if (compute == null) {
             Properties overrides = new Properties();
@@ -193,8 +179,8 @@ public class JCloudsCloud extends Cloud {
         return compute;
     }
 
-    public List<JCloudsSlaveTemplate> getTemplates() {
-        return Collections.unmodifiableList(templates);
+    public @Nonnull List<JCloudsSlaveTemplate> getTemplates() {
+        return templates;
     }
 
     /**
@@ -314,19 +300,15 @@ public class JCloudsCloud extends Cloud {
      * Determine how many nodes are currently running for this cloud.
      */
     public int getRunningNodesCount() {
-        int nodeCount = 0;
+        return getOpenstack().getRunningNodes().size();
+    }
 
-        for (ComputeMetadata cm : getCompute().listNodes()) {
-            if (NodeMetadata.class.isInstance(cm)) {
-                String nodeGroup = ((NodeMetadata) cm).getGroup();
-
-                if (getTemplate(nodeGroup) != null && !((NodeMetadata) cm).getStatus().equals(NodeMetadata.Status.SUSPENDED)
-                        && !((NodeMetadata) cm).getStatus().equals(NodeMetadata.Status.TERMINATED)) {
-                    nodeCount++;
-                }
-            }
-        }
-        return nodeCount;
+    /**
+     * Get connected OpenStack client wrapper.
+     */
+    @Restricted(DoNotUse.class)
+    public @Nonnull Openstack getOpenstack() {
+        return new Openstack(endPointUrl, identity, credential, zone);
     }
 
     @Extension

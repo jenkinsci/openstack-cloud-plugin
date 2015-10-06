@@ -7,32 +7,28 @@ import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.model.Computer;
-import hudson.model.ParametersAction;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
 
 import java.io.IOException;
-import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import jenkins.plugins.openstack.compute.internal.NodePlan;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.internal.ProvisionPlannedInstancesAndDestroyAllOnError;
 import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
 
-import org.jclouds.compute.ComputeService;
-import org.jclouds.compute.domain.NodeMetadata;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.openstack4j.model.compute.Server;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.util.concurrent.MoreExecutors;
 
 public class JCloudsBuildWrapper extends BuildWrapper {
@@ -53,16 +49,6 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     //
     @Override
     public Environment setUp(final AbstractBuild build, Launcher launcher, final BuildListener listener) {
-        // TODO: on shutdown, close all
-        final LoadingCache<String, ComputeService> computeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, ComputeService>() {
-
-            @Override
-            public ComputeService load(String arg0) throws Exception {
-                return JCloudsCloud.getByName(arg0).getCompute();
-            }
-
-        });
-        // final ParametersAction parameters = build.getAction(ParametersAction.class);
 
         // eagerly lookup node supplier so that errors occur before we attempt to provision things
         Iterable<NodePlan> nodePlans = Iterables.transform(instancesToRun, new Function<InstancesToRun, NodePlan>() {
@@ -70,27 +56,24 @@ public class JCloudsBuildWrapper extends BuildWrapper {
             public NodePlan apply(InstancesToRun instance) {
                 String cloudName = instance.cloudName;
                 String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
-                // String templateName = getParameterString(parameters, instance.getActualTemplateName(), build);
-                Supplier<NodeMetadata> nodeSupplier = JCloudsCloud.getByName(cloudName).getTemplate(templateName);
-                // take the hit here, as opposed to later
-                computeCache.getUnchecked(cloudName);
+                Supplier<Server> nodeSupplier = JCloudsCloud.getByName(cloudName).getTemplate(templateName);
                 return new NodePlan(cloudName, templateName, instance.count, nodeSupplier);
             }
 
         });
 
-        final TerminateNodes terminateNodes = new TerminateNodes(listener, computeCache);
+        final TerminateNodes terminateNodes = new TerminateNodes(listener);
 
         ProvisionPlannedInstancesAndDestroyAllOnError provisioner = new ProvisionPlannedInstancesAndDestroyAllOnError(
                 MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting), listener, terminateNodes);
 
         final Iterable<RunningNode> runningNode = provisioner.apply(nodePlans);
 
+        final String ipsString = getIpsString(runningNode);
         return new Environment() {
             @Override
             public void buildEnvVars(Map<String, String> env) {
-                List<String> ips = getInstanceIPs(runningNode, listener.getLogger());
-                env.put("JCLOUDS_IPS", Util.join(ips, ","));
+                env.put("JCLOUDS_IPS", ipsString);
             }
 
             @Override
@@ -98,30 +81,16 @@ public class JCloudsBuildWrapper extends BuildWrapper {
                 terminateNodes.apply(runningNode);
                 return true;
             }
-
         };
-
     }
 
-    public List<String> getInstanceIPs(Iterable<RunningNode> runningNodes, PrintStream logger) {
-        Builder<String> ips = ImmutableList.<String>builder();
-
-        for (RunningNode runningNode : runningNodes) {
-            String[] possibleIPs = JCloudsLauncher.getConnectionAddresses(runningNode.getNode(), logger);
-            if (possibleIPs[0] != null) {
-                ips.add(possibleIPs[0]);
-            }
+    private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
+        final List<String> ips = new ArrayList<String>(instancesToRun.size());
+        for (RunningNode node : runningNodes) {
+            ips.add(node.getNode().getAccessIPv4());
         }
 
-        return ips.build();
-    }
-
-    private String getParameterString(ParametersAction parameters, String original, AbstractBuild<?, ?> build) {
-        if (parameters != null) {
-            original = parameters.substitute(build, original);
-        }
-
-        return original;
+        return Util.join(ips, ",");
     }
 
     @Extension
@@ -135,6 +104,5 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         public boolean isApplicable(AbstractProject item) {
             return true;
         }
-
     }
 }
