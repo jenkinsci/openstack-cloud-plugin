@@ -12,7 +12,6 @@
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Openstack+Cloud+Plugin</url>
     <properties>
-        <jclouds.version>1.9.1</jclouds.version>
         <guava.version>18.0</guava.version>
         <jsch.version>0.1.48</jsch.version>
         <stapler.version>1.237</stapler.version>
@@ -30,44 +29,6 @@
         </developer>
     </developers>
     <dependencies>
-            <dependency>
-                <groupId>org.apache.jclouds</groupId>
-                <artifactId>jclouds-allblobstore</artifactId>
-                <version>${jclouds.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.jclouds.driver</groupId>
-                <artifactId>jclouds-enterprise</artifactId>
-                <version>${jclouds.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.apache.jclouds.api</groupId>
-                <artifactId>openstack-keystone</artifactId>
-                <version>${jclouds.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.jclouds.api</groupId>
-                <artifactId>openstack-nova</artifactId>
-                <version>${jclouds.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.jclouds.labs</groupId>
-                <artifactId>openstack-neutron</artifactId>
-                <version>${jclouds.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.apache.jclouds.driver</groupId>
-                <artifactId>jclouds-slf4j</artifactId>
-                <version>${jclouds.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.jclouds.driver</groupId>
-                <artifactId>jclouds-sshj</artifactId>
-                <version>${jclouds.version}</version>
-            </dependency>
-
             <dependency>
               <groupId>org.pacesys</groupId>
               <artifactId>openstack4j-core</artifactId>
@@ -112,27 +73,6 @@
             </dependency>
 
             <!-- Test Dependencies -->
-            <dependency>
-                <groupId>org.apache.jclouds</groupId>
-                <artifactId>jclouds-core</artifactId>
-                <version>${jclouds.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.jclouds</groupId>
-                <artifactId>jclouds-compute</artifactId>
-                <version>${jclouds.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.jclouds</groupId>
-                <artifactId>jclouds-blobstore</artifactId>
-                <version>${jclouds.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
-            </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
