@@ -35,10 +35,13 @@ import javax.annotation.Nonnull;
 
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.openstack4j.api.Builders;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.ServerCreate;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.OSFactory;
@@ -157,13 +160,18 @@ public class Openstack {
      * @return Identifier to filter instances we control.
      */
     private @Nonnull String instanceFingerprint() {
-       return Jenkins.getActiveInstance().getLegacyInstanceId();
+        return Jenkins.getActiveInstance().getLegacyInstanceId();
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
         Server server = client.compute().servers().get(id);
         if (server == null) throw new NoSuchElementException("No such server running: " + id);
         return server;
+    }
+
+    public @Nonnull Server boot(@Nonnull ServerCreateBuilder request) {
+        request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
+        return client.compute().servers().boot(request.build());
     }
 
     public void destroyServer(@Nonnull Server server) {

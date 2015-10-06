@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
@@ -30,17 +31,9 @@ import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
-import org.jclouds.compute.RunNodesException;
-import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.compute.domain.Template;
-import org.jclouds.compute.domain.TemplateBuilder;
-import org.jclouds.domain.LoginCredentials;
-import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
-import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.accmod.Restricted;
@@ -48,11 +41,14 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
 
 import au.com.bytecode.opencsv.CSVReader;
+
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 
@@ -167,74 +163,73 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
-    // TODO refactor
     @Override
     public Server get() {
+        final ServerCreateBuilder builder = Builders.server();
         final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
         LOGGER.info("Provisioning new openstack node " + nodeName);
-
-        TemplateBuilder templateBuilder = getCloud().getCompute().templateBuilder();
+        // Ensure predictable node name so we can inject it into user data
+        builder.name(nodeName);
 
         if (!Strings.isNullOrEmpty(imageId)) {
             LOGGER.info("Setting image id to " + imageId);
-            templateBuilder.imageId(imageId);
+            builder.image(imageId);
         }
         if (!Strings.isNullOrEmpty((hardwareId))) {
             LOGGER.info("Setting hardware Id to " + hardwareId);
-            templateBuilder.hardwareId(hardwareId);
+            builder.flavor(hardwareId);
         }
-
-        Template template = templateBuilder.build();
-        NovaTemplateOptions options = template.getOptions().as(NovaTemplateOptions.class);
-
-        // Ensure predictable node name so we can inject it into user data
-        options.nodeNames(Arrays.asList(nodeName));
 
         if (!Strings.isNullOrEmpty(networkId)) {
             LOGGER.info("Setting network to " + networkId);
-            options.networks(networkId);
+            builder.networks(Arrays.asList(networkId));
         }
 
         if (!Strings.isNullOrEmpty(securityGroups)) {
             LOGGER.info("Setting security groups to " + securityGroups);
-            options.securityGroups(csvToArray(securityGroups));
+            for (String sg: csvToArray(securityGroups)) {
+                builder.addSecurityGroup(sg);
+            }
         }
 
         if (cloud.isFloatingIps()) {
             LOGGER.info("Asking for floating IP");
-            options.as(NovaTemplateOptions.class).autoAssignFloatingIp(true);
+            //options.as(NovaTemplateOptions.class).autoAssignFloatingIp(true);
+            // TODO Does not seem to be possible in openstack4j api - assign once booted if needed
         }
 
         if (!Strings.isNullOrEmpty(keyPairName)) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
-            options.keyPairName(keyPairName);
+            builder.keypairName(keyPairName);
         }
 
         if (!Strings.isNullOrEmpty(availabilityZone)) {
             LOGGER.info("Setting availabilityZone to " + availabilityZone);
-            options.availabilityZone(availabilityZone);
+            builder.availabilityZone(availabilityZone);
         }
 
         StandardUsernameCredentials credentials = SSHLauncher.lookupSystemCredentials(credentialsId);
-        LoginCredentials loginCredentials = null;
+//        LoginCredentials loginCredentials = null;
+//
+//        if (credentials instanceof StandardUsernamePasswordCredentials) {
+//            loginCredentials = LoginCredentials.builder()
+//                .user(credentials.getUsername())
+//                .password(((StandardUsernamePasswordCredentials) credentials).getPassword().getPlainText())
+//                .build();
+//        } else if (credentials instanceof SSHUserPrivateKey) {
+//            loginCredentials = LoginCredentials.builder().
+//                user(credentials.getUsername()).
+//                privateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey()).build();
+//        } else {
+//            throw new AssertionError("Unknown credential type configured: " + credentials);
+//        }
+//        options.overrideLoginCredentials(loginCredentials);
+        // TODO how to set credentials?
 
-        if (credentials instanceof StandardUsernamePasswordCredentials) {
-            loginCredentials = LoginCredentials.builder()
-                .user(credentials.getUsername())
-                .password(((StandardUsernamePasswordCredentials) credentials).getPassword().getPlainText())
-                .build();
-        } else if (credentials instanceof SSHUserPrivateKey) {
-            loginCredentials = LoginCredentials.builder().
-                user(credentials.getUsername()).
-                privateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey()).build();
-        } else {
-            throw new AssertionError("Unknown credential type configured: " + credentials);
-        }
-        options.overrideLoginCredentials(loginCredentials);
-
-        if (installPrivateKey && credentials instanceof SSHUserPrivateKey) {
-            options.installPrivateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey());
-        }
+        // TODO 
+//        if (installPrivateKey && credentials instanceof SSHUserPrivateKey) {
+//            options.installPrivateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey());
+//        }
 
         ExtensionList<ConfigProvider> providers = ConfigProvider.all();
         UserDataConfig.UserDataConfigProvider myProvider = providers.get(UserDataConfig.UserDataConfigProvider.class);
@@ -247,24 +242,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
             String content = Util.replaceMacro(userData.content, vars);
             LOGGER.info("Sending user-data:\n" + content);
-            options.as(NovaTemplateOptions.class).userData(content.getBytes(StandardCharsets.UTF_8));
+            builder.userData(content);
         }
 
-        NodeMetadata nodeMetadata = null;
-        try {
-            nodeMetadata = getOnlyElement(getCloud().getCompute().createNodesInGroup(name, 1, template));
-        } catch (RunNodesException e) {
-            throw destroyBadNodesAndPropagate(e);
-        }
-        
-        return cloud.getOpenstack().getServerById(nodeMetadata.getId());
-    }
+//        NodeMetadata nodeMetadata = null;
+//        try {
+//            nodeMetadata = getOnlyElement(getCloud().getCompute().createNodesInGroup(name, 1, template));
+//        } catch (RunNodesException e) {
+//            throw destroyBadNodesAndPropagate(e);
+//        }
 
-    private RuntimeException destroyBadNodesAndPropagate(RunNodesException e) {
-        for (Map.Entry<? extends NodeMetadata, ? extends Throwable> nodeError : e.getNodeErrors().entrySet()) {
-            getCloud().getCompute().destroyNode(nodeError.getKey().getId());
-        }
-        throw propagate(e);
+        // TODO Should we wait until active?
+        return cloud.getOpenstack().boot(builder);
     }
 
     private static String[] csvToArray(final String csv) {
@@ -285,6 +274,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
+        private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9][a-zA-Z0-9-]{2,79}");
 
         @Override
         public String getDisplayName() {
@@ -292,12 +282,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         public FormValidation doCheckName(@QueryParameter String value) {
-            try {
-                new DnsNameValidator(1, 80).validate(value);
-                return FormValidation.ok();
-            } catch (Exception e) {
-                return FormValidation.error(e.getMessage());
-            }
+            // org.jclouds.predicates.validators.DnsNameValidator
+            if (NAME_PATTERN.matcher(value).find()) return FormValidation.ok();
+
+            return FormValidation.error(
+                    "Must be a lowercase string, from 1 to 80 characteres long, starting with letter or number"
+            );
         }
 
         public FormValidation doCheckNumExecutors(@QueryParameter String value) {

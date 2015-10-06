@@ -11,8 +11,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
-import com.google.inject.Module;
-
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
@@ -28,17 +26,6 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
-import org.jclouds.ContextBuilder;
-import org.jclouds.compute.ComputeService;
-import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.compute.config.ComputeServiceProperties;
-import org.jclouds.enterprise.config.EnterpriseConfigurationModule;
-import org.jclouds.location.reference.LocationConstants;
-import org.jclouds.openstack.neutron.v2.NeutronApi;
-import org.jclouds.openstack.neutron.v2.NeutronApiMetadata;
-import org.jclouds.openstack.nova.v2_0.NovaApi;
-import org.jclouds.openstack.nova.v2_0.NovaApiMetadata;
-import org.jclouds.sshj.config.SshjSshClientModule;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -48,9 +35,6 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
 import com.google.common.base.Objects;
-import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableSet;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 
@@ -75,8 +59,6 @@ public class JCloudsCloud extends Cloud {
     public final String zone;
     // Ask for a floating IP to be associated for every machine provisioned
     private final boolean floatingIps;
-
-    private transient ComputeService compute;
 
     public enum SlaveType {SSH, JNLP}
 
@@ -133,9 +115,6 @@ public class JCloudsCloud extends Cloud {
         return floatingIps;
     }
 
-    // TODO delete
-    static final Iterable<Module> MODULES = ImmutableSet.<Module>of(new SshjSshClientModule(), new EnterpriseConfigurationModule());
-
     @Restricted(NoExternalUse.class)
     public static Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
         endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
@@ -148,35 +127,6 @@ public class JCloudsCloud extends Cloud {
         }
 
         return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
-    }
-
-    // TODO delete
-    static ComputeServiceContext ctx(String endPointUrl, String identity, String credential, Properties overrides) {
-        return ContextBuilder
-                .newBuilder(new NovaApiMetadata())
-                .endpoint(endPointUrl)
-                .credentials(identity, credential)
-                .overrides(overrides)
-                .modules(MODULES)
-                .buildView(ComputeServiceContext.class);
-    }
-
-    // TODO delete
-    public ComputeService getCompute() {
-        if (compute == null) {
-            Properties overrides = new Properties();
-            if (scriptTimeout > 0) {
-                overrides.setProperty(ComputeServiceProperties.TIMEOUT_SCRIPT_COMPLETE, String.valueOf(scriptTimeout));
-            }
-            if (startTimeout > 0) {
-                overrides.setProperty(ComputeServiceProperties.TIMEOUT_NODE_RUNNING, String.valueOf(startTimeout));
-            }
-            if (!Strings.isNullOrEmpty(zone)) {
-                overrides.setProperty(LocationConstants.PROPERTY_ZONES, zone);
-            }
-            compute = ctx(endPointUrl, identity, Secret.toString(credential), overrides).getComputeService();
-        }
-        return compute;
     }
 
     public @Nonnull List<JCloudsSlaveTemplate> getTemplates() {
