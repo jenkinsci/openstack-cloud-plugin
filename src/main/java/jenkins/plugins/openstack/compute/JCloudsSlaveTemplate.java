@@ -193,12 +193,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         }
 
-        if (cloud.isFloatingIps()) {
-            LOGGER.info("Asking for floating IP");
-            //options.as(NovaTemplateOptions.class).autoAssignFloatingIp(true);
-            // TODO Does not seem to be possible in openstack4j api - assign once booted if needed
-        }
-
         if (!Strings.isNullOrEmpty(keyPairName)) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
             builder.keypairName(keyPairName);
@@ -253,8 +247,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 //            throw destroyBadNodesAndPropagate(e);
 //        }
 
-        final Server server = cloud.getOpenstack().boot(builder, cloud.startTimeout);
-        LOGGER.info("Provisioned: " + Openstack.getDetails(server));
+        final Openstack openstack = cloud.getOpenstack();
+        final Server server = openstack.bootAndWaitActive(builder, cloud.startTimeout);
+        LOGGER.info("Provisioned: " + server.toString());
+
+        if (cloud.isFloatingIps()) {
+            LOGGER.info("Assiging floating IP to " + name);
+            openstack.assignFloatingIp(server);
+        }
+
         return server;
     }
 

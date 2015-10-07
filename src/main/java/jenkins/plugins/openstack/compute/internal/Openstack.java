@@ -38,8 +38,10 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.Builders;
 import org.openstack4j.api.OSClient;
+import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Flavor;
+import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.ServerCreate;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -162,7 +164,7 @@ public class Openstack {
      * @return Identifier to filter instances we control.
      */
     private @Nonnull String instanceFingerprint() {
-        return Jenkins.getActiveInstance().getLegacyInstanceId();
+        return Jenkins.getInstance().getLegacyInstanceId();
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
@@ -171,7 +173,7 @@ public class Openstack {
         return server;
     }
 
-    public @Nonnull Server boot(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
+    public @Nonnull Server bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
         request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
         return client.compute().servers().bootAndWaitActive(request.build(), timeout);
     }
@@ -189,6 +191,15 @@ public class Openstack {
         // this implementation are ours.
         ActionResponse res = client.compute().servers().delete(server.getId());
         ActionFailed.throwIfFailed(res);
+
+        // Remove all associated floating IPS
+        ComputeFloatingIPService fips = client.compute().floatingIps();
+        for (FloatingIP ip: fips.list()) {
+            if (server.getId().equals(ip.getInstanceId())) {
+                fips.removeFloatingIP(server, ip.getFloatingIpAddress());
+                fips.deallocateIP(ip.getId());
+            }
+        }
     }
 
     public static final class ActionFailed extends RuntimeException {
@@ -200,5 +211,19 @@ public class Openstack {
         public ActionFailed(ActionResponse res) {
             super(res.toString());
         }
+    }
+
+    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server) {
+        ComputeFloatingIPService fips = client.compute().floatingIps();
+        String publicPool = null;
+        FloatingIP ip = fips.allocateIP(publicPool);
+        try {
+            fips.addFloatingIP(server, ip.getFloatingIpAddress());
+        } catch (Throwable ex) {
+            fips.deallocateIP(ip.getId());
+            throw ex;
+        }
+
+        return ip;
     }
 }
