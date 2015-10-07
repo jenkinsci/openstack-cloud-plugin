@@ -34,6 +34,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import org.codehaus.groovy.ast.expr.ClosureListExpression;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
@@ -45,6 +46,8 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.Network;
+import org.openstack4j.model.storage.object.options.ContainerListOptions;
+import org.openstack4j.model.storage.object.options.CreateUpdateContainerOptions;
 import org.openstack4j.openstack.OSFactory;
 
 import hudson.util.Secret;
@@ -176,12 +179,11 @@ public class Openstack {
         return client.compute().servers().bootAndWaitActive(request.build(), timeout);
     }
 
-    public static @Nonnull String getDetails(@Nonnull Server server) {
-        return new StringBuilder("Server name=").append(server.getName())
-                .append(", id=").append(server.getId())
-                .append(", status=").append(server.getStatus())
-                .toString()
-        ;
+    /**
+     * Fetch updated info about the server.
+     */
+    public @Nonnull Server updateInfo(@Nonnull Server server) {
+        return getServerById(server.getId());
     }
 
     public void destroyServer(@Nonnull Server server) {

@@ -12,19 +12,19 @@ import hudson.tasks.BuildWrapperDescriptor;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 import jenkins.plugins.openstack.compute.internal.NodePlan;
-import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.internal.ProvisionPlannedInstancesAndDestroyAllOnError;
 import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
 
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Server;
 
 import com.google.common.base.Function;
@@ -88,7 +88,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
         final List<String> ips = new ArrayList<String>(instancesToRun.size());
         for (RunningNode node : runningNodes) {
-            String addr = node.getNode().getAccessIPv4();
+            String addr = getPublicAddress(node);
             if (addr != null) {
                 ips.add(addr);
             } else {
@@ -99,6 +99,27 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         return Util.join(ips, ",");
+    }
+
+    /**
+     * Get address of the machine.
+     *
+     * @return Floating IP, if there is none Fixed IP, null if there is none either.
+     */
+    private @CheckForNull String getPublicAddress(RunningNode node) {
+        String fixed = null;
+        for (List<? extends Address> addresses: node.getNode().getAddresses().getAddresses().values()) {
+            for (Address addr: addresses) {
+                if ("floating".equals(addr.getType())) {
+                    return addr.getAddr();
+                }
+
+                fixed = addr.getAddr();
+            }
+        }
+
+        // No floating IP found - use fixed
+        return fixed;
     }
 
     @Extension

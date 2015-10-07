@@ -245,7 +245,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             openstack.assignFloatingIp(server);
         }
 
-        return server;
+        // Make sure address information is propagated
+        return openstack.updateInfo(server);
     }
 
     private static String[] csvToArray(final String csv) {
