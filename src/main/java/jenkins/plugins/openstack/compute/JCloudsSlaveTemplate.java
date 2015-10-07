@@ -1,11 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
-import static com.google.common.base.Throwables.propagate;
-import static com.google.common.collect.Iterables.getOnlyElement;
-
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -239,13 +235,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             LOGGER.info("Sending user-data:\n" + content);
             builder.userData(Base64.encode(content.getBytes()));
         }
-
-//        NodeMetadata nodeMetadata = null;
-//        try {
-//            nodeMetadata = getOnlyElement(getCloud().getCompute().createNodesInGroup(name, 1, template));
-//        } catch (RunNodesException e) {
-//            throw destroyBadNodesAndPropagate(e);
-//        }
 
         final Openstack openstack = cloud.getOpenstack();
         final Server server = openstack.bootAndWaitActive(builder, cloud.startTimeout);
