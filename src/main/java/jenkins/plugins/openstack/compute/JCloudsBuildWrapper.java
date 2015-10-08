@@ -19,6 +19,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 import jenkins.plugins.openstack.compute.internal.NodePlan;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.internal.ProvisionPlannedInstancesAndDestroyAllOnError;
 import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
@@ -88,7 +89,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
         final List<String> ips = new ArrayList<String>(instancesToRun.size());
         for (RunningNode node : runningNodes) {
-            String addr = getPublicAddress(node);
+            String addr = Openstack.getPublicAddress(node.getNode());
             if (addr != null) {
                 ips.add(addr);
             } else {
@@ -99,27 +100,6 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         return Util.join(ips, ",");
-    }
-
-    /**
-     * Get address of the machine.
-     *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
-     */
-    private @CheckForNull String getPublicAddress(RunningNode node) {
-        String fixed = null;
-        for (List<? extends Address> addresses: node.getNode().getAddresses().getAddresses().values()) {
-            for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr.getAddr();
-                }
-
-                fixed = addr.getAddr();
-            }
-        }
-
-        // No floating IP found - use fixed
-        return fixed;
     }
 
     @Extension

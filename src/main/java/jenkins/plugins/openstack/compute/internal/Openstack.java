@@ -40,6 +40,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.model.compute.ActionResponse;
+import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Server;
@@ -225,5 +226,26 @@ public class Openstack {
         }
 
         return ip;
+    }
+
+    /**
+     * Extract public address from server info.
+     *
+     * @return Floating IP, if there is none Fixed IP, null if there is none either.
+     */
+    public static @CheckForNull String getPublicAddress(@Nonnull Server server) {
+        String fixed = null;
+        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
+            for (Address addr: addresses) {
+                if ("floating".equals(addr.getType())) {
+                    return addr.getAddr();
+                }
+
+                fixed = addr.getAddr();
+            }
+        }
+
+        // No floating IP found - use fixed
+        return fixed;
     }
 }

@@ -139,9 +139,9 @@ public class JCloudsSlave extends AbstractCloudSlave {
     /**
      * Get the potential addresses to connect to.
      */
-    public String[] getConnectionAddresses() {
+    /*package*/ String[] getConnectionAddresses() {
         return new String[] {
-                server.getAccessIPv4()
+                Openstack.getPublicAddress(server)
         };
     }
 
