@@ -47,7 +47,18 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
     @Override
     public HttpResponse doDoDelete() throws IOException {
         setTemporarilyOffline(true, OfflineCause.create(Messages._DeletedCause()));
-        getNode().setPendingDelete(true);
+        final JCloudsSlave potentiallyNullNode = getNode();
+
+        /* I added this null check because of NPE for nodes that were already deleted:
+         * see https://issues.jenkins-ci.org/browse/JENKINS-29152
+         * if you look at the overridden method in AbstractCloudComputer class,
+         * it does this null check as well.
+         */
+        if (potentiallyNullNode != null) {
+            potentiallyNullNode.setPendingDelete(true);
+        } else {
+            LOGGER.severe("getNode() returned Null in doDoDelete() method. Cannot mark a Null node for deletion.");
+        }
         return new HttpRedirect("..");
     }
 
