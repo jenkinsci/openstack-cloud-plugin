@@ -6,7 +6,7 @@
         <version>1.596.3</version>
     </parent>
     <artifactId>openstack-cloud</artifactId>
-    <version>1.8-SNAPSHOT</version>
+    <version>2.0-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Openstack Cloud Plugin</name>
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
@@ -26,6 +26,11 @@
             <name>Marat Mavlyutov</name>
             <email>m.mavlyutov@gmail.com</email>
             <timezone>+3</timezone>
+        </developer>
+        <developer>
+          <id>olivergondza</id>
+          <name>Oliver Gondža</name>
+          <email>ogondza@gmail.com</email>
         </developer>
     </developers>
     <dependencies>
