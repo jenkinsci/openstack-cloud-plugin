@@ -166,7 +166,7 @@ public class Openstack {
      * @return Identifier to filter instances we control.
      */
     private @Nonnull String instanceFingerprint() {
-        return Jenkins.getActiveInstance().getRootUrl();
+        return Jenkins.getInstance().getRootUrl();
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
