@@ -231,6 +231,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             vars.put("JENKINS_URL", rootUrl);
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
+            vars.put("SLAVE_LABELS", labelString);
             String content = Util.replaceMacro(userData.content, vars);
             LOGGER.info("Sending user-data:\n" + content);
             builder.userData(Base64.encode(content.getBytes()));
