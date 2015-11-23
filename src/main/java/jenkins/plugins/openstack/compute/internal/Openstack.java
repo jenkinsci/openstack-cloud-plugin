@@ -70,7 +70,7 @@ import jenkins.model.Jenkins;
 public class Openstack {
 
     private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
-    private static final String FINGERPRINT_KEY = "openstack-cloud-instance";
+    private static final String FINGERPRINT_KEY = "jenkins-instance";
 
     private final OSClient client;
 
@@ -166,7 +166,7 @@ public class Openstack {
      * @return Identifier to filter instances we control.
      */
     private @Nonnull String instanceFingerprint() {
-        return Jenkins.getInstance().getLegacyInstanceId();
+        return Jenkins.getActiveInstance().getRootUrl();
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
