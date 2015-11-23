@@ -50,6 +50,8 @@ import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.predicates.validators.DnsNameValidator;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -86,6 +88,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final int overrideRetentionTime;
     public final String keyPairName;
     public final String networkId;
+    public final String floatingIpPoolId;
     public final String securityGroups;
     public final String credentialsId;
     public final JCloudsCloud.SlaveType slaveType;
@@ -99,7 +102,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
                                 final String labelString, final String userDataId, final String numExecutors,
                                 final boolean stopOnTerminate, final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
-                                final int overrideRetentionTime, final String keyPairName, final String networkId,
+                                final int overrideRetentionTime, final String keyPairName, final String networkId, final String floatingIpPoolId,
                                 final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType, final String availabilityZone) {
 
         this.name = Util.fixEmptyAndTrim(name);
@@ -116,6 +119,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.overrideRetentionTime = overrideRetentionTime;
         this.keyPairName = keyPairName;
         this.networkId = networkId;
+        this.floatingIpPoolId = floatingIpPoolId;
         this.securityGroups = securityGroups;
         this.credentialsId = credentialsId;
         this.slaveType = slaveType;
@@ -206,6 +210,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         if (cloud.isFloatingIps()) {
             LOGGER.info("Asking for floating IP");
             options.as(NovaTemplateOptions.class).autoAssignFloatingIp(true);
+
+            if (!Strings.isNullOrEmpty(floatingIpPoolId)) {
+                LOGGER.info("Using floating IP pool: " + floatingIpPoolId);
+                options.as(NovaTemplateOptions.class).floatingIpPoolNames(floatingIpPoolId);
+            }
         }
 
         if (!Strings.isNullOrEmpty(keyPairName)) {
@@ -431,6 +440,47 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
                 for (Network network : networks) {
                     m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
+                }
+            } catch (Exception ex) {
+                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+            }
+
+            return m;
+        }
+
+        @Restricted(NoExternalUse.class)
+        public ListBoxModel doFillFloatingIpPoolIdItems(@RelativePath("..") @QueryParameter String identity,
+                                                        @RelativePath("..") @QueryParameter String credential,
+                                                        @RelativePath("..") @QueryParameter String endPointUrl,
+                                                        @RelativePath("..") @QueryParameter String zone) {
+
+            ListBoxModel m = new ListBoxModel();
+
+            if (Strings.isNullOrEmpty(identity)) {
+                LOGGER.warning("identity is null or empty");
+                return m;
+            }
+            if (Strings.isNullOrEmpty(credential)) {
+                LOGGER.warning("credential is null or empty");
+                return m;
+            }
+
+            identity = Util.fixEmptyAndTrim(identity);
+            credential = Secret.fromString(credential).getPlainText();
+            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
+
+            NetworkApi networkApi = null;
+            m.add("None specified", "");
+            try {
+
+                networkApi = JCloudsCloud.na(identity, credential, endPointUrl).getNetworkApi(zone);
+
+                List<? extends Network> networks = networkApi.list().concat().toSortedList(NETWORK_COMPARATOR);
+
+                for (Network network : networks) {
+                    if (network.getExternal()) {
+                        m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getName());
+                    }
                 }
             } catch (Exception ex) {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
