@@ -200,27 +200,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         StandardUsernameCredentials credentials = SSHLauncher.lookupSystemCredentials(credentialsId);
-//        LoginCredentials loginCredentials = null;
-//
-//        if (credentials instanceof StandardUsernamePasswordCredentials) {
-//            loginCredentials = LoginCredentials.builder()
-//                .user(credentials.getUsername())
-//                .password(((StandardUsernamePasswordCredentials) credentials).getPassword().getPlainText())
-//                .build();
-//        } else if (credentials instanceof SSHUserPrivateKey) {
-//            loginCredentials = LoginCredentials.builder().
-//                user(credentials.getUsername()).
-//                privateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey()).build();
-//        } else {
-//            throw new AssertionError("Unknown credential type configured: " + credentials);
-//        }
-//        options.overrideLoginCredentials(loginCredentials);
-        // TODO how to set credentials?
-
-        // TODO 
-//        if (installPrivateKey && credentials instanceof SSHUserPrivateKey) {
-//            options.installPrivateKey(((BasicSSHUserPrivateKey) credentials).getPrivateKey());
-//        }
 
         ExtensionList<ConfigProvider> providers = ConfigProvider.all();
         UserDataConfig.UserDataConfigProvider myProvider = providers.get(UserDataConfig.UserDataConfigProvider.class);
