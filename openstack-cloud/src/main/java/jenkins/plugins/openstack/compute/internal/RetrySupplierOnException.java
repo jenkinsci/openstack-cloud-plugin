@@ -11,10 +11,12 @@ class RetrySupplierOnException implements Callable<NodeMetadata> {
     private final int MAX_ATTEMPTS = 5;
     private final Logger logger;
     private final Supplier<NodeMetadata> supplier;
+    private final int retryTime;
 
-    RetrySupplierOnException(Supplier<NodeMetadata> supplier, Logger logger) {
+    RetrySupplierOnException(Supplier<NodeMetadata> supplier, Logger logger, int retryTime) {
         this.supplier = supplier;
         this.logger = logger;
+        this.retryTime = retryTime;
     }
 
     public NodeMetadata call() throws Exception {
@@ -31,6 +33,8 @@ class RetrySupplierOnException implements Callable<NodeMetadata> {
                 logger.warn("Exception creating a node: " + e.getMessage());
                 // Something to log the e.getCause() which should be a
                 // RunNodesException
+                if (retryTime > 0)
+                    Thread.sleep(retryTime * 1000);
             }
         }
 
