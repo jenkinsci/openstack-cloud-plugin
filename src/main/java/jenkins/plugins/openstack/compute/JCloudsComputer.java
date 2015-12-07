@@ -1,14 +1,14 @@
 package jenkins.plugins.openstack.compute;
 
-import hudson.model.AbstractCIBase;
 import hudson.slaves.AbstractCloudComputer;
-import hudson.slaves.OfflineCause;
 import hudson.slaves.SlaveComputer;
+import hudson.slaves.OfflineCause.SimpleOfflineCause;
 
 import java.io.IOException;
 import java.util.logging.Logger;
 
 import jenkins.model.Jenkins;
+
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 
@@ -43,16 +43,18 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
     }
 
     /**
-     * Really deletes the slave, by terminating the instance.
+     * Flag the slave to be collected asynchronously.
      */
     @Override
     public HttpResponse doDoDelete() throws IOException {
-        setTemporarilyOffline(true, OfflineCause.create(Messages._DeletedCause()));
-        JCloudsSlave slave = getNode();
-        if (slave != null) {
-            slave.setPendingDelete(true);
-        } else {
-            super.doDoDelete();
+        if (!(getOfflineCause() instanceof PendingTermination)) {
+            setTemporarilyOffline(true, new PendingTermination());
+            JCloudsSlave slave = getNode();
+            if (slave != null) {
+                slave.setPendingDelete(true);
+            } else {
+                super.doDoDelete();
+            }
         }
         return new HttpRedirect("..");
     }
@@ -74,5 +76,12 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         }
         slave.terminate();
         Jenkins.getInstance().removeNode(slave);
+    }
+
+    private static final class PendingTermination extends SimpleOfflineCause {
+
+        protected PendingTermination() {
+            super(Messages._DeletedCause());
+        }
     }
 }
