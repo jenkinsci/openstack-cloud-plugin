@@ -2,20 +2,34 @@ package jenkins.plugins.openstack.compute;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.model.TaskListener;
+import hudson.remoting.Channel;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.NodeProperty;
+import hudson.slaves.OfflineCause;
 import hudson.slaves.ComputerLauncher;
+import hudson.slaves.ComputerListener;
 import hudson.slaves.RetentionStrategy;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.internal.Openstack.ActionFailed;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
+
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.openstack4j.model.compute.Server;
 
@@ -26,27 +40,15 @@ import org.openstack4j.model.compute.Server;
  */
 public class JCloudsSlave extends AbstractCloudSlave {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
-    private transient Server server;
+
+    private @Nonnull Server metadata;
+
     private final String cloudName;
     private boolean pendingDelete;
     private final int overrideRetentionTime;
     private final String jvmOptions;
     private final String credentialsId;
     private final JCloudsCloud.SlaveType slaveType;
-
-    @DataBoundConstructor // TODO Is JCloudsSlave ever bound?
-    @SuppressWarnings("rawtypes")
-    public JCloudsSlave(String cloudName, String name, String remoteFS, String numExecutors, Mode mode, String labelString,
-                        ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties,
-                        int overrideRetentionTime, String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws Descriptor.FormException,
-            IOException {
-        super(name, null, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
-        this.cloudName = cloudName;
-        this.overrideRetentionTime = overrideRetentionTime;
-        this.jvmOptions = jvmOptions;
-        this.credentialsId = credentialsId;
-        this.slaveType = slaveType;
-    }
 
     /**
      * Constructs a new slave.
@@ -65,10 +67,23 @@ public class JCloudsSlave extends AbstractCloudSlave {
     public JCloudsSlave(final String cloudName, final String fsRoot, Server metadata, final String labelString,
             final String numExecutors, final int overrideRetentionTime,
             String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
-        this(cloudName, metadata.getName(), fsRoot, numExecutors, Mode.NORMAL, labelString,
-                new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
-                overrideRetentionTime, jvmOptions, credentialsId, slaveType);
-        this.server = metadata;
+        super(
+                metadata.getName(),
+                null,
+                fsRoot,
+                numExecutors,
+                Mode.NORMAL,
+                labelString,
+                new JCloudsLauncher(Openstack.getPublicAddress(metadata)),
+                new JCloudsRetentionStrategy(),
+                Collections.<NodeProperty<?>>emptyList()
+        );
+        this.cloudName = cloudName;
+        this.overrideRetentionTime = overrideRetentionTime;
+        this.jvmOptions = jvmOptions;
+        this.credentialsId = credentialsId;
+        this.slaveType = slaveType;
+        this.metadata = metadata;
     }
 
     /**
@@ -135,15 +150,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
         return new JCloudsComputer(this);
     }
 
-    /**
-     * Get the potential addresses to connect to.
-     */
-    /*package*/ String[] getConnectionAddresses() {
-        return new String[] {
-                Openstack.getPublicAddress(server)
-        };
-    }
-
     @Extension
     public static final class JCloudsSlaveDescriptor extends SlaveDescriptor {
 
@@ -152,9 +158,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
             return "JClouds Slave";
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public boolean isInstantiable() {
             return false;
@@ -164,6 +167,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
-        os.destroyServer(server);
+        os.destroyServer(metadata);
     }
 }
