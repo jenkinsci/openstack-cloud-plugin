@@ -28,13 +28,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
-import org.codehaus.groovy.ast.expr.ClosureListExpression;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
@@ -47,8 +47,6 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.Network;
-import org.openstack4j.model.storage.object.options.ContainerListOptions;
-import org.openstack4j.model.storage.object.options.CreateUpdateContainerOptions;
 import org.openstack4j.openstack.OSFactory;
 
 import hudson.util.Secret;
@@ -85,6 +83,7 @@ public class Openstack {
                 .authenticate()
                 .useRegion(region)
         ;
+        debug("Openstack client creatd for " + endPointUrl);
     }
 
     public @Nonnull List<? extends Network> getSortedNetworks() {
@@ -176,8 +175,11 @@ public class Openstack {
     }
 
     public @Nonnull Server bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
+        debug("Booting machine");
         request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
-        return client.compute().servers().bootAndWaitActive(request.build(), timeout);
+        Server server = client.compute().servers().bootAndWaitActive(request.build(), timeout);
+        debug("Machine started: " + server.getName());
+        return server;
     }
 
     /**
@@ -188,17 +190,22 @@ public class Openstack {
     }
 
     public void destroyServer(@Nonnull Server server) {
+        debug("Destroying machine " + server.getName());
         // Do not checking fingerprint here presuming all Servers provided by
         // this implementation are ours.
         ActionResponse res = client.compute().servers().delete(server.getId());
         ActionFailed.throwIfFailed(res);
+        debug("Machine destroyed: " + server.getName());
 
-        // Remove all associated floating IPS
         ComputeFloatingIPService fips = client.compute().floatingIps();
         for (FloatingIP ip: fips.list()) {
             if (server.getId().equals(ip.getInstanceId())) {
-                fips.removeFloatingIP(server, ip.getFloatingIpAddress());
+                String fip = ip.getFloatingIpAddress();
+                debug("Removing floating IP %s of %s", fip, server.getName());
+                fips.removeFloatingIP(server, fip);
+                debug("Floating IP removed: " + fip);
                 fips.deallocateIP(ip.getId());
+                debug("Floating IP deallocated: " + fip);
             }
         }
     }
@@ -215,11 +222,15 @@ public class Openstack {
     }
 
     public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server) {
+        debug("Allocating floating IP for " + server.getName());
         ComputeFloatingIPService fips = client.compute().floatingIps();
         String publicPool = null;
         FloatingIP ip = fips.allocateIP(publicPool);
+        debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
+            debug("Assigning floating IP to " + server.getName());
             fips.addFloatingIP(server, ip.getFloatingIpAddress());
+            debug("Floating IP assigned");
         } catch (Throwable ex) {
             fips.deallocateIP(ip.getId());
             throw ex;
@@ -247,5 +258,9 @@ public class Openstack {
 
         // No floating IP found - use fixed
         return fixed;
+    }
+
+    private static void debug(@Nonnull String msg, @Nonnull String... args) {
+        LOGGER.log(Level.FINE, msg, args);
     }
 }
