@@ -7,10 +7,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
-import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
-import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
@@ -59,7 +55,7 @@ import com.trilead.ssh2.Connection;
 /**
  * @author Vijay Kiran
  */
-public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, Supplier<Server> {
+public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
     private static final char SEPARATOR_CHAR = ',';
@@ -82,8 +78,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String availabilityZone;
 
     private transient Set<LabelAtom> labelSet;
-
-    protected transient JCloudsCloud cloud;
 
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
@@ -111,10 +105,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.availabilityZone = availabilityZone;
 
         readResolve();
-    }
-
-    public JCloudsCloud getCloud() {
-        return cloud;
     }
 
     /**
@@ -149,19 +139,26 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return labelSet;
     }
 
-    public JCloudsSlave provisionSlave(TaskListener listener) throws IOException {
-        Server nodeMetadata = get();
+    /*package*/ Supplier<Server> getSuplier(final JCloudsCloud cloud) {
+        return new Supplier<Server>() {
+            @Override public Server get() {
+                return JCloudsSlaveTemplate.this.provision(cloud);
+            }
+        };
+    }
+
+    public JCloudsSlave provisionSlave(JCloudsCloud cloud, TaskListener listener) throws IOException {
+        Server nodeMetadata = provision(cloud);
 
         try {
-            return new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString,
+            return new JCloudsSlave(cloud.getDisplayName(), getFsRoot(), nodeMetadata, labelString,
                     numExecutors, overrideRetentionTime, getJvmOptions(), credentialsId, slaveType);
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }
     }
 
-    @Override
-    public Server get() {
+    public Server provision(JCloudsCloud cloud) {
         final ServerCreateBuilder builder = Builders.server();
         final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
         LOGGER.info("Provisioning new openstack node " + nodeName);

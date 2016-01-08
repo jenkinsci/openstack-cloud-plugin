@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 import jenkins.plugins.openstack.compute.internal.NodePlan;
@@ -25,7 +24,6 @@ import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
 
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Server;
 
 import com.google.common.base.Function;
@@ -58,7 +56,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
             public NodePlan apply(InstancesToRun instance) {
                 String cloudName = instance.cloudName;
                 String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
-                Supplier<Server> nodeSupplier = JCloudsCloud.getByName(cloudName).getTemplate(templateName);
+                Supplier<Server> nodeSupplier = JCloudsCloud.getByName(cloudName).getTemplate(templateName).getSuplier(JCloudsCloud.getByName(cloudName));
                 return new NodePlan(cloudName, templateName, instance.count, nodeSupplier);
             }
 

@@ -94,13 +94,6 @@ public class JCloudsCloud extends Cloud {
         this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
         this.zone = Util.fixEmptyAndTrim(zone);
         this.floatingIps = floatingIps;
-        readResolve();
-    }
-
-    protected Object readResolve() {
-        for (JCloudsSlaveTemplate template : templates)
-            template.cloud = this;
-        return this;
     }
 
     /**
@@ -151,7 +144,7 @@ public class JCloudsCloud extends Cloud {
             plannedNodeList.add(new PlannedNode(template.name, Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                 public Node call() throws Exception {
                     // TODO: record the output somewhere
-                    JCloudsSlave jcloudsSlave = template.provisionSlave(StreamTaskListener.fromStdout());
+                    JCloudsSlave jcloudsSlave = template.provisionSlave(JCloudsCloud.this, StreamTaskListener.fromStdout());
                     Jenkins.getInstance().addNode(jcloudsSlave);
 
                     /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
@@ -238,7 +231,7 @@ public class JCloudsCloud extends Cloud {
         if (getRunningNodesCount() < instanceCap) {
             StringWriter sw = new StringWriter();
             StreamTaskListener listener = new StreamTaskListener(sw);
-            JCloudsSlave node = t.provisionSlave(listener);
+            JCloudsSlave node = t.provisionSlave(this, listener);
             Jenkins.getInstance().addNode(node);
             rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
         } else {
