@@ -1,15 +1,30 @@
 package jenkins.plugins.openstack.compute;
 
+import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
+
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
-import java.io.IOException;
-import java.io.StringWriter;
-import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.logging.Logger;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+
+import com.google.common.base.Objects;
 
 import hudson.Extension;
 import hudson.Util;
@@ -25,18 +40,6 @@ import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.DoNotUse;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-
-import com.google.common.base.Objects;
-
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 
 /**
  * The JClouds version of the Jenkins Cloud.
@@ -142,6 +145,7 @@ public class JCloudsCloud extends Cloud {
             }
 
             plannedNodeList.add(new PlannedNode(template.name, Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                @Override
                 public Node call() throws Exception {
                     // TODO: record the output somewhere
                     JCloudsSlave jcloudsSlave = template.provisionSlave(JCloudsCloud.this, StreamTaskListener.fromStdout());
@@ -188,7 +192,7 @@ public class JCloudsCloud extends Cloud {
         return getTemplate(label) != null;
     }
 
-    public JCloudsSlaveTemplate getTemplate(String name) {
+    public @CheckForNull JCloudsSlaveTemplate getTemplate(String name) {
         for (JCloudsSlaveTemplate t : templates)
             if (t.name.equals(name))
                 return t;
@@ -198,7 +202,7 @@ public class JCloudsCloud extends Cloud {
     /**
      * Gets {@link jenkins.plugins.openstack.compute.JCloudsSlaveTemplate} that has the matching {@link Label}.
      */
-    public JCloudsSlaveTemplate getTemplate(Label label) {
+    public @CheckForNull JCloudsSlaveTemplate getTemplate(@CheckForNull Label label) {
         for (JCloudsSlaveTemplate t : templates)
             if (label == null || label.matches(t.getLabelSet()))
                 return t;

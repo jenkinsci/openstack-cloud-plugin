@@ -3,6 +3,9 @@ package jenkins.plugins.openstack.compute;
 import java.io.IOException;
 import java.util.logging.Level;
 
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -14,7 +17,7 @@ import hudson.model.Computer;
 import hudson.model.TaskListener;
 import jenkins.model.Jenkins;
 
-@Extension
+@Extension @Restricted(NoExternalUse.class)
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     public JCloudsCleanupThread() {
@@ -35,7 +38,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     }
 
     @Override
-    protected void execute(TaskListener listener) {
+    public void execute(TaskListener listener) {
         final ImmutableList.Builder<ListenableFuture<?>> deletedNodesBuilder = ImmutableList.<ListenableFuture<?>>builder();
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
         final ImmutableList.Builder<JCloudsComputer> computersToDeleteBuilder = ImmutableList.<JCloudsComputer>builder();

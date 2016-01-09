@@ -1,31 +1,40 @@
 package jenkins.plugins.openstack.compute;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.when;
 
-import java.util.Collections;
+import java.util.Collection;
+
+import org.hamcrest.Matchers;
+import org.junit.Rule;
+import org.junit.Test;
+import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
+import hudson.model.Computer;
+import hudson.model.FreeStyleProject;
+import hudson.model.Label;
+import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
+import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 
 public class JCloudsCloudTest {
     @Rule
-    public JenkinsRule j = new JenkinsRule();
-    
+    public PluginTestRule j = new PluginTestRule();
+
     @Test
     public void incompleteteTestConnection() {
         DescriptorImpl desc = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class);
@@ -81,8 +90,7 @@ public class JCloudsCloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
 
-        JCloudsCloud original = new JCloudsCloud("openstack-profile", "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList(), true);
+        JCloudsCloud original = j.dummyCloud();
 
         j.getInstance().clouds.add(original);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
@@ -92,5 +100,49 @@ public class JCloudsCloudTest {
 
         j.assertEqualBeans(original, JCloudsCloud.getByName("openstack-profile"),
                 "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
+    }
+
+    @Test
+    public void manullyProvisionAndKill() throws Exception {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        JCloudsCloud cloud = j.addCoud(j.dummyCloud(template));
+        j.autoconnectJnlpSlaves();
+        Openstack os = cloud.getOpenstack();
+        Server provisioned = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(provisioned);
+        when(os.updateInfo(any(Server.class))).thenReturn(provisioned);
+
+        Collection<PlannedNode> slaves = cloud.provision(Label.get("label"), 1);
+        assertEquals("Slave should be provisioned", 1, slaves.size());
+        Computer computer = slaves.iterator().next().future.get().toComputer();
+        assertTrue("Slave should be connected", computer.isOnline());
+
+        computer.doDoDelete();
+        assertTrue("Slave is temporarily offline", computer.isTemporarilyOffline());
+
+        j.triggerOpenstackSlaveCleanup();
+        assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
+    }
+
+    @Test
+    public void provisionSlaveOnDemand() throws Exception {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        JCloudsCloud cloud = j.addCoud(j.dummyCloud(template));
+        j.autoconnectJnlpSlaves();
+        Openstack os = cloud.getOpenstack();
+        Server provisioned = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(provisioned);
+        when(os.updateInfo(any(Server.class))).thenReturn(provisioned);
+
+        j.jenkins.setNumExecutors(0);
+        FreeStyleProject p = j.createFreeStyleProject();
+        // Provision with label
+        p.setAssignedLabel(Label.get("label"));
+        assertThat(j.buildAndAssertSuccess(p).getBuiltOn(), Matchers.instanceOf(JCloudsSlave.class));
+        j.triggerOpenstackSlaveCleanup();
+
+        // Provision without label
+        p.setAssignedLabel(null);
+        assertThat(j.buildAndAssertSuccess(p).getBuiltOn(), Matchers.instanceOf(JCloudsSlave.class));
     }
 }

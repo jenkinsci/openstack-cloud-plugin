@@ -2,13 +2,13 @@ package jenkins.plugins.openstack.compute;
 
 import java.util.Arrays;
 
+import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
 
 import static org.mockito.Mockito.*;
 import org.openstack4j.model.compute.Server;
@@ -18,15 +18,13 @@ import hudson.model.TaskListener;
 
 public class TerminateNodesTest {
 
-    @Rule public JenkinsRule j = new JenkinsRule();
+    @Rule public PluginTestRule j = new PluginTestRule();
 
     @Test
     public void destroy() {
-        JCloudsCloud cloud = spy(new JCloudsCloud("stub", null, null, null, 0, 0, 0, 0, null, null, false));
-        j.jenkins.clouds.add(cloud);
+        JCloudsCloud cloud = j.addCoud(new JCloudsCloud("stub", null, null, null, 0, 0, 0, 0, null, null, false));
 
-        Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
-        doReturn(os).when(cloud).getOpenstack();
+        Openstack os = cloud.getOpenstack();
 
         RunningNode keep = new RunningNode("stub", "keep", mock(Server.class));
         when(keep.getNode().getId()).thenReturn("keep");
