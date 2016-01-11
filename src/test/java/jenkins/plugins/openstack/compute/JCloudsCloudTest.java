@@ -95,10 +95,10 @@ public class JCloudsCloudTest {
         j.getInstance().clouds.add(original);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
-        j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack-profile"),
+        j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack"),
                 "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
 
-        j.assertEqualBeans(original, JCloudsCloud.getByName("openstack-profile"),
+        j.assertEqualBeans(original, JCloudsCloud.getByName("openstack"),
                 "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
     }
 
