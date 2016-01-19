@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -89,7 +88,6 @@ public class JCloudsCloudTest {
 
     @Test
     public void testConfigRoundtrip() throws Exception {
-
         JCloudsCloud original = j.dummyCloud();
 
         j.getInstance().clouds.add(original);
@@ -104,17 +102,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void manullyProvisionAndKill() throws Exception {
-        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        JCloudsCloud cloud = j.addCoud(j.dummyCloud(template));
-        j.autoconnectJnlpSlaves();
-        Openstack os = cloud.getOpenstack();
-        Server provisioned = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(provisioned);
-        when(os.updateInfo(any(Server.class))).thenReturn(provisioned);
-
-        Collection<PlannedNode> slaves = cloud.provision(Label.get("label"), 1);
-        assertEquals("Slave should be provisioned", 1, slaves.size());
-        Computer computer = slaves.iterator().next().future.get().toComputer();
+        Computer computer = j.provisionDummySlave().toComputer();
         assertTrue("Slave should be connected", computer.isOnline());
 
         computer.doDoDelete();
@@ -126,13 +114,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void provisionSlaveOnDemand() throws Exception {
-        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        JCloudsCloud cloud = j.addCoud(j.dummyCloud(template));
-        j.autoconnectJnlpSlaves();
-        Openstack os = cloud.getOpenstack();
-        Server provisioned = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(provisioned);
-        when(os.updateInfo(any(Server.class))).thenReturn(provisioned);
+        j.configureDummySlaveToBeProvisioned();
 
         j.jenkins.setNumExecutors(0);
         FreeStyleProject p = j.createFreeStyleProject();

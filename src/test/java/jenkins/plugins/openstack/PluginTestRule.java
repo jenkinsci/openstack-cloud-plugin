@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -11,13 +12,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.openstack.compute.domain.NovaAddresses;
 import org.openstack4j.openstack.compute.domain.NovaAddresses.NovaAddress;
 
@@ -26,13 +30,16 @@ import hudson.Launcher.LocalLauncher;
 import hudson.Proc;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Computer;
+import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.remoting.Channel;
 import hudson.remoting.Which;
 import hudson.slaves.ComputerListener;
+import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.StreamTaskListener;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
+import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
@@ -99,6 +106,23 @@ public final class PluginTestRule extends JenkinsRule {
         return new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
                 600 * 1000, 600 * 1000, null, Arrays.asList(templates), true
         );
+    }
+
+    public JCloudsCloud configureDummySlaveToBeProvisioned() {
+        JCloudsSlaveTemplate template = dummySlaveTemplate("label");
+        JCloudsCloud cloud = addCoud(dummyCloud(template));
+        autoconnectJnlpSlaves();
+        Openstack os = cloud.getOpenstack();
+        Server provisioned = mockServer().name("provisioned").floatingIp("42.42.42.42").get();
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(provisioned);
+        when(os.updateInfo(any(Server.class))).thenReturn(provisioned);
+        return cloud;
+    }
+
+    public JCloudsSlave provisionDummySlave() throws InterruptedException, ExecutionException {
+        JCloudsCloud cloud = configureDummySlaveToBeProvisioned();
+        Collection<PlannedNode> slaves = cloud.provision(Label.get("label"), 1);
+        return (JCloudsSlave) slaves.iterator().next().future.get();
     }
 
     public MockServerBuilder mockServer() {

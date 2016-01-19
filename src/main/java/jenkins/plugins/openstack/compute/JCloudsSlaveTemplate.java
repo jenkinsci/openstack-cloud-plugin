@@ -2,29 +2,12 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-
-import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.RelativePath;
-import hudson.Util;
-import hudson.model.Describable;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Label;
-import hudson.model.ItemGroup;
-import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
-import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.security.ACL;
-import hudson.security.AccessControlled;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
-import jenkins.model.Jenkins;
-import jenkins.plugins.openstack.compute.internal.Openstack;
 
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
@@ -40,17 +23,34 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
 
-import au.com.bytecode.opencsv.CSVReader;
-
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
+import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
-import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
-import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-
 import com.trilead.ssh2.Connection;
+
+import au.com.bytecode.opencsv.CSVReader;
+import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.RelativePath;
+import hudson.Util;
+import hudson.model.Computer;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
+import hudson.model.ItemGroup;
+import hudson.model.Label;
+import hudson.model.TaskListener;
+import hudson.model.labels.LabelAtom;
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.security.ACL;
+import hudson.security.AccessControlled;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 
 /**
  * @author Vijay Kiran
@@ -195,8 +195,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
             LOGGER.info("Setting availabilityZone to " + availabilityZone);
             builder.availabilityZone(availabilityZone);
         }
-
-        StandardUsernameCredentials credentials = SSHLauncher.lookupSystemCredentials(credentialsId);
 
         ExtensionList<ConfigProvider> providers = ConfigProvider.all();
         UserDataConfig.UserDataConfigProvider myProvider = providers.get(UserDataConfig.UserDataConfigProvider.class);
