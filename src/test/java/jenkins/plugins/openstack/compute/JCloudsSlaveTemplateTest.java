@@ -2,19 +2,24 @@ package jenkins.plugins.openstack.compute;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import org.jvnet.hudson.test.HudsonTestCase;
+import jenkins.plugins.openstack.PluginTestRule;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
+import org.junit.Rule;
+import org.junit.Test;
 
+public class JCloudsSlaveTemplateTest {
 
-public class JCloudsSlaveTemplateTest extends HudsonTestCase {
+    @Rule
+    public PluginTestRule j = new PluginTestRule();
+
     // Following will be null if can not be validated: imageId, hardwareId, networkId, availabilityZone
     // TODO test userDataId, credentialsId
     final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,jvmOptions,fsRoot,installPrivateKey,overrideRetentionTime,keyPairName,securityGroups,slaveType";
     final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,instanceCap,retentionTime,scriptTimeout,startTimeout,zone";
 
-    public void testConfigRoundtrip() throws Exception {
+    @Test
+    public void configRoundtrip() throws Exception {
         final String TEMPLATE_NAME = "test-template";
         final String CLOUD_NAME = "my-openstack";
 
@@ -28,12 +33,12 @@ public class JCloudsSlaveTemplateTest extends HudsonTestCase {
         JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
                 600 * 1000, 600 * 1000, null, templates, true);
 
-        hudson.clouds.add(originalCloud);
-        submit(createWebClient().goTo("configure").getFormByName("config"));
+        j.jenkins.clouds.add(originalCloud);
+        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
         final JCloudsCloud actualCloud = JCloudsCloud.getByName(CLOUD_NAME);
 
-        assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
-        assertEqualBeans(originalTemplate, actualCloud.getTemplate(TEMPLATE_NAME), TEMPLATE_PROPERTIES);
+        j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
+        j.assertEqualBeans(originalTemplate, actualCloud.getTemplate(TEMPLATE_NAME), TEMPLATE_PROPERTIES);
     }
 }

@@ -5,16 +5,10 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.when;
-
-import java.util.Collection;
 
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstack4j.model.compute.Server;
-import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
@@ -24,11 +18,9 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.Computer;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
-import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
-import jenkins.plugins.openstack.compute.internal.Openstack;
 
 public class JCloudsCloudTest {
     @Rule

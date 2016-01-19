@@ -77,7 +77,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     /**
-     * Force idle slace cleanup now.
+     * Force idle slave cleanup now.
      */
     public void triggerOpenstackSlaveCleanup() {
         jenkins.getExtensionList(AsyncPeriodicWork.class).get(JCloudsCleanupThread.class).execute(TaskListener.NULL);
