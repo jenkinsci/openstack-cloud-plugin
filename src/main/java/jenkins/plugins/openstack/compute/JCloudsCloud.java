@@ -76,8 +76,10 @@ public class JCloudsCloud extends Cloud {
         return cloudNames;
     }
 
-    public static JCloudsCloud getByName(String name) {
-        return (JCloudsCloud) Jenkins.getInstance().clouds.getByName(name);
+    public static @Nonnull JCloudsCloud getByName(@Nonnull String name) {
+        Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
+        if (cloud instanceof JCloudsCloud) return (JCloudsCloud) cloud;
+        throw new IllegalArgumentException(name + " is not an Openstack cloud: " + cloud);
     }
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
