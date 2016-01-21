@@ -46,7 +46,10 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
                 Futures.addCallback(provisionTemplate, new FutureCallback<Server>() {
                     public void onSuccess(Server result) {
                         if (result != null) {
-                            cloudTemplateNodeBuilder.add(new RunningNode(nodePlan.getCloudName(), nodePlan.getTemplateName(), result));
+                            synchronized (cloudTemplateNodeBuilder) {
+                                // Builder in not threadsafec
+                                cloudTemplateNodeBuilder.add(new RunningNode(nodePlan.getCloudName(), nodePlan.getTemplateName(), result));
+                            }
                         } else {
                             failedLaunches.incrementAndGet();
                         }
