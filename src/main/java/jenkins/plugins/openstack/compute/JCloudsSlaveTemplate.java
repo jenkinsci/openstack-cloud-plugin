@@ -166,33 +166,33 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         builder.name(nodeName);
 
         if (!Strings.isNullOrEmpty(imageId)) {
-            LOGGER.info("Setting image id to " + imageId);
+            LOGGER.fine("Setting image id to " + imageId);
             builder.image(imageId);
         }
         if (!Strings.isNullOrEmpty((hardwareId))) {
-            LOGGER.info("Setting hardware Id to " + hardwareId);
+            LOGGER.fine("Setting hardware Id to " + hardwareId);
             builder.flavor(hardwareId);
         }
 
         if (!Strings.isNullOrEmpty(networkId)) {
-            LOGGER.info("Setting network to " + networkId);
+            LOGGER.fine("Setting network to " + networkId);
             builder.networks(Arrays.asList(networkId));
         }
 
         if (!Strings.isNullOrEmpty(securityGroups)) {
-            LOGGER.info("Setting security groups to " + securityGroups);
+            LOGGER.fine("Setting security groups to " + securityGroups);
             for (String sg: csvToArray(securityGroups)) {
                 builder.addSecurityGroup(sg);
             }
         }
 
         if (!Strings.isNullOrEmpty(keyPairName)) {
-            LOGGER.info("Setting keyPairName to " + keyPairName);
+            LOGGER.fine("Setting keyPairName to " + keyPairName);
             builder.keypairName(keyPairName);
         }
 
         if (!Strings.isNullOrEmpty(availabilityZone)) {
-            LOGGER.info("Setting availabilityZone to " + availabilityZone);
+            LOGGER.fine("Setting availabilityZone to " + availabilityZone);
             builder.availabilityZone(availabilityZone);
         }
 
@@ -207,7 +207,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
             vars.put("SLAVE_LABELS", labelString);
             String content = Util.replaceMacro(userData.content, vars);
-            LOGGER.info("Sending user-data:\n" + content);
+            LOGGER.fine("Sending user-data:\n" + content);
             builder.userData(Base64.encode(content.getBytes()));
         }
 
@@ -216,7 +216,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         LOGGER.info("Provisioned: " + server.toString());
 
         if (cloud.isFloatingIps()) {
-            LOGGER.info("Assiging floating IP to " + nodeName);
+            LOGGER.fine("Assiging floating IP to " + nodeName);
             openstack.assignFloatingIp(server);
         }
 
