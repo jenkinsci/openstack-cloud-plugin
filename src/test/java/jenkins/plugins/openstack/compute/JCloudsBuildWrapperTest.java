@@ -32,7 +32,7 @@ public class JCloudsBuildWrapperTest {
 
     @Test
     public void provisionSeveral() throws Exception {
-        final JCloudsCloud cloud = j.createCloudProvisioningDummySlaves();
+        final JCloudsCloud cloud = j.configureDummySlaveToBeProvisioned();
         Openstack os = cloud.getOpenstack();
 
         FreeStyleProject p = j.createFreeStyleProject();
@@ -47,7 +47,7 @@ public class JCloudsBuildWrapperTest {
                 System.out.println();
                 String[] ips = build.getEnvVars().get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
-                assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));
+                assertThat(ips, arrayContainingInAnyOrder("42.42.42.42", "42.42.42.42", "42.42.42.42"));
                 return true;
             }
         });
