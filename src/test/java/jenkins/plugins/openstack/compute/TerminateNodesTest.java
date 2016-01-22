@@ -22,13 +22,13 @@ public class TerminateNodesTest {
 
     @Test
     public void destroy() {
-        JCloudsCloud cloud = j.addCoud(new JCloudsCloud("stub", null, null, null, 0, 0, 0, 0, null, null, false));
+        JCloudsCloud cloud = j.dummyCloud();
 
         Openstack os = cloud.getOpenstack();
 
-        RunningNode keep = new RunningNode("stub", "keep", mock(Server.class));
+        RunningNode keep = new RunningNode("openstack", "keep", mock(Server.class));
         when(keep.getNode().getId()).thenReturn("keep");
-        RunningNode terminate = new RunningNode("stub", "terminate", mock(Server.class));
+        RunningNode terminate = new RunningNode("openstack", "terminate", mock(Server.class));
         when(terminate.getNode().getId()).thenReturn("terminate");
 
         new TerminateNodes(TaskListener.NULL).apply(Arrays.asList(terminate));

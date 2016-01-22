@@ -73,15 +73,15 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
 
         final ImmutableList<RunningNode> cloudTemplateNodes = cloudTemplateNodeBuilder.build();
 
-        assert cloudTemplateNodes.size() == nodesActuallyLaunched.size() : String.format(
-                "expected nodes from callbacks to be the same count as those from the list of futures!%n" + "fromCallbacks:%s%nfromFutures%s%n",
-                cloudTemplateNodes, nodesActuallyLaunched);
-
         if (failedLaunches.get() > 0) {
             terminateNodes.apply(cloudTemplateNodes);
             throw new IllegalStateException("One or more instances failed to launch.");
         }
+
+        assert cloudTemplateNodes.size() == nodesActuallyLaunched.size() : String.format(
+                "expected nodes from callbacks to be the same count as those from the list of futures!%n" + "fromCallbacks:%s%nfromFutures%s%n",
+                cloudTemplateNodes, nodesActuallyLaunched);
+
         return cloudTemplateNodes;
     }
-
 }

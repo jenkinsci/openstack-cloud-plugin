@@ -41,6 +41,7 @@ import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Address;
+import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Server;
@@ -140,9 +141,9 @@ public class Openstack {
     }
 
     /**
-     * Determine whether the server is considered running for the purposes of provisioning.
+     * Determine whether the server is considered occupied by openstack plugin.
      */
-    private boolean isRunning(@Nonnull Server server) {
+    private static boolean isRunning(@Nonnull Server server) {
         switch (server.getStatus()) {
             case UNRECOGNIZED:
             case UNKNOWN:
@@ -174,11 +175,17 @@ public class Openstack {
         return server;
     }
 
-    public @Nonnull Server bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
+    /**
+     * Provision machine and wait until ready.
+     *
+     * @throws ActionFailed Openstack failed to provision the slave or it was in erroneous state (server will be deleted in such case).
+     */
+    public @Nonnull Server bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) throws ActionFailed {
         debug("Booting machine");
         request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
         Server server = client.compute().servers().bootAndWaitActive(request.build(), timeout);
         debug("Machine started: " + server.getName());
+        throwIfFailed(server);
         return server;
     }
 
@@ -189,12 +196,17 @@ public class Openstack {
         return getServerById(server.getId());
     }
 
-    public void destroyServer(@Nonnull Server server) {
+    /**
+     * Destroy the server.
+     *
+     * @throws ActionFailed Openstack was not able to destroy the server.
+     */
+    public void destroyServer(@Nonnull Server server) throws ActionFailed {
         debug("Destroying machine " + server.getName());
         // Do not checking fingerprint here presuming all Servers provided by
         // this implementation are ours.
         ActionResponse res = client.compute().servers().delete(server.getId());
-        ActionFailed.throwIfFailed(res);
+        throwIfFailed(res);
         debug("Machine destroyed: " + server.getName());
 
         ComputeFloatingIPService fips = client.compute().floatingIps();
@@ -207,17 +219,6 @@ public class Openstack {
                 fips.deallocateIP(ip.getId());
                 debug("Floating IP deallocated: " + fip);
             }
-        }
-    }
-
-    public static final class ActionFailed extends RuntimeException {
-        public static void throwIfFailed(@Nonnull ActionResponse res) {
-            if (res.isSuccess()) return;
-            throw new ActionFailed(res);
-        }
-
-        public ActionFailed(ActionResponse res) {
-            super(res.toString());
         }
     }
 
@@ -258,6 +259,37 @@ public class Openstack {
 
         // No floating IP found - use fixed
         return fixed;
+    }
+
+    private void throwIfFailed(@Nonnull ActionResponse res) {
+        if (res.isSuccess()) return;
+        throw new ActionFailed(res.toString());
+    }
+
+    private void throwIfFailed(@Nonnull Server server) {
+        if (isRunning(server) && !Server.Status.ERROR.equals(server.getStatus())) return;
+        StringBuilder sb = new StringBuilder("Failed to boot server: ");
+        sb.append("status=").append(server.getStatus());
+        sb.append("vmState=").append(server.getVmState());
+        Fault fault = server.getFault();
+        String msg = String.format("%d: %s (%s)", fault.getCode(), fault.getMessage(), fault.getDetails());
+        sb.append("fault=").append(msg);
+
+        // Destroy the server in case it is not provisioned correctly
+        ActionFailed ex = new ActionFailed(sb.toString());
+        try {
+            destroyServer(server);
+        } catch (ActionFailed suppressed) {
+            ex.addSuppressed(suppressed);
+        }
+        LOGGER.log(Level.WARNING, "Machine provisioning failed", ex);
+        throw ex;
+    }
+
+    public static final class ActionFailed extends RuntimeException {
+        public ActionFailed(String msg) {
+            super(msg);
+        }
     }
 
     private static void debug(@Nonnull String msg, @Nonnull String... args) {

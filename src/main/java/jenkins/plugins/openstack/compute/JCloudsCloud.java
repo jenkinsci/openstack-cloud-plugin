@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
@@ -150,7 +151,12 @@ public class JCloudsCloud extends Cloud {
                 @Override
                 public Node call() throws Exception {
                     // TODO: record the output somewhere
-                    JCloudsSlave jcloudsSlave = template.provisionSlave(JCloudsCloud.this, StreamTaskListener.fromStdout());
+                    JCloudsSlave jcloudsSlave;
+                    try {
+                        jcloudsSlave = template.provisionSlave(JCloudsCloud.this, StreamTaskListener.fromStdout());
+                    } catch (Openstack.ActionFailed ex) {
+                        throw new ExecutionException(ex); // Wrap to exception Jenkins will understand
+                    }
                     Jenkins.getInstance().addNode(jcloudsSlave);
 
                     /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
@@ -235,9 +241,15 @@ public class JCloudsCloud extends Cloud {
         }
 
         if (getRunningNodesCount() < instanceCap) {
-            StringWriter sw = new StringWriter();
-            StreamTaskListener listener = new StreamTaskListener(sw);
-            JCloudsSlave node = t.provisionSlave(this, listener);
+            JCloudsSlave node;
+            try {
+                StringWriter sw = new StringWriter();
+                StreamTaskListener listener = new StreamTaskListener(sw);
+                node = t.provisionSlave(this, listener);
+            } catch (Openstack.ActionFailed ex) {
+                sendError(ex.getMessage());
+                return;
+            }
             Jenkins.getInstance().addNode(node);
             rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
         } else {
