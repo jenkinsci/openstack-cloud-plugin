@@ -21,7 +21,7 @@ import jenkins.model.Jenkins;
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     public JCloudsCleanupThread() {
-        super("Openstack slave cleanup");
+        super("OpenStack slave cleanup");
     }
 
     @Override
