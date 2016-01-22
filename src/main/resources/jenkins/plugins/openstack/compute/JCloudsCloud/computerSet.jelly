@@ -8,7 +8,7 @@
             <td colspan="${monitors.size()+2}">
 
                 <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
-                    <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenstackPlugin} - ${it.name}"/>
+                    <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenStack Cloud Plugin} - ${it.name}"/>
                     <select name="name">
                         <j:forEach var="t" items="${it.templates}">
                             <option value="${t.name}">${t.name}</option>

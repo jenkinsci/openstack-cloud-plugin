@@ -1,4 +1,4 @@
-# Openstack Jenkins Plugin
+# OpenStack Cloud Jenkins Plugin
 
-A lightweight openstack-only fork of JClouds Jenkins Plugin.
+A lightweight OpenStack-only fork of the jclouds Jenkins Plugin.
 

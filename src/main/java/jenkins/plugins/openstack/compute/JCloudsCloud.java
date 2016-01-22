@@ -268,7 +268,7 @@ public class JCloudsCloud extends Cloud {
          */
         @Override
         public String getDisplayName() {
-            return "Cloud (Openstack)";
+            return "Cloud (OpenStack)";
         }
 
         @Restricted(DoNotUse.class)

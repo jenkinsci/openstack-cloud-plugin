@@ -29,7 +29,7 @@ public class UserDataConfig extends Config {
 
         @Override
         public String getDisplayName() {
-            return "Openstack User Data";
+            return "OpenStack User Data";
         }
 
     }
