@@ -44,7 +44,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private @Nonnull Server metadata;
 
     private final String cloudName;
-    private boolean pendingDelete;
     private final int overrideRetentionTime;
     private final String jvmOptions;
     private final String credentialsId;
@@ -123,14 +122,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
      */
     public String getCloudName() {
         return cloudName;
-    }
-
-    public boolean isPendingDelete() {
-        return pendingDelete;
-    }
-
-    public void setPendingDelete(boolean pendingDelete) {
-        this.pendingDelete = pendingDelete;
     }
 
     public String getCredentialsId() {

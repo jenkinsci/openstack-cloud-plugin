@@ -5,7 +5,6 @@ import hudson.Launcher;
 import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.slaves.OfflineCause;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
 
@@ -33,8 +32,7 @@ public class JCloudsOneOffSlave extends BuildWrapper {
             return new Environment() {
                 @Override
                 public boolean tearDown(AbstractBuild build, final BuildListener listener) throws IOException, InterruptedException {
-                    LOGGER.warning("Single-use slave " + c.getName() + " getting torn down.");
-                    c.setTemporarilyOffline(true, OfflineCause.create(Messages._OneOffCause()));
+                    c.setPendingDelete(true);
                     return true;
                 }
             };
@@ -57,6 +55,5 @@ public class JCloudsOneOffSlave extends BuildWrapper {
         public boolean isApplicable(AbstractProject item) {
             return true;
         }
-
     }
 }

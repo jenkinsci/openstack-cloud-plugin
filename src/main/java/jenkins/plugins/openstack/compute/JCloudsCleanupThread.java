@@ -29,32 +29,22 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         return MIN * 5;
     }
 
-    public static void invoke() {
-        getInstance().run();
-    }
-
-    private static JCloudsCleanupThread getInstance() {
-        return Jenkins.getInstance().getExtensionList(AsyncPeriodicWork.class).get(JCloudsCleanupThread.class);
-    }
-
     @Override
     public void execute(TaskListener listener) {
         final ImmutableList.Builder<ListenableFuture<?>> deletedNodesBuilder = ImmutableList.<ListenableFuture<?>>builder();
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
-        final ImmutableList.Builder<JCloudsComputer> computersToDeleteBuilder = ImmutableList.<JCloudsComputer>builder();
 
         for (final Computer c : Jenkins.getInstance().getComputers()) {
             if (JCloudsComputer.class.isInstance(c)) {
-                if (((JCloudsComputer) c).getNode() != null && ((JCloudsComputer) c).getNode().isPendingDelete()) {
-                    final JCloudsComputer comp = (JCloudsComputer) c;
-                    computersToDeleteBuilder.add(comp);
+                final JCloudsComputer comp = (JCloudsComputer) c;
+                if (comp.isPendingDelete()) {
                     ListenableFuture<?> f = executor.submit(new Runnable() {
                         public void run() {
                             logger.log(Level.INFO, "Deleting pending node " + comp.getName());
                             try {
-                                comp.getNode().terminate();
+                                comp.deleteSlave();
                             } catch (IOException|InterruptedException e) {
-                                logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
+                                logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName(), e);
                             }
                         }
                     });
@@ -64,14 +54,5 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
 
         Futures.getUnchecked(Futures.successfulAsList(deletedNodesBuilder.build()));
-
-        for (JCloudsComputer c : computersToDeleteBuilder.build()) {
-            try {
-                c.deleteSlave();
-            } catch (IOException|InterruptedException e) {
-                logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
-            }
-
-        }
     }
 }

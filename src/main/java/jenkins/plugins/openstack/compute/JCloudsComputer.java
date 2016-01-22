@@ -5,10 +5,13 @@ import hudson.slaves.SlaveComputer;
 import hudson.slaves.OfflineCause.SimpleOfflineCause;
 
 import java.io.IOException;
+import java.io.ObjectInput;
 import java.util.logging.Logger;
 
 import jenkins.model.Jenkins;
 
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 
@@ -42,17 +45,39 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         return getNode().getCloudName();
     }
 
+    private final Object pendingDeleteLock = new Object();
+
     /**
      * Flag the slave to be collected asynchronously.
+     *
+     * @return Old value.
      */
-    @Override
+    public boolean setPendingDelete(boolean val) {
+        synchronized (pendingDeleteLock) {
+            boolean is = isPendingDelete();
+            if (!is) {
+                LOGGER.info("Setting " + getName() + " to be deleted.");
+                setTemporarilyOffline(true, PENDING_TERMINATION);
+            }
+            return is;
+        }
+    }
+
+    /**
+     * Is slave pending termination.
+     */
+    public boolean isPendingDelete() {
+        synchronized (pendingDeleteLock) {
+            return getOfflineCause() instanceof PendingTermination;
+        }
+    }
+
+    @Override @Restricted(NoExternalUse.class)
     public HttpResponse doDoDelete() throws IOException {
-        if (!(getOfflineCause() instanceof PendingTermination)) {
-            setTemporarilyOffline(true, new PendingTermination());
+        boolean isAlready = setPendingDelete(true);
+        if (!isAlready) {
             JCloudsSlave slave = getNode();
-            if (slave != null) {
-                slave.setPendingDelete(true);
-            } else {
+            if (slave == null) {
                 super.doDoDelete();
             }
         }
@@ -78,6 +103,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         Jenkins.getInstance().removeNode(slave);
     }
 
+    // Singleton
+    private static final PendingTermination PENDING_TERMINATION = new PendingTermination();
     private static final class PendingTermination extends SimpleOfflineCause {
 
         protected PendingTermination() {

@@ -23,22 +23,19 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
     @Override
     public long check(JCloudsComputer c) {
+        if (disabled) return 1;
         if (!checkLock.tryLock()) {
             return 1;
         } else {
             try {
-                if (c.isIdle() && !c.getNode().isPendingDelete() && !disabled) {
+                if (c.isIdle() && !c.isPendingDelete()) {
                     // Get the retention time, in minutes, from the JCloudsCloud this JCloudsComputer belongs to.
                     final int retentionTime = c.getRetentionTime();
                     // check executor to ensure we are terminating online slaves
                     if (retentionTime > -1 && c.countExecutors() > 0) {
                         final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
                         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
-                            LOGGER.info("Setting " + c.getName() + " to be deleted.");
-                            if (!c.isOffline()) {
-                                c.setTemporarilyOffline(true, OfflineCause.create(Messages._DeletedCause()));
-                            }
-                            c.getNode().setPendingDelete(true);
+                            c.setPendingDelete(true);
                         }
                     }
                 }
