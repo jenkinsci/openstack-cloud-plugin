@@ -9,8 +9,13 @@ import java.util.logging.Logger;
 
 import jenkins.model.Jenkins;
 
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.StaplerResponse;
+
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * JClouds version of Jenkins {@link SlaveComputer} - responsible for terminating an instance.
@@ -40,6 +45,12 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
 
     public String getCloudName() {
         return getNode().getCloudName();
+    }
+
+    // Hide /configure view inherited from Computer
+    @Restricted(DoNotUse.class)
+    public void doConfigure(StaplerResponse rsp) throws IOException {
+        rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
     /**
