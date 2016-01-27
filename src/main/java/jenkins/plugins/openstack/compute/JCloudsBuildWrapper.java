@@ -104,7 +104,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     public static final class DescriptorImpl extends BuildWrapperDescriptor {
         @Override
         public String getDisplayName() {
-            return "Openstack Instance Creation";
+            return "OpenStack Instance Creation";
         }
 
         @Override

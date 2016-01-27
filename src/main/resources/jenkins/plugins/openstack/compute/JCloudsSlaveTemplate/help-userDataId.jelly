@@ -1,0 +1,6 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core">
+  <div>
+    You can specify userdata via <a target="_blank" href="${app.rootUrl}configfiles/">Jenkins -> Manage Jenkins -> Managed Files -> Add New Config (OpenStack User Data)</a>.
+  </div>
+</j:jelly>
