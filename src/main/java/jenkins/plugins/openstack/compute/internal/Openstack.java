@@ -182,11 +182,15 @@ public class Openstack {
      */
     public @Nonnull Server bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) throws ActionFailed {
         debug("Booting machine");
-        request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
-        Server server = client.compute().servers().bootAndWaitActive(request.build(), timeout);
+        Server server = _bootAndWaitActive(request, timeout);
         debug("Machine started: " + server.getName());
         throwIfFailed(server);
         return server;
+    }
+
+    /*package for testing*/ Server _bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
+        request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
+        return client.compute().servers().bootAndWaitActive(request.build(), timeout);
     }
 
     /**
@@ -268,14 +272,14 @@ public class Openstack {
 
     private void throwIfFailed(@Nonnull Server server) {
         if (isRunning(server) && !Server.Status.ERROR.equals(server.getStatus())) return;
-        StringBuilder sb = new StringBuilder("Failed to boot server: ");
-        sb.append("status=").append(server.getStatus());
-        sb.append("vmState=").append(server.getVmState());
+        StringBuilder sb = new StringBuilder("Failed to boot server:");
+        sb.append(" status=").append(server.getStatus());
+        sb.append(" vmState=").append(server.getVmState());
         Fault fault = server.getFault();
         String msg = String.format("%d: %s (%s)", fault.getCode(), fault.getMessage(), fault.getDetails());
-        sb.append("fault=").append(msg);
+        sb.append(" fault=").append(msg);
 
-        // Destroy the server in case it is not provisioned correctly
+        // Destroy the server
         ActionFailed ex = new ActionFailed(sb.toString());
         try {
             destroyServer(server);
