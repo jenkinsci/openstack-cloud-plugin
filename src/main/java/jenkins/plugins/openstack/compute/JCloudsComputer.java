@@ -11,6 +11,7 @@ import jenkins.model.Jenkins;
 
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerResponse;
@@ -47,23 +48,45 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         return getNode().getCloudName();
     }
 
+    private final Object pendingDeleteLock = new Object();
+
+    /**
+     * Flag the slave to be collected asynchronously.
+     *
+     * @return Old value.
+     */
+    public boolean setPendingDelete(boolean val) {
+        synchronized (pendingDeleteLock) {
+            boolean is = isPendingDelete();
+            if (!is) {
+                LOGGER.info("Setting " + getName() + " to be deleted.");
+                setTemporarilyOffline(true, PENDING_TERMINATION);
+            }
+            return is;
+        }
+    }
+
+    /**
+     * Is slave pending termination.
+     */
+    public boolean isPendingDelete() {
+        synchronized (pendingDeleteLock) {
+            return getOfflineCause() instanceof PendingTermination;
+        }
+    }
+
     // Hide /configure view inherited from Computer
     @Restricted(DoNotUse.class)
     public void doConfigure(StaplerResponse rsp) throws IOException {
         rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
-    /**
-     * Flag the slave to be collected asynchronously.
-     */
-    @Override
+    @Override @Restricted(NoExternalUse.class)
     public HttpResponse doDoDelete() throws IOException {
-        if (!(getOfflineCause() instanceof PendingTermination)) {
-            setTemporarilyOffline(true, new PendingTermination());
+        boolean isAlready = setPendingDelete(true);
+        if (!isAlready) {
             JCloudsSlave slave = getNode();
-            if (slave != null) {
-                slave.setPendingDelete(true);
-            } else {
+            if (slave == null) {
                 super.doDoDelete();
             }
         }
@@ -89,6 +112,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         Jenkins.getInstance().removeNode(slave);
     }
 
+    // Singleton
+    private static final PendingTermination PENDING_TERMINATION = new PendingTermination();
     private static final class PendingTermination extends SimpleOfflineCause {
 
         protected PendingTermination() {

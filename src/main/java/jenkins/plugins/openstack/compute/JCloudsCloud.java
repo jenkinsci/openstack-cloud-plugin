@@ -137,6 +137,8 @@ public class JCloudsCloud extends Cloud {
     @Override
     public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
         final JCloudsSlaveTemplate template = getTemplate(label);
+        if (template == null) throw new AssertionError("No template for label: " + label);
+
         List<PlannedNode> plannedNodeList = new ArrayList<PlannedNode>();
 
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
@@ -169,7 +171,7 @@ public class JCloudsCloud extends Cloud {
 
     private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
         Integer launchTimeoutSec = this.startTimeout;
-        Computer computer = jcloudsSlave.toComputer();
+        JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
             try {
@@ -183,7 +185,7 @@ public class JCloudsCloud extends Cloud {
             if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {
                 String message = String.format("Failed to connect to slave within timeout (%d s).", launchTimeoutSec);
                 LOGGER.warning(message);
-                jcloudsSlave.setPendingDelete(true);
+                computer.setPendingDelete(true);
                 throw new ExecutionException(new Throwable(message));
             }
         }
@@ -204,7 +206,7 @@ public class JCloudsCloud extends Cloud {
     /**
      * Gets {@link jenkins.plugins.openstack.compute.JCloudsSlaveTemplate} that has the matching {@link Label}.
      */
-    public @CheckForNull JCloudsSlaveTemplate getTemplate(@CheckForNull Label label) {
+    private @CheckForNull JCloudsSlaveTemplate getTemplate(@CheckForNull Label label) {
         for (JCloudsSlaveTemplate t : templates)
             if (label == null || label.matches(t.getLabelSet()))
                 return t;

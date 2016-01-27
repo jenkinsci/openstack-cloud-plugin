@@ -108,9 +108,10 @@ public final class PluginTestRule extends JenkinsRule {
         );
     }
 
-    public JCloudsCloud configureDummySlaveToBeProvisioned() {
-        JCloudsSlaveTemplate template = dummySlaveTemplate("label");
-        JCloudsCloud cloud = addCoud(dummyCloud(template));
+    public JCloudsCloud configureDummySlaveToBeProvisioned(JCloudsCloud cloud) {
+        if (!jenkins.clouds.contains(cloud)) {
+            cloud = addCoud(cloud);
+        }
         autoconnectJnlpSlaves();
         Openstack os = cloud.getOpenstack();
         Server provisioned = mockServer().name("provisioned").floatingIp("42.42.42.42").get();
@@ -119,10 +120,18 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
-    public JCloudsSlave provisionDummySlave() throws InterruptedException, ExecutionException {
-        JCloudsCloud cloud = configureDummySlaveToBeProvisioned();
-        Collection<PlannedNode> slaves = cloud.provision(Label.get("label"), 1);
+    public JCloudsCloud configureDummySlaveToBeProvisioned(String labels) {
+        return configureDummySlaveToBeProvisioned(addCoud(dummyCloud(dummySlaveTemplate(labels))));
+    }
+
+    public JCloudsSlave provisionDummySlave(JCloudsCloud cloud, String labels) throws InterruptedException, ExecutionException {
+        Collection<PlannedNode> slaves = cloud.provision(Label.get(labels), 1);
         return (JCloudsSlave) slaves.iterator().next().future.get();
+    }
+
+    public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException {
+        JCloudsCloud cloud = configureDummySlaveToBeProvisioned(labels);
+        return provisionDummySlave(cloud, labels);
     }
 
     public MockServerBuilder mockServer() {

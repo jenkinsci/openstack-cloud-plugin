@@ -32,7 +32,7 @@ public class JCloudsBuildWrapperTest {
 
     @Test
     public void provisionSeveral() throws Exception {
-        final JCloudsCloud cloud = j.configureDummySlaveToBeProvisioned();
+        final JCloudsCloud cloud = j.configureDummySlaveToBeProvisioned("label");
         Openstack os = cloud.getOpenstack();
 
         FreeStyleProject p = j.createFreeStyleProject();

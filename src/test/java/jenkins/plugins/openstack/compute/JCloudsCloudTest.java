@@ -94,7 +94,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void manullyProvisionAndKill() throws Exception {
-        Computer computer = j.provisionDummySlave().toComputer();
+        Computer computer = j.provisionDummySlave("label").toComputer();
         assertTrue("Slave should be connected", computer.isOnline());
 
         computer.doDoDelete();
@@ -106,7 +106,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void provisionSlaveOnDemand() throws Exception {
-        j.configureDummySlaveToBeProvisioned();
+        j.configureDummySlaveToBeProvisioned("label");
 
         j.jenkins.setNumExecutors(0);
         FreeStyleProject p = j.createFreeStyleProject();

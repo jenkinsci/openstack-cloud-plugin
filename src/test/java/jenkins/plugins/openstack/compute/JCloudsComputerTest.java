@@ -19,7 +19,7 @@ public class JCloudsComputerTest {
 
     @Test
     public void saveSlaveConfigPage() throws Exception {
-        JCloudsSlave slave = j.provisionDummySlave();
+        JCloudsSlave slave = j.provisionDummySlave("label");
         WebClient wc = j.createWebClient();
         assertThat(wc.getPage(slave).getTextContent(), not(containsString("Configure")));
 
