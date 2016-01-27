@@ -2,10 +2,15 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
 
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.Page;
+import com.gargoylesoftware.htmlunit.WebRequestSettings;
+import hudson.model.FreeStyleBuild;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -21,6 +26,14 @@ import hudson.model.Label;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
+import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+
+import java.net.URL;
+import java.util.Collections;
+import java.util.concurrent.Future;
 
 public class JCloudsCloudTest {
     @Rule
@@ -80,9 +93,12 @@ public class JCloudsCloudTest {
 
     @Test
     public void testConfigRoundtrip() throws Exception {
-        JCloudsCloud original = j.dummyCloud();
+        JCloudsCloud original = new JCloudsCloud(
+                "openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList(), true
+        );
+        j.jenkins.clouds.add(original);
 
-        j.getInstance().clouds.add(original);
+        //j.getInstance().clouds.add(original);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
         j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack"),
@@ -106,7 +122,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void provisionSlaveOnDemand() throws Exception {
-        j.configureDummySlaveToBeProvisioned("label");
+        j.createCloudProvisioningDummySlaves("label");
 
         j.jenkins.setNumExecutors(0);
         FreeStyleProject p = j.createFreeStyleProject();
@@ -118,5 +134,44 @@ public class JCloudsCloudTest {
         // Provision without label
         p.setAssignedLabel(null);
         assertThat(j.buildAndAssertSuccess(p).getBuiltOn(), Matchers.instanceOf(JCloudsSlave.class));
+    }
+
+    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
+    public void abortProvisioningWhenOpenstackFails() throws Exception {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        JCloudsCloud cloud = j.dummyCloud(template);
+        Openstack os = cloud.getOpenstack();
+        j.mockServer().name("provisioned").status(Server.Status.ERROR).get();
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
+
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedLabel(Label.get("label"));
+        Future<FreeStyleBuild> started = p.scheduleBuild2(0).getStartCondition();
+
+        Thread.sleep(1000);
+        assertFalse(started.isDone());
+
+        verify(os, atLeastOnce()).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
+    }
+
+    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
+    public void failToProvisionManuallyWhenOpenstackFails() throws Exception {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        final JCloudsCloud cloud = j.dummyCloud(template);
+        Openstack os = cloud.getOpenstack();
+        j.mockServer().name("provisioned").status(Server.Status.ERROR).get();
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
+
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.setThrowExceptionOnFailingStatusCode(false);
+        wc.setPrintContentOnFailingStatusCode(false);
+        Page page = wc.getPage(wc.addCrumb(new WebRequestSettings(
+                new URL(wc.getContextPath() + "cloud/openstack/provision?name=template"),
+                HttpMethod.POST
+        )));
+
+        assertThat(page.getWebResponse().getContentAsString(), containsString("It is broken, alright!"));
+
+        verify(os, times(1)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
     }
 }

@@ -52,6 +52,8 @@ import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author Vijay Kiran
  */
@@ -139,7 +141,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         return labelSet;
     }
 
-    /*package*/ Supplier<Server> getSuplier(final JCloudsCloud cloud) {
+    /*package*/ Supplier<Server> getSuplier(@Nonnull final JCloudsCloud cloud) throws Openstack.ActionFailed {
         return new Supplier<Server>() {
             @Override public Server get() {
                 return JCloudsSlaveTemplate.this.provision(cloud);
@@ -147,7 +149,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         };
     }
 
-    public JCloudsSlave provisionSlave(JCloudsCloud cloud, TaskListener listener) throws IOException {
+    /**
+     * Provision and connect as a slave.
+     *
+     * @throws Openstack.ActionFailed Provisioning failed.
+     */
+    public @Nonnull JCloudsSlave provisionSlave(@Nonnull JCloudsCloud cloud, @Nonnull TaskListener listener) throws IOException, Openstack.ActionFailed {
         Server nodeMetadata = provision(cloud);
 
         try {
@@ -158,7 +165,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         }
     }
 
-    public Server provision(JCloudsCloud cloud) {
+    /**
+     * Provision OpenStack machine.
+     *
+     * @throws Openstack.ActionFailed In case the provisioning failed.
+     * @see #provisionSlave(JCloudsCloud, TaskListener)
+     */
+    public @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
         final ServerCreateBuilder builder = Builders.server();
         final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
         LOGGER.info("Provisioning new openstack node " + nodeName);
@@ -218,10 +231,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         if (cloud.isFloatingIps()) {
             LOGGER.fine("Assiging floating IP to " + nodeName);
             openstack.assignFloatingIp(server);
+            // Make sure address information is refreshed
+            return openstack.updateInfo(server);
         }
 
-        // Make sure address information is propagated
-        return openstack.updateInfo(server);
+        return server;
     }
 
     private static String[] csvToArray(final String csv) {

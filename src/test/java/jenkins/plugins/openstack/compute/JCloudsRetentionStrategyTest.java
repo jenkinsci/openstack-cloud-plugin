@@ -25,8 +25,8 @@ public class JCloudsRetentionStrategyTest {
                 "securityGroups", "", JCloudsCloud.SlaveType.JNLP, "availabilityZone"
         );
 
-        JCloudsCloud cloud = j.configureDummySlaveToBeProvisioned(j.addCoud(j.dummyCloud(template)));
-        JCloudsSlave slave = j.provisionDummySlave(cloud, "label");
+        JCloudsCloud cloud = j.createCloudProvisioningSlaves(template);
+        JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
         assertEquals(1, computer.getRetentionTime());
 

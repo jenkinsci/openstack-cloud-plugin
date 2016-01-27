@@ -1,11 +1,8 @@
 package jenkins.plugins.openstack;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -16,10 +13,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner;
+import jenkins.plugins.openstack.compute.CloudInstanceDefaults;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.openstack.compute.domain.NovaAddresses;
@@ -51,6 +54,7 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 public final class PluginTestRule extends JenkinsRule {
 
     private static final Random rnd = new Random();
+    private final AtomicInteger slaveCount = new AtomicInteger(0);
 
     public void autoconnectJnlpSlaves() {
         JnlpAutoConnect launcher = jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class);
@@ -83,17 +87,6 @@ public final class PluginTestRule extends JenkinsRule {
         jenkins.getExtensionList(AsyncPeriodicWork.class).get(JCloudsCleanupThread.class).execute(TaskListener.NULL);
     }
 
-    /**
-     * Add cloud to Jenkins. It is needed to use this method to have Openstack client mocked.
-     */
-    public JCloudsCloud addCoud(JCloudsCloud cloud) {
-        cloud = spy(cloud);
-        jenkins.clouds.add(cloud);
-        Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
-        doReturn(os).when(cloud).getOpenstack();
-        return cloud;
-    }
-
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
         return new JCloudsSlaveTemplate(
                 "template", "imageId", "hardwareId", labels, null, "42",
@@ -103,35 +96,41 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsCloud dummyCloud(JCloudsSlaveTemplate... templates) {
-        return new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, 600 * 1000, null, Arrays.asList(templates), true
-        );
-    }
-
-    public JCloudsCloud configureDummySlaveToBeProvisioned(JCloudsCloud cloud) {
-        if (!jenkins.clouds.contains(cloud)) {
-            cloud = addCoud(cloud);
-        }
-        autoconnectJnlpSlaves();
-        Openstack os = cloud.getOpenstack();
-        Server provisioned = mockServer().name("provisioned").floatingIp("42.42.42.42").get();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(provisioned);
-        when(os.updateInfo(any(Server.class))).thenReturn(provisioned);
+        JCloudsCloud cloud = new MockJCloudsCloud(templates);
+        jenkins.clouds.add(cloud);
         return cloud;
     }
 
-    public JCloudsCloud configureDummySlaveToBeProvisioned(String labels) {
-        return configureDummySlaveToBeProvisioned(addCoud(dummyCloud(dummySlaveTemplate(labels))));
+    public JCloudsCloud createCloudProvisioningDummySlaves(String labels) {
+        return createCloudProvisioningSlaves(dummySlaveTemplate(labels));
     }
 
-    public JCloudsSlave provisionDummySlave(JCloudsCloud cloud, String labels) throws InterruptedException, ExecutionException {
-        Collection<PlannedNode> slaves = cloud.provision(Label.get(labels), 1);
+    public JCloudsCloud createCloudProvisioningSlaves(JCloudsSlaveTemplate... templates) {
+        JCloudsCloud cloud = dummyCloud(templates);
+        autoconnectJnlpSlaves();
+        Openstack os = cloud.getOpenstack();
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {
+            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                int num = slaveCount.getAndIncrement();
+                return mockServer().name("provisioned" + num).floatingIp("42.42.42." + num).get();
+            }
+        });
+        when(os.updateInfo(any(Server.class))).thenAnswer(new Answer<Server>() {
+            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                return (Server) invocation.getArguments()[0];
+            }
+        });
+        return cloud;
+    }
+
+    public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException {
+        Collection<PlannedNode> slaves = cloud.provision(Label.get(label), 1);
         return (JCloudsSlave) slaves.iterator().next().future.get();
     }
 
     public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException {
-        JCloudsCloud cloud = configureDummySlaveToBeProvisioned(labels);
-        return provisionDummySlave(cloud, labels);
+        JCloudsCloud cloud = createCloudProvisioningDummySlaves(labels);
+        return provision(cloud, labels);
     }
 
     public MockServerBuilder mockServer() {
@@ -161,6 +160,11 @@ public final class PluginTestRule extends JenkinsRule {
             return this;
         }
 
+        public MockServerBuilder status(Server.Status status) {
+            when(server.getStatus()).thenReturn(status);
+            return this;
+        }
+
         public Server get() {
             return server;
         }
@@ -174,6 +178,7 @@ public final class PluginTestRule extends JenkinsRule {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
+                NodeProvisioner.NodeProvisionerInvoker.INITIALDELAY = NodeProvisioner.NodeProvisionerInvoker.RECURRENCEPERIOD = 1000;
                 try {
                     jenkinsRuleStatement.evaluate();
                 } finally {
@@ -197,6 +202,31 @@ public final class PluginTestRule extends JenkinsRule {
             if (rule == null) return;
             System.out.println("Autolaunching agent for slave: " + c.getDisplayName());
             rule.connectJnlpSlave(c.getDisplayName());
+        }
+    }
+
+    private static final class MockJCloudsCloud extends JCloudsCloud {
+        private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
+
+        public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
+            super("openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, 600 * 1000, null, Arrays.asList(templates), true);
+        }
+
+        @Override
+        public Openstack getOpenstack() {
+            return os;
+        }
+
+        @Override
+        public hudson.model.Descriptor<Cloud> getDescriptor() {
+            return new Descriptor();
+        }
+
+        public static final class Descriptor extends hudson.model.Descriptor {
+            @Override
+            public String getDisplayName() {
+                return null;
+            }
         }
     }
 }
