@@ -132,7 +132,7 @@ public class Openstack {
         // We need details to inspect state and metadata
         boolean detailed = true;
         for (Server n: client.compute().servers().list(detailed)) {
-            if (isRunning(n) && isOurs(n)) {
+            if (isOccupied(n) && isOurs(n)) {
                 running.add(n);
             }
         }
@@ -143,14 +143,16 @@ public class Openstack {
     /**
      * Determine whether the server is considered occupied by openstack plugin.
      */
-    private static boolean isRunning(@Nonnull Server server) {
+    private static boolean isOccupied(@Nonnull Server server) {
         switch (server.getStatus()) {
-            case UNRECOGNIZED:
             case UNKNOWN:
             case MIGRATING:
             case SHUTOFF:
             case DELETED:
                 return false;
+            case UNRECOGNIZED: // needs to be considered occupied not to leak a machine
+                LOGGER.log(Level.WARNING, "Machine state not recognized by openstack4j, report this as a bug: " + server);
+                return true;
             default:
                 return true;
         }
@@ -188,7 +190,8 @@ public class Openstack {
         return server;
     }
 
-    /*package for testing*/ Server _bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
+    @Restricted(NoExternalUse.class) // Test hook
+    public Server _bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
         request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
         return client.compute().servers().bootAndWaitActive(request.build(), timeout);
     }
@@ -271,12 +274,23 @@ public class Openstack {
     }
 
     private void throwIfFailed(@Nonnull Server server) {
-        if (isRunning(server) && !Server.Status.ERROR.equals(server.getStatus())) return;
-        StringBuilder sb = new StringBuilder("Failed to boot server:");
-        sb.append(" status=").append(server.getStatus());
+        Server.Status status = server.getStatus();
+        if (status == Server.Status.ACTIVE) return; // Success
+
+        StringBuilder sb = new StringBuilder();
+        if (status == Server.Status.BUILD) {
+            sb.append("Failed to boot server in time (consider extending timeout setting):");
+        } else {
+            sb.append("Failed to boot server:");
+        }
+
+        sb.append(" status=").append(status);
         sb.append(" vmState=").append(server.getVmState());
         Fault fault = server.getFault();
-        String msg = String.format("%d: %s (%s)", fault.getCode(), fault.getMessage(), fault.getDetails());
+        String msg = fault == null
+            ? "none"
+            : String.format("%d: %s (%s)", fault.getCode(), fault.getMessage(), fault.getDetails())
+        ;
         sb.append(" fault=").append(msg);
 
         // Destroy the server

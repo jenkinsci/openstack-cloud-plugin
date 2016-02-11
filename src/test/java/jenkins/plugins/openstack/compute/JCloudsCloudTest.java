@@ -141,7 +141,6 @@ public class JCloudsCloudTest {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
         JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
-        j.mockServer().name("provisioned").status(Server.Status.ERROR).get();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
 
         FreeStyleProject p = j.createFreeStyleProject();
@@ -159,7 +158,6 @@ public class JCloudsCloudTest {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
         final JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
-        j.mockServer().name("provisioned").status(Server.Status.ERROR).get();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
 
         JenkinsRule.WebClient wc = j.createWebClient();
@@ -173,5 +171,27 @@ public class JCloudsCloudTest {
         assertThat(page.getWebResponse().getContentAsString(), containsString("It is broken, alright!"));
 
         verify(os, times(1)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
+    }
+
+    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/37")
+    public void detectBootTimingOut() {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        final JCloudsCloud cloud = j.dummyCloud(template);
+        Openstack os = cloud.getOpenstack();
+        Server server = j.mockServer().name("provisioned").status(Server.Status.BUILD).get();
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenCallRealMethod();
+        when(os._bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(server);
+        when(os.updateInfo(eq(server))).thenReturn(server);
+
+        try {
+            Server s = template.provision(cloud);
+            System.out.println(s.getStatus());
+            fail();
+        } catch (Openstack.ActionFailed ex) {
+            assertThat(ex.getMessage(), containsString("Failed to boot server in time"));
+            assertThat(ex.getMessage(), containsString("status=BUILD"));
+        }
+
+        verify(os).destroyServer(eq(server));
     }
 }
