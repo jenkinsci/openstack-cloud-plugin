@@ -16,7 +16,7 @@ public class JCloudsSlaveTemplateTest {
     // Following will be null if can not be validated: imageId, hardwareId, networkId, availabilityZone
     // TODO test userDataId, credentialsId
     final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,jvmOptions,fsRoot,installPrivateKey,overrideRetentionTime,keyPairName,securityGroups,slaveType";
-    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,instanceCap,retentionTime,scriptTimeout,startTimeout,zone";
+    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,instanceCap,retentionTime,startTimeout,zone";
 
     @Test
     public void configRoundtrip() throws Exception {
@@ -31,7 +31,7 @@ public class JCloudsSlaveTemplateTest {
         templates.add(originalTemplate);
 
         JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, 600 * 1000, null, templates, true);
+                600 * 1000, null, templates, true);
 
         j.jenkins.clouds.add(originalCloud);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));

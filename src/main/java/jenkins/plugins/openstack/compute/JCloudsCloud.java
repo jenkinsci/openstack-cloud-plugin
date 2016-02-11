@@ -58,7 +58,6 @@ public class JCloudsCloud extends Cloud {
     private final int retentionTime;
     public final int instanceCap;
     private final List<JCloudsSlaveTemplate> templates;
-    public final int scriptTimeout;
     public final int startTimeout;
     public final String zone;
     // Ask for a floating IP to be associated for every machine provisioned
@@ -85,7 +84,7 @@ public class JCloudsCloud extends Cloud {
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
-                        final int retentionTime, final int scriptTimeout, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
+                        final int retentionTime, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
                         final boolean floatingIps
     ) {
         super(Util.fixEmptyAndTrim(profile));
@@ -95,7 +94,6 @@ public class JCloudsCloud extends Cloud {
         this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         this.instanceCap = instanceCap;
         this.retentionTime = retentionTime;
-        this.scriptTimeout = scriptTimeout;
         this.startTimeout = startTimeout;
         this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
         this.zone = Util.fixEmptyAndTrim(zone);

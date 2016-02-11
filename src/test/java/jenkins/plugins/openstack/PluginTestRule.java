@@ -209,7 +209,7 @@ public final class PluginTestRule extends JenkinsRule {
         private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, 600 * 1000, null, Arrays.asList(templates), true);
+            super("openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, null, Arrays.asList(templates), true);
         }
 
         @Override
