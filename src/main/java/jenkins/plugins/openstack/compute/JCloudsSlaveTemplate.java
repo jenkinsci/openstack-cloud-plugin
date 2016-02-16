@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import hudson.remoting.Base64;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.accmod.Restricted;
@@ -29,7 +30,6 @@ import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import com.trilead.ssh2.Connection;
 
 import au.com.bytecode.opencsv.CSVReader;
@@ -52,6 +52,7 @@ import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /**
@@ -63,8 +64,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     private static final char SEPARATOR_CHAR = ',';
 
     public final String name;
-    public final String imageId;
-    public final String hardwareId;
+    public String imageId;
+    public String hardwareId;
     public final String labelString;
     public final String userDataId;
     public final String numExecutors;
@@ -73,7 +74,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     public final boolean installPrivateKey;
     public final int overrideRetentionTime;
     public final String keyPairName;
-    public final String networkId;
+    public String networkId;
     public final String securityGroups;
     public final String credentialsId;
     public final JCloudsCloud.SlaveType slaveType;
@@ -109,11 +110,25 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         readResolve();
     }
 
-    /**
-     * Initializes data structure that we don't persist.
-     */
+
     protected Object readResolve() {
+        // Initializes data structure that we don't persist.
         labelSet = Label.parse(labelString);
+
+        // Migrate from 1.X to 2.X
+        int i;
+        if ((i = hardwareId.indexOf('/')) != -1) {
+            hardwareId = hardwareId.substring(i + 1);
+        }
+
+        if ((i = networkId.indexOf('/')) != -1) {
+            networkId = networkId.substring(i + 1);
+        }
+
+        if ((i = imageId.indexOf('/')) != -1) {
+            imageId = imageId.substring(i + 1);
+        }
+
         return this;
     }
 
@@ -209,17 +224,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
             builder.availabilityZone(availabilityZone);
         }
 
-        ExtensionList<ConfigProvider> providers = ConfigProvider.all();
-        UserDataConfig.UserDataConfigProvider myProvider = providers.get(UserDataConfig.UserDataConfigProvider.class);
-        Config userData = myProvider.getConfigById(userDataId);
-        if (userData != null && !userData.content.isEmpty()) {
+        @CheckForNull String userDataText = getUserData();
+        if (userDataText != null) {
             HashMap<String, String> vars = new HashMap<String, String>();
             String rootUrl = Jenkins.getInstance().getRootUrl();
             vars.put("JENKINS_URL", rootUrl);
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
             vars.put("SLAVE_LABELS", labelString);
-            String content = Util.replaceMacro(userData.content, vars);
+            String content = Util.replaceMacro(userDataText, vars);
             LOGGER.fine("Sending user-data:\n" + content);
             builder.userData(Base64.encode(content.getBytes()));
         }
@@ -236,6 +249,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         }
 
         return server;
+    }
+
+    /*package for testing*/ @CheckForNull String getUserData() {
+        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(userDataId);
+
+        return (userData == null || userData.content.isEmpty())
+                ? null
+                : userData.content
+        ;
     }
 
     private static String[] csvToArray(final String csv) {
