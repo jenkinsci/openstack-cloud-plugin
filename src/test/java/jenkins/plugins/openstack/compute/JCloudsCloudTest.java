@@ -6,11 +6,17 @@ import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequestSettings;
 import hudson.model.FreeStyleBuild;
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.remoting.Base64;
+import hudson.util.Secret;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.security.CryptoConfidentialKey;
+import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,9 +34,13 @@ import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.recipes.LocalData;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
+import javax.crypto.SecretKey;
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.Future;
@@ -193,5 +203,38 @@ public class JCloudsCloudTest {
         }
 
         verify(os).destroyServer(eq(server));
+    }
+
+    @Test @LocalData
+    public void globalConfigMigrationFromV1() throws Exception {
+        CryptoConfidentialKey key = new CryptoConfidentialKey(Secret.class.getName());
+        Method m = CryptoConfidentialKey.class.getDeclaredMethod("getKey");
+        m.setAccessible(true);
+        SecretKey skey = (SecretKey) m.invoke(key);
+        assertEquals("gkIroONWN3K4waXG9LzZqw==", Base64.encode(skey.getEncoded()));
+
+        JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
+        assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
+        assertEquals("tenant:user", cloud.identity);
+        assertEquals(true, cloud.isFloatingIps());
+
+        JCloudsSlaveTemplate template = cloud.getTemplate("ath-integration-test");
+        assertEquals("16", template.hardwareId);
+        assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", template.imageId);
+        assertEquals("my-network", template.networkId);
+        assertEquals("1", template.numExecutors);
+        assertEquals("/tmp/jenkins", template.getFsRoot());
+        assertEquals("jenkins-testing", template.keyPairName);
+        assertEquals(JCloudsCloud.SlaveType.SSH, template.slaveType);
+
+        assertEquals(fileAsString("globalConfigMigrationFromV1/expected-userData"), template.getUserData());
+
+        BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(template.credentialsId);
+        assertEquals("jenkins", creds.getUsername());
+        assertEquals(fileAsString("globalConfigMigrationFromV1/expected-private-key"), creds.getPrivateKey());
+    }
+
+    private String fileAsString(String filename) throws IOException {
+        return IOUtils.toString(getClass().getResourceAsStream(getClass().getSimpleName() + "/" + filename));
     }
 }

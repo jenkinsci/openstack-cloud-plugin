@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<jenkins.plugins.openstack.compute.UserDataConfig_-UserDataConfigProvider plugin="openstack-cloud@1.8">
+  <configs>
+    <entry>
+      <string>jenkins.plugins.openstack.compute.UserDataConfig.1455188317989</string>
+      <org.jenkinsci.lib.configprovider.model.Config plugin="config-file-provider@2.10.0">
+        <id>jenkins.plugins.openstack.compute.UserDataConfig.1455188317989</id>
+        <name>cloudInit</name>
+        <comment></comment>
+        <content>#cloud-config
+disable_root: 0
+ssh_pwauth: True
+chpasswd: { expire: False }
+
+users:
+  - name: jenkins
+    lock-passwd: false
+    inactive: false
+    system: false
+    ssh-authorized-keys:
+        - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA2lEVMvqBVd8DzYyTuQpIHqBJBIzM3vh/aoHEHPu1uy5akmz51ty1Xg5w6cWx7EFE48rgvGxTC8CzpADPGqzmiyCHW2n3+OZhm41n2YEBSdxWeOUTN7+7VMs51R4Awo9E2v6m0c4uppgkLm5yONSBBlJ0/1f5ixyKT8GLIilhc+DQo1WgMnP6LorwLGq2TdowncZUr3+2ZAl8Y2mrjwRWnUvM+g3Njnp8HHfCYsJwTGW8jkMlu4kN2hsRlnDm1UUIylXMJYVNmUczh3euRMV1KLGchcebDl0M1JiOn4+s6RorHSEh2uxsLCNY4bIE7t92kvCoZAPreLsGINAdOPQdrw== unsafe
+
+runcmd:
+  - [ &quot;set&quot;, &quot;-x&quot; ]
+# Break auth and fix it at the very end so ssh-slaves will retry until java is installed. Otherwise, plugin will install java itself which is much slower for some reason
+  - [ &quot;chmod&quot;, &quot;777&quot;, &quot;/home/jenkins/.ssh/&quot; ]
+  - [ &quot;chown&quot;, &quot;jenkins&quot;, &quot;/home/jenkins&quot; ] # Not sure why this is needed - othwrvise owned by root
+  - [ &quot;mkdir&quot;, &quot;/usr/local/java/&quot; ] # Location searched by ssh-slaves plugin, though not controlled by it
+  - [ &quot;curl&quot;, &quot;-L&quot;, &quot;-o&quot;, &quot;/usr/local/java/java.tar.gz&quot;, &quot;http://download.oracle.com/otn-pub/java/jdk/8u51-b16/jdk-8u51-linux-x64.tar.gz&quot;, &quot;-H&quot;, &quot;Cookie: oraclelicense=accept-securebackup-cookie&quot; ]
+  - [ &quot;tar&quot;, &quot;xf&quot;, &quot;/usr/local/java/java.tar.gz&quot;, &quot;-C&quot;,  &quot;/usr/local/java/&quot;, &quot;--strip-components=1&quot; ]
+# Fix auth
+  - [ &quot;chmod&quot;, &quot;700&quot;, &quot;/home/jenkins/.ssh/&quot; ]
+  - [ &quot;sh&quot;, &quot;-c&quot;, &quot;echo jenkins:ath | chpasswd&quot; ]
+</content>
+        <providerId>jenkins.plugins.openstack.compute.UserDataConfig</providerId>
+      </org.jenkinsci.lib.configprovider.model.Config>
+    </entry>
+  </configs>
+</jenkins.plugins.openstack.compute.UserDataConfig_-UserDataConfigProvider>
