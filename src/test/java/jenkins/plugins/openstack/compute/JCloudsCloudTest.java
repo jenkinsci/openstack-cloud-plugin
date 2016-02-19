@@ -207,12 +207,6 @@ public class JCloudsCloudTest {
 
     @Test @LocalData
     public void globalConfigMigrationFromV1() throws Exception {
-        CryptoConfidentialKey key = new CryptoConfidentialKey(Secret.class.getName());
-        Method m = CryptoConfidentialKey.class.getDeclaredMethod("getKey");
-        m.setAccessible(true);
-        SecretKey skey = (SecretKey) m.invoke(key);
-        assertEquals("gkIroONWN3K4waXG9LzZqw==", Base64.encode(skey.getEncoded()));
-
         JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
         assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
         assertEquals("tenant:user", cloud.identity);
