@@ -1,7 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.model.Descriptor;
-import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
@@ -23,8 +22,15 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
     @Override
     public long check(JCloudsComputer c) {
-        if (disabled) return 1;
+        if (disabled) {
+            LOGGER.fine("Skipping check - disabled");
+            return 1;
+        } else {
+            LOGGER.fine("Checking");
+        }
+
         if (!checkLock.tryLock()) {
+            LOGGER.info("Failed to acquire retention lock - skipping");
             return 1;
         } else {
             try {
@@ -35,6 +41,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
                     if (retentionTime > -1 && c.countExecutors() > 0) {
                         final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
                         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
+                            LOGGER.fine("Scheduling " + c .getNode() + " for termination");
                             c.setPendingDelete(true);
                         }
                     }
@@ -54,8 +61,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         c.connect(false);
     }
 
-    // no registration since this retention strategy is used only for cloud nodes that we provision automatically.
-    // @Extension
+    // no @Extension since this retention strategy is used only for cloud nodes that we provision automatically.
     public static class DescriptorImpl extends Descriptor<RetentionStrategy<?>> {
         @Override
         public String getDisplayName() {
@@ -71,5 +77,4 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     private static final Logger LOGGER = Logger.getLogger(JCloudsRetentionStrategy.class.getName());
 
     public static boolean disabled = Boolean.getBoolean(JCloudsRetentionStrategy.class.getName() + ".disabled");
-
 }
