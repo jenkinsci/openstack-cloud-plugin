@@ -74,10 +74,10 @@ public class Openstack {
     private final OSClient client;
 
     public Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull Secret credential, @CheckForNull String region) {
-        // TODO refactor to split username:tenant everywhere including UI
+        // TODO refactor to split tenant:username everywhere including UI
         String[] id = identity.split(":", 2);
-        String username = id.length > 0 ? id[0] : "";
-        String tenant = id.length > 1 ? id[1] : "";
+        String tenant = id.length > 0 ? id[0] : "";
+        String username = id.length > 1 ? id[1] : "";
         client = OSFactory.builder().endpoint(endPointUrl)
                 .credentials(username, credential.getPlainText())
                 .tenantName(tenant)
