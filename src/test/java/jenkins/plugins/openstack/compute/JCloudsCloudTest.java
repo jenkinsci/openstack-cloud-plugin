@@ -108,7 +108,6 @@ public class JCloudsCloudTest {
         );
         j.jenkins.clouds.add(original);
 
-        //j.getInstance().clouds.add(original);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
         j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack"),

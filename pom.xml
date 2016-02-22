@@ -74,12 +74,6 @@
 
             <!-- Test Dependencies -->
             <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>1.0.0</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
               <groupId>org.hamcrest</groupId>
               <artifactId>hamcrest-core</artifactId>
               <version>1.2.1</version>
