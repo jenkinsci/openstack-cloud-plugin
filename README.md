@@ -1,4 +1,3 @@
 # OpenStack Cloud Jenkins Plugin
 
-A lightweight OpenStack-only fork of the jclouds Jenkins Plugin.
-
+Provision slaves from OpenStack on demand.
