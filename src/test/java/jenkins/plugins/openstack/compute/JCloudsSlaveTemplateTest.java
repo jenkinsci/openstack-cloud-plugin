@@ -15,7 +15,7 @@ public class JCloudsSlaveTemplateTest {
 
     // Following will be null if can not be validated: imageId, hardwareId, networkId, availabilityZone
     // TODO test userDataId, credentialsId
-    final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,jvmOptions,fsRoot,installPrivateKey,overrideRetentionTime,keyPairName,securityGroups,slaveType";
+    final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,jvmOptions,fsRoot,overrideRetentionTime,keyPairName,securityGroups,slaveType";
     final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,instanceCap,retentionTime,startTimeout,zone";
 
     @Test
@@ -24,7 +24,7 @@ public class JCloudsSlaveTemplateTest {
         final String CLOUD_NAME = "my-openstack";
 
         JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(TEMPLATE_NAME, "imageId", "hardwareId",
-                "openstack-slave-type1 openstack-type2", "userData", "1", null, null, true, 0,
+                "openstack-slave-type1 openstack-type2", "userData", "1", null, null, 0,
                 "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH, null);
 
         List<JCloudsSlaveTemplate> templates = new ArrayList<>();

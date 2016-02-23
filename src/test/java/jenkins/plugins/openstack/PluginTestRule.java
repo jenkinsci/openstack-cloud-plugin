@@ -92,7 +92,7 @@ public final class PluginTestRule extends JenkinsRule {
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
         return new JCloudsSlaveTemplate(
                 "template", "imageId", "hardwareId", labels, null, "42",
-                "-verbose", "/tmp/slave", false, 42, "keyPairName", "networkId",
+                "-verbose", "/tmp/slave", 42, "keyPairName", "networkId",
                 "securityGroups", "", JCloudsCloud.SlaveType.JNLP, "availabilityZone"
         );
     }

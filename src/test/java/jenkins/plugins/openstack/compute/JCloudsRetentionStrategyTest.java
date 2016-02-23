@@ -17,7 +17,7 @@ public class JCloudsRetentionStrategyTest {
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
                 "template", "imageId", "hardwareId", "label", null, "42",
-                "-verbose", "/tmp/slave", false, retentionTime, "keyPairName", "networkId",
+                "-verbose", "/tmp/slave", retentionTime, "keyPairName", "networkId",
                 "securityGroups", "", JCloudsCloud.SlaveType.JNLP, "availabilityZone"
         );
 

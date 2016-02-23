@@ -71,7 +71,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     public final String numExecutors;
     private final String jvmOptions;
     private final String fsRoot;
-    public final boolean installPrivateKey;
     public final int overrideRetentionTime;
     public final String keyPairName;
     public String networkId;
@@ -85,7 +84,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
                                 final String labelString, final String userDataId, final String numExecutors,
-                                final String jvmOptions, final String fsRoot, final boolean installPrivateKey,
+                                final String jvmOptions, final String fsRoot,
                                 final int overrideRetentionTime, final String keyPairName, final String networkId,
                                 final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType, final String availabilityZone) {
 
@@ -98,7 +97,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         this.userDataId = userDataId;
 
         this.fsRoot = Util.fixEmptyAndTrim(fsRoot);
-        this.installPrivateKey = installPrivateKey;
         this.overrideRetentionTime = overrideRetentionTime;
         this.keyPairName = keyPairName;
         this.networkId = networkId;

@@ -44,9 +44,6 @@
         <f:entry title="User Data" field="userDataId">
             <f:select/>
         </f:entry>
-        <f:entry title="Install Private Key" field="installPrivateKey">
-            <f:checkbox />
-        </f:entry>
         <f:entry title="Remote FS Root" field="fsRoot">
             <f:textbox default="/jenkins"/>
         </f:entry>
