@@ -39,10 +39,6 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         this.instancesToRun = instancesToRun;
     }
 
-    public List<InstancesToRun> getInstancesToRun() {
-        return instancesToRun;
-    }
-
     //
     // convert Jenkins staticy stuff into pojos; performing as little critical stuff here as
     // possible, as this method is very hard to test due to static usage, etc.
@@ -53,6 +49,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         // eagerly lookup node supplier so that errors occur before we attempt to provision things
         Iterable<NodePlan> nodePlans = Iterables.transform(instancesToRun, new Function<InstancesToRun, NodePlan>() {
 
+            @SuppressWarnings("unchecked")
             public NodePlan apply(InstancesToRun instance) {
                 String cloudName = instance.cloudName;
                 String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
@@ -85,7 +82,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     }
 
     private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
-        final List<String> ips = new ArrayList<String>(instancesToRun.size());
+        final List<String> ips = new ArrayList<>(instancesToRun.size());
         for (RunningNode node : runningNodes) {
             String addr = Openstack.getPublicAddress(node.getNode());
             if (addr != null) {

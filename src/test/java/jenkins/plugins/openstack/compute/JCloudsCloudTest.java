@@ -12,10 +12,7 @@ import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequestSettings;
 import hudson.model.FreeStyleBuild;
 import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.remoting.Base64;
-import hudson.util.Secret;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.security.CryptoConfidentialKey;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -38,9 +35,7 @@ import org.jvnet.hudson.test.recipes.LocalData;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
-import javax.crypto.SecretKey;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.Future;
@@ -117,7 +112,7 @@ public class JCloudsCloudTest {
                 "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
     }
 
-    @Test
+    @Test @SuppressWarnings("deprecation")
     public void manullyProvisionAndKill() throws Exception {
         Computer computer = j.provisionDummySlave("label").toComputer();
         assertTrue("Slave should be connected", computer.isOnline());

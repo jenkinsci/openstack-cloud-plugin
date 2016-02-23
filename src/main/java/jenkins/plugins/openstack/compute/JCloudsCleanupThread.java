@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -19,6 +20,7 @@ import jenkins.model.Jenkins;
 
 @Extension @Restricted(NoExternalUse.class)
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
+    private static final Logger LOGGER = Logger.getLogger(JCloudsCleanupThread.class.getName());
 
     public JCloudsCleanupThread() {
         super("OpenStack slave cleanup");
@@ -31,7 +33,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public void execute(TaskListener listener) {
-        final ImmutableList.Builder<ListenableFuture<?>> deletedNodesBuilder = ImmutableList.<ListenableFuture<?>>builder();
+        final ImmutableList.Builder<ListenableFuture<?>> deletedNodesBuilder = ImmutableList.builder();
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
 
         for (final Computer c : Jenkins.getInstance().getComputers()) {
@@ -40,11 +42,11 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                 if (comp.isPendingDelete()) {
                     ListenableFuture<?> f = executor.submit(new Runnable() {
                         public void run() {
-                            logger.log(Level.INFO, "Deleting pending node " + comp.getName());
+                            LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName());
                             try {
                                 comp.deleteSlave();
                             } catch (IOException|InterruptedException e) {
-                                logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName(), e);
+                                LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + c.getName(), e);
                             }
                         }
                     });

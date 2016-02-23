@@ -6,6 +6,7 @@ import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
+import hudson.model.TaskListener;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.junit.Rule;
@@ -17,6 +18,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.arrayWithSize;
@@ -45,7 +47,7 @@ public class JCloudsBuildWrapperTest {
             @Override
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
                 System.out.println();
-                String[] ips = build.getEnvVars().get("JCLOUDS_IPS").split(",");
+                String[] ips = build.getEnvironment(TaskListener.NULL).get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
                 assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));
                 return true;
@@ -76,7 +78,7 @@ public class JCloudsBuildWrapperTest {
         when(os.updateInfo(any(Server.class))).thenReturn(success);
 
         FreeStyleProject p = j.createFreeStyleProject();
-        List<InstancesToRun> instances = Arrays.asList(
+        List<InstancesToRun> instances = Collections.singletonList(
                 new InstancesToRun("openstack", "template", null, 2)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));

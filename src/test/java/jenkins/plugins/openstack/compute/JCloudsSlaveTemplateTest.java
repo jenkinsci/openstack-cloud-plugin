@@ -27,7 +27,7 @@ public class JCloudsSlaveTemplateTest {
                 "openstack-slave-type1 openstack-type2", "userData", "1", null, null, true, 0,
                 "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH, null);
 
-        List<JCloudsSlaveTemplate> templates = new ArrayList<JCloudsSlaveTemplate>();
+        List<JCloudsSlaveTemplate> templates = new ArrayList<>();
         templates.add(originalTemplate);
 
         JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,

@@ -4,8 +4,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule.WebClient;
 
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-
 import jenkins.plugins.openstack.PluginTestRule;
 
 import static org.hamcrest.MatcherAssert.assertThat;

@@ -46,6 +46,8 @@ import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
+import javax.annotation.Nonnull;
+
 /**
  * Test utils for plugin functional testing.
  *
@@ -170,7 +172,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    private final List<Proc> slavesToKill = new ArrayList<Proc>();
+    private final List<Proc> slavesToKill = new ArrayList<>();
 
     @Override
     public Statement apply(Statement base, Description description) {
@@ -213,16 +215,16 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         @Override
-        public Openstack getOpenstack() {
+        public @Nonnull Openstack getOpenstack() {
             return os;
         }
 
         @Override
-        public hudson.model.Descriptor<Cloud> getDescriptor() {
+        public Descriptor getDescriptor() {
             return new Descriptor();
         }
 
-        public static final class Descriptor extends hudson.model.Descriptor {
+        public static final class Descriptor extends hudson.model.Descriptor<Cloud> {
             @Override
             public String getDisplayName() {
                 return null;
