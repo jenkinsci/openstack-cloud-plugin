@@ -64,9 +64,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     private static final char SEPARATOR_CHAR = ',';
 
     public final String name;
+    public final String labelString;
+    private transient Set<LabelAtom> labelSet;
+
     public String imageId;
     public String hardwareId;
-    public final String labelString;
     public final String userDataId;
     public final String numExecutors;
     private final String jvmOptions;
@@ -79,8 +81,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     public final JCloudsCloud.SlaveType slaveType;
     public final String availabilityZone;
 
-    private transient Set<LabelAtom> labelSet;
-
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
                                 final String labelString, final String userDataId, final String numExecutors,
@@ -89,9 +89,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
                                 final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType, final String availabilityZone) {
 
         this.name = Util.fixEmptyAndTrim(name);
+        this.labelString = Util.fixNull(labelString);
+
         this.imageId = Util.fixEmptyAndTrim(imageId);
         this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
-        this.labelString = Util.fixNull(labelString);
         this.numExecutors = Util.fixNull(numExecutors);
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
         this.userDataId = userDataId;
@@ -224,7 +225,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
 
         @CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
-            HashMap<String, String> vars = new HashMap<String, String>();
+            HashMap<String, String> vars = new HashMap<>();
             String rootUrl = Jenkins.getInstance().getRootUrl();
             vars.put("JENKINS_URL", rootUrl);
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
@@ -409,8 +410,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
 
         @Restricted(DoNotUse.class)
         public FormValidation doCheckOverrideRetentionTime(@QueryParameter String value) {
-            try {if (Integer.parseInt(value) == -1) {return FormValidation.ok();}
-                } catch (NumberFormatException e) {}
+            try {
+                if (Integer.parseInt(value) == -1) {
+                    return FormValidation.ok();
+                }
+            } catch (NumberFormatException e) {
+            }
             return FormValidation.validateNonNegativeInteger(value);
         }
 

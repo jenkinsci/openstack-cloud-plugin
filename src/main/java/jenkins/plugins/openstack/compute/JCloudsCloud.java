@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
@@ -49,24 +48,26 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
  */
 public class JCloudsCloud extends Cloud {
 
-    static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
+    public final String profile;
+    public final String endPointUrl;
     public final String identity;
     public final Secret credential;
-    public final String endPointUrl;
-    public final String profile;
-    private final int retentionTime;
+    public final String zone;
+
     public final int instanceCap;
     private final List<JCloudsSlaveTemplate> templates;
+
+    private final int retentionTime;
     public final int startTimeout;
-    public final String zone;
     // Ask for a floating IP to be associated for every machine provisioned
     private final boolean floatingIps;
 
     public enum SlaveType {SSH, JNLP}
 
     public static List<String> getCloudNames() {
-        List<String> cloudNames = new ArrayList<String>();
+        List<String> cloudNames = new ArrayList<>();
         for (Cloud c : Jenkins.getInstance().clouds) {
             if (JCloudsCloud.class.isInstance(c)) {
                 cloudNames.add(c.name);
@@ -89,14 +90,16 @@ public class JCloudsCloud extends Cloud {
     ) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
+        this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         this.identity = Util.fixEmptyAndTrim(identity);
         this.credential = Secret.fromString(credential);
-        this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
+        this.zone = Util.fixEmptyAndTrim(zone);
+
         this.instanceCap = instanceCap;
+        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
+
         this.retentionTime = retentionTime;
         this.startTimeout = startTimeout;
-        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
-        this.zone = Util.fixEmptyAndTrim(zone);
         this.floatingIps = floatingIps;
     }
 
@@ -138,7 +141,7 @@ public class JCloudsCloud extends Cloud {
         final JCloudsSlaveTemplate template = getTemplate(label);
         if (template == null) throw new AssertionError("No template for label: " + label);
 
-        List<PlannedNode> plannedNodeList = new ArrayList<PlannedNode>();
+        List<PlannedNode> plannedNodeList = new ArrayList<>();
 
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
 
@@ -227,6 +230,7 @@ public class JCloudsCloud extends Cloud {
      * @throws IOException
      * @throws Descriptor.FormException
      */
+    @Restricted(DoNotUse.class)
     public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException,
             Descriptor.FormException {
         checkPermission(PROVISION);
@@ -299,22 +303,27 @@ public class JCloudsCloud extends Cloud {
             return FormValidation.ok("Connection succeeded!");
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckProfile(@QueryParameter String value) {
             return FormValidation.validateRequired(value);
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckCredential(@QueryParameter String value) {
             return FormValidation.validateRequired(value);
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckIdentity(@QueryParameter String value) {
             return FormValidation.validateRequired(value);
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckInstanceCap(@QueryParameter String value) {
             return FormValidation.validatePositiveInteger(value);
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckRetentionTime(@QueryParameter String value) {
             try {
                 if (Integer.parseInt(value) == -1)
