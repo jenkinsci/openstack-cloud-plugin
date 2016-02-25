@@ -324,14 +324,12 @@ public class JCloudsCloud extends Cloud {
             return FormValidation.validateNonNegativeInteger(value);
         }
 
-        public FormValidation doCheckScriptTimeout(@QueryParameter String value) {
-            return FormValidation.validatePositiveInteger(value);
-        }
-
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckStartTimeout(@QueryParameter String value) {
             return FormValidation.validatePositiveInteger(value);
         }
 
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
             if (!value.isEmpty() && !value.startsWith("http")) {
                 return FormValidation.error("The endpoint must be an URL");
