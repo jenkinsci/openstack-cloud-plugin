@@ -10,8 +10,10 @@ import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequestSettings;
+import hudson.model.Describable;
 import hudson.model.FreeStyleBuild;
 import hudson.plugins.sshslaves.SSHLauncher;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
@@ -220,6 +222,29 @@ public class JCloudsCloudTest {
         BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(template.credentialsId);
         assertEquals("jenkins", creds.getUsername());
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-private-key"), creds.getPrivateKey());
+    }
+
+    @Test
+    public void presentUIDefaults() throws Exception {
+        String xpathPrefix = "//div[@descriptorid='jenkins.plugins.openstack.compute.JCloudsCloud']//";
+        SlaveOptions defaults = ((JCloudsCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
+
+        JenkinsRule.WebClient wc = j.createWebClient();
+        HtmlPage page = wc.goTo("configure");
+        HtmlForm f = page.getFormByName("config");
+        f.getButtonByCaption("Add a new cloud").click();
+        page.getAnchorByText("Cloud (OpenStack)").click();
+        ((HtmlButton) page.getFirstByXPath(xpathPrefix + "button[text()='Advanced...']")).click();
+        assertEquals("10", f.getInputByName("_.instanceCap").getValueAttribute());
+        assertEquals(String.valueOf(defaults.getRetentionTime()), f.getInputByName("_.retentionTime").getValueAttribute());
+        assertEquals(String.valueOf(defaults.getStartTimeout()), f.getInputByName("_.startTimeout").getValueAttribute());
+
+        ((HtmlButton) page.getFirstByXPath(xpathPrefix + "button[text()='Add']")).click();
+        ((HtmlButton) page.getFirstByXPath(xpathPrefix + "button[text()='Advanced...']")).click();
+
+        assertEquals("1", f.getInputsByName("_.numExecutors").get(1).getValueAttribute());
+        assertEquals("/jenkins", f.getInputByName("_.fsRoot").getValueAttribute());
+        assertEquals("default", f.getInputByName("_.securityGroups").getValueAttribute());
     }
 
     private String fileAsString(String filename) throws IOException {

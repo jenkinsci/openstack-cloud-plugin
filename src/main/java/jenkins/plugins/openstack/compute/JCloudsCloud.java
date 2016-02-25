@@ -1,7 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
-
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -56,13 +54,13 @@ public class JCloudsCloud extends Cloud {
     public final Secret credential;
     public final String zone;
 
-    public final int instanceCap;
     private final List<JCloudsSlaveTemplate> templates;
 
-    private final int retentionTime;
-    public final int startTimeout;
-    // Ask for a floating IP to be associated for every machine provisioned
-    private final boolean floatingIps;
+    private /*final*/ @Nonnull SlaveOptions slaveOptions;
+    private transient @Deprecated Integer instanceCap;
+    private transient @Deprecated Integer retentionTime;
+    private transient @Deprecated Integer startTimeout;
+    private transient @Deprecated Boolean floatingIps;
 
     public enum SlaveType {SSH, JNLP}
 
@@ -95,24 +93,46 @@ public class JCloudsCloud extends Cloud {
         this.credential = Secret.fromString(credential);
         this.zone = Util.fixEmptyAndTrim(zone);
 
-        this.instanceCap = instanceCap;
         this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
 
-        this.retentionTime = retentionTime;
-        this.startTimeout = startTimeout;
-        this.floatingIps = floatingIps;
+        slaveOptions = DescriptorImpl.DEFAULTS.override(SlaveOptions.builder().instanceCap(instanceCap).retentionTime(retentionTime).startTimeout(startTimeout).floatingIps(floatingIps).build());
     }
 
-    /**
-     * Get the retention time in minutes or default value from CloudInstanceDefaults if not set.
-     * @see CloudInstanceDefaults#DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES
-     */
+    @SuppressWarnings({"unused", "deprecation"})
+    private Object readResolve() {
+        if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null) {
+            SlaveOptions carry = SlaveOptions.builder()
+                    .instanceCap(instanceCap)
+                    .retentionTime(retentionTime)
+                    .startTimeout(startTimeout)
+                    .floatingIps(floatingIps)
+                    .build()
+            ;
+            slaveOptions = DescriptorImpl.DEFAULTS.override(carry);
+            retentionTime = null;
+            startTimeout = null;
+            floatingIps = null;
+        }
+        return this;
+    }
+
+    public SlaveOptions getSlaveOptions() {
+        return slaveOptions;
+    }
+
+    // TODO delete
     public int getRetentionTime() {
-        return retentionTime == 0 ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : retentionTime;
+        return slaveOptions.getRetentionTime();
     }
 
+    // TODO delete
     public boolean isFloatingIps() {
-        return floatingIps;
+        return slaveOptions.isFloatingIps();
+    }
+
+    // TODO delete
+    public int getStartTimeout() {
+        return slaveOptions.getStartTimeout();
     }
 
     @Restricted(NoExternalUse.class)
@@ -145,7 +165,7 @@ public class JCloudsCloud extends Cloud {
 
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
 
-            if ((getRunningNodesCount() + plannedNodeList.size()) >= instanceCap) {
+            if ((getRunningNodesCount() + plannedNodeList.size()) >= slaveOptions.getInstanceCap()) {
                 LOGGER.info("Instance cap reached while adding capacity for label " + ((label != null) ? label.toString() : "null"));
                 break; // maxed out
             }
@@ -177,7 +197,7 @@ public class JCloudsCloud extends Cloud {
     }
 
     private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
-        Integer launchTimeoutSec = this.startTimeout;
+        Integer launchTimeoutSec = this.getStartTimeout();
         JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
@@ -244,7 +264,7 @@ public class JCloudsCloud extends Cloud {
             return;
         }
 
-        if (getRunningNodesCount() < instanceCap) {
+        if (getRunningNodesCount() < slaveOptions.getInstanceCap()) {
             JCloudsSlave node;
             try {
                 StringWriter sw = new StringWriter();
@@ -279,12 +299,25 @@ public class JCloudsCloud extends Cloud {
     @Extension
     public static class DescriptorImpl extends Descriptor<Cloud> {
 
-        /**
-         * Human readable name of this kind of configurable object.
-         */
+        // Plugin default slave attributes - the root of all overriding
+        private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
+                .instanceCap(10)
+                .retentionTime(30)
+                .startTimeout(600000)
+                .numExecutors(1)
+                .fsRoot("/jenkins")
+                .securityGroups("default")
+                .build()
+        ;
+
         @Override
         public String getDisplayName() {
             return "Cloud (OpenStack)";
+        }
+
+        @Restricted(NoExternalUse.class) // For view
+        public SlaveOptions getDefaultOptions() {
+            return DEFAULTS;
         }
 
         @Restricted(DoNotUse.class)
@@ -320,21 +353,6 @@ public class JCloudsCloud extends Cloud {
 
         @Restricted(DoNotUse.class)
         public FormValidation doCheckInstanceCap(@QueryParameter String value) {
-            return FormValidation.validatePositiveInteger(value);
-        }
-
-        @Restricted(DoNotUse.class)
-        public FormValidation doCheckRetentionTime(@QueryParameter String value) {
-            try {
-                if (Integer.parseInt(value) == -1)
-                    return FormValidation.ok();
-            } catch (NumberFormatException e) {
-            }
-            return FormValidation.validateNonNegativeInteger(value);
-        }
-
-        @Restricted(DoNotUse.class)
-        public FormValidation doCheckStartTimeout(@QueryParameter String value) {
             return FormValidation.validatePositiveInteger(value);
         }
 

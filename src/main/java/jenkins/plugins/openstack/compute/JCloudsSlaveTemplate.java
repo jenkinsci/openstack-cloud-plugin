@@ -67,6 +67,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     public final String labelString;
     private transient Set<LabelAtom> labelSet;
 
+    private final SlaveOptions slaveOptions;
     public String imageId;
     public String hardwareId;
     public final String userDataId;
@@ -91,12 +92,16 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         this.name = Util.fixEmptyAndTrim(name);
         this.labelString = Util.fixNull(labelString);
 
+        slaveOptions = SlaveOptions.builder().imageId(imageId).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
+                .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
+                .credentialsId(credentialsId).slaveType(slaveType).availabilityZone(availabilityZone).build()
+        ;
+
         this.imageId = Util.fixEmptyAndTrim(imageId);
         this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
         this.numExecutors = Util.fixNull(numExecutors);
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
         this.userDataId = userDataId;
-
         this.fsRoot = Util.fixEmptyAndTrim(fsRoot);
         this.overrideRetentionTime = overrideRetentionTime;
         this.keyPairName = keyPairName;
@@ -237,7 +242,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         }
 
         final Openstack openstack = cloud.getOpenstack();
-        final Server server = openstack.bootAndWaitActive(builder, cloud.startTimeout);
+        final Server server = openstack.bootAndWaitActive(builder, cloud.getStartTimeout());
         LOGGER.info("Provisioned: " + server.toString());
 
         if (cloud.isFloatingIps()) {
