@@ -8,7 +8,6 @@ import hudson.slaves.SlaveComputer;
 import hudson.plugins.sshslaves.SSHLauncher;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.text.MessageFormat;
 
 import javax.annotation.CheckForNull;

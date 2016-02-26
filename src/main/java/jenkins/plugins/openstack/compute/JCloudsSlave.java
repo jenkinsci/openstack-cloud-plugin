@@ -2,35 +2,19 @@ package jenkins.plugins.openstack.compute;
 
 import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import hudson.Extension;
-import hudson.FilePath;
 import hudson.model.TaskListener;
-import hudson.remoting.Channel;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.NodeProperty;
-import hudson.slaves.OfflineCause;
-import hudson.slaves.ComputerLauncher;
-import hudson.slaves.ComputerListener;
-import hudson.slaves.RetentionStrategy;
-import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.internal.Openstack.ActionFailed;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
 
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
 import org.openstack4j.model.compute.Server;
 
 /**

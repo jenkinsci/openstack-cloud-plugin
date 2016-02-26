@@ -24,7 +24,6 @@ import java.util.List;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.collection.IsArrayContainingInAnyOrder.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 public class JCloudsBuildWrapperTest {

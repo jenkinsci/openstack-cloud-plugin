@@ -3,17 +3,14 @@ package jenkins.plugins.openstack.compute;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequestSettings;
-import hudson.model.Describable;
 import hudson.model.FreeStyleBuild;
 import hudson.plugins.sshslaves.SSHLauncher;
-import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;

@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack;
 
-import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.mock;
@@ -18,7 +17,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
-import jenkins.plugins.openstack.compute.CloudInstanceDefaults;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
