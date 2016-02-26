@@ -57,6 +57,8 @@ public class JCloudsCloud extends Cloud {
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
+
+    // Backward compatibility
     private transient @Deprecated Integer instanceCap;
     private transient @Deprecated Integer retentionTime;
     private transient @Deprecated Integer startTimeout;
@@ -97,10 +99,12 @@ public class JCloudsCloud extends Cloud {
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
         this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
+        injectReferenceIntoTemplates();
     }
 
     @SuppressWarnings({"unused", "deprecation"})
     private Object readResolve() {
+        injectReferenceIntoTemplates();
         if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null) {
             SlaveOptions carry = SlaveOptions.builder()
                     .instanceCap(instanceCap)
@@ -116,6 +120,12 @@ public class JCloudsCloud extends Cloud {
             instanceCap = null;
         }
         return this;
+    }
+
+    private void injectReferenceIntoTemplates() {
+        for(JCloudsSlaveTemplate t: templates) {
+            t.setOwner(this);
+        }
     }
 
     public @Nonnull SlaveOptions getSlaveOptions() {
@@ -148,12 +158,13 @@ public class JCloudsCloud extends Cloud {
     public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
         final JCloudsSlaveTemplate template = getTemplate(label);
         if (template == null) throw new AssertionError("No template for label: " + label);
+        final SlaveOptions opts = template.getSlaveOptions();
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
 
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
 
-            if ((getRunningNodesCount() + plannedNodeList.size()) >= getSlaveOptions().getInstanceCap()) {
+            if ((getRunningNodesCount() + plannedNodeList.size()) >= opts.getInstanceCap()) {
                 LOGGER.info("Instance cap reached while adding capacity for label " + ((label != null) ? label.toString() : "null"));
                 break; // maxed out
             }
@@ -178,8 +189,8 @@ public class JCloudsCloud extends Cloud {
                     ensureLaunched(jcloudsSlave);
                     return jcloudsSlave;
                 }
-            }), Util.tryParseNumber(template.numExecutors, 1).intValue()));
-            excessWorkload -= template.getNumExecutors();
+            }), opts.getNumExecutors()));
+            excessWorkload -= opts.getNumExecutors();
         }
         return plannedNodeList;
     }

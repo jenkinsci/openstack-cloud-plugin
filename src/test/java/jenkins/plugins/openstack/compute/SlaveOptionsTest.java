@@ -12,7 +12,7 @@ public class SlaveOptionsTest {
     @Test
     public void override() {
         SlaveOptions original = new SlaveOptions(
-                "img", "hw", "nw", "ud", 1, true, "sg", "az", 1, 1, "jvmo", "fsRoot", null, "cid", JCloudsCloud.SlaveType.JNLP, 1
+                "img", "hw", "nw", "ud", 1, true, "sg", "az", 1, null, 1, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
         );
 
         SlaveOptions overriden = original.override(SlaveOptions.builder().build());

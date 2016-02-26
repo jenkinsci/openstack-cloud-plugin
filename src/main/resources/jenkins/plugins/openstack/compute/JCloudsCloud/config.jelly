@@ -19,11 +19,11 @@
 
     <f:advanced>
         <j:set var="instance" value="${instance == null ? descriptor.defaultOptions : instance.slaveOptions}"/>
-        <j:set var="descriptor" value="${opts.descriptor}"/>
-        <st:include page="config.jelly" from="${descriptor}" it="${instance}"/>
+        <st:include page="config.jelly" it="${instance}"/>
     </f:advanced>
 
     <f:entry title="Cloud Instance Templates" description="${%List of Cloud Instances to be launched as slaves}">
+        <j:set var="cloudOpts" value="${instance == null ? descriptor.defaultOptions : instance.slaveOptions}"/>
         <f:repeatable field="templates">
             <st:include page="config.jelly" class="${descriptor.clazz}"/>
         </f:repeatable>

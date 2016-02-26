@@ -100,7 +100,7 @@ public class JCloudsCloudTest {
         String beans = "identity,credential,endPointUrl,zone,slaveOptions";
         JCloudsCloud original = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone",
-                SlaveOptions.builder().build(), // TODO
+                SlaveOptions.builder().slaveType(JCloudsCloud.SlaveType.JNLP).build(), // TODO
                 Collections.singletonList(j.dummySlaveTemplate("asdf"))
         );
         j.jenkins.clouds.add(original);
@@ -204,20 +204,29 @@ public class JCloudsCloudTest {
         JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
         assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
         assertEquals("tenant:user", cloud.identity);
-        assertEquals(true, cloud.getSlaveOptions().isFloatingIps());
+        SlaveOptions co = cloud.getSlaveOptions();
+        assertEquals(true, co.isFloatingIps());
+        assertEquals(31, (int) co.getRetentionTime());
+        assertEquals(9, (int) co.getInstanceCap());
+        assertEquals(600001, (int) co.getStartTimeout());
 
         JCloudsSlaveTemplate template = cloud.getTemplate("ath-integration-test");
-        assertEquals("16", template.hardwareId);
-        assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", template.imageId);
-        assertEquals("my-network", template.networkId);
-        assertEquals("1", template.numExecutors);
-        assertEquals("/tmp/jenkins", template.getFsRoot());
-        assertEquals("jenkins-testing", template.keyPairName);
-        assertEquals(JCloudsCloud.SlaveType.SSH, template.slaveType);
+        assertEquals(Label.parse("label"), template.getLabelSet());
+        SlaveOptions to = template.getSlaveOptions();
+        assertEquals("16", to.getHardwareId());
+        assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", to.getImageId());
+        assertEquals("my-network", to.getNetworkId());
+        assertEquals(1, (int) to.getNumExecutors());
+        assertEquals(0, (int) to.getRetentionTime()); // overrideRetentiontime though deprecated, should be honored
+        assertEquals("/tmp/jenkins", to.getFsRoot());
+        assertEquals("jenkins-testing", to.getKeyPairName());
+        assertEquals(JCloudsCloud.SlaveType.SSH, to.getSlaveType());
+        assertEquals("default", to.getSecurityGroups());
+        assertEquals("AZ", to.getAvailabilityZone());
 
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-userData"), template.getUserData());
 
-        BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(template.credentialsId);
+        BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(to.getCredentialsId());
         assertEquals("jenkins", creds.getUsername());
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-private-key"), creds.getPrivateKey());
     }

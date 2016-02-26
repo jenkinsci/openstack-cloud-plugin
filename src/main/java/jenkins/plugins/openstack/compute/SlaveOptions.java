@@ -23,19 +23,40 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
+import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
+import com.trilead.ssh2.Connection;
 import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.RelativePath;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Describable;
+import hudson.model.ItemGroup;
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.security.ACL;
+import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.jenkinsci.lib.configprovider.ConfigProvider;
+import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.openstack4j.api.exceptions.AuthenticationException;
+import org.openstack4j.model.compute.Flavor;
+import org.openstack4j.model.image.Image;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.logging.Level;
 
 /**
  * Configured options for a slave to create.
@@ -57,12 +78,12 @@ public class SlaveOptions implements Describable<SlaveOptions> {
     private final @CheckForNull String securityGroups;
     private final @CheckForNull String availabilityZone;
     private final @CheckForNull Integer startTimeout;
+    private final @CheckForNull String keyPairName;
 
     // Slave launch attributes
     private final @CheckForNull Integer numExecutors;
     private final @CheckForNull String jvmOptions;
     private final @CheckForNull String fsRoot;
-    private final @CheckForNull String keyPairName;
     private final @CheckForNull String credentialsId;
     private final @CheckForNull JCloudsCloud.SlaveType slaveType;
 
@@ -109,16 +130,16 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return startTimeout;
     }
 
+    public @CheckForNull String getKeyPairName() {
+        return keyPairName;
+    }
+
     public @CheckForNull Integer getNumExecutors() {
         return numExecutors;
     }
 
     public @CheckForNull String getJvmOptions() {
         return jvmOptions;
-    }
-
-    public @CheckForNull String getKeyPairName() {
-        return keyPairName;
     }
 
     public @CheckForNull String getCredentialsId() {
@@ -144,10 +165,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 b.securityGroups,
                 b.availabilityZone,
                 b.startTimeout,
+                b.keyPairName,
                 b.numExecutors,
                 b.jvmOptions,
                 b.fsRoot,
-                b.keyPairName,
                 b.credentialsId,
                 b.slaveType,
                 b.retentionTime
@@ -165,10 +186,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             String securityGroups,
             String availabilityZone,
             Integer startTimeout,
+            String keyPairName,
             Integer numExecutors,
             String jvmOptions,
             String fsRoot,
-            String keyPairName,
             String credentialsId,
             JCloudsCloud.SlaveType slaveType,
             Integer retentionTime
@@ -182,10 +203,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         this.securityGroups = securityGroups;
         this.availabilityZone = availabilityZone;
         this.startTimeout = startTimeout;
+        this.keyPairName = keyPairName;
         this.numExecutors = numExecutors;
         this.jvmOptions = jvmOptions;
         this.fsRoot = fsRoot;
-        this.keyPairName = keyPairName;
         this.credentialsId = credentialsId;
         this.slaveType = slaveType;
         this.retentionTime = retentionTime;
@@ -205,10 +226,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .securityGroups(_override(this.securityGroups, o.securityGroups))
                 .availabilityZone(_override(this.availabilityZone, o.availabilityZone))
                 .startTimeout(_override(this.startTimeout, o.startTimeout))
+                .keyPairName(_override(this.keyPairName, o.keyPairName))
                 .numExecutors(_override(this.numExecutors, o.numExecutors))
                 .jvmOptions(_override(this.jvmOptions, o.jvmOptions))
                 .fsRoot(_override(this.fsRoot, o.fsRoot))
-                .keyPairName(_override(this.keyPairName, o.keyPairName))
                 .credentialsId(_override(this.credentialsId, o.credentialsId))
                 .slaveType(_override(this.slaveType, o.slaveType))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
@@ -234,10 +255,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .securityGroups(_erase(this.securityGroups, defaults.securityGroups))
                 .availabilityZone(_erase(this.availabilityZone, defaults.availabilityZone))
                 .startTimeout(_erase(this.startTimeout, defaults.startTimeout))
+                .keyPairName(_erase(this.keyPairName, defaults.keyPairName))
                 .numExecutors(_erase(this.numExecutors, defaults.numExecutors))
                 .jvmOptions(_erase(this.jvmOptions, defaults.jvmOptions))
                 .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
-                .keyPairName(_erase(this.keyPairName, defaults.keyPairName))
                 .credentialsId(_erase(this.credentialsId, defaults.credentialsId))
                 .slaveType(_erase(this.slaveType, defaults.slaveType))
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
@@ -262,10 +283,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 ", securityGroups='" + securityGroups + '\'' +
                 ", availabilityZone='" + availabilityZone + '\'' +
                 ", startTimeout=" + startTimeout +
+                ", keyPairName='" + keyPairName + '\'' +
                 ", numExecutors=" + numExecutors +
                 ", jvmOptions='" + jvmOptions + '\'' +
                 ", fsRoot='" + fsRoot + '\'' +
-                ", keyPairName='" + keyPairName + '\'' +
                 ", credentialsId='" + credentialsId + '\'' +
                 ", slaveType=" + slaveType +
                 ", retentionTime=" + retentionTime +
@@ -288,10 +309,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         if (securityGroups != null ? !securityGroups.equals(that.securityGroups) : that.securityGroups != null) return false;
         if (availabilityZone != null ? !availabilityZone.equals(that.availabilityZone) : that.availabilityZone != null) return false;
         if (startTimeout != null ? !startTimeout.equals(that.startTimeout) : that.startTimeout != null) return false;
+        if (keyPairName != null ? !keyPairName.equals(that.keyPairName) : that.keyPairName != null) return false;
         if (numExecutors != null ? !numExecutors.equals(that.numExecutors) : that.numExecutors != null) return false;
         if (jvmOptions != null ? !jvmOptions.equals(that.jvmOptions) : that.jvmOptions != null) return false;
         if (fsRoot != null ? !fsRoot.equals(that.fsRoot) : that.fsRoot != null) return false;
-        if (keyPairName != null ? !keyPairName.equals(that.keyPairName) : that.keyPairName != null) return false;
         if (credentialsId != null ? !credentialsId.equals(that.credentialsId) : that.credentialsId != null) return false;
         if (slaveType != that.slaveType) return false;
         return retentionTime != null ? retentionTime.equals(that.retentionTime) : that.retentionTime == null;
@@ -309,10 +330,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         result = 31 * result + (securityGroups != null ? securityGroups.hashCode() : 0);
         result = 31 * result + (availabilityZone != null ? availabilityZone.hashCode() : 0);
         result = 31 * result + (startTimeout != null ? startTimeout.hashCode() : 0);
+        result = 31 * result + (keyPairName != null ? keyPairName.hashCode() : 0);
         result = 31 * result + (numExecutors != null ? numExecutors.hashCode() : 0);
         result = 31 * result + (jvmOptions != null ? jvmOptions.hashCode() : 0);
         result = 31 * result + (fsRoot != null ? fsRoot.hashCode() : 0);
-        result = 31 * result + (keyPairName != null ? keyPairName.hashCode() : 0);
         result = 31 * result + (credentialsId != null ? credentialsId.hashCode() : 0);
         result = 31 * result + (slaveType != null ? slaveType.hashCode() : 0);
         result = 31 * result + (retentionTime != null ? retentionTime.hashCode() : 0);
@@ -332,12 +353,12 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         private @CheckForNull Boolean floatingIps;
         private @CheckForNull String securityGroups;
         private @CheckForNull String availabilityZone;
-
         private @CheckForNull Integer startTimeout;
+        private @CheckForNull String keyPairName;
+
         private @CheckForNull Integer numExecutors;
         private @CheckForNull String jvmOptions;
         private @CheckForNull String fsRoot;
-        private @CheckForNull String keyPairName;
         private @CheckForNull String credentialsId;
 
         private @CheckForNull JCloudsCloud.SlaveType slaveType;
@@ -394,6 +415,11 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             return this;
         }
 
+        public @Nonnull Builder keyPairName(String keyPairName) {
+            this.keyPairName = Util.fixEmpty(keyPairName);
+            return this;
+        }
+
         public @Nonnull Builder numExecutors(Integer numExecutors) {
             this.numExecutors = numExecutors;
             return this;
@@ -406,11 +432,6 @@ public class SlaveOptions implements Describable<SlaveOptions> {
 
         public @Nonnull Builder fsRoot(String fsRoot) {
             this.fsRoot = Util.fixEmpty(fsRoot);
-            return this;
-        }
-
-        public @Nonnull Builder keyPairName(String keyPairName) {
-            this.keyPairName = Util.fixEmpty(keyPairName);
             return this;
         }
 
@@ -451,6 +472,151 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         @Restricted(DoNotUse.class)
         public FormValidation doCheckStartTimeout(@QueryParameter String value) {
             return FormValidation.validatePositiveInteger(value);
+        }
+
+        @Restricted(DoNotUse.class)
+        public FormValidation doCheckNumExecutors(@QueryParameter String value) {
+            return FormValidation.validatePositiveInteger(value);
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillSlaveTypeItems() {
+            ListBoxModel items = new ListBoxModel();
+            items.add("Inherited", null);
+            items.add("SSH", "SSH");
+            items.add("JNLP", "JNLP");
+
+            return items;
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillHardwareIdItems(@QueryParameter String hardwareId,
+                                                  @RelativePath("..") @QueryParameter String endPointUrl,
+                                                  @RelativePath("..") @QueryParameter String identity,
+                                                  @RelativePath("..") @QueryParameter String credential,
+                                                  @RelativePath("..") @QueryParameter String zone
+        ) {
+
+            ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
+
+            try {
+                final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+                for (Flavor flavor : openstack.getSortedFlavors()) {
+                    m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
+                }
+                return m;
+            } catch (AuthenticationException |FormValidation _) {
+                // Incorrect credentials - noop
+            } catch (Exception ex) {
+                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+            }
+
+            if (Util.fixEmpty(hardwareId) != null) {
+                m.add(hardwareId);
+            }
+
+            return m;
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillImageIdItems(@QueryParameter String imageId,
+                                               @RelativePath("..") @QueryParameter String endPointUrl,
+                                               @RelativePath("..") @QueryParameter String identity,
+                                               @RelativePath("..") @QueryParameter String credential,
+                                               @RelativePath("..") @QueryParameter String zone
+        ) {
+
+            ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
+
+            try {
+                final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+                for (Image image : openstack.getSortedImages()) {
+                    m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
+                }
+                return m;
+            } catch (AuthenticationException|FormValidation _) {
+                // Incorrect credentials - noop
+            } catch (Exception ex) {
+                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+            }
+
+            if (Util.fixEmpty(imageId) != null) {
+                m.add(imageId);
+            }
+
+            return m;
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillNetworkIdItems(@QueryParameter String networkId,
+                                                 @RelativePath("..") @QueryParameter String endPointUrl,
+                                                 @RelativePath("..") @QueryParameter String identity,
+                                                 @RelativePath("..") @QueryParameter String credential,
+                                                 @RelativePath("..") @QueryParameter String zone
+        ) {
+
+            ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
+
+            try {
+                Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+                for (org.openstack4j.model.network.Network network: openstack.getSortedNetworks()) {
+                    m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
+                }
+                return m;
+            } catch (AuthenticationException|FormValidation _) {
+                // Incorrect credentials - noop
+            } catch (Exception ex) {
+                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+            }
+
+            if (Util.fixEmpty(networkId) != null) {
+                m.add(networkId);
+            }
+
+            return m;
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
+            if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getInstance()).hasPermission(Computer.CONFIGURE)) {
+                return new ListBoxModel();
+            }
+            return new StandardUsernameListBoxModel().withMatching(SSHAuthenticator.matcher(Connection.class),
+                    CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class, context,
+                            ACL.SYSTEM, SSHLauncher.SSH_SCHEME));
+        }
+
+        @Restricted(DoNotUse.class)
+        public FormValidation doCheckOverrideRetentionTime(@QueryParameter String value) {
+            try {
+                if (Integer.parseInt(value) == -1) {
+                    return FormValidation.ok();
+                }
+            } catch (NumberFormatException e) {
+            }
+            return FormValidation.validateNonNegativeInteger(value);
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillUserDataIdItems() {
+
+            ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
+
+            ConfigProvider provider = getConfigProvider();
+            for(Config config : provider.getAllConfigs()) {
+                m.add(config.name, config.id);
+            }
+
+            return m;
+        }
+
+        private ConfigProvider getConfigProvider() {
+            ExtensionList<ConfigProvider> providers = ConfigProvider.all();
+            return providers.get(UserDataConfig.UserDataConfigProvider.class);
         }
 
         @Restricted(DoNotUse.class)

@@ -21,8 +21,8 @@
       <credential>w52oEIGWBalT2GPsVd0pMODVwEohhbQ+fI8wOt0eVHo=</credential>
       <endPointUrl>http://my.openstack:5000/v2.0</endPointUrl>
       <profile>OSCloud</profile>
-      <retentionTime>30</retentionTime>
-      <instanceCap>10</instanceCap>
+      <retentionTime>31</retentionTime>
+      <instanceCap>9</instanceCap>
       <templates>
         <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
           <name>ath-integration-test</name>
@@ -40,11 +40,11 @@
           <securityGroups>default</securityGroups>
           <credentialsId>2d07660b-c5c7-4e8b-82fd-a6ffe3429b39</credentialsId>
           <slaveType>SSH</slaveType>
-          <availabilityZone></availabilityZone>
+          <availabilityZone>AZ</availabilityZone>
         </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
       </templates>
       <scriptTimeout>600000</scriptTimeout>
-      <startTimeout>600000</startTimeout>
+      <startTimeout>600001</startTimeout>
       <floatingIps>true</floatingIps>
     </jenkins.plugins.openstack.compute.JCloudsCloud>
   </clouds>

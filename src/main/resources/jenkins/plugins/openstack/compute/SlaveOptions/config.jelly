@@ -1,23 +1,73 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
     <j:set var="descriptor" value="${it.descriptor}"/>
     <f:nested>
         <div name="slaveOptions" descriptorid="${descriptor.id}">
             <table style="width:100%">
                 <!-- Avoid: com.gargoylesoftware.htmlunit.ScriptException: ReferenceError: "console" is not defined. (http://localhost:60017/jenkins/static/7ca001cd/scripts/hudson-behavior.js#2249) -->
-                <script>var console = 42</script>
-                <f:entry title="Max. No. of Instances" field="instanceCap">
-                    <f:textbox/>
-                </f:entry>
-                <f:entry title="Retention Time" field="retentionTime">
-                    <f:textbox/>
-                </f:entry>
-                <f:entry title="Associate floating IP" field="floatingIps">
-                    <f:checkbox/>
-                </f:entry>
-                <f:entry title="Default Instance Startup Timeout" field="startTimeout">
-                    <f:textbox/>
-                </f:entry>
+                <script type="text/javascript">
+                    if (!window.console) {
+                        console = {
+                            log: function() {},
+                            warn: function() {}
+                        };
+                    }
+                </script>
+
+                <f:section title="Cloud Server Options">
+                    <f:entry title="Image" field="imageId">
+                        <f:select/>
+                    </f:entry>
+                    <f:entry title="Hardware" field="hardwareId">
+                        <f:select/>
+                    </f:entry>
+                    <f:entry title="Network" field="networkId">
+                        <f:select/>
+                    </f:entry>
+                    <f:entry title="User Data" field="userDataId">
+                        <f:select/>
+                    </f:entry>
+                    <f:entry title="Max. No. of Instances" field="instanceCap">
+                        <f:textbox/>
+                    </f:entry>
+                    <f:entry title="Associate floating IP" field="floatingIps">
+                        <f:checkbox/>
+                    </f:entry>
+                    <f:entry title="Security Groups" field="securityGroups">
+                        <f:textbox/>
+                    </f:entry>
+                    <f:entry title="Availability Zone" field="availabilityZone">
+                        <f:textbox/>
+                    </f:entry>
+                    <f:entry title="Instance Startup Timeout" field="startTimeout">
+                        <f:textbox/>
+                    </f:entry>
+                    <f:entry title="Key Pair Name" field="keyPairName">
+                        <f:textbox/>
+                    </f:entry>
+                </f:section>
+
+                <f:section title="Slave Options">
+                    <f:entry title="Number of Executors" field="numExecutors">
+                        <f:textbox/>
+                    </f:entry>
+                    <f:entry title="Custom JVM Options" field="jvmOptions">
+                        <f:textbox/>
+                    </f:entry>
+                    <f:entry title="VM Slave type" field="slaveType">
+                        <f:select/>
+                    </f:entry>
+                    <f:entry title="Remote FS Root" field="fsRoot">
+                        <f:textbox/>
+                    </f:entry>
+                    <f:entry title="${%SSH Credentials}" field="credentialsId">
+                        <c:select/>
+                    </f:entry>
+                    <f:entry title="Retention Time" field="retentionTime">
+                        <f:textbox/>
+                    </f:entry>
+                </f:section>
+
                 <f:class-entry descriptor="${descriptor}"/>
             </table>
         </div>

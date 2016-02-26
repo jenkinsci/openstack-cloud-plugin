@@ -91,9 +91,7 @@ public final class PluginTestRule extends JenkinsRule {
 
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
         return new JCloudsSlaveTemplate(
-                "template", "imageId", "hardwareId", labels, null, "42",
-                "-verbose", "/tmp/slave", 42, "keyPairName", "networkId",
-                "securityGroups", "", JCloudsCloud.SlaveType.JNLP, "availabilityZone"
+                "template", labels, SlaveOptions.builder().build()
         );
     }
 
@@ -208,10 +206,16 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     private static final class MockJCloudsCloud extends JCloudsCloud {
+        private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
+                .floatingIps(true)
+                .fsRoot("/tmp/jenkins")
+                .build()
+        ;
+
         private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", null, SlaveOptions.builder().floatingIps(true).build(), Arrays.asList(templates));
+            super("openstack", "identity", "credential", "endPointUrl", null, DEFAULTS, Arrays.asList(templates));
         }
 
         @Override
