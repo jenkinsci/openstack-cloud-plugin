@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack;
 
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.mock;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.compute.CloudInstanceDefaults;
+import jenkins.plugins.openstack.compute.SlaveOptions;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -211,7 +213,7 @@ public final class PluginTestRule extends JenkinsRule {
         private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, null, Arrays.asList(templates), true);
+            super("openstack", "identity", "credential", "endPointUrl", null, SlaveOptions.builder().floatingIps(true).build(), Arrays.asList(templates));
         }
 
         @Override

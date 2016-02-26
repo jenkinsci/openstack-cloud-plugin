@@ -242,10 +242,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         }
 
         final Openstack openstack = cloud.getOpenstack();
-        final Server server = openstack.bootAndWaitActive(builder, cloud.getStartTimeout());
+        final Server server = openstack.bootAndWaitActive(builder, cloud.getSlaveOptions().getStartTimeout());
         LOGGER.info("Provisioned: " + server.toString());
 
-        if (cloud.isFloatingIps()) {
+        if (cloud.getSlaveOptions().isFloatingIps()) {
             LOGGER.fine("Assiging floating IP to " + nodeName);
             openstack.assignFloatingIp(server);
             // Make sure address information is refreshed

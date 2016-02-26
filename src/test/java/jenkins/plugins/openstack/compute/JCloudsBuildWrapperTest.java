@@ -46,7 +46,6 @@ public class JCloudsBuildWrapperTest {
         p.getBuildersList().add(new TestBuilder() {
             @Override
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-                System.out.println();
                 String[] ips = build.getEnvironment(TaskListener.NULL).get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
                 assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));

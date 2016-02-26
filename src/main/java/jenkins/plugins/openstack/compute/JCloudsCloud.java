@@ -48,13 +48,13 @@ public class JCloudsCloud extends Cloud {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
-    public final String profile;
-    public final String endPointUrl;
-    public final String identity;
-    public final Secret credential;
+    public final @Nonnull String profile;
+    public final @Nonnull String endPointUrl;
+    public final @Nonnull String identity;
+    public final @Nonnull Secret credential;
     public final String zone;
 
-    private final List<JCloudsSlaveTemplate> templates;
+    private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
     private transient @Deprecated Integer instanceCap;
@@ -82,9 +82,10 @@ public class JCloudsCloud extends Cloud {
     }
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
-    public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
-                        final int retentionTime, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
-                        final boolean floatingIps
+    public JCloudsCloud(
+            final String profile, final String identity, final String credential, final String endPointUrl, final String zone,
+            final SlaveOptions slaveOptions,
+            final List<JCloudsSlaveTemplate> templates
     ) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
@@ -93,9 +94,9 @@ public class JCloudsCloud extends Cloud {
         this.credential = Secret.fromString(credential);
         this.zone = Util.fixEmptyAndTrim(zone);
 
-        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
+        this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
-        slaveOptions = DescriptorImpl.DEFAULTS.override(SlaveOptions.builder().instanceCap(instanceCap).retentionTime(retentionTime).startTimeout(startTimeout).floatingIps(floatingIps).build());
+        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
     }
 
     @SuppressWarnings({"unused", "deprecation"})
@@ -112,27 +113,14 @@ public class JCloudsCloud extends Cloud {
             retentionTime = null;
             startTimeout = null;
             floatingIps = null;
+            instanceCap = null;
         }
         return this;
     }
 
-    public SlaveOptions getSlaveOptions() {
-        return slaveOptions;
-    }
-
-    // TODO delete
-    public int getRetentionTime() {
-        return slaveOptions.getRetentionTime();
-    }
-
-    // TODO delete
-    public boolean isFloatingIps() {
-        return slaveOptions.isFloatingIps();
-    }
-
-    // TODO delete
-    public int getStartTimeout() {
-        return slaveOptions.getStartTimeout();
+    public @Nonnull SlaveOptions getSlaveOptions() {
+        // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated config
+        return DescriptorImpl.DEFAULTS.override(slaveOptions);
     }
 
     @Restricted(NoExternalUse.class)
@@ -165,7 +153,7 @@ public class JCloudsCloud extends Cloud {
 
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
 
-            if ((getRunningNodesCount() + plannedNodeList.size()) >= slaveOptions.getInstanceCap()) {
+            if ((getRunningNodesCount() + plannedNodeList.size()) >= getSlaveOptions().getInstanceCap()) {
                 LOGGER.info("Instance cap reached while adding capacity for label " + ((label != null) ? label.toString() : "null"));
                 break; // maxed out
             }
@@ -197,7 +185,7 @@ public class JCloudsCloud extends Cloud {
     }
 
     private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
-        Integer launchTimeoutSec = this.getStartTimeout();
+        Integer launchTimeoutSec = this.getSlaveOptions().getStartTimeout();
         JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
@@ -264,7 +252,7 @@ public class JCloudsCloud extends Cloud {
             return;
         }
 
-        if (getRunningNodesCount() < slaveOptions.getInstanceCap()) {
+        if (getRunningNodesCount() < getSlaveOptions().getInstanceCap()) {
             JCloudsSlave node;
             try {
                 StringWriter sw = new StringWriter();
@@ -302,6 +290,7 @@ public class JCloudsCloud extends Cloud {
         // Plugin default slave attributes - the root of all overriding
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
                 .instanceCap(10)
+                .floatingIps(false)
                 .retentionTime(30)
                 .startTimeout(600000)
                 .numExecutors(1)
@@ -349,11 +338,6 @@ public class JCloudsCloud extends Cloud {
         @Restricted(DoNotUse.class)
         public FormValidation doCheckIdentity(@QueryParameter String value) {
             return FormValidation.validateRequired(value);
-        }
-
-        @Restricted(DoNotUse.class)
-        public FormValidation doCheckInstanceCap(@QueryParameter String value) {
-            return FormValidation.validatePositiveInteger(value);
         }
 
         @Restricted(DoNotUse.class)

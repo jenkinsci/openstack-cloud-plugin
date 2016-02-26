@@ -74,6 +74,18 @@ public class SlaveOptionsTest {
     }
 
     @Test
+    public void eraseDefaults() {
+        SlaveOptions defaults = SlaveOptions.builder().imageId("img").hardwareId("hw").networkId(null).floatingIps(false).build();
+        SlaveOptions configured = SlaveOptions.builder().imageId("IMG").hardwareId("hw").networkId("MW").floatingIps(true).build();
+
+        SlaveOptions actual = configured.eraseDefaults(defaults);
+
+        SlaveOptions expected = SlaveOptions.builder().imageId("IMG").hardwareId(null).networkId("MW").floatingIps(true).build();
+        assertEquals(expected, actual);
+        assertEquals(configured, defaults.override(actual));
+    }
+
+    @Test
     public void emptyStrings() {
         SlaveOptions opts = SlaveOptions.builder().imageId("").build();
         assertNull(opts.getImageId());

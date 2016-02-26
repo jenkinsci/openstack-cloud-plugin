@@ -30,6 +30,8 @@ import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.annotation.CheckForNull;
@@ -152,7 +154,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         );
     }
 
-    //@DataBoundConstructor @Restricted(NoExternalUse.class)
+    @DataBoundConstructor @Restricted(NoExternalUse.class)
     public SlaveOptions(
             String imageId,
             String hardwareId,
@@ -189,6 +191,9 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         this.retentionTime = retentionTime;
     }
 
+    /**
+     * Derive SlaveOptions taking this instance as baseline and overriding with argument.
+     */
     public @Nonnull SlaveOptions override(@Nonnull SlaveOptions o) {
         return new Builder()
                 .imageId(_override(this.imageId, o.imageId))
@@ -211,8 +216,39 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         ;
     }
 
-    private <T> T _override(@CheckForNull T base, @CheckForNull T override) {
+    private @CheckForNull <T> T _override(@CheckForNull T base, @CheckForNull T override) {
         return override == null ? base : override;
+    }
+
+    /**
+     * Derive new options from current leaving <tt>null</tt> where same as default.
+     */
+    public @Nonnull SlaveOptions eraseDefaults(@Nonnull SlaveOptions defaults) {
+        return new Builder()
+                .imageId(_erase(this.imageId, defaults.imageId))
+                .hardwareId(_erase(this.hardwareId, defaults.hardwareId))
+                .networkId(_erase(this.networkId, defaults.networkId))
+                .userDataId(_erase(this.userDataId, defaults.userDataId))
+                .instanceCap(_erase(this.instanceCap, defaults.instanceCap)) // TODO: this is not right for instance cap
+                .floatingIps(_erase(this.floatingIps, defaults.floatingIps))
+                .securityGroups(_erase(this.securityGroups, defaults.securityGroups))
+                .availabilityZone(_erase(this.availabilityZone, defaults.availabilityZone))
+                .startTimeout(_erase(this.startTimeout, defaults.startTimeout))
+                .numExecutors(_erase(this.numExecutors, defaults.numExecutors))
+                .jvmOptions(_erase(this.jvmOptions, defaults.jvmOptions))
+                .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
+                .keyPairName(_erase(this.keyPairName, defaults.keyPairName))
+                .credentialsId(_erase(this.credentialsId, defaults.credentialsId))
+                .slaveType(_erase(this.slaveType, defaults.slaveType))
+                .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
+                .build()
+        ;
+    }
+
+    private @CheckForNull <T> T _erase(@CheckForNull T base, @CheckForNull T def) {
+        if (def == null) return base;
+        if (def.equals(base)) return null;
+        return base;
     }
 
     @Override
@@ -234,6 +270,53 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 ", slaveType=" + slaveType +
                 ", retentionTime=" + retentionTime +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SlaveOptions that = (SlaveOptions) o;
+
+        if (imageId != null ? !imageId.equals(that.imageId) : that.imageId != null) return false;
+        if (hardwareId != null ? !hardwareId.equals(that.hardwareId) : that.hardwareId != null) return false;
+        if (networkId != null ? !networkId.equals(that.networkId) : that.networkId != null) return false;
+        if (userDataId != null ? !userDataId.equals(that.userDataId) : that.userDataId != null) return false;
+        if (instanceCap != null ? !instanceCap.equals(that.instanceCap) : that.instanceCap != null) return false;
+        if (floatingIps != null ? !floatingIps.equals(that.floatingIps) : that.floatingIps != null) return false;
+        if (securityGroups != null ? !securityGroups.equals(that.securityGroups) : that.securityGroups != null) return false;
+        if (availabilityZone != null ? !availabilityZone.equals(that.availabilityZone) : that.availabilityZone != null) return false;
+        if (startTimeout != null ? !startTimeout.equals(that.startTimeout) : that.startTimeout != null) return false;
+        if (numExecutors != null ? !numExecutors.equals(that.numExecutors) : that.numExecutors != null) return false;
+        if (jvmOptions != null ? !jvmOptions.equals(that.jvmOptions) : that.jvmOptions != null) return false;
+        if (fsRoot != null ? !fsRoot.equals(that.fsRoot) : that.fsRoot != null) return false;
+        if (keyPairName != null ? !keyPairName.equals(that.keyPairName) : that.keyPairName != null) return false;
+        if (credentialsId != null ? !credentialsId.equals(that.credentialsId) : that.credentialsId != null) return false;
+        if (slaveType != that.slaveType) return false;
+        return retentionTime != null ? retentionTime.equals(that.retentionTime) : that.retentionTime == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = imageId != null ? imageId.hashCode() : 0;
+        result = 31 * result + (hardwareId != null ? hardwareId.hashCode() : 0);
+        result = 31 * result + (networkId != null ? networkId.hashCode() : 0);
+        result = 31 * result + (userDataId != null ? userDataId.hashCode() : 0);
+        result = 31 * result + (instanceCap != null ? instanceCap.hashCode() : 0);
+        result = 31 * result + (floatingIps != null ? floatingIps.hashCode() : 0);
+        result = 31 * result + (securityGroups != null ? securityGroups.hashCode() : 0);
+        result = 31 * result + (availabilityZone != null ? availabilityZone.hashCode() : 0);
+        result = 31 * result + (startTimeout != null ? startTimeout.hashCode() : 0);
+        result = 31 * result + (numExecutors != null ? numExecutors.hashCode() : 0);
+        result = 31 * result + (jvmOptions != null ? jvmOptions.hashCode() : 0);
+        result = 31 * result + (fsRoot != null ? fsRoot.hashCode() : 0);
+        result = 31 * result + (keyPairName != null ? keyPairName.hashCode() : 0);
+        result = 31 * result + (credentialsId != null ? credentialsId.hashCode() : 0);
+        result = 31 * result + (slaveType != null ? slaveType.hashCode() : 0);
+        result = 31 * result + (retentionTime != null ? retentionTime.hashCode() : 0);
+        return result;
     }
 
     public static @Nonnull Builder builder() {
@@ -358,6 +441,11 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         @Override
         public String getDisplayName() {
             return "Slave Options";
+        }
+
+        @Restricted(DoNotUse.class)
+        public FormValidation doCheckInstanceCap(@QueryParameter String value) {
+            return FormValidation.validatePositiveInteger(value);
         }
 
         @Restricted(DoNotUse.class)

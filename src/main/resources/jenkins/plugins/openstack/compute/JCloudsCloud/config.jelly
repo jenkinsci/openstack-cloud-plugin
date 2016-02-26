@@ -16,11 +16,13 @@
         <f:textbox/>
     </f:entry>
     <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="zone,endPointUrl,identity,credential"/>
+
     <f:advanced>
-        <j:set var="opts" value="${instance == null ? descriptor.defaultOptions : instance.slaveOptions}"/>
+        <j:set var="instance" value="${instance == null ? descriptor.defaultOptions : instance.slaveOptions}"/>
         <j:set var="descriptor" value="${opts.descriptor}"/>
-        <st:include page="config.jelly" it="${opts}" class="${opts.getClass()}"/>
+        <st:include page="config.jelly" from="${descriptor}" it="${instance}"/>
     </f:advanced>
+
     <f:entry title="Cloud Instance Templates" description="${%List of Cloud Instances to be launched as slaves}">
         <f:repeatable field="templates">
             <st:include page="config.jelly" class="${descriptor.clazz}"/>

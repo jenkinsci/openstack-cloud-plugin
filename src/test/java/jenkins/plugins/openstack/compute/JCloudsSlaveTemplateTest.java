@@ -1,10 +1,8 @@
 package jenkins.plugins.openstack.compute;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
 import jenkins.plugins.openstack.PluginTestRule;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -16,7 +14,7 @@ public class JCloudsSlaveTemplateTest {
     // Following will be null if can not be validated: imageId, hardwareId, networkId, availabilityZone
     // TODO test userDataId, credentialsId
     final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,jvmOptions,fsRoot,overrideRetentionTime,keyPairName,securityGroups,slaveType";
-    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,instanceCap,retentionTime,startTimeout,zone";
+    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,zone,slaveOptions";
 
     @Test
     public void configRoundtrip() throws Exception {
@@ -27,11 +25,7 @@ public class JCloudsSlaveTemplateTest {
                 "openstack-slave-type1 openstack-type2", "userData", "1", null, null, 0,
                 "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH, null);
 
-        List<JCloudsSlaveTemplate> templates = new ArrayList<>();
-        templates.add(originalTemplate);
-
-        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, null, templates, true);
+        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", null, SlaveOptions.builder().build(), Collections.singletonList(originalTemplate));
 
         j.jenkins.clouds.add(originalCloud);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));

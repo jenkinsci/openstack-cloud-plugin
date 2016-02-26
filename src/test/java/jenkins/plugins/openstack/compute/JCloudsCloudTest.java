@@ -100,18 +100,19 @@ public class JCloudsCloudTest {
 
     @Test
     public void testConfigRoundtrip() throws Exception {
+        String beans = "identity,credential,endPointUrl,zone,slaveOptions";
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList(), true
+                "openstack", "identity", "credential", "endPointUrl", "zone",
+                SlaveOptions.builder().build(), // TODO
+                Collections.singletonList(j.dummySlaveTemplate("asdf"))
         );
         j.jenkins.clouds.add(original);
 
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
-        j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack"),
-                "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
+        j.assertEqualBeans(original, j.getInstance().clouds.getByName("openstack"), beans);
 
-        j.assertEqualBeans(original, JCloudsCloud.getByName("openstack"),
-                "identity,credential,endPointUrl,instanceCap,retentionTime,floatingIps");
+        j.assertEqualBeans(original, JCloudsCloud.getByName("openstack"), beans);
     }
 
     @Test @SuppressWarnings("deprecation")
@@ -206,7 +207,7 @@ public class JCloudsCloudTest {
         JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
         assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
         assertEquals("tenant:user", cloud.identity);
-        assertEquals(true, cloud.isFloatingIps());
+        assertEquals(true, cloud.getSlaveOptions().isFloatingIps());
 
         JCloudsSlaveTemplate template = cloud.getTemplate("ath-integration-test");
         assertEquals("16", template.hardwareId);
