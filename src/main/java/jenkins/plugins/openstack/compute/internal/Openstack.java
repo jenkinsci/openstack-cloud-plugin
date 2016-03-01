@@ -229,11 +229,10 @@ public class Openstack {
         }
     }
 
-    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server) {
+    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, String pool) {
         debug("Allocating floating IP for " + server.getName());
         ComputeFloatingIPService fips = client.compute().floatingIps();
-        String publicPool = null;
-        FloatingIP ip = fips.allocateIP(publicPool);
+        FloatingIP ip = fips.allocateIP(pool);
         debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
             debug("Assigning floating IP to " + server.getName());

@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
@@ -62,6 +61,7 @@ public class JCloudsCloud extends Cloud {
     public final String zone;
     // Ask for a floating IP to be associated for every machine provisioned
     private final boolean floatingIps;
+    private final String floatingIpPool;
 
     public enum SlaveType {SSH, JNLP}
 
@@ -85,7 +85,7 @@ public class JCloudsCloud extends Cloud {
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
                         final int retentionTime, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
-                        final boolean floatingIps
+                        final boolean floatingIps, final String floatingIpPool
     ) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
@@ -98,6 +98,7 @@ public class JCloudsCloud extends Cloud {
         this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
         this.zone = Util.fixEmptyAndTrim(zone);
         this.floatingIps = floatingIps;
+        this.floatingIpPool = Util.fixEmptyAndTrim(floatingIpPool);
     }
 
     /**
@@ -110,6 +111,10 @@ public class JCloudsCloud extends Cloud {
 
     public boolean isFloatingIps() {
         return floatingIps;
+    }
+
+    public String getFloatingIpPool() {
+        return floatingIpPool;
     }
 
     @Restricted(NoExternalUse.class)

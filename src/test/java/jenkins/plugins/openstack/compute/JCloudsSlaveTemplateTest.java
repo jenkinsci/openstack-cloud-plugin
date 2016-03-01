@@ -31,7 +31,7 @@ public class JCloudsSlaveTemplateTest {
         templates.add(originalTemplate);
 
         JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, null, templates, true);
+                600 * 1000, null, templates, true, "public");
 
         j.jenkins.clouds.add(originalCloud);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
