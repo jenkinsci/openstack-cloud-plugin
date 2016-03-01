@@ -57,7 +57,7 @@ public class JCloudsBuildWrapperTest {
         j.buildAndAssertSuccess(p);
 
         verify(os, times(3)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
-        verify(os, times(3)).assignFloatingIp(any(Server.class));
+        verify(os, times(3)).assignFloatingIp(any(Server.class), eq("public"));
         verify(os, times(3)).updateInfo(any(Server.class));
         verify(os, times(3)).destroyServer(any(Server.class));
         verifyNoMoreInteractions(os);
@@ -88,7 +88,7 @@ public class JCloudsBuildWrapperTest {
 
         verify(os, times(6)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class)); // 5 retries on exception
         verify(os, times(1)).updateInfo(any(Server.class));
-        verify(os, times(1)).assignFloatingIp(any(Server.class));
+        verify(os, times(1)).assignFloatingIp(any(Server.class), eq("public"));
         verify(os, times(1)).destroyServer(any(Server.class)); // Cleanup after the successful attempt
         verifyNoMoreInteractions(os);
     }

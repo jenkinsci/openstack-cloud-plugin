@@ -99,7 +99,7 @@ public class JCloudsCloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList(), true
+                "openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, null, Collections.<JCloudsSlaveTemplate>emptyList(), true, "public"
         );
         j.jenkins.clouds.add(original);
 
@@ -205,6 +205,7 @@ public class JCloudsCloudTest {
         assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
         assertEquals("tenant:user", cloud.identity);
         assertEquals(true, cloud.isFloatingIps());
+        assertEquals("public", cloud.getFloatingIpPool());
 
         JCloudsSlaveTemplate template = cloud.getTemplate("ath-integration-test");
         assertEquals("16", template.hardwareId);

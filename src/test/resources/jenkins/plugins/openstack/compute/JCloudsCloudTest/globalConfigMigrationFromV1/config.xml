@@ -46,6 +46,7 @@
       <scriptTimeout>600000</scriptTimeout>
       <startTimeout>600000</startTimeout>
       <floatingIps>true</floatingIps>
+      <floatingIpPool>public</floatingIpPool>
     </jenkins.plugins.openstack.compute.JCloudsCloud>
   </clouds>
   <quietPeriod>5</quietPeriod>
