@@ -5,7 +5,6 @@ import java.io.StringReader;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -15,41 +14,24 @@ import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.api.Builders;
-import org.openstack4j.api.exceptions.AuthenticationException;
-import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.model.image.Image;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
-import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.trilead.ssh2.Connection;
 
 import au.com.bytecode.opencsv.CSVReader;
 import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.RelativePath;
 import hudson.Util;
-import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import hudson.model.ItemGroup;
 import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
-import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.security.ACL;
-import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
@@ -59,7 +41,7 @@ import javax.annotation.Nonnull;
 /**
  * @author Vijay Kiran
  */
-public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
+public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
     private static final char SEPARATOR_CHAR = ',';
@@ -144,13 +126,17 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     @Restricted(NoExternalUse.class)
     /*package*/ void setOwner(JCloudsCloud cloud) {
         this.cloud = cloud;
-        //slaveOptions = slaveOptions.eraseDefaults(cloud.getSlaveOptions());
+        //slaveOptions = slaveOptions.eraseDefaults(cloud.getEffectiveSlaveOptions());
     }
 
-    public @Nonnull SlaveOptions getSlaveOptions() {
-        if (cloud == null) throw new IllegalStateException("Owner not set properly");
+    public @Nonnull SlaveOptions getEffectiveSlaveOptions() {
         // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated config
-        return cloud.getSlaveOptions().override(slaveOptions);
+        return cloud.getEffectiveSlaveOptions().override(slaveOptions);
+    }
+
+    public @Nonnull SlaveOptions getRawSlaveOptions() {
+        if (cloud == null) throw new IllegalStateException("Owner not set properly");
+        return slaveOptions;
     }
 
     public Set<LabelAtom> getLabelSet() {
@@ -172,7 +158,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
      */
     public @Nonnull JCloudsSlave provisionSlave(@Nonnull JCloudsCloud cloud, @Nonnull TaskListener listener) throws IOException, Openstack.ActionFailed {
         Server nodeMetadata = provision(cloud);
-        SlaveOptions opts = getSlaveOptions();
+        SlaveOptions opts = getEffectiveSlaveOptions();
 
         try {
             // TODO pass SlaveOption as is - it is immutable to represent options in this given moment
@@ -190,7 +176,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
      * @see #provisionSlave(JCloudsCloud, TaskListener)
      */
     public @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
-        final SlaveOptions opts = getSlaveOptions();
+        final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
         final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
         LOGGER.info("Provisioning new openstack node " + nodeName);
@@ -247,10 +233,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         }
 
         final Openstack openstack = cloud.getOpenstack();
-        final Server server = openstack.bootAndWaitActive(builder, cloud.getSlaveOptions().getStartTimeout());
+        final Server server = openstack.bootAndWaitActive(builder, cloud.getEffectiveSlaveOptions().getStartTimeout());
         LOGGER.info("Provisioned: " + server.toString());
 
-        if (cloud.getSlaveOptions().isFloatingIps()) {
+        if (cloud.getEffectiveSlaveOptions().isFloatingIps()) {
             LOGGER.fine("Assiging floating IP to " + nodeName);
             openstack.assignFloatingIp(server);
             // Make sure address information is refreshed
@@ -271,7 +257,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {
-        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(getSlaveOptions().getUserDataId());
+        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(getEffectiveSlaveOptions().getUserDataId());
 
         return (userData == null || userData.content.isEmpty())
                 ? null

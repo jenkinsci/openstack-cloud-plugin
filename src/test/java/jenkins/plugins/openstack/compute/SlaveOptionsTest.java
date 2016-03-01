@@ -87,7 +87,35 @@ public class SlaveOptionsTest {
 
     @Test
     public void emptyStrings() {
-        SlaveOptions opts = SlaveOptions.builder().imageId("").build();
-        assertNull(opts.getImageId());
+        SlaveOptions nulls = SlaveOptions.builder().build();
+        SlaveOptions emptyStrings = new SlaveOptions(
+                "", "", "", "", null, null, "", "", null, "", null, "", "", "", null, null
+        );
+        SlaveOptions emptyBuilt = SlaveOptions.builder()
+                .imageId("")
+                .hardwareId("")
+                .networkId("")
+                .userDataId("")
+                .securityGroups("")
+                .availabilityZone("")
+                .jvmOptions("")
+                .fsRoot("")
+                .keyPairName("")
+                .credentialsId("")
+                .build()
+        ;
+        assertEquals(nulls, emptyStrings);
+        assertEquals(nulls, emptyBuilt);
+
+        assertEquals(null, emptyStrings.getImageId());
+        assertEquals(null, emptyStrings.getHardwareId());
+        assertEquals(null, emptyStrings.getNetworkId());
+        assertEquals(null, emptyStrings.getUserDataId());
+        assertEquals(null, emptyStrings.getSecurityGroups());
+        assertEquals(null, emptyStrings.getAvailabilityZone());
+        assertEquals(null, emptyStrings.getJvmOptions());
+        assertEquals(null, emptyStrings.getFsRoot());
+        assertEquals(null, emptyStrings.getKeyPairName());
+        assertEquals(null, emptyStrings.getCredentialsId());
     }
 }

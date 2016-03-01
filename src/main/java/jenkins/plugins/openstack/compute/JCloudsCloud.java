@@ -44,7 +44,7 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
  *
  * @author Vijay Kiran
  */
-public class JCloudsCloud extends Cloud {
+public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
@@ -128,9 +128,13 @@ public class JCloudsCloud extends Cloud {
         }
     }
 
-    public @Nonnull SlaveOptions getSlaveOptions() {
+    public @Nonnull SlaveOptions getEffectiveSlaveOptions() {
         // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated config
         return DescriptorImpl.DEFAULTS.override(slaveOptions);
+    }
+
+    public @Nonnull SlaveOptions getRawSlaveOptions() {
+        return slaveOptions;
     }
 
     @Restricted(NoExternalUse.class)
@@ -158,7 +162,7 @@ public class JCloudsCloud extends Cloud {
     public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
         final JCloudsSlaveTemplate template = getTemplate(label);
         if (template == null) throw new AssertionError("No template for label: " + label);
-        final SlaveOptions opts = template.getSlaveOptions();
+        final SlaveOptions opts = template.getEffectiveSlaveOptions();
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
 
@@ -196,7 +200,7 @@ public class JCloudsCloud extends Cloud {
     }
 
     private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
-        Integer launchTimeoutSec = this.getSlaveOptions().getStartTimeout();
+        Integer launchTimeoutSec = this.getEffectiveSlaveOptions().getStartTimeout();
         JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
@@ -263,7 +267,7 @@ public class JCloudsCloud extends Cloud {
             return;
         }
 
-        if (getRunningNodesCount() < getSlaveOptions().getInstanceCap()) {
+        if (getRunningNodesCount() < getEffectiveSlaveOptions().getInstanceCap()) {
             JCloudsSlave node;
             try {
                 StringWriter sw = new StringWriter();

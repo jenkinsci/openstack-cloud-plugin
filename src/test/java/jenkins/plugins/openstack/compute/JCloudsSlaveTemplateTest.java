@@ -9,6 +9,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -17,10 +18,8 @@ public class JCloudsSlaveTemplateTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    // Following will be null if can not be validated: imageId, hardwareId, networkId, availabilityZone
-    // TODO test userDataId, credentialsId
-    final String TEMPLATE_PROPERTIES = "name,labelString,slaveOptions";
-    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,zone,slaveOptions";
+    final String TEMPLATE_PROPERTIES = "name,labelString";
+    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,zone";
 
     @Test
     public void configRoundtrip() throws Exception {
@@ -38,10 +37,11 @@ public class JCloudsSlaveTemplateTest {
                         .networkId("network1_id,network2_id")
                         .securityGroups("MySecurityGroup")
                         .slaveType(JCloudsCloud.SlaveType.SSH)
+                        // TODO incomplete
                         .build()
         );
 
-        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", null, SlaveOptions.builder().build(), Collections.singletonList(originalTemplate));
+        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", "zone", SlaveOptions.builder().build(), Collections.singletonList(originalTemplate));
 
         j.jenkins.clouds.add(originalCloud);
         HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
@@ -52,14 +52,15 @@ public class JCloudsSlaveTemplateTest {
         assertThat(formText, containsString("MyKeyPair"));
         assertThat(formText, containsString("network1_id,network2_id"));
         assertThat(formText, containsString("MySecurityGroup"));
+
         j.submit(form);
 
         final JCloudsCloud actualCloud = JCloudsCloud.getByName(CLOUD_NAME);
-
         j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
+        assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 
-        JCloudsSlaveTemplate actualCloudTemplate = actualCloud.getTemplate(TEMPLATE_NAME);
-        assertNotNull(actualCloudTemplate);
-        j.assertEqualBeans(originalTemplate, actualCloudTemplate, TEMPLATE_PROPERTIES);
+        JCloudsSlaveTemplate actualTemplate = actualCloud.getTemplate(TEMPLATE_NAME);
+        j.assertEqualBeans(originalTemplate, actualTemplate, TEMPLATE_PROPERTIES);
+        assertThat(actualTemplate.getRawSlaveOptions(), equalTo(originalTemplate.getRawSlaveOptions()));
     }
 }

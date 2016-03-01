@@ -194,20 +194,20 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             JCloudsCloud.SlaveType slaveType,
             Integer retentionTime
     ) {
-        this.imageId = imageId;
-        this.hardwareId = hardwareId;
-        this.networkId = networkId;
-        this.userDataId = userDataId;
+        this.imageId = Util.fixEmpty(imageId);
+        this.hardwareId = Util.fixEmpty(hardwareId);
+        this.networkId = Util.fixEmpty(networkId);
+        this.userDataId = Util.fixEmpty(userDataId);
         this.instanceCap = instanceCap;
         this.floatingIps = floatingIps;
-        this.securityGroups = securityGroups;
-        this.availabilityZone = availabilityZone;
+        this.securityGroups = Util.fixEmpty(securityGroups);
+        this.availabilityZone = Util.fixEmpty(availabilityZone);
         this.startTimeout = startTimeout;
-        this.keyPairName = keyPairName;
+        this.keyPairName = Util.fixEmpty(keyPairName);
         this.numExecutors = numExecutors;
-        this.jvmOptions = jvmOptions;
-        this.fsRoot = fsRoot;
-        this.credentialsId = credentialsId;
+        this.jvmOptions = Util.fixEmpty(jvmOptions);
+        this.fsRoot = Util.fixEmpty(fsRoot);
+        this.credentialsId = Util.fixEmpty(credentialsId);
         this.slaveType = slaveType;
         this.retentionTime = retentionTime;
     }
@@ -371,22 +371,22 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         public @Nonnull Builder imageId(String imageId) {
-            this.imageId = Util.fixEmpty(imageId);
+            this.imageId = imageId;
             return this;
         }
 
         public @Nonnull Builder hardwareId(String hardwareId) {
-            this.hardwareId = Util.fixEmpty(hardwareId);
+            this.hardwareId = hardwareId;
             return this;
         }
 
         public @Nonnull Builder networkId(String networkId) {
-            this.networkId = Util.fixEmpty(networkId);
+            this.networkId = networkId;
             return this;
         }
 
         public @Nonnull Builder userDataId(String userDataId) {
-            this.userDataId = Util.fixEmpty(userDataId);
+            this.userDataId = userDataId;
             return this;
         }
 
@@ -401,12 +401,12 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         public @Nonnull Builder securityGroups(String securityGroups) {
-            this.securityGroups = Util.fixEmpty(securityGroups);
+            this.securityGroups = securityGroups;
             return this;
         }
 
         public @Nonnull Builder availabilityZone(String availabilityZone) {
-            this.availabilityZone = Util.fixEmpty(availabilityZone);
+            this.availabilityZone = availabilityZone;
             return this;
         }
 
@@ -416,7 +416,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         public @Nonnull Builder keyPairName(String keyPairName) {
-            this.keyPairName = Util.fixEmpty(keyPairName);
+            this.keyPairName = keyPairName;
             return this;
         }
 
@@ -426,17 +426,17 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         public @Nonnull Builder jvmOptions(String jvmOptions) {
-            this.jvmOptions = Util.fixEmpty(jvmOptions);
+            this.jvmOptions = jvmOptions;
             return this;
         }
 
         public @Nonnull Builder fsRoot(String fsRoot) {
-            this.fsRoot = Util.fixEmpty(fsRoot);
+            this.fsRoot = fsRoot;
             return this;
         }
 
         public @Nonnull Builder credentialsId(String credentialsId) {
-            this.credentialsId = Util.fixEmpty(credentialsId);
+            this.credentialsId = credentialsId;
             return this;
         }
 
@@ -449,6 +449,27 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             this.retentionTime = retentionTime;
             return this;
         }
+    }
+
+    /**
+     * Interface to be implemented by configurable entity that contians options for provisioned slave.
+     *
+     * By default, this is implemented by cloud and template where templates inherit from cloud.
+     */
+    public interface Holder {
+        /**
+         * Get effective options declared by this object.
+         *
+         * This is supposed to correctly evaluate all the overriding.
+         */
+        @Nonnull SlaveOptions getEffectiveSlaveOptions();
+
+        /**
+         * Get configured options held by this object.
+         *
+         * This holds only the user configured diffs compared to parent.
+         */
+        @Nonnull SlaveOptions getRawSlaveOptions();
     }
 
     @Override
@@ -486,6 +507,15 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             items.add("SSH", "SSH");
             items.add("JNLP", "JNLP");
 
+            return items;
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillFloatingIpsItems() {
+            ListBoxModel items = new ListBoxModel();
+            items.add("Inherited", null);
+            items.add("Yes", "true");
+            items.add("No", "false");
             return items;
         }
 
@@ -627,6 +657,14 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             } catch (NumberFormatException e) {
             }
             return FormValidation.validateNonNegativeInteger(value);
+        }
+
+        /**
+         * Get Default value label.
+         */
+        @Restricted(DoNotUse.class)
+        public @Nonnull String def(@CheckForNull Object val) {
+            return val == null ? "" : ("Inherited vlaue: " + val);
         }
     }
 }

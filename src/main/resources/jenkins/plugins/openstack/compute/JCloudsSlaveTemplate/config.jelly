@@ -11,9 +11,9 @@
     </f:section>
 
     <f:advanced>
-      <j:set var="instance" value="${instance == null ? cloudOpts : instance.slaveOptions}"/>
-      <j:set var="descriptor" value="${instance.descriptor}"/>
-      <st:include page="config.jelly" it="${instance}"/>
+      <!-- defaultOpts was injected from outside -->
+      <j:set var="instance" value="${instance.rawSlaveOptions}"/>
+      <st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>
     </f:advanced>
 
     <f:entry title="">

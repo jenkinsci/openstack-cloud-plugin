@@ -18,12 +18,14 @@
     <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="zone,endPointUrl,identity,credential"/>
 
     <f:advanced>
-        <j:set var="instance" value="${instance == null ? descriptor.defaultOptions : instance.slaveOptions}"/>
-        <st:include page="config.jelly" it="${instance}"/>
+        <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>
+        <j:set var="instance" value="${instance.rawSlaveOptions}"/>
+        <st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>
     </f:advanced>
 
     <f:entry title="Cloud Instance Templates" description="${%List of Cloud Instances to be launched as slaves}">
-        <j:set var="cloudOpts" value="${instance == null ? descriptor.defaultOptions : instance.slaveOptions}"/>
+        <!-- Propagate cloud opts as defaultOpts to templates -->
+        <j:set var="defaultOpts" value="${instance == null ? descriptor.defaultOptions : instance.effectiveSlaveOptions}"/>
         <f:repeatable field="templates">
             <st:include page="config.jelly" class="${descriptor.clazz}"/>
         </f:repeatable>

@@ -205,7 +205,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    private static final class MockJCloudsCloud extends JCloudsCloud {
+    public static final class MockJCloudsCloud extends JCloudsCloud {
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
                 .floatingIps(true)
                 .fsRoot("/tmp/jenkins")
@@ -215,7 +215,7 @@ public final class PluginTestRule extends JenkinsRule {
         private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", null, DEFAULTS, Arrays.asList(templates));
+            super("openstack", "identity", "credential", "endPointUrl", "zone", DEFAULTS, Arrays.asList(templates));
         }
 
         @Override

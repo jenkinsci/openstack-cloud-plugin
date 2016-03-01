@@ -96,7 +96,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
         }
 
         JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
-        return cloud == null ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : cloud.getSlaveOptions().getRetentionTime();
+        return cloud == null ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : cloud.getEffectiveSlaveOptions().getRetentionTime();
     }
 
     /**
