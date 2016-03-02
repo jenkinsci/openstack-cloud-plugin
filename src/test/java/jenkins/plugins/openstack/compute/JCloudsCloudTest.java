@@ -214,12 +214,15 @@ public class JCloudsCloudTest {
         assertEquals("/tmp/jenkins", template.getFsRoot());
         assertEquals("jenkins-testing", template.keyPairName);
         assertEquals(JCloudsCloud.SlaveType.SSH, template.slaveType);
+        assertEquals("zone", template.availabilityZone);
 
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-userData"), template.getUserData());
 
         BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(template.credentialsId);
         assertEquals("jenkins", creds.getUsername());
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-private-key"), creds.getPrivateKey());
+
+        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
     }
 
     private String fileAsString(String filename) throws IOException {
