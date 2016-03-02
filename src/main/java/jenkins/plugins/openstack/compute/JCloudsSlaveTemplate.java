@@ -115,15 +115,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
 
         // Migrate from 1.X to 2.X
         int i;
-        if ((i = hardwareId.indexOf('/')) != -1) {
+        if (hardwareId != null && (i = hardwareId.indexOf('/')) != -1) {
             hardwareId = hardwareId.substring(i + 1);
         }
 
-        if ((i = networkId.indexOf('/')) != -1) {
+        if (networkId != null && (i = networkId.indexOf('/')) != -1) {
             networkId = networkId.substring(i + 1);
         }
 
-        if ((i = imageId.indexOf('/')) != -1) {
+        if (imageId != null && (i = imageId.indexOf('/')) != -1) {
             imageId = imageId.substring(i + 1);
         }
 
