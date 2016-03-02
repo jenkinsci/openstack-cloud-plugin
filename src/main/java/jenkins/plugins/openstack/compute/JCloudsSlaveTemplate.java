@@ -233,12 +233,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         final Openstack openstack = cloud.getOpenstack();
-        final Server server = openstack.bootAndWaitActive(builder, cloud.getEffectiveSlaveOptions().getStartTimeout());
+        final Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
         LOGGER.info("Provisioned: " + server.toString());
 
-        if (cloud.getEffectiveSlaveOptions().isFloatingIps()) {
-            LOGGER.fine("Assiging floating IP to " + nodeName);
-            openstack.assignFloatingIp(server);
+        String poolName = opts.getFloatingPool();
+        if (poolName != null) {
+            LOGGER.fine("Assiging floating IP from " + poolName + " to " + nodeName);
+            openstack.assignFloatingIp(server, poolName);
             // Make sure address information is refreshed
             return openstack.updateInfo(server);
         }

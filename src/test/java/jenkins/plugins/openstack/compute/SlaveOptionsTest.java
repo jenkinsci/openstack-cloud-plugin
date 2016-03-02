@@ -12,7 +12,7 @@ public class SlaveOptionsTest {
     @Test
     public void override() {
         SlaveOptions original = new SlaveOptions(
-                "img", "hw", "nw", "ud", 1, true, "sg", "az", 1, null, 1, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
+                "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 1, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
         );
 
         SlaveOptions overriden = original.override(SlaveOptions.builder().build());
@@ -22,7 +22,7 @@ public class SlaveOptionsTest {
         assertEquals("nw", overriden.getNetworkId());
         assertEquals("ud", overriden.getUserDataId());
         assertEquals(1, (int) overriden.getInstanceCap());
-        assertEquals(true, overriden.isFloatingIps());
+        assertEquals("pool", overriden.getFloatingPool());
         assertEquals("sg", overriden.getSecurityGroups());
         assertEquals("az", overriden.getAvailabilityZone());
         assertEquals(1, (int) overriden.getStartTimeout());
@@ -40,7 +40,7 @@ public class SlaveOptionsTest {
                 .networkId("NW")
                 .userDataId("UD")
                 .instanceCap(5)
-                .floatingIps(false)
+                .floatingIpPool("POOL")
                 .securityGroups("SG")
                 .availabilityZone("AZ")
                 .startTimeout(4)
@@ -60,7 +60,7 @@ public class SlaveOptionsTest {
         assertEquals("NW", overriden.getNetworkId());
         assertEquals("UD", overriden.getUserDataId());
         assertEquals(5, (int) overriden.getInstanceCap());
-        assertEquals(false, overriden.isFloatingIps());
+        assertEquals("POOL", overriden.getFloatingPool());
         assertEquals("SG", overriden.getSecurityGroups());
         assertEquals("AZ", overriden.getAvailabilityZone());
         assertEquals(4, (int) overriden.getStartTimeout());
@@ -75,12 +75,12 @@ public class SlaveOptionsTest {
 
     @Test
     public void eraseDefaults() {
-        SlaveOptions defaults = SlaveOptions.builder().imageId("img").hardwareId("hw").networkId(null).floatingIps(false).build();
-        SlaveOptions configured = SlaveOptions.builder().imageId("IMG").hardwareId("hw").networkId("MW").floatingIps(true).build();
+        SlaveOptions defaults = SlaveOptions.builder().imageId("img").hardwareId("hw").networkId(null).floatingIpPool("a").build();
+        SlaveOptions configured = SlaveOptions.builder().imageId("IMG").hardwareId("hw").networkId("MW").floatingIpPool("A").build();
 
         SlaveOptions actual = configured.eraseDefaults(defaults);
 
-        SlaveOptions expected = SlaveOptions.builder().imageId("IMG").hardwareId(null).networkId("MW").floatingIps(true).build();
+        SlaveOptions expected = SlaveOptions.builder().imageId("IMG").hardwareId(null).networkId("MW").floatingIpPool("A").build();
         assertEquals(expected, actual);
         assertEquals(configured, defaults.override(actual));
     }
@@ -89,13 +89,14 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.builder().build();
         SlaveOptions emptyStrings = new SlaveOptions(
-                "", "", "", "", null, null, "", "", null, "", null, "", "", "", null, null
+                "", "", "", "", null, "", "", "", null, "", null, "", "", "", null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .imageId("")
                 .hardwareId("")
                 .networkId("")
                 .userDataId("")
+                .floatingIpPool("")
                 .securityGroups("")
                 .availabilityZone("")
                 .jvmOptions("")

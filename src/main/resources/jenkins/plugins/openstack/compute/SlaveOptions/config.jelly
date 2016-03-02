@@ -42,7 +42,7 @@
                     <f:entry title="Max. No. of Instances" field="instanceCap">
                         <f:textbox placeholder="${d.def(defaultOpts.instanceCap)}"/>
                     </f:entry>
-                    <f:entry title="Associate floating IP" field="floatingIps">
+                    <f:entry title="Associate floating IP from pool" field="floatingIpPool">
                         <f:select/>
                     </f:entry>
                     <f:entry title="Security Groups" field="securityGroups">

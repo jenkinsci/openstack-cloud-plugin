@@ -207,7 +207,7 @@ public final class PluginTestRule extends JenkinsRule {
 
     public static final class MockJCloudsCloud extends JCloudsCloud {
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
-                .floatingIps(true)
+                .floatingIpPool("custom")
                 .fsRoot("/tmp/jenkins")
                 .build()
         ;

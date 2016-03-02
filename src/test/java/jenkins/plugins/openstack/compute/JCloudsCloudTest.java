@@ -103,10 +103,10 @@ public class JCloudsCloudTest {
 
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
-                "img", "hw", "nw", "ud", 1, true, "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 4
+                "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 4
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "zone", new SlaveOptions(
-                "IMG", "HW", "NW", "UD", 6, false, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
+                "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
         ), Arrays.asList(template));
         j.jenkins.clouds.add(cloud);
 //j.interactiveBreak();
@@ -180,7 +180,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void provisionSlaveOnDemand() throws Exception {
-        j.createCloudProvisioningDummySlaves("label");
+        JCloudsCloud cloud = j.createCloudProvisioningDummySlaves("label");
 
         j.jenkins.setNumExecutors(0);
         FreeStyleProject p = j.createFreeStyleProject();
@@ -192,6 +192,14 @@ public class JCloudsCloudTest {
         // Provision without label
         p.setAssignedLabel(null);
         assertThat(j.buildAndAssertSuccess(p).getBuiltOn(), Matchers.instanceOf(JCloudsSlave.class));
+
+        Openstack os = cloud.getOpenstack();
+        verify(os).getRunningNodes();
+        verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
+        verify(os).assignFloatingIp(any(Server.class), eq("custom"));
+        verify(os).updateInfo(any(Server.class));
+
+        verifyNoMoreInteractions(os);
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
@@ -259,7 +267,7 @@ public class JCloudsCloudTest {
         assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
         assertEquals("tenant:user", cloud.identity);
         SlaveOptions co = cloud.getEffectiveSlaveOptions();
-        assertEquals(true, co.isFloatingIps());
+        assertEquals("public", co.getFloatingPool());
         assertEquals(31, (int) co.getRetentionTime());
         assertEquals(9, (int) co.getInstanceCap());
         assertEquals(600001, (int) co.getStartTimeout());

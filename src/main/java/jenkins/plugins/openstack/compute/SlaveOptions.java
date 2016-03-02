@@ -56,7 +56,6 @@ import org.openstack4j.model.image.Image;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.util.logging.Level;
 
 /**
  * Configured options for a slave to create.
@@ -74,7 +73,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
     private final @CheckForNull String networkId;
     private final @CheckForNull String userDataId;
     private final @CheckForNull Integer instanceCap;
-    private final @CheckForNull Boolean floatingIps;
+    private final @CheckForNull String floatingIpPool;
     private final @CheckForNull String securityGroups;
     private final @CheckForNull String availabilityZone;
     private final @CheckForNull Integer startTimeout;
@@ -114,8 +113,8 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return instanceCap;
     }
 
-    public @CheckForNull Boolean isFloatingIps() {
-        return floatingIps;
+    public @CheckForNull String getFloatingPool() {
+        return floatingIpPool;
     }
 
     public @CheckForNull String getSecurityGroups() {
@@ -161,7 +160,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 b.networkId,
                 b.userDataId,
                 b.instanceCap,
-                b.floatingIps,
+                b.floatingIpPool,
                 b.securityGroups,
                 b.availabilityZone,
                 b.startTimeout,
@@ -182,7 +181,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             String networkId,
             String userDataId,
             Integer instanceCap,
-            Boolean floatingIps,
+            String floatingIpPool,
             String securityGroups,
             String availabilityZone,
             Integer startTimeout,
@@ -199,7 +198,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         this.networkId = Util.fixEmpty(networkId);
         this.userDataId = Util.fixEmpty(userDataId);
         this.instanceCap = instanceCap;
-        this.floatingIps = floatingIps;
+        this.floatingIpPool = Util.fixEmpty(floatingIpPool);
         this.securityGroups = Util.fixEmpty(securityGroups);
         this.availabilityZone = Util.fixEmpty(availabilityZone);
         this.startTimeout = startTimeout;
@@ -222,7 +221,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .networkId(_override(this.networkId, o.networkId))
                 .userDataId(_override(this.userDataId, o.userDataId))
                 .instanceCap(_override(this.instanceCap, o.instanceCap)) // TODO: this is not right for instance cap
-                .floatingIps(_override(this.floatingIps, o.floatingIps))
+                .floatingIpPool(_override(this.floatingIpPool, o.floatingIpPool))
                 .securityGroups(_override(this.securityGroups, o.securityGroups))
                 .availabilityZone(_override(this.availabilityZone, o.availabilityZone))
                 .startTimeout(_override(this.startTimeout, o.startTimeout))
@@ -251,7 +250,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .networkId(_erase(this.networkId, defaults.networkId))
                 .userDataId(_erase(this.userDataId, defaults.userDataId))
                 .instanceCap(_erase(this.instanceCap, defaults.instanceCap)) // TODO: this is not right for instance cap
-                .floatingIps(_erase(this.floatingIps, defaults.floatingIps))
+                .floatingIpPool(_erase(this.floatingIpPool, defaults.floatingIpPool))
                 .securityGroups(_erase(this.securityGroups, defaults.securityGroups))
                 .availabilityZone(_erase(this.availabilityZone, defaults.availabilityZone))
                 .startTimeout(_erase(this.startTimeout, defaults.startTimeout))
@@ -279,7 +278,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 ", hardwareId='" + hardwareId + '\'' +
                 ", networkId='" + networkId + '\'' +
                 ", userDataId='" + userDataId + '\'' +
-                ", floatingIps=" + floatingIps +
+                ", floatingIpPool=" + floatingIpPool +
                 ", securityGroups='" + securityGroups + '\'' +
                 ", availabilityZone='" + availabilityZone + '\'' +
                 ", startTimeout=" + startTimeout +
@@ -305,7 +304,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         if (networkId != null ? !networkId.equals(that.networkId) : that.networkId != null) return false;
         if (userDataId != null ? !userDataId.equals(that.userDataId) : that.userDataId != null) return false;
         if (instanceCap != null ? !instanceCap.equals(that.instanceCap) : that.instanceCap != null) return false;
-        if (floatingIps != null ? !floatingIps.equals(that.floatingIps) : that.floatingIps != null) return false;
+        if (floatingIpPool != null ? !floatingIpPool.equals(that.floatingIpPool) : that.floatingIpPool != null) return false;
         if (securityGroups != null ? !securityGroups.equals(that.securityGroups) : that.securityGroups != null) return false;
         if (availabilityZone != null ? !availabilityZone.equals(that.availabilityZone) : that.availabilityZone != null) return false;
         if (startTimeout != null ? !startTimeout.equals(that.startTimeout) : that.startTimeout != null) return false;
@@ -326,7 +325,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         result = 31 * result + (networkId != null ? networkId.hashCode() : 0);
         result = 31 * result + (userDataId != null ? userDataId.hashCode() : 0);
         result = 31 * result + (instanceCap != null ? instanceCap.hashCode() : 0);
-        result = 31 * result + (floatingIps != null ? floatingIps.hashCode() : 0);
+        result = 31 * result + (floatingIpPool != null ? floatingIpPool.hashCode() : 0);
         result = 31 * result + (securityGroups != null ? securityGroups.hashCode() : 0);
         result = 31 * result + (availabilityZone != null ? availabilityZone.hashCode() : 0);
         result = 31 * result + (startTimeout != null ? startTimeout.hashCode() : 0);
@@ -350,7 +349,8 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         private @CheckForNull String networkId;
         private @CheckForNull String userDataId;
         private @CheckForNull Integer instanceCap;
-        private @CheckForNull Boolean floatingIps;
+        private @CheckForNull
+        String floatingIpPool;
         private @CheckForNull String securityGroups;
         private @CheckForNull String availabilityZone;
         private @CheckForNull Integer startTimeout;
@@ -395,8 +395,8 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             return this;
         }
 
-        public @Nonnull Builder floatingIps(Boolean floatingIps) {
-            this.floatingIps = floatingIps;
+        public @Nonnull Builder floatingIpPool(String floatingIpPool) {
+            this.floatingIpPool = floatingIpPool;
             return this;
         }
 
@@ -501,21 +501,40 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         @Restricted(DoNotUse.class)
+        public ListBoxModel doFillFloatingIpPoolItems(@QueryParameter String pool,
+                                                         @RelativePath("..") @QueryParameter String endPointUrl,
+                                                         @RelativePath("..") @QueryParameter String identity,
+                                                         @RelativePath("..") @QueryParameter String credential,
+                                                         @RelativePath("..") @QueryParameter String zone) {
+            ListBoxModel m = new ListBoxModel();
+            m.add("None specified", "");
+
+            try {
+                final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+                for (String p : openstack.getSortedIpPools()) {
+                    m.add(p);
+                }
+                return m;
+            } catch (AuthenticationException |FormValidation _) {
+                // Incorrect credentials - noop
+            } catch (Exception ex) {
+                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+            }
+
+            if (Util.fixEmpty(pool) != null) {
+                m.add(pool);
+            }
+
+            return m;
+        }
+
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillSlaveTypeItems() {
             ListBoxModel items = new ListBoxModel();
             items.add("Inherited", null);
             items.add("SSH", "SSH");
             items.add("JNLP", "JNLP");
 
-            return items;
-        }
-
-        @Restricted(DoNotUse.class)
-        public ListBoxModel doFillFloatingIpsItems() {
-            ListBoxModel items = new ListBoxModel();
-            items.add("Inherited", null);
-            items.add("Yes", "true");
-            items.add("No", "false");
             return items;
         }
 

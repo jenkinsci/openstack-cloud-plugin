@@ -110,7 +110,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     .instanceCap(instanceCap)
                     .retentionTime(retentionTime)
                     .startTimeout(startTimeout)
-                    .floatingIps(floatingIps)
+                    .floatingIpPool(floatingIps ? "public" : null)
                     .build()
             ;
             slaveOptions = DescriptorImpl.DEFAULTS.override(carry);
@@ -287,7 +287,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     /**
      * Determine how many nodes are currently running for this cloud.
      */
-    public int getRunningNodesCount() {
+    private int getRunningNodesCount() {
         return getOpenstack().getRunningNodes().size();
     }
 
@@ -305,7 +305,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         // Plugin default slave attributes - the root of all overriding
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
                 .instanceCap(10)
-                .floatingIps(false)
                 .retentionTime(30)
                 .startTimeout(600000)
                 .numExecutors(1)
