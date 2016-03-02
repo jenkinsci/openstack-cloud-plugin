@@ -190,7 +190,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
                     there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
                     successful prevents this problem.  */
-                    ensureLaunched(jcloudsSlave);
+                    ensureLaunched(jcloudsSlave, opts);
                     return jcloudsSlave;
                 }
             }), opts.getNumExecutors()));
@@ -199,8 +199,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return plannedNodeList;
     }
 
-    private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
-        Integer launchTimeoutSec = this.getEffectiveSlaveOptions().getStartTimeout();
+    private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ExecutionException {
+        Integer launchTimeoutSec = opts.getStartTimeout();
         JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
@@ -267,7 +267,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return;
         }
 
-        if (getRunningNodesCount() < getEffectiveSlaveOptions().getInstanceCap()) {
+        Integer instanceCap = t.getEffectiveSlaveOptions().getInstanceCap();
+        if (getRunningNodesCount() < instanceCap) {
             JCloudsSlave node;
             try {
                 StringWriter sw = new StringWriter();
@@ -280,7 +281,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             Jenkins.getInstance().addNode(node);
             rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
         } else {
-            sendError("Instance cap for this cloud is now reached for cloud profile: " + profile + " for template type " + name, req, rsp);
+            String msg = String.format("Instance cap for this cloud/profile (%s/%s) is now reached: %d", profile, name, instanceCap);
+            sendError(msg, req, rsp);
         }
     }
 

@@ -10,7 +10,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,6 +59,7 @@ public final class PluginTestRule extends JenkinsRule {
 
     private static final Random rnd = new Random();
     private final AtomicInteger slaveCount = new AtomicInteger(0);
+    private final AtomicInteger templateCount = new AtomicInteger(0);
 
     public void autoconnectJnlpSlaves() {
         JnlpAutoConnect launcher = jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class);
@@ -90,13 +93,22 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
-        return new JCloudsSlaveTemplate(
-                "template", labels, SlaveOptions.builder().build()
-        );
+        return dummySlaveTemplate(SlaveOptions.empty(), labels);
+    }
+
+    public JCloudsSlaveTemplate dummySlaveTemplate(SlaveOptions opts, String labels) {
+        int num = templateCount.getAndIncrement();
+        return new JCloudsSlaveTemplate("template" + num, labels, opts);
     }
 
     public JCloudsCloud dummyCloud(JCloudsSlaveTemplate... templates) {
         JCloudsCloud cloud = new MockJCloudsCloud(templates);
+        jenkins.clouds.add(cloud);
+        return cloud;
+    }
+
+    public JCloudsCloud dummyCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
+        JCloudsCloud cloud = new MockJCloudsCloud(opts, templates);
         jenkins.clouds.add(cloud);
         return cloud;
     }
@@ -140,10 +152,12 @@ public final class PluginTestRule extends JenkinsRule {
     public static class MockServerBuilder {
 
         private final Server server;
+        private final Map<String, String> metadata = new HashMap<>();
 
         public MockServerBuilder() {
             server = mock(Server.class);
             when(server.getAddresses()).thenReturn(new NovaAddresses());
+            when(server.getMetadata()).thenReturn(metadata);
         }
 
         public MockServerBuilder name(String name) {
@@ -162,6 +176,11 @@ public final class PluginTestRule extends JenkinsRule {
 
         public MockServerBuilder status(Server.Status status) {
             when(server.getStatus()).thenReturn(status);
+            return this;
+        }
+
+        public MockServerBuilder metadataItem(String key, String value) {
+            metadata.put(key, value);
             return this;
         }
 
@@ -215,7 +234,11 @@ public final class PluginTestRule extends JenkinsRule {
         private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", "zone", DEFAULTS, Arrays.asList(templates));
+            this(DEFAULTS, templates);
+        }
+
+        public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
+            super("openstack", "identity", "credential", "endPointUrl", "zone", opts, Arrays.asList(templates));
         }
 
         @Override

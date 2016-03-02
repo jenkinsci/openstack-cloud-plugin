@@ -50,6 +50,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.image.Image;
@@ -66,6 +67,7 @@ import javax.annotation.Nonnull;
  * @author ogondza.
  */
 public class SlaveOptions implements Describable<SlaveOptions> {
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private final @CheckForNull String imageId;
@@ -220,7 +222,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .hardwareId(_override(this.hardwareId, o.hardwareId))
                 .networkId(_override(this.networkId, o.networkId))
                 .userDataId(_override(this.userDataId, o.userDataId))
-                .instanceCap(_override(this.instanceCap, o.instanceCap)) // TODO: this is not right for instance cap
+                .instanceCap(_overrideInstanceCap(this.instanceCap, o.instanceCap))
                 .floatingIpPool(_override(this.floatingIpPool, o.floatingIpPool))
                 .securityGroups(_override(this.securityGroups, o.securityGroups))
                 .availabilityZone(_override(this.availabilityZone, o.availabilityZone))
@@ -240,6 +242,17 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return override == null ? base : override;
     }
 
+    // Use the smallest nonnull
+    private Integer _overrideInstanceCap(Integer base, Integer override) {
+        if (base == null) return override;
+        if (override == null) return base;
+
+        return base.compareTo(override) < 0
+                ? base
+                : override
+        ;
+    }
+
     /**
      * Derive new options from current leaving <tt>null</tt> where same as default.
      */
@@ -249,7 +262,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .hardwareId(_erase(this.hardwareId, defaults.hardwareId))
                 .networkId(_erase(this.networkId, defaults.networkId))
                 .userDataId(_erase(this.userDataId, defaults.userDataId))
-                .instanceCap(_erase(this.instanceCap, defaults.instanceCap)) // TODO: this is not right for instance cap
+                .instanceCap(_erase(this.instanceCap, defaults.instanceCap))
                 .floatingIpPool(_erase(this.floatingIpPool, defaults.floatingIpPool))
                 .securityGroups(_erase(this.securityGroups, defaults.securityGroups))
                 .availabilityZone(_erase(this.availabilityZone, defaults.availabilityZone))
@@ -337,6 +350,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         result = 31 * result + (slaveType != null ? slaveType.hashCode() : 0);
         result = 31 * result + (retentionTime != null ? retentionTime.hashCode() : 0);
         return result;
+    }
+
+    public static @Nonnull SlaveOptions empty() {
+        return EMPTY;
     }
 
     public static @Nonnull Builder builder() {

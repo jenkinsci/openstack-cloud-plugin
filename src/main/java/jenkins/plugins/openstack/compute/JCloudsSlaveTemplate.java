@@ -2,8 +2,11 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -45,6 +48,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
     private static final char SEPARATOR_CHAR = ',';
+    /*package*/ static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
 
     public final String name;
     public final String labelString;
@@ -178,6 +182,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
+        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
+
         final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
         LOGGER.info("Provisioning new openstack node " + nodeName);
         // Ensure predictable node name so we can inject it into user data
@@ -264,6 +270,17 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 ? null
                 : userData.content
         ;
+    }
+
+    /*package*/ List<? extends Server> getRunningNodes() {
+        List<Server> tmplt = new ArrayList<>();
+        for (Server server : cloud.getOpenstack().getRunningNodes()) {
+            Map<String, String> md = server.getMetadata();
+            if (name.equals(md.get(OPENSTACK_TEMPLATE_NAME_KEY))) {
+                tmplt.add(server);
+            }
+        }
+        return tmplt;
     }
 
     @Override

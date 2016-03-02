@@ -37,8 +37,10 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Future;
 
 public class JCloudsCloudTest {
@@ -202,6 +204,38 @@ public class JCloudsCloudTest {
         verifyNoMoreInteractions(os);
     }
 
+    @Test
+    public void doNotProvisionOnceInstanceCapReached() {
+        JCloudsSlaveTemplate restricted = j.dummySlaveTemplate(SlaveOptions.builder().instanceCap(1).build(), "restricted");
+        JCloudsSlaveTemplate open = j.dummySlaveTemplate(SlaveOptions.builder().instanceCap(null).build(), "open");
+        JCloudsCloud cloud = j.dummyCloud(SlaveOptions.builder().instanceCap(4).build(), restricted, open);
+
+        Server restrictedMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, "restricted").get();
+        Server openMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, "open").get();
+
+        List<Server> running = new ArrayList<>();
+
+        when(cloud.getOpenstack().getRunningNodes()).thenReturn(running);
+
+        // Template quota exceeded
+        assertEquals(1, cloud.provision(Label.get("restricted"), 2).size());
+        running.add(restrictedMachine);
+        assertEquals(0, cloud.provision(Label.get("restricted"), 1).size());
+        assertEquals(1, restricted.getRunningNodes().size());
+
+        // Cloud quota exceeded
+        assertEquals(2, cloud.provision(Label.get("open"), 2).size());
+        running.add(openMachine);
+        running.add(openMachine);
+        assertEquals(2, open.getRunningNodes().size());
+        assertEquals(1, cloud.provision(Label.get("open"), 2).size());
+        running.add(openMachine);
+        assertEquals(3, open.getRunningNodes().size());
+
+        assertEquals(0, cloud.provision(Label.get("restricted"), 1).size());
+        assertEquals(0, cloud.provision(Label.get("open"), 1).size());
+    }
+
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
     public void abortProvisioningWhenOpenstackFails() throws Exception {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
@@ -230,7 +264,7 @@ public class JCloudsCloudTest {
         wc.setThrowExceptionOnFailingStatusCode(false);
         wc.setPrintContentOnFailingStatusCode(false);
         Page page = wc.getPage(wc.addCrumb(new WebRequestSettings(
-                new URL(wc.getContextPath() + "cloud/openstack/provision?name=template"),
+                new URL(wc.getContextPath() + "cloud/openstack/provision?name=" + template.name),
                 HttpMethod.POST
         )));
 

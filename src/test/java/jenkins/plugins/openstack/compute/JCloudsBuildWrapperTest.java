@@ -34,12 +34,13 @@ public class JCloudsBuildWrapperTest {
     @Test
     public void provisionSeveral() throws Exception {
         final JCloudsCloud cloud = j.createCloudProvisioningDummySlaves("label");
+        JCloudsSlaveTemplate template = cloud.getTemplates().get(0);
         Openstack os = cloud.getOpenstack();
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Arrays.asList(
-                new InstancesToRun("openstack", "template", null, 2),
-                new InstancesToRun("openstack", "template", null, 1)
+                new InstancesToRun(cloud.profile, template.name, null, 2),
+                new InstancesToRun(cloud.profile, template.name, null, 1)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
         p.getBuildersList().add(new TestBuilder() {
@@ -63,7 +64,8 @@ public class JCloudsBuildWrapperTest {
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
     public void failToProvisionWhenOpenstackFails() throws Exception {
-        JCloudsCloud cloud = j.dummyCloud(j.dummySlaveTemplate("label"));
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
 
         Server success = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
@@ -77,7 +79,7 @@ public class JCloudsBuildWrapperTest {
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Collections.singletonList(
-                new InstancesToRun("openstack", "template", null, 2)
+                new InstancesToRun(cloud.profile, template.name, null, 2)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
 

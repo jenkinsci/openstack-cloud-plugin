@@ -56,7 +56,6 @@ public class JCloudsBuildWrapper extends BuildWrapper {
                 Supplier<Server> nodeSupplier = JCloudsCloud.getByName(cloudName).getTemplate(templateName).getSuplier(JCloudsCloud.getByName(cloudName));
                 return new NodePlan(cloudName, templateName, instance.count, nodeSupplier);
             }
-
         });
 
         final TerminateNodes terminateNodes = new TerminateNodes(listener);

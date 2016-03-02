@@ -41,7 +41,7 @@ public class JCloudsSlaveTemplateTest {
                         .build()
         );
 
-        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", "zone", SlaveOptions.builder().build(), Collections.singletonList(originalTemplate));
+        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", "zone", SlaveOptions.empty(), Collections.singletonList(originalTemplate));
 
         j.jenkins.clouds.add(originalCloud);
         HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");

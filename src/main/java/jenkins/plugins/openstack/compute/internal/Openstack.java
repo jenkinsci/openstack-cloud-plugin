@@ -132,7 +132,7 @@ public class Openstack {
         return names;
     }
 
-    public @Nonnull List<? extends Server> getRunningNodes() {
+    public @Nonnull List<Server> getRunningNodes() {
         List<Server> running = new ArrayList<>();
 
         // We need details to inspect state and metadata

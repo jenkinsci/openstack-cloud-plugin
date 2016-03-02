@@ -9,19 +9,18 @@ import org.junit.Test;
  */
 public class SlaveOptionsTest {
 
-    @Test
-    public void override() {
+    @Test // instanceCap is a subject of different overriding rules
+    public void defaultOverrides() {
         SlaveOptions original = new SlaveOptions(
                 "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 1, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
         );
 
-        SlaveOptions overriden = original.override(SlaveOptions.builder().build());
+        SlaveOptions overriden = original.override(SlaveOptions.empty());
 
         assertEquals("img", overriden.getImageId());
         assertEquals("hw", overriden.getHardwareId());
         assertEquals("nw", overriden.getNetworkId());
         assertEquals("ud", overriden.getUserDataId());
-        assertEquals(1, (int) overriden.getInstanceCap());
         assertEquals("pool", overriden.getFloatingPool());
         assertEquals("sg", overriden.getSecurityGroups());
         assertEquals("az", overriden.getAvailabilityZone());
@@ -39,7 +38,6 @@ public class SlaveOptionsTest {
                 .hardwareId("HW")
                 .networkId("NW")
                 .userDataId("UD")
-                .instanceCap(5)
                 .floatingIpPool("POOL")
                 .securityGroups("SG")
                 .availabilityZone("AZ")
@@ -59,7 +57,6 @@ public class SlaveOptionsTest {
         assertEquals("HW", overriden.getHardwareId());
         assertEquals("NW", overriden.getNetworkId());
         assertEquals("UD", overriden.getUserDataId());
-        assertEquals(5, (int) overriden.getInstanceCap());
         assertEquals("POOL", overriden.getFloatingPool());
         assertEquals("SG", overriden.getSecurityGroups());
         assertEquals("AZ", overriden.getAvailabilityZone());
@@ -87,7 +84,7 @@ public class SlaveOptionsTest {
 
     @Test
     public void emptyStrings() {
-        SlaveOptions nulls = SlaveOptions.builder().build();
+        SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
                 "", "", "", "", null, "", "", "", null, "", null, "", "", "", null, null
         );
@@ -118,5 +115,18 @@ public class SlaveOptionsTest {
         assertEquals(null, emptyStrings.getFsRoot());
         assertEquals(null, emptyStrings.getKeyPairName());
         assertEquals(null, emptyStrings.getCredentialsId());
+    }
+
+    @Test
+    public void instanceCap() {
+        SlaveOptions none = SlaveOptions.empty();
+
+        SlaveOptions ten = SlaveOptions.builder().instanceCap(10).build();
+        SlaveOptions two = SlaveOptions.builder().instanceCap(2).build();
+
+        assertEquals(10, (int) none.override(ten).getInstanceCap());
+        assertEquals(10, (int) ten.override(none).getInstanceCap());
+        assertEquals(2, (int) ten.override(two).getInstanceCap());
+        assertEquals(2, (int) two.override(ten).getInstanceCap());
     }
 }
