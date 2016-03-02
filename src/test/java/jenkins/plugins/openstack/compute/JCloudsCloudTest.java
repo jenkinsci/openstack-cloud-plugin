@@ -196,7 +196,7 @@ public class JCloudsCloudTest {
         assertThat(j.buildAndAssertSuccess(p).getBuiltOn(), Matchers.instanceOf(JCloudsSlave.class));
 
         Openstack os = cloud.getOpenstack();
-        verify(os).getRunningNodes();
+        verify(os, atLeastOnce()).getRunningNodes();
         verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
         verify(os).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os).updateInfo(any(Server.class));
@@ -210,8 +210,8 @@ public class JCloudsCloudTest {
         JCloudsSlaveTemplate open = j.dummySlaveTemplate(SlaveOptions.builder().instanceCap(null).build(), "open");
         JCloudsCloud cloud = j.dummyCloud(SlaveOptions.builder().instanceCap(4).build(), restricted, open);
 
-        Server restrictedMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, "restricted").get();
-        Server openMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, "open").get();
+        Server restrictedMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, restricted.name).get();
+        Server openMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, open.name).get();
 
         List<Server> running = new ArrayList<>();
 

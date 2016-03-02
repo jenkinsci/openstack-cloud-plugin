@@ -149,7 +149,7 @@ public final class PluginTestRule extends JenkinsRule {
         return new MockServerBuilder();
     }
 
-    public static class MockServerBuilder {
+    public class MockServerBuilder {
 
         private final Server server;
         private final Map<String, String> metadata = new HashMap<>();
@@ -158,6 +158,7 @@ public final class PluginTestRule extends JenkinsRule {
             server = mock(Server.class);
             when(server.getAddresses()).thenReturn(new NovaAddresses());
             when(server.getMetadata()).thenReturn(metadata);
+            metadata.put("jenkins-instance", jenkins.getRootUrl()); // Mark the slave as ours
         }
 
         public MockServerBuilder name(String name) {
