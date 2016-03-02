@@ -57,6 +57,8 @@ import org.openstack4j.model.image.Image;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Configured options for a slave to create.
@@ -496,6 +498,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
 
     @Extension
     public static final class Descriptor extends hudson.model.Descriptor<SlaveOptions> {
+        private static final Logger LOGGER = Logger.getLogger(Descriptor.class.getName());
 
         @Override
         public String getDisplayName() {
@@ -532,10 +535,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                     m.add(p);
                 }
                 return m;
-            } catch (AuthenticationException |FormValidation _) {
+            } catch (AuthenticationException|FormValidation _) {
                 // Incorrect credentials - noop
             } catch (Exception ex) {
-                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
             }
 
             if (Util.fixEmpty(pool) != null) {
@@ -572,10 +575,10 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                     m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
                 }
                 return m;
-            } catch (AuthenticationException |FormValidation _) {
+            } catch (AuthenticationException|FormValidation _) {
                 // Incorrect credentials - noop
             } catch (Exception ex) {
-                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
             }
 
             if (Util.fixEmpty(hardwareId) != null) {
@@ -605,7 +608,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             } catch (AuthenticationException|FormValidation _) {
                 // Incorrect credentials - noop
             } catch (Exception ex) {
-                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
             }
 
             if (Util.fixEmpty(imageId) != null) {
@@ -635,7 +638,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             } catch (AuthenticationException|FormValidation _) {
                 // Incorrect credentials - noop
             } catch (Exception ex) {
-                // TODO LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
             }
 
             if (Util.fixEmpty(networkId) != null) {
