@@ -50,7 +50,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.image.Image;
@@ -521,11 +520,13 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         @Restricted(DoNotUse.class)
-        public ListBoxModel doFillFloatingIpPoolItems(@QueryParameter String pool,
-                                                         @RelativePath("..") @QueryParameter String endPointUrl,
-                                                         @RelativePath("..") @QueryParameter String identity,
-                                                         @RelativePath("..") @QueryParameter String credential,
-                                                         @RelativePath("..") @QueryParameter String zone) {
+        public ListBoxModel doFillFloatingIpPoolItems(
+                @QueryParameter String floatingIpPool,
+                @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+                @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+                @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+                @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+        ) {
             ListBoxModel m = new ListBoxModel();
             m.add("None specified", "");
 
@@ -541,8 +542,8 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
             }
 
-            if (Util.fixEmpty(pool) != null) {
-                m.add(pool);
+            if (Util.fixEmpty(floatingIpPool) != null) {
+                m.add(floatingIpPool);
             }
 
             return m;
@@ -559,11 +560,12 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         @Restricted(DoNotUse.class)
-        public ListBoxModel doFillHardwareIdItems(@QueryParameter String hardwareId,
-                                                  @RelativePath("..") @QueryParameter String endPointUrl,
-                                                  @RelativePath("..") @QueryParameter String identity,
-                                                  @RelativePath("..") @QueryParameter String credential,
-                                                  @RelativePath("..") @QueryParameter String zone
+        public ListBoxModel doFillHardwareIdItems(
+                @QueryParameter String hardwareId,
+                @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+                @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+                @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+                @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
         ) {
 
             ListBoxModel m = new ListBoxModel();
@@ -589,11 +591,12 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         @Restricted(DoNotUse.class)
-        public ListBoxModel doFillImageIdItems(@QueryParameter String imageId,
-                                               @RelativePath("..") @QueryParameter String endPointUrl,
-                                               @RelativePath("..") @QueryParameter String identity,
-                                               @RelativePath("..") @QueryParameter String credential,
-                                               @RelativePath("..") @QueryParameter String zone
+        public ListBoxModel doFillImageIdItems(
+                @QueryParameter String imageId,
+                @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+                @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+                @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+                @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
         ) {
 
             ListBoxModel m = new ListBoxModel();
@@ -619,11 +622,12 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         }
 
         @Restricted(DoNotUse.class)
-        public ListBoxModel doFillNetworkIdItems(@QueryParameter String networkId,
-                                                 @RelativePath("..") @QueryParameter String endPointUrl,
-                                                 @RelativePath("..") @QueryParameter String identity,
-                                                 @RelativePath("..") @QueryParameter String credential,
-                                                 @RelativePath("..") @QueryParameter String zone
+        public ListBoxModel doFillNetworkIdItems(
+                @QueryParameter String networkId,
+                @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+                @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+                @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+                @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
         ) {
 
             ListBoxModel m = new ListBoxModel();
@@ -676,7 +680,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
             m.add("None specified", "");
 
             ConfigProvider provider = getConfigProvider();
-            for(Config config : provider.getAllConfigs()) {
+            for (Config config : provider.getAllConfigs()) {
                 m.add(config.name, config.id);
             }
 
