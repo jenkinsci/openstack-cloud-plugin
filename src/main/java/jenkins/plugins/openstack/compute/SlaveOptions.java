@@ -116,7 +116,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return instanceCap;
     }
 
-    public @CheckForNull String getFloatingPool() {
+    public @CheckForNull String getFloatingIpPool() {
         return floatingIpPool;
     }
 

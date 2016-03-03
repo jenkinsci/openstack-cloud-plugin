@@ -155,7 +155,7 @@ public class JCloudsCloudTest {
         String beans = "identity,credential,endPointUrl,zone";
         JCloudsCloud original = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone",
-                SlaveOptions.builder().slaveType(JCloudsCloud.SlaveType.JNLP).build(), // TODO
+                j.dummySlaveOptions(),
                 Collections.<JCloudsSlaveTemplate>emptyList()
         );
         j.jenkins.clouds.add(original);
@@ -301,7 +301,7 @@ public class JCloudsCloudTest {
         assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
         assertEquals("tenant:user", cloud.identity);
         SlaveOptions co = cloud.getEffectiveSlaveOptions();
-        assertEquals("public", co.getFloatingPool());
+        assertEquals("public", co.getFloatingIpPool());
         assertEquals(31, (int) co.getRetentionTime());
         assertEquals(9, (int) co.getInstanceCap());
         assertEquals(600001, (int) co.getStartTimeout());

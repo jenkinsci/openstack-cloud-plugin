@@ -17,9 +17,19 @@ import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsDescriptor;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
+import hudson.util.Secret;
 import jenkins.plugins.openstack.compute.SlaveOptions;
+import jenkins.plugins.openstack.compute.UserDataConfig;
+import org.jenkinsci.lib.configprovider.ConfigProvider;
+import org.jenkinsci.lib.configprovider.model.Config;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -60,6 +70,17 @@ public final class PluginTestRule extends JenkinsRule {
     private static final Random rnd = new Random();
     private final AtomicInteger slaveCount = new AtomicInteger(0);
     private final AtomicInteger templateCount = new AtomicInteger(0);
+
+    public SlaveOptions dummySlaveOptions() {
+        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("fakeId", "Fake", "It is a fake", "Fake content"));
+        SystemCredentialsProvider.getInstance().getCredentials().add(
+                new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "myCredential", "john", null, null, "Description")
+        );
+        return new SlaveOptions(
+                "imgageId", "hardwareId", "networkId", "fakeId", 1, "poolName", "securityGroup", "availabilityzone",
+                1, "keyPairName", 1, "jvmOptions", "fsRoot", "myCredential", JCloudsCloud.SlaveType.JNLP, 1
+        );
+    }
 
     public void autoconnectJnlpSlaves() {
         JnlpAutoConnect launcher = jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class);

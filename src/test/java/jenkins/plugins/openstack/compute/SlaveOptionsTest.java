@@ -21,7 +21,7 @@ public class SlaveOptionsTest {
         assertEquals("hw", overriden.getHardwareId());
         assertEquals("nw", overriden.getNetworkId());
         assertEquals("ud", overriden.getUserDataId());
-        assertEquals("pool", overriden.getFloatingPool());
+        assertEquals("pool", overriden.getFloatingIpPool());
         assertEquals("sg", overriden.getSecurityGroups());
         assertEquals("az", overriden.getAvailabilityZone());
         assertEquals(1, (int) overriden.getStartTimeout());
@@ -57,7 +57,7 @@ public class SlaveOptionsTest {
         assertEquals("HW", overriden.getHardwareId());
         assertEquals("NW", overriden.getNetworkId());
         assertEquals("UD", overriden.getUserDataId());
-        assertEquals("POOL", overriden.getFloatingPool());
+        assertEquals("POOL", overriden.getFloatingIpPool());
         assertEquals("SG", overriden.getSecurityGroups());
         assertEquals("AZ", overriden.getAvailabilityZone());
         assertEquals(4, (int) overriden.getStartTimeout());
