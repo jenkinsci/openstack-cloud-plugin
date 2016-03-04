@@ -23,7 +23,7 @@
         <st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>
     </f:advanced>
 
-    <f:entry title="Cloud Instance Templates" description="${%List of Cloud Instances to be launched as slaves}">
+    <f:entry title="Cloud Instance Templates">
         <!-- Propagate cloud opts as defaultOpts to templates -->
         <j:set var="defaultOpts" value="${instance == null ? descriptor.defaultOptions : instance.effectiveSlaveOptions}"/>
         <f:repeatable field="templates">

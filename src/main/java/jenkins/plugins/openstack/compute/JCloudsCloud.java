@@ -320,7 +320,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return "Cloud (OpenStack)";
         }
 
-        @Restricted(NoExternalUse.class) // For view
         public SlaveOptions getDefaultOptions() {
             return DEFAULTS;
         }
