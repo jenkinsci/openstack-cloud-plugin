@@ -151,6 +151,17 @@ public class JCloudsCloudTest {
     }
 
     @Test
+    public void eraseDefaults() {
+        SlaveOptions opts = j.dummySlaveOptions().getBuilder().securityGroups("mine").build();
+        JCloudsCloud cloud = new JCloudsCloud(
+                "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
+        );
+
+        assertEquals(opts, cloud.getEffectiveSlaveOptions());
+        assertEquals(opts.getBuilder().numExecutors(null).securityGroups("mine").build(), cloud.getRawSlaveOptions());
+    }
+
+    @Test
     public void testConfigRoundtrip() throws Exception {
         String beans = "identity,credential,endPointUrl,zone";
         JCloudsCloud original = new JCloudsCloud(
@@ -313,7 +324,7 @@ public class JCloudsCloudTest {
         assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", to.getImageId());
         assertEquals("my-network", to.getNetworkId());
         assertEquals(1, (int) to.getNumExecutors());
-        assertEquals(0, (int) to.getRetentionTime()); // overrideRetentiontime though deprecated, should be honored
+        assertEquals(0, (int) to.getRetentionTime()); // overrideRetentionTime though deprecated, should be honored
         assertEquals("/tmp/jenkins", to.getFsRoot());
         assertEquals("jenkins-testing", to.getKeyPairName());
         assertEquals(JCloudsCloud.SlaveType.SSH, to.getSlaveType());

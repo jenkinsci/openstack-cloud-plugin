@@ -329,6 +329,30 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return result;
     }
 
+    /**
+     * Get builder to create modified version of current instance.
+     */
+    public Builder getBuilder() {
+        return new Builder()
+                .imageId(imageId)
+                .hardwareId(hardwareId)
+                .networkId(networkId)
+                .userDataId(userDataId)
+                .instanceCap(instanceCap)
+                .floatingIpPool(floatingIpPool)
+                .securityGroups(securityGroups)
+                .availabilityZone(availabilityZone)
+                .startTimeout(startTimeout)
+                .keyPairName(keyPairName)
+                .numExecutors(numExecutors)
+                .jvmOptions(jvmOptions)
+                .fsRoot(fsRoot)
+                .credentialsId(credentialsId)
+                .slaveType(slaveType)
+                .retentionTime(retentionTime)
+        ;
+    }
+
     public static @Nonnull SlaveOptions empty() {
         return EMPTY;
     }
@@ -343,8 +367,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         private @CheckForNull String networkId;
         private @CheckForNull String userDataId;
         private @CheckForNull Integer instanceCap;
-        private @CheckForNull
-        String floatingIpPool;
+        private @CheckForNull String floatingIpPool;
         private @CheckForNull String securityGroups;
         private @CheckForNull String availabilityZone;
         private @CheckForNull Integer startTimeout;

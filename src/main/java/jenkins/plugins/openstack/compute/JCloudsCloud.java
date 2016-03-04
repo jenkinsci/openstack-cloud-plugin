@@ -104,7 +104,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @SuppressWarnings({"unused", "deprecation"})
     private Object readResolve() {
-        injectReferenceIntoTemplates();
         if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null) {
             SlaveOptions carry = SlaveOptions.builder()
                     .instanceCap(instanceCap)
@@ -119,6 +118,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             floatingIps = null;
             instanceCap = null;
         }
+
+        injectReferenceIntoTemplates();
+
         return this;
     }
 

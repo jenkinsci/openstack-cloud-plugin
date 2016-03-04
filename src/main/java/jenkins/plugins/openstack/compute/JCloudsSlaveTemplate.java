@@ -103,7 +103,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         // Migrate from 2.0 to 2.1
-        if (hardwareId != null) {
+        if (slaveOptions == null) {
             slaveOptions = SlaveOptions.builder().imageId(imageId).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
                     .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
                     .credentialsId(credentialsId).slaveType(slaveType).availabilityZone(availabilityZone).build()
@@ -130,7 +130,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     @Restricted(NoExternalUse.class)
     /*package*/ void setOwner(JCloudsCloud cloud) {
         this.cloud = cloud;
-        //slaveOptions = slaveOptions.eraseDefaults(cloud.getEffectiveSlaveOptions());
+        slaveOptions = slaveOptions.eraseDefaults(cloud.getEffectiveSlaveOptions());
     }
 
     public @Nonnull SlaveOptions getEffectiveSlaveOptions() {

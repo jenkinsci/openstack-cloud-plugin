@@ -9,13 +9,13 @@ import org.junit.Test;
  */
 public class SlaveOptionsTest {
 
+    public static final SlaveOptions ORIGINAL = new SlaveOptions(
+            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 1, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
+    );
+
     @Test // instanceCap is a subject of different overriding rules
     public void defaultOverrides() {
-        SlaveOptions original = new SlaveOptions(
-                "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 1, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
-        );
-
-        SlaveOptions overriden = original.override(SlaveOptions.empty());
+        SlaveOptions overriden = ORIGINAL.override(SlaveOptions.empty());
 
         assertEquals("img", overriden.getImageId());
         assertEquals("hw", overriden.getHardwareId());
@@ -51,7 +51,7 @@ public class SlaveOptionsTest {
                 .retentionTime(3)
                 .build()
         ;
-        overriden = original.override(override);
+        overriden = ORIGINAL.override(override);
 
         assertEquals("IMG", overriden.getImageId());
         assertEquals("HW", overriden.getHardwareId());
@@ -128,5 +128,10 @@ public class SlaveOptionsTest {
         assertEquals(10, (int) ten.override(none).getInstanceCap());
         assertEquals(2, (int) ten.override(two).getInstanceCap());
         assertEquals(2, (int) two.override(ten).getInstanceCap());
+    }
+
+    @Test
+    public void modifyThrougBuilder() {
+        assertEquals(ORIGINAL, ORIGINAL.getBuilder().build());
     }
 }

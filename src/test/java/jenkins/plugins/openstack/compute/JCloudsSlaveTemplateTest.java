@@ -10,6 +10,7 @@ import org.junit.Test;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -23,15 +24,12 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void configRoundtrip() throws Exception {
-        final String TEMPLATE_NAME = "test-template";
-        final String CLOUD_NAME = "my-openstack";
-
         JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(
-                TEMPLATE_NAME, "openstack-slave-type1 openstack-type2", j.dummySlaveOptions()
+                "test-template", "openstack-slave-type1 openstack-type2", j.dummySlaveOptions()
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(
-                CLOUD_NAME, "identity", "credential", "endPointUrl", "zone",
+                "my-openstack", "identity", "credential", "endPointUrl", "zone",
                 SlaveOptions.empty(),
                 Collections.singletonList(originalTemplate)
         );
@@ -41,14 +39,34 @@ public class JCloudsSlaveTemplateTest {
 
         j.submit(form);
 
-        final JCloudsCloud actualCloud = JCloudsCloud.getByName(CLOUD_NAME);
+        final JCloudsCloud actualCloud = JCloudsCloud.getByName("my-openstack");
         j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
         assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 
-        JCloudsSlaveTemplate actualTemplate = actualCloud.getTemplate(TEMPLATE_NAME);
+        JCloudsSlaveTemplate actualTemplate = actualCloud.getTemplate("test-template");
         j.assertEqualBeans(originalTemplate, actualTemplate, TEMPLATE_PROPERTIES);
         assertThat(actualTemplate.getEffectiveSlaveOptions(), equalTo(originalTemplate.getEffectiveSlaveOptions()));
         assertThat(actualTemplate.getRawSlaveOptions(), equalTo(originalTemplate.getRawSlaveOptions()));
+    }
+
+    @Test
+    public void eraseDefaults() throws Exception {
+        SlaveOptions cloudOpts = j.dummySlaveOptions().getBuilder().numExecutors(5).build(); // Do not collide with cloud defaults so we test template erasure only
+        SlaveOptions templateOpts = cloudOpts.getBuilder().imageId("42").availabilityZone("other").build();
+        assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
+
+        JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
+                "test-templateOpts", "openstack-slave-type1 openstack-type2", templateOpts
+        );
+
+        JCloudsCloud cloud = new JCloudsCloud(
+                "my-openstack", "identity", "credential", "endPointUrl", "zone",
+                cloudOpts,
+                Collections.singletonList(template)
+        );
+
+        assertEquals(cloudOpts, cloud.getRawSlaveOptions());
+        assertEquals(SlaveOptions.builder().imageId("42").availabilityZone("other").build(), template.getRawSlaveOptions());
     }
 }
