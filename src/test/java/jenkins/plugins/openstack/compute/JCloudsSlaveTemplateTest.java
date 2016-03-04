@@ -27,40 +27,28 @@ public class JCloudsSlaveTemplateTest {
         final String CLOUD_NAME = "my-openstack";
 
         JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(
-                TEMPLATE_NAME,
-                "openstack-slave-type1 openstack-type2",
-                SlaveOptions.builder()
-                        .imageId("myImageId")
-                        .hardwareId("myHardwareId")
-                        .numExecutors(1)
-                        .keyPairName("MyKeyPair")
-                        .networkId("network1_id,network2_id")
-                        .securityGroups("MySecurityGroup")
-                        .slaveType(JCloudsCloud.SlaveType.SSH)
-                        // TODO incomplete
-                        .build()
+                TEMPLATE_NAME, "openstack-slave-type1 openstack-type2", j.dummySlaveOptions()
         );
 
-        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", "zone", SlaveOptions.empty(), Collections.singletonList(originalTemplate));
+        JCloudsCloud originalCloud = new JCloudsCloud(
+                CLOUD_NAME, "identity", "credential", "endPointUrl", "zone",
+                SlaveOptions.empty(),
+                Collections.singletonList(originalTemplate)
+        );
 
         j.jenkins.clouds.add(originalCloud);
         HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
-        String formText = form.getPage().getWebResponse().getContentAsString();
-        assertThat(formText, containsString("myImageId"));
-        assertThat(formText, containsString("myHardwareId"));
-        assertThat(formText, containsString("penstack-slave-type1 openstack-type2"));
-        assertThat(formText, containsString("MyKeyPair"));
-        assertThat(formText, containsString("network1_id,network2_id"));
-        assertThat(formText, containsString("MySecurityGroup"));
 
         j.submit(form);
 
         final JCloudsCloud actualCloud = JCloudsCloud.getByName(CLOUD_NAME);
         j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
+        assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 
         JCloudsSlaveTemplate actualTemplate = actualCloud.getTemplate(TEMPLATE_NAME);
         j.assertEqualBeans(originalTemplate, actualTemplate, TEMPLATE_PROPERTIES);
+        assertThat(actualTemplate.getEffectiveSlaveOptions(), equalTo(originalTemplate.getEffectiveSlaveOptions()));
         assertThat(actualTemplate.getRawSlaveOptions(), equalTo(originalTemplate.getRawSlaveOptions()));
     }
 }

@@ -54,6 +54,7 @@ import org.openstack4j.model.image.Image;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -257,9 +258,13 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getInstance()).hasPermission(Computer.CONFIGURE)) {
             return new ListBoxModel();
         }
-        return new StandardUsernameListBoxModel().withMatching(SSHAuthenticator.matcher(Connection.class),
-                CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class, context,
-                        ACL.SYSTEM, SSHLauncher.SSH_SCHEME));
+        List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
+                StandardUsernameCredentials.class, context, ACL.SYSTEM, SSHLauncher.SSH_SCHEME
+        );
+        return new StandardUsernameListBoxModel()
+                .withMatching(SSHAuthenticator.matcher(Connection.class), credentials)
+                .withEmptySelection()
+        ;
     }
 
     @Restricted(DoNotUse.class)

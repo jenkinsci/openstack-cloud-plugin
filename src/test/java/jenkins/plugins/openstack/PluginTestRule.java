@@ -72,13 +72,13 @@ public final class PluginTestRule extends JenkinsRule {
     private final AtomicInteger templateCount = new AtomicInteger(0);
 
     public SlaveOptions dummySlaveOptions() {
-        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("fakeId", "Fake", "It is a fake", "Fake content"));
+        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("dummyUserDataId", "Fake", "It is a fake", "Fake content"));
         SystemCredentialsProvider.getInstance().getCredentials().add(
-                new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "myCredential", "john", null, null, "Description")
+                new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "dummyCredentialId", "john", null, null, "Description")
         );
         return new SlaveOptions(
-                "imgageId", "hardwareId", "networkId", "fakeId", 1, "poolName", "securityGroup", "availabilityzone",
-                1, "keyPairName", 1, "jvmOptions", "fsRoot", "myCredential", JCloudsCloud.SlaveType.JNLP, 1
+                "dummyImageId", "dummyHardwareId", "dummyNetworkId", "dummyUserDataId", 1, "dummyPoolName", "dummySecurityGroup", "dummyAvailabilityzone",
+                1, "dummyKeyPairName", 1, "dummyJvmOptions", "dummyFsRoot", "dummyCredentialId", JCloudsCloud.SlaveType.JNLP, 1
         );
     }
 

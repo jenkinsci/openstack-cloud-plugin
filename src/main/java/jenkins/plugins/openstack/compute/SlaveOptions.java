@@ -26,6 +26,7 @@ package jenkins.plugins.openstack.compute;
 import hudson.Util;
 import hudson.model.Describable;
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.builder.ToStringBuilder;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -261,23 +262,24 @@ public class SlaveOptions implements Describable<SlaveOptions> {
 
     @Override
     public String toString() {
-        return "SlaveOptions{" +
-                "imageId='" + imageId + '\'' +
-                ", hardwareId='" + hardwareId + '\'' +
-                ", networkId='" + networkId + '\'' +
-                ", userDataId='" + userDataId + '\'' +
-                ", floatingIpPool=" + floatingIpPool +
-                ", securityGroups='" + securityGroups + '\'' +
-                ", availabilityZone='" + availabilityZone + '\'' +
-                ", startTimeout=" + startTimeout +
-                ", keyPairName='" + keyPairName + '\'' +
-                ", numExecutors=" + numExecutors +
-                ", jvmOptions='" + jvmOptions + '\'' +
-                ", fsRoot='" + fsRoot + '\'' +
-                ", credentialsId='" + credentialsId + '\'' +
-                ", slaveType=" + slaveType +
-                ", retentionTime=" + retentionTime +
-                '}';
+        return new ToStringBuilder(this)
+                .append("imageId", imageId)
+                .append("hardwareId", hardwareId)
+                .append("networkId", networkId)
+                .append("userDataId", userDataId)
+                .append("floatingIpPool=", floatingIpPool)
+                .append("securityGroups", securityGroups)
+                .append("availabilityZone", availabilityZone)
+                .append("startTimeout", startTimeout)
+                .append("keyPairName", keyPairName)
+                .append("numExecutors", numExecutors)
+                .append("jvmOptions", jvmOptions)
+                .append("fsRoot", fsRoot)
+                .append("credentialsId", credentialsId)
+                .append("slaveType", slaveType)
+                .append("retentionTime", retentionTime)
+                .toString()
+        ;
     }
 
     @Override
