@@ -40,7 +40,25 @@
           <securityGroups>default</securityGroups>
           <credentialsId>2d07660b-c5c7-4e8b-82fd-a6ffe3429b39</credentialsId>
           <slaveType>SSH</slaveType>
-          <availabilityZone>AZ</availabilityZone>
+          <availabilityZone>zone</availabilityZone>
+        </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+        <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+          <name>nulls</name>
+          <imageId></imageId>
+          <hardwareId></hardwareId>
+          <labelString>label</labelString>
+          <userDataId>jenkins.plugins.openstack.compute.UserDataConfig.1455188317989</userDataId>
+          <numExecutors>1</numExecutors>
+          <stopOnTerminate>false</stopOnTerminate>
+          <fsRoot>/tmp/jenkins</fsRoot>
+          <installPrivateKey>false</installPrivateKey>
+          <overrideRetentionTime>0</overrideRetentionTime>
+          <keyPairName>jenkins-testing</keyPairName>
+          <networkId></networkId>
+          <securityGroups>default</securityGroups>
+          <credentialsId>2d07660b-c5c7-4e8b-82fd-a6ffe3429b39</credentialsId>
+          <slaveType>SSH</slaveType>
+          <availabilityZone>zone</availabilityZone>
         </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
       </templates>
       <scriptTimeout>600000</scriptTimeout>

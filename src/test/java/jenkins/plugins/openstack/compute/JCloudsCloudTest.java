@@ -111,7 +111,7 @@ public class JCloudsCloudTest {
                 "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
         ), Arrays.asList(template));
         j.jenkins.clouds.add(cloud);
-//j.interactiveBreak();
+
         JenkinsRule.WebClient wc = j.createWebClient();
         HtmlPage page = wc.goTo("configure");
         GlobalConfig.Cloud c = GlobalConfig.addCloud(page);
@@ -329,13 +329,15 @@ public class JCloudsCloudTest {
         assertEquals("jenkins-testing", to.getKeyPairName());
         assertEquals(JCloudsCloud.SlaveType.SSH, to.getSlaveType());
         assertEquals("default", to.getSecurityGroups());
-        assertEquals("AZ", to.getAvailabilityZone());
+        assertEquals("zone", to.getAvailabilityZone());
 
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-userData"), template.getUserData());
 
         BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(to.getCredentialsId());
         assertEquals("jenkins", creds.getUsername());
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-private-key"), creds.getPrivateKey());
+
+        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
     }
 
     private String fileAsString(String filename) throws IOException {
