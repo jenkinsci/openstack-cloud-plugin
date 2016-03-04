@@ -65,6 +65,7 @@ import java.util.logging.Logger;
 public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveOptions> {
     private static final Logger LOGGER = Logger.getLogger(SlaveOptionsDescriptor.class.getName());
     private static final FormValidation OK = FormValidation.ok();
+    public static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
 
     public SlaveOptionsDescriptor() {
         super(SlaveOptions.class);
@@ -79,12 +80,22 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         return ((JCloudsCloud.DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
     }
 
+    private String getDefault(String d1, Object d2) {
+        if (d1 != null) return d1;
+        if (d2 != null) return String.valueOf(d2);
+        return null;
+    }
+
     @Restricted(DoNotUse.class)
     public FormValidation doCheckInstanceCap(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("instanceCap") String def
     ) {
-        if (Util.fixEmpty(value) == null && (def != null || opts().getInstanceCap() != null)) return OK;
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getInstanceCap());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
         return FormValidation.validatePositiveInteger(value);
     }
 
@@ -93,7 +104,11 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("startTimeout") String def
     ) {
-        if (Util.fixEmpty(value) == null && (def != null || opts().getStartTimeout() != null)) return OK;
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getStartTimeout());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
         return FormValidation.validatePositiveInteger(value);
     }
 
@@ -102,7 +117,11 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("numExecutors") String def
     ) {
-        if (Util.fixEmpty(value) == null && (def != null || opts().getNumExecutors() != null)) return OK;
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getNumExecutors());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
         return FormValidation.validatePositiveInteger(value);
     }
 
@@ -111,10 +130,14 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("retentionTime") String def
     ) {
-        if (Util.fixEmpty(value) == null && (def != null || opts().getRetentionTime() != null)) return OK;
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getRetentionTime());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
         try {
             if (Integer.parseInt(value) == -1)
-                return OK;
+                return FormValidation.ok("Keep forever");
         } catch (NumberFormatException e) {
         }
         return FormValidation.validateNonNegativeInteger(value);
@@ -148,6 +171,19 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         }
 
         return m;
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckFloatingIpPool(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("floatingIpPool") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getFloatingIpPool());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
+        return OK;
     }
 
     @Restricted(DoNotUse.class)
@@ -293,5 +329,4 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     public @Nonnull String def(@CheckForNull Object val) {
         return val == null ? "" : ("Inherited vlaue: " + val);
     }
-
 }
