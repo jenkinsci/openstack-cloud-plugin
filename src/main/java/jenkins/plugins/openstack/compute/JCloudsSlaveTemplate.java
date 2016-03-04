@@ -126,7 +126,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return this;
     }
 
-    // Called when registered into cloud, this class is not supposed to be persisted between before this is called
+    // Called when registered into cloud, this class is not supposed to be persisted before this is called
     @Restricted(NoExternalUse.class)
     /*package*/ void setOwner(JCloudsCloud cloud) {
         this.cloud = cloud;

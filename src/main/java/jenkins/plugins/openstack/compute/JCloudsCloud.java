@@ -2,6 +2,9 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -327,10 +330,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         @Restricted(DoNotUse.class)
-        public FormValidation doTestConnection(@QueryParameter String zone,
-                                               @QueryParameter String endPointUrl,
-                                               @QueryParameter String identity,
-                                               @QueryParameter String credential
+        public FormValidation doTestConnection(
+                @QueryParameter String zone,
+                @QueryParameter String endPointUrl,
+                @QueryParameter String identity,
+                @QueryParameter String credential
         ) {
             try {
                 getOpenstack(endPointUrl, identity, credential, zone);
@@ -343,24 +347,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         @Restricted(DoNotUse.class)
-        public FormValidation doCheckProfile(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        @Restricted(DoNotUse.class)
-        public FormValidation doCheckCredential(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        @Restricted(DoNotUse.class)
-        public FormValidation doCheckIdentity(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        @Restricted(DoNotUse.class)
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
-            if (!value.isEmpty() && !value.startsWith("http")) {
-                return FormValidation.error("The endpoint must be an URL");
+            if (Util.fixEmpty(value) == null) return FormValidation.validateRequired(value);
+
+            try {
+                new URL(value);
+            } catch (MalformedURLException ex) {
+                FormValidation.error(ex, "The endpoint must be an URL"  );
             }
             return FormValidation.ok();
         }
