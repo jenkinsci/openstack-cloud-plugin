@@ -16,16 +16,6 @@
     <f:nested>
         <div name="slaveOptions" descriptorid="${descriptor.id}">
             <table style="width:100%">
-                <!-- Avoid: com.gargoylesoftware.htmlunit.ScriptException: ReferenceError: "console" is not defined. (http://localhost:60017/jenkins/static/7ca001cd/scripts/hudson-behavior.js#2249) -->
-                <script type="text/javascript">
-                    if (!window.console) {
-                        console = {
-                            log: function() {},
-                            warn: function() {}
-                        };
-                    }
-                </script>
-
                 <f:section title="Cloud Server Options">
                     <f:entry title="Image" field="imageId">
                         <f:select/>
