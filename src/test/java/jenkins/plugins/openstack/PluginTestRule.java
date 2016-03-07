@@ -7,25 +7,19 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
-import com.cloudbees.plugins.credentials.CredentialsDescriptor;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
-import hudson.util.Secret;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
@@ -33,7 +27,6 @@ import org.jenkinsci.lib.configprovider.model.Config;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.TestExtension;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.model.compute.Server;
@@ -81,7 +74,7 @@ public final class PluginTestRule extends JenkinsRule {
         );
         return new SlaveOptions(
                 "dummyImageId", "dummyHardwareId", "dummyNetworkId", "dummyUserDataId", 1, "dummyPoolName", "dummySecurityGroup", "dummyAvailabilityzone",
-                1, "dummyKeyPairName", 1, "dummyJvmOptions", "dummyFsRoot", "dummyCredentialId", JCloudsCloud.SlaveType.JNLP, 1
+                60000, "dummyKeyPairName", 1, "dummyJvmOptions", "dummyFsRoot", "dummyCredentialId", JCloudsCloud.SlaveType.JNLP, 1
         );
     }
 
@@ -141,11 +134,10 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsCloud createCloudProvisioningDummySlaves(String labels) {
-        return createCloudProvisioningSlaves(dummySlaveTemplate(labels));
+        return configureSlaveProvisioning(dummyCloud(dummySlaveTemplate(labels)));
     }
 
-    public JCloudsCloud createCloudProvisioningSlaves(JCloudsSlaveTemplate... templates) {
-        JCloudsCloud cloud = dummyCloud(templates);
+    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud) {
         autoconnectJnlpSlaves();
         Openstack os = cloud.getOpenstack();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {

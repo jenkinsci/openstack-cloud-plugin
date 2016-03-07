@@ -13,6 +13,7 @@ import com.gargoylesoftware.htmlunit.WebRequestSettings;
 import hudson.model.FreeStyleBuild;
 import hudson.model.Node;
 import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.slaves.ComputerLauncher;
 import jenkins.plugins.openstack.GlobalConfig;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.apache.commons.io.IOUtils;
@@ -35,6 +36,8 @@ import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockSettings;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
@@ -303,7 +306,6 @@ public class JCloudsCloudTest {
 
         try {
             Server s = template.provision(cloud);
-            System.out.println(s.getStatus());
             fail();
         } catch (Openstack.ActionFailed ex) {
             assertThat(ex.getMessage(), containsString("Failed to boot server in time"));
@@ -349,5 +351,19 @@ public class JCloudsCloudTest {
 
     private String fileAsString(String filename) throws IOException {
         return IOUtils.toString(getClass().getResourceAsStream(getClass().getSimpleName() + "/" + filename));
+    }
+
+    @Test
+    public void verifyOptionsPropagatedToLauncher() throws Exception {
+        SlaveOptions expected = j.dummySlaveOptions().getBuilder().slaveType(JCloudsCloud.SlaveType.SSH).build();
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(expected,j.dummySlaveTemplate("label")));
+
+        JCloudsSlave slave = j.provision(cloud, "label");
+
+        SSHLauncher launcher = (SSHLauncher) ((JCloudsLauncher) slave.getLauncher()).lastLauncher;
+        assertEquals(slave.getPublicAddess(), launcher.getHost());
+        assertEquals(expected.getCredentialsId(), launcher.getCredentialsId());
+        assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
+        assertEquals((int) expected.getRetentionTime(), slave.getRetentionTime());
     }
 }

@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -17,6 +16,9 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.slaves.ComputerLauncher;
+import hudson.slaves.JNLPLauncher;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -67,7 +69,30 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private transient @Deprecated Integer startTimeout;
     private transient @Deprecated Boolean floatingIps;
 
-    public enum SlaveType {SSH, JNLP}
+    // TODO: refactor to interface/extension point
+    public enum SlaveType {
+        SSH {
+            @Override
+            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+                String publicAddress = slave.getPublicAddess();
+                if (publicAddress == null) {
+                    throw new IOException("The slave is likely deleted");
+                }
+                if ("0.0.0.0".equals(publicAddress)) {
+                    throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
+                }
+                return new SSHLauncher(slave.getPublicAddess(), 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
+            }
+        },
+        JNLP {
+            @Override
+            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
+                return new JNLPLauncher();
+            }
+        };
+
+        public abstract ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException;
+    }
 
     public static List<String> getCloudNames() {
         List<String> cloudNames = new ArrayList<>();
@@ -218,7 +243,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             }
 
             if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {
-                String message = String.format("Failed to connect to slave within timeout (%d s).", launchTimeoutSec);
+                String message = String.format("Failed to connect to slave within timeout (%d ms).", launchTimeoutSec);
                 LOGGER.warning(message);
                 computer.setPendingDelete(true);
                 throw new ExecutionException(new Throwable(message));

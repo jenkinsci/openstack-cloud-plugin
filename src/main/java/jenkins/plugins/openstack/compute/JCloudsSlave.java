@@ -1,21 +1,21 @@
 package jenkins.plugins.openstack.compute;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import hudson.Extension;
-import hudson.model.TaskListener;
 import hudson.model.Descriptor;
+import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.NodeProperty;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.openstack4j.model.compute.Server;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.logging.Logger;
 
-import javax.annotation.Nonnull;
-
-import org.openstack4j.model.compute.Server;
+import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 
 /**
  * Jenkins Slave node - managed by JClouds.
@@ -27,7 +27,10 @@ public class JCloudsSlave extends AbstractCloudSlave {
 
     private @Nonnull Server metadata;
 
-    private final String cloudName;
+    private final @Nonnull String cloudName;
+    private final @Nonnull SlaveOptions options;
+
+    // TODO get rid of these
     private final int overrideRetentionTime;
     private final String jvmOptions;
     private final String credentialsId;
@@ -40,16 +43,16 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * @param fsRoot                - Location of Jenkins root (homedir) on the slave.
      * @param metadata              - node metadata
      * @param labelString           - Label(s) for this slave.
+     * @param slaveOptions
      * @param numExecutors          - Number of executors for this slave.
      * @param overrideRetentionTime - Retention time to use specifically for this slave, overriding the cloud default.
      * @param jvmOptions            - Custom options for lauching the JVM on the slave.
-     * @param credentialsId         - Id of the credentials in Jenkin's global credentials database.
-     * @throws IOException
+     * @param credentialsId         - Id of the credentials in Jenkin's global credentials database.     @throws IOException
      * @throws Descriptor.FormException
      */
     public JCloudsSlave(final String cloudName, final String fsRoot, Server metadata, final String labelString,
-            final String numExecutors, final int overrideRetentionTime,
-            String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
+                        SlaveOptions slaveOptions, final String numExecutors, final int overrideRetentionTime,
+                        String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
         super(
                 metadata.getName(),
                 null,
@@ -57,16 +60,26 @@ public class JCloudsSlave extends AbstractCloudSlave {
                 numExecutors,
                 Mode.NORMAL,
                 labelString,
-                new JCloudsLauncher(Openstack.getPublicAddress(metadata)),
+                new JCloudsLauncher(),
                 new JCloudsRetentionStrategy(),
                 Collections.<NodeProperty<?>>emptyList()
         );
         this.cloudName = cloudName;
+        this.options = slaveOptions;
+        this.metadata = metadata;
+
         this.overrideRetentionTime = overrideRetentionTime;
         this.jvmOptions = jvmOptions;
         this.credentialsId = credentialsId;
         this.slaveType = slaveType;
-        this.metadata = metadata;
+
+    }
+
+    /**
+     * Get public IP address od the server.
+     */
+    public @CheckForNull String getPublicAddess() {
+        return Openstack.getPublicAddress(metadata);
     }
 
     /**
@@ -97,15 +110,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
 
         JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
         return cloud == null ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : cloud.getEffectiveSlaveOptions().getRetentionTime();
-    }
-
-    /**
-     * Get the JClouds profile identifier for the Cloud associated with this slave.
-     *
-     * @return cloudName
-     */
-    public String getCloudName() {
-        return cloudName;
     }
 
     public String getCredentialsId() {
