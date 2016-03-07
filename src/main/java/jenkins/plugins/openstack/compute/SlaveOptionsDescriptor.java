@@ -49,6 +49,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.api.exceptions.AuthenticationException;
+import org.openstack4j.api.exceptions.ConnectionException;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.image.Image;
 
@@ -161,7 +162,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(p);
             }
             return m;
-        } catch (AuthenticationException | FormValidation _) {
+        } catch (AuthenticationException | FormValidation | ConnectionException _) {
             // Incorrect credentials - noop
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -205,7 +206,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
             }
             return m;
-        } catch (AuthenticationException | FormValidation _) {
+        } catch (AuthenticationException | FormValidation | ConnectionException _) {
             // Incorrect credentials - noop
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -249,7 +250,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
             }
             return m;
-        } catch (AuthenticationException | FormValidation _) {
+        } catch (AuthenticationException | FormValidation | ConnectionException _) {
             // Incorrect credentials - noop
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
@@ -293,7 +294,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
             }
             return m;
-        } catch (AuthenticationException | FormValidation _) {
+        } catch (AuthenticationException | FormValidation | ConnectionException _) {
             // Incorrect credentials - noop
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
