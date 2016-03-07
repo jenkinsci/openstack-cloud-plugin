@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -10,6 +11,7 @@ import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequestSettings;
 import hudson.model.FreeStyleBuild;
+import hudson.model.Node;
 import hudson.plugins.sshslaves.SSHLauncher;
 import jenkins.plugins.openstack.GlobalConfig;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -200,8 +202,11 @@ public class JCloudsCloudTest {
         FreeStyleProject p = j.createFreeStyleProject();
         // Provision with label
         p.setAssignedLabel(Label.get("label"));
-        assertThat(j.buildAndAssertSuccess(p).getBuiltOn(), Matchers.instanceOf(JCloudsSlave.class));
+        Node node = j.buildAndAssertSuccess(p).getBuiltOn();
+        assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
+        node.toComputer().doDoDelete();
         j.triggerOpenstackSlaveCleanup();
+        assertThat(j.jenkins.getComputers(), arrayWithSize(1));
 
         // Provision without label
         p.setAssignedLabel(null);
@@ -209,9 +214,10 @@ public class JCloudsCloudTest {
 
         Openstack os = cloud.getOpenstack();
         verify(os, atLeastOnce()).getRunningNodes();
-        verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
-        verify(os).assignFloatingIp(any(Server.class), eq("custom"));
-        verify(os).updateInfo(any(Server.class));
+        verify(os, times(2)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
+        verify(os, times(2)).assignFloatingIp(any(Server.class), eq("custom"));
+        verify(os, times(2)).updateInfo(any(Server.class));
+        verify(os, atLeastOnce()).destroyServer(any(Server.class));
 
         verifyNoMoreInteractions(os);
     }
