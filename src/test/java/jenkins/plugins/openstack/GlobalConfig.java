@@ -27,9 +27,11 @@ import com.gargoylesoftware.htmlunit.SgmlPage;
 import com.gargoylesoftware.htmlunit.html.DomElement;
 import com.gargoylesoftware.htmlunit.html.DomNode;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
+import com.gargoylesoftware.htmlunit.html.HtmlDivision;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.javascript.host.Event;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -83,11 +85,14 @@ public class GlobalConfig {
         }
         
         public Element elem(String name) {
-            String xpathExpr = "//input[@name='_." + name + "']";
-            HtmlInput input = page.getFirstByXPath(wrapper + xpathExpr);
+            String xpathExpr = wrapper + "//input[@name='_." + name + "']";
+            HtmlInput input = page.getFirstByXPath(xpathExpr);
             if (input != null) {
+                //System.out.println(page.getParentNode().getTextContent());
+                xpathExpr += "/../../following-sibling::tr[@class='validation-error-area']/td/div";
+                HtmlDivision validation = page.getFirstByXPath(xpathExpr);
                 return new Element(
-                        fixEmpty(input.getAttribute("placeholder").replace("Inherited vlaue: ", "")),
+                        fixEmpty(validation.getTextContent().replace("Inherited vlaue: ", "")),
                         fixEmpty(input.getAttribute("value"))
                 );
             }

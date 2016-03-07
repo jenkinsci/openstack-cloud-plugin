@@ -15,6 +15,7 @@ import jenkins.plugins.openstack.GlobalConfig;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -99,7 +100,7 @@ public class JCloudsCloudTest {
         assertNotNull(deleteCloudButton);
     }
 
-    @Test
+    @Test @Ignore("HtmlUnit is not able to triger form validation")
     public void presentUIDefaults() throws Exception {
         SlaveOptions DEF = ((JCloudsCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
 
