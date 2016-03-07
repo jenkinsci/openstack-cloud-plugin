@@ -33,6 +33,7 @@ import org.jenkinsci.lib.configprovider.model.Config;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.model.compute.Server;
@@ -71,6 +72,8 @@ public final class PluginTestRule extends JenkinsRule {
     private final AtomicInteger slaveCount = new AtomicInteger(0);
     private final AtomicInteger templateCount = new AtomicInteger(0);
 
+    private final Map<String, Proc> slavesToKill = new HashMap<>();
+
     public SlaveOptions dummySlaveOptions() {
         ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("dummyUserDataId", "Fake", "It is a fake", "Fake content"));
         SystemCredentialsProvider.getInstance().getCredentials().add(
@@ -93,16 +96,19 @@ public final class PluginTestRule extends JenkinsRule {
      * The rule will kill it after the test if not killed already.
      */
     public Proc connectJnlpSlave(String slaveName) throws IOException, InterruptedException {
+        if (slavesToKill.get(slaveName) != null) {
+            throw new Error("Connecting JNLP slave that is already running: " + jenkins.getComputer(slaveName).getSystemProperties().get("startedBy"));
+        }
         File jar = Which.jarFile(Channel.class);
         String url = getURL() + "computer/" + slaveName + "/slave-agent.jnlp";
         StreamTaskListener listener = StreamTaskListener.fromStdout();
         Proc proc = new LocalLauncher(listener).launch()
-                .cmds("java", "-jar", jar.getAbsolutePath(), "-jnlpUrl", url)
+                .cmds("java", "-jar", "-DstartedBy=" + getTestDescription(), jar.getAbsolutePath(), "-jnlpUrl", url)
                 .stderr(System.err)
                 .stdout(System.out)
                 .start()
         ;
-        slavesToKill.add(proc);
+        slavesToKill.put(slaveName, proc);
         return proc;
     }
 
@@ -211,8 +217,6 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    private final List<Proc> slavesToKill = new ArrayList<>();
-
     @Override
     public Statement apply(Statement base, Description description) {
         final Statement jenkinsRuleStatement = super.apply(base, description);
@@ -223,10 +227,11 @@ public final class PluginTestRule extends JenkinsRule {
                 try {
                     jenkinsRuleStatement.evaluate();
                 } finally {
-                    for (Proc s: slavesToKill) {
-                        if (s.isAlive()) {
-                            System.err.println("Killing agent" + s);
-                            s.kill();
+                    for (Map.Entry<String, Proc> slave: slavesToKill.entrySet()) {
+                        Proc p = slave.getValue();
+                        while (p.isAlive()) {
+                            System.err.println("Killing agent" + p + " for " + slave.getKey());
+                            p.kill();
                         }
                     }
                 }
@@ -243,6 +248,16 @@ public final class PluginTestRule extends JenkinsRule {
             if (rule == null) return;
             System.out.println("Autolaunching agent for slave: " + c.getDisplayName());
             rule.connectJnlpSlave(c.getDisplayName());
+        }
+
+        @Override
+        public void onOnline(Computer c, TaskListener listener) throws IOException, InterruptedException {
+            if (rule == null) return;
+            String current = rule.getTestDescription().toString();
+            Object agent = c.getSystemProperties().get("startedBy");
+            if (!current.equals(agent)) {
+                throw new Error("Leaked agent connected from: " + agent);
+            }
         }
     }
 
