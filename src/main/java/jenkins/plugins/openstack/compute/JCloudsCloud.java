@@ -74,14 +74,15 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         SSH {
             @Override
             public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
-                String publicAddress = slave.getPublicAddess();
+                String publicAddress = slave.getPublicAddress();
                 if (publicAddress == null) {
                     throw new IOException("The slave is likely deleted");
                 }
                 if ("0.0.0.0".equals(publicAddress)) {
                     throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                 }
-                return new SSHLauncher(slave.getPublicAddess(), 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
+                SlaveOptions opts = slave.getSlaveOptions();
+                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
             }
         },
         JNLP {

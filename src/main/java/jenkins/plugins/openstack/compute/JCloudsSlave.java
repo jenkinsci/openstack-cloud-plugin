@@ -15,12 +15,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.logging.Logger;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
-
 /**
- * Jenkins Slave node - managed by JClouds.
- *
- * @author Vijay Kiran
+ * Jenkins Slave node.
  */
 public class JCloudsSlave extends AbstractCloudSlave {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
@@ -30,34 +26,20 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private final @Nonnull String cloudName;
     private final @Nonnull SlaveOptions options;
 
-    // TODO get rid of these
-    private final int overrideRetentionTime;
-    private final String jvmOptions;
-    private final String credentialsId;
-    private final JCloudsCloud.SlaveType slaveType;
+    // Backward compatibility
+    private @Deprecated transient int overrideRetentionTime;
+    private @Deprecated transient String jvmOptions;
+    private @Deprecated transient String credentialsId;
+    private @Deprecated transient JCloudsCloud.SlaveType slaveType;
 
-    /**
-     * Constructs a new slave.
-     *
-     * @param cloudName             - the name of the cloud that's provisioning this slave.
-     * @param fsRoot                - Location of Jenkins root (homedir) on the slave.
-     * @param metadata              - node metadata
-     * @param labelString           - Label(s) for this slave.
-     * @param slaveOptions
-     * @param numExecutors          - Number of executors for this slave.
-     * @param overrideRetentionTime - Retention time to use specifically for this slave, overriding the cloud default.
-     * @param jvmOptions            - Custom options for lauching the JVM on the slave.
-     * @param credentialsId         - Id of the credentials in Jenkin's global credentials database.     @throws IOException
-     * @throws Descriptor.FormException
-     */
-    public JCloudsSlave(final String cloudName, final String fsRoot, Server metadata, final String labelString,
-                        SlaveOptions slaveOptions, final String numExecutors, final int overrideRetentionTime,
-                        String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
+    public JCloudsSlave(
+            @Nonnull String cloudName, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
+    ) throws IOException, Descriptor.FormException {
         super(
                 metadata.getName(),
                 null,
-                fsRoot,
-                numExecutors,
+                slaveOptions.getFsRoot(),
+                slaveOptions.getNumExecutors(),
                 Mode.NORMAL,
                 labelString,
                 new JCloudsLauncher(),
@@ -67,62 +49,45 @@ public class JCloudsSlave extends AbstractCloudSlave {
         this.cloudName = cloudName;
         this.options = slaveOptions;
         this.metadata = metadata;
+    }
 
-        this.overrideRetentionTime = overrideRetentionTime;
-        this.jvmOptions = jvmOptions;
-        this.credentialsId = credentialsId;
-        this.slaveType = slaveType;
+    @SuppressWarnings({"unused", "deprecation"})
+    protected Object readResolve() {
+        super.readResolve(); // Call parent
+        if (options == null) {
+            SlaveOptions carry = SlaveOptions.builder()
+                    .retentionTime(overrideRetentionTime)
+                    .jvmOptions(jvmOptions)
+                    .credentialsId(credentialsId)
+                    .slaveType(slaveType)
+                    .build()
+            ;
+            jvmOptions = null;
+            credentialsId = null;
+            slaveType = null;
+        }
 
+        return this;
     }
 
     /**
-     * Get public IP address od the server.
+     * Get public IP address of the server.
      */
-    public @CheckForNull String getPublicAddess() {
+    public @CheckForNull String getPublicAddress() {
         return Openstack.getPublicAddress(metadata);
     }
 
     /**
-     * Get Jclouds Custom JVM Options associated with this Slave.
-     *
-     * @return jvmOptions
+     * Get effective options used to configure this slave.
      */
-    public String getJvmOptions() {
-        return jvmOptions;
-    }
-
-    /**
-     * Get the retention time for this slave, defaulting to the parent cloud's if not set.
-     * Sometime parent cloud cannot be determined (returns Null as I see), in which case this method will
-     * return default value set in CloudInstanceDefaults.
-     *
-     * @return overrideTime
-     * @see CloudInstanceDefaults#DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES
-     */
-    public int getRetentionTime() {
-        /**
-         * Checks if retention time for this slave is set.
-         * -1 means - keep slave forever
-         */
-        if (overrideRetentionTime != 0) {
-            return overrideRetentionTime;
-        }
-
-        JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
-        return cloud == null ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : cloud.getEffectiveSlaveOptions().getRetentionTime();
-    }
-
-    public String getCredentialsId() {
-        return credentialsId;
+    public @Nonnull SlaveOptions getSlaveOptions() {
+        return options;
     }
 
     public JCloudsCloud.SlaveType getSlaveType() {
-        return slaveType;
+        return options.getSlaveType();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AbstractCloudComputer<JCloudsSlave> createComputer() {
         LOGGER.info("Creating a new JClouds Slave");

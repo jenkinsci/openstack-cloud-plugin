@@ -13,7 +13,6 @@ import com.gargoylesoftware.htmlunit.WebRequestSettings;
 import hudson.model.FreeStyleBuild;
 import hudson.model.Node;
 import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.slaves.ComputerLauncher;
 import jenkins.plugins.openstack.GlobalConfig;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.apache.commons.io.IOUtils;
@@ -36,8 +35,6 @@ import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
-import org.mockito.ArgumentCaptor;
-import org.mockito.MockSettings;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
@@ -355,15 +352,23 @@ public class JCloudsCloudTest {
 
     @Test
     public void verifyOptionsPropagatedToLauncher() throws Exception {
-        SlaveOptions expected = j.dummySlaveOptions().getBuilder().slaveType(JCloudsCloud.SlaveType.SSH).build();
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(expected,j.dummySlaveTemplate("label")));
+        SlaveOptions expected = j.dummySlaveOptions().getBuilder().slaveType(JCloudsCloud.SlaveType.SSH).retentionTime(10).build();
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(
+                expected,
+                j.dummySlaveTemplate("label"),
+                j.dummySlaveTemplate(expected.getBuilder().retentionTime(42).build(), "retention")
+        ));
 
         JCloudsSlave slave = j.provision(cloud, "label");
 
         SSHLauncher launcher = (SSHLauncher) ((JCloudsLauncher) slave.getLauncher()).lastLauncher;
-        assertEquals(slave.getPublicAddess(), launcher.getHost());
+        assertEquals(slave.getPublicAddress(), launcher.getHost());
         assertEquals(expected.getCredentialsId(), launcher.getCredentialsId());
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
-        assertEquals((int) expected.getRetentionTime(), slave.getRetentionTime());
+        assertEquals(10, ((JCloudsComputer) slave.toComputer()).getRetentionTime());
+
+        slave = j.provision(cloud, "retention");
+
+        assertEquals(42, ((JCloudsComputer) slave.toComputer()).getRetentionTime());
     }
 }

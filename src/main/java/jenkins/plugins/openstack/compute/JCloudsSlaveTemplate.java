@@ -165,9 +165,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         SlaveOptions opts = getEffectiveSlaveOptions();
 
         try {
-            // TODO pass SlaveOption as is - it is immutable to represent options in this given moment
-            return new JCloudsSlave(cloud.getDisplayName(), opts.getFsRoot(), nodeMetadata, labelString, opts,
-                    String.valueOf(opts.getNumExecutors()), opts.getRetentionTime(), opts.getJvmOptions(), opts.getCredentialsId(), opts.getSlaveType());
+            return new JCloudsSlave(cloud.getDisplayName(), nodeMetadata, labelString, opts);
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }
