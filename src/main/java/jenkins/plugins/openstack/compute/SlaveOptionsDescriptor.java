@@ -81,8 +81,9 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     private String getDefault(String d1, Object d2) {
+        d1 = Util.fixEmpty(d1);
         if (d1 != null) return d1;
-        if (d2 != null) return String.valueOf(d2);
+        if (d2 != null) return Util.fixEmpty(String.valueOf(d2));
         return null;
     }
 
@@ -218,6 +219,19 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    public FormValidation doCheckHardwareId(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("hardwareId") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getHardwareId());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
+        return OK;
+    }
+
+    @Restricted(DoNotUse.class)
     public ListBoxModel doFillImageIdItems(
             @QueryParameter String imageId,
             @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
@@ -246,6 +260,19 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         }
 
         return m;
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckImageId(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("imageId") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getImageId());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
+        return OK;
     }
 
     @Restricted(DoNotUse.class)
@@ -280,13 +307,39 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    public FormValidation doCheckNetworkId(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("networkId") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getNetworkId());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
+    }
+
+    @Restricted(DoNotUse.class)
     public ListBoxModel doFillSlaveTypeItems() {
         ListBoxModel items = new ListBoxModel();
-        items.add("Inherited", null);
+        items.add("None specified", null);
         items.add("SSH", "SSH");
         items.add("JNLP", "JNLP");
 
         return items;
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckSlaveType(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("slaveType") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getSlaveType());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
     }
 
     @Restricted(DoNotUse.class)
@@ -304,6 +357,19 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    public FormValidation doCheckCredentialsIs(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("credentialsId") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getCredentialsId());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
+    }
+
+    @Restricted(DoNotUse.class)
     public ListBoxModel doFillUserDataIdItems() {
 
         ListBoxModel m = new ListBoxModel();
@@ -317,9 +383,87 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         return m;
     }
 
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckUserDataId(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("userDataId") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getUserDataId());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
+    }
+
     private ConfigProvider getConfigProvider() {
         ExtensionList<ConfigProvider> providers = ConfigProvider.all();
         return providers.get(UserDataConfig.UserDataConfigProvider.class);
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckSecurityGroups(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("securityGroups") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getSecurityGroups());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckAvailabilityZone(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("availabilityZone") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getAvailabilityZone());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckKeyPairName(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("keyPairName") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getKeyPairName());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckJvmOptions(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("jvmOptions") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getJvmOptions());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
+    }
+
+    @Restricted(DoNotUse.class)
+    public FormValidation doCheckFsRoot(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("fsRoot") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getFsRoot());
+            if (d != null) return FormValidation.ok(def(d));
+            return OK;
+        }
+        return OK;
     }
 
     /**

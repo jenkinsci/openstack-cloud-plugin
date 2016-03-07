@@ -317,6 +317,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 .numExecutors(1)
                 .fsRoot("/jenkins")
                 .securityGroups("default")
+                .slaveType(SlaveType.SSH)
                 .build()
         ;
 
