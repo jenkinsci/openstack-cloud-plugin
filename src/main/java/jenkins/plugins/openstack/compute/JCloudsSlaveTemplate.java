@@ -183,13 +183,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
 
         final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
-        LOGGER.info("Provisioning new openstack node " + nodeName);
+        LOGGER.info("Provisioning new openstack node " + nodeName + " with options " + opts);
         // Ensure predictable node name so we can inject it into user data
         builder.name(nodeName);
 
         if (!Strings.isNullOrEmpty(opts.getImageId())) {
-            LOGGER.fine("Setting image id to " + opts.getImageId());
-            builder.image(opts.getImageId());
+            String imageId = cloud.getOpenstack().getImageIdFor(opts.getImageId());
+            LOGGER.fine("Setting image id to " + imageId);
+            builder.image(imageId);
         }
 
         String hwid = opts.getHardwareId();

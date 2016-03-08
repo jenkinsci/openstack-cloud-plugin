@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -39,6 +40,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
+import org.openstack4j.api.image.ImageService;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
@@ -144,6 +146,19 @@ public class Openstack {
         }
 
         return running;
+    }
+
+    public @CheckForNull String getImageIdFor(String name) {
+        List<? extends Image> images = client.images().listAll(Collections.singletonMap("name", name));
+        if (images.size() > 0) {
+            // Pick one at random to point out failures ASAP
+            return images.get(new Random().nextInt(images.size())).getId();
+        }
+
+        // backward compatibility uses image id
+        if (name.matches("[0-1a-f-]{36}")) return name;
+
+        return null;
     }
 
     /**
