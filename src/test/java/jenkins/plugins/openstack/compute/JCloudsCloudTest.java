@@ -198,6 +198,8 @@ public class JCloudsCloudTest {
     public void provisionSlaveOnDemand() throws Exception {
         JCloudsCloud cloud = j.createCloudProvisioningDummySlaves("label");
 
+        Computer[] originalComputers = j.jenkins.getComputers();
+
         j.jenkins.setNumExecutors(0);
         FreeStyleProject p = j.createFreeStyleProject();
         // Provision with label
@@ -206,7 +208,7 @@ public class JCloudsCloudTest {
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
         node.toComputer().doDoDelete();
         j.triggerOpenstackSlaveCleanup();
-        assertThat(j.jenkins.getComputers(), arrayWithSize(1));
+        assertArrayEquals(originalComputers, j.jenkins.getComputers());
 
         // Provision without label
         p.setAssignedLabel(null);
