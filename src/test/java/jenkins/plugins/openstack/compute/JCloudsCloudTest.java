@@ -1,10 +1,23 @@
 package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.arrayWithSize;
+import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.gargoylesoftware.htmlunit.HttpMethod;
@@ -208,7 +221,7 @@ public class JCloudsCloudTest {
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
         node.toComputer().doDoDelete();
         j.triggerOpenstackSlaveCleanup();
-        assertArrayEquals(originalComputers, j.jenkins.getComputers());
+        assertThat(originalComputers, arrayContainingInAnyOrder(j.jenkins.getComputers()));
 
         // Provision without label
         p.setAssignedLabel(null);
@@ -304,7 +317,7 @@ public class JCloudsCloudTest {
         when(os.updateInfo(eq(server))).thenReturn(server);
 
         try {
-            Server s = template.provision(cloud);
+            template.provision(cloud);
             fail();
         } catch (Openstack.ActionFailed ex) {
             assertThat(ex.getMessage(), containsString("Failed to boot server in time"));

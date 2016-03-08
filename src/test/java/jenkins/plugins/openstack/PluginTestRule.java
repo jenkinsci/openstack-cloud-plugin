@@ -90,7 +90,7 @@ public final class PluginTestRule extends JenkinsRule {
      */
     public Proc connectJnlpSlave(String slaveName) throws IOException, InterruptedException {
         if (slavesToKill.get(slaveName) != null) {
-            throw new Error("Connecting JNLP slave that is already running: " + jenkins.getComputer(slaveName).getSystemProperties().get("startedBy"));
+            throw new IOException("Connecting JNLP slave that is already running: " + jenkins.getComputer(slaveName).getSystemProperties().get("startedBy"));
         }
         File jar = Which.jarFile(Channel.class);
         String url = getURL() + "computer/" + slaveName + "/slave-agent.jnlp";
