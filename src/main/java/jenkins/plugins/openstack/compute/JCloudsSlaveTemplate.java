@@ -2,10 +2,12 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -14,41 +16,25 @@ import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
-import org.kohsuke.stapler.AncestorInPath;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.api.Builders;
-import org.openstack4j.api.exceptions.AuthenticationException;
-import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.model.image.Image;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
-import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.trilead.ssh2.Connection;
 
 import au.com.bytecode.opencsv.CSVReader;
 import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.RelativePath;
 import hudson.Util;
-import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import hudson.model.ItemGroup;
 import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
-import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.security.ACL;
-import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
@@ -58,62 +44,51 @@ import javax.annotation.Nonnull;
 /**
  * @author Vijay Kiran
  */
-public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
+public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
     private static final char SEPARATOR_CHAR = ',';
+    /*package*/ static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
 
     public final String name;
-    public String imageId;
-    public String hardwareId;
     public final String labelString;
-    public final String userDataId;
-    public final String numExecutors;
-    private final String jvmOptions;
-    private final String fsRoot;
-    public final int overrideRetentionTime;
-    public final String keyPairName;
-    public String networkId;
-    public final String securityGroups;
-    public final String credentialsId;
-    public final JCloudsCloud.SlaveType slaveType;
-    public final String availabilityZone;
+    private /*final*/ SlaveOptions slaveOptions;
 
     private transient Set<LabelAtom> labelSet;
+    private /*final*/ transient JCloudsCloud cloud;
+
+    // Backward compatibility
+    private transient @Deprecated String imageId;
+    private transient @Deprecated String hardwareId;
+    private transient @Deprecated String userDataId;
+    private transient @Deprecated String numExecutors;
+    private transient @Deprecated String jvmOptions;
+    private transient @Deprecated String fsRoot;
+    private transient @Deprecated Integer overrideRetentionTime;
+    private transient @Deprecated String keyPairName;
+    private transient @Deprecated String networkId;
+    private transient @Deprecated String securityGroups;
+    private transient @Deprecated String credentialsId;
+    private transient @Deprecated JCloudsCloud.SlaveType slaveType;
+    private transient @Deprecated String availabilityZone;
 
     @DataBoundConstructor
-    public JCloudsSlaveTemplate(final String name, final String imageId, final String hardwareId,
-                                final String labelString, final String userDataId, final String numExecutors,
-                                final String jvmOptions, final String fsRoot,
-                                final int overrideRetentionTime, final String keyPairName, final String networkId,
-                                final String securityGroups, final String credentialsId, final JCloudsCloud.SlaveType slaveType, final String availabilityZone) {
+    public JCloudsSlaveTemplate(final String name, final String labelString, final SlaveOptions slaveOptions) {
 
         this.name = Util.fixEmptyAndTrim(name);
-        this.imageId = Util.fixEmptyAndTrim(imageId);
-        this.hardwareId = Util.fixEmptyAndTrim(hardwareId);
         this.labelString = Util.fixNull(labelString);
-        this.numExecutors = Util.fixNull(numExecutors);
-        this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
-        this.userDataId = userDataId;
 
-        this.fsRoot = Util.fixEmptyAndTrim(fsRoot);
-        this.overrideRetentionTime = overrideRetentionTime;
-        this.keyPairName = keyPairName;
-        this.networkId = networkId;
-        this.securityGroups = securityGroups;
-        this.credentialsId = credentialsId;
-        this.slaveType = slaveType;
-        this.availabilityZone = availabilityZone;
+        this.slaveOptions = slaveOptions;
 
         readResolve();
     }
 
-
+    @SuppressWarnings("deprecation")
     protected Object readResolve() {
         // Initializes data structure that we don't persist.
         labelSet = Label.parse(labelString);
 
-        // Migrate from 1.X to 2.X
+        // Migrate from 1.X to 2.0
         int i;
         if (hardwareId != null && (i = hardwareId.indexOf('/')) != -1) {
             hardwareId = hardwareId.substring(i + 1);
@@ -127,27 +102,45 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
             imageId = imageId.substring(i + 1);
         }
 
+        // Migrate from 2.0 to 2.1
+        if (slaveOptions == null) {
+            slaveOptions = SlaveOptions.builder().imageId(imageId).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
+                    .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
+                    .credentialsId(credentialsId).slaveType(slaveType).availabilityZone(availabilityZone).build()
+            ;
+
+            this.hardwareId = null;
+            this.numExecutors = null;
+            this.jvmOptions = null;
+            this.userDataId = null;
+            this.fsRoot = null;
+            this.overrideRetentionTime = null;
+            this.keyPairName = null;
+            this.networkId = null;
+            this.securityGroups = null;
+            this.credentialsId = null;
+            this.slaveType = null;
+            this.availabilityZone = null;
+        }
+
         return this;
     }
 
-    public String getJvmOptions() {
-        if (jvmOptions == null) {
-            return "";
-        } else {
-            return jvmOptions;
-        }
+    // Called when registered into cloud, this class is not supposed to be persisted before this is called
+    @Restricted(NoExternalUse.class)
+    /*package*/ void setOwner(JCloudsCloud cloud) {
+        this.cloud = cloud;
+        slaveOptions = slaveOptions.eraseDefaults(cloud.getEffectiveSlaveOptions());
     }
 
-    public int getNumExecutors() {
-        return Util.tryParseNumber(numExecutors, 1).intValue();
+    public @Nonnull SlaveOptions getEffectiveSlaveOptions() {
+        // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated config
+        return cloud.getEffectiveSlaveOptions().override(slaveOptions);
     }
 
-    public String getFsRoot() {
-        if (fsRoot == null || fsRoot.equals("")) {
-            return "/jenkins";
-        } else {
-            return fsRoot;
-        }
+    public @Nonnull SlaveOptions getRawSlaveOptions() {
+        if (cloud == null) throw new IllegalStateException("Owner not set properly");
+        return slaveOptions;
     }
 
     public Set<LabelAtom> getLabelSet() {
@@ -169,10 +162,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
      */
     public @Nonnull JCloudsSlave provisionSlave(@Nonnull JCloudsCloud cloud, @Nonnull TaskListener listener) throws IOException, Openstack.ActionFailed {
         Server nodeMetadata = provision(cloud);
+        SlaveOptions opts = getEffectiveSlaveOptions();
 
         try {
-            return new JCloudsSlave(cloud.getDisplayName(), getFsRoot(), nodeMetadata, labelString,
-                    numExecutors, overrideRetentionTime, getJvmOptions(), credentialsId, slaveType);
+            return new JCloudsSlave(cloud.getDisplayName(), nodeMetadata, labelString, opts);
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }
@@ -185,46 +178,54 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
      * @see #provisionSlave(JCloudsCloud, TaskListener)
      */
     public @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
+        final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
+        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
+
         final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
         LOGGER.info("Provisioning new openstack node " + nodeName);
         // Ensure predictable node name so we can inject it into user data
         builder.name(nodeName);
 
-        if (!Strings.isNullOrEmpty(imageId)) {
-            LOGGER.fine("Setting image id to " + imageId);
-            builder.image(imageId);
-        }
-        if (!Strings.isNullOrEmpty((hardwareId))) {
-            LOGGER.fine("Setting hardware Id to " + hardwareId);
-            builder.flavor(hardwareId);
+        if (!Strings.isNullOrEmpty(opts.getImageId())) {
+            LOGGER.fine("Setting image id to " + opts.getImageId());
+            builder.image(opts.getImageId());
         }
 
-        if (!Strings.isNullOrEmpty(networkId)) {
-            LOGGER.fine("Setting network to " + networkId);
-            builder.networks(Arrays.asList(networkId));
+        String hwid = opts.getHardwareId();
+        if (!Strings.isNullOrEmpty(hwid)) {
+            LOGGER.fine("Setting hardware Id to " + hwid);
+            builder.flavor(hwid);
         }
 
-        if (!Strings.isNullOrEmpty(securityGroups)) {
-            LOGGER.fine("Setting security groups to " + securityGroups);
-            for (String sg: csvToArray(securityGroups)) {
+        String nid = opts.getNetworkId();
+        if (!Strings.isNullOrEmpty(nid)) {
+            LOGGER.fine("Setting network to " + nid);
+            builder.networks(Arrays.asList(nid));
+        }
+
+        if (!Strings.isNullOrEmpty(opts.getSecurityGroups())) {
+            LOGGER.fine("Setting security groups to " + opts.getSecurityGroups());
+            for (String sg: csvToArray(opts.getSecurityGroups())) {
                 builder.addSecurityGroup(sg);
             }
         }
 
-        if (!Strings.isNullOrEmpty(keyPairName)) {
-            LOGGER.fine("Setting keyPairName to " + keyPairName);
-            builder.keypairName(keyPairName);
+        String kpn = opts.getKeyPairName();
+        if (!Strings.isNullOrEmpty(kpn)) {
+            LOGGER.fine("Setting keyPairName to " + kpn);
+            builder.keypairName(kpn);
         }
 
-        if (!Strings.isNullOrEmpty(availabilityZone)) {
-            LOGGER.fine("Setting availabilityZone to " + availabilityZone);
-            builder.availabilityZone(availabilityZone);
+        String az = opts.getAvailabilityZone();
+        if (!Strings.isNullOrEmpty(az)) {
+            LOGGER.fine("Setting availabilityZone to " + az);
+            builder.availabilityZone(az);
         }
 
         @CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
-            HashMap<String, String> vars = new HashMap<String, String>();
+            HashMap<String, String> vars = new HashMap<>();
             String rootUrl = Jenkins.getInstance().getRootUrl();
             vars.put("JENKINS_URL", rootUrl);
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
@@ -236,26 +237,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         }
 
         final Openstack openstack = cloud.getOpenstack();
-        final Server server = openstack.bootAndWaitActive(builder, cloud.startTimeout);
+        final Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
         LOGGER.info("Provisioned: " + server.toString());
 
-        if (cloud.isFloatingIps()) {
-            LOGGER.fine("Assiging floating IP to " + nodeName);
-            openstack.assignFloatingIp(server);
+        String poolName = opts.getFloatingIpPool();
+        if (poolName != null) {
+            LOGGER.fine("Assiging floating IP from " + poolName + " to " + nodeName);
+            openstack.assignFloatingIp(server, poolName);
             // Make sure address information is refreshed
             return openstack.updateInfo(server);
         }
 
         return server;
-    }
-
-    /*package for testing*/ @CheckForNull String getUserData() {
-        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(userDataId);
-
-        return (userData == null || userData.content.isEmpty())
-                ? null
-                : userData.content
-        ;
     }
 
     private static String[] csvToArray(final String csv) {
@@ -266,6 +259,26 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
         } catch (Exception e) {
             return new String[0];
         }
+    }
+
+    /*package for testing*/ @CheckForNull String getUserData() {
+        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(getEffectiveSlaveOptions().getUserDataId());
+
+        return (userData == null || userData.content.isEmpty())
+                ? null
+                : userData.content
+        ;
+    }
+
+    /*package*/ List<? extends Server> getRunningNodes() {
+        List<Server> tmplt = new ArrayList<>();
+        for (Server server : cloud.getOpenstack().getRunningNodes()) {
+            Map<String, String> md = server.getMetadata();
+            if (name.equals(md.get(OPENSTACK_TEMPLATE_NAME_KEY))) {
+                tmplt.add(server);
+            }
+        }
+        return tmplt;
     }
 
     @Override
@@ -291,146 +304,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate> {
             return FormValidation.error(
                     "Must be a lowercase string, from 1 to 80 characteres long, starting with letter or number"
             );
-        }
-
-        @Restricted(DoNotUse.class)
-        public FormValidation doCheckNumExecutors(@QueryParameter String value) {
-            return FormValidation.validatePositiveInteger(value);
-        }
-
-        @Restricted(DoNotUse.class)
-        public ListBoxModel doFillSlaveTypeItems() {
-            ListBoxModel items = new ListBoxModel();
-            items.add("SSH", "SSH");
-            items.add("JNLP", "JNLP");
-
-            return items;
-        }
-
-        @Restricted(DoNotUse.class)
-        public ListBoxModel doFillHardwareIdItems(@QueryParameter String hardwareId,
-                                                  @RelativePath("..") @QueryParameter String endPointUrl,
-                                                  @RelativePath("..") @QueryParameter String identity,
-                                                  @RelativePath("..") @QueryParameter String credential,
-                                                  @RelativePath("..") @QueryParameter String zone
-        ) {
-
-            ListBoxModel m = new ListBoxModel();
-            m.add("None specified", "");
-
-            try {
-                final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
-                for (Flavor flavor : openstack.getSortedFlavors()) {
-                    m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
-                }
-                return m;
-            } catch (AuthenticationException _) {
-                // Incorrect credentials - noop
-            } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-            }
-
-            if (Util.fixEmpty(hardwareId) != null) {
-                m.add(hardwareId);
-            }
-
-            return m;
-        }
-
-        @Restricted(DoNotUse.class)
-        public ListBoxModel doFillImageIdItems(@QueryParameter String imageId,
-                                               @RelativePath("..") @QueryParameter String endPointUrl,
-                                               @RelativePath("..") @QueryParameter String identity,
-                                               @RelativePath("..") @QueryParameter String credential,
-                                               @RelativePath("..") @QueryParameter String zone
-        ) {
-
-            ListBoxModel m = new ListBoxModel();
-            m.add("None specified", "");
-
-            try {
-                final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
-                for (Image image : openstack.getSortedImages()) {
-                    m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
-                }
-                return m;
-            } catch (AuthenticationException _) {
-                // Incorrect credentials - noop
-            } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-            }
-
-            if (Util.fixEmpty(imageId) != null) {
-                m.add(imageId);
-            }
-
-            return m;
-        }
-
-        @Restricted(DoNotUse.class)
-        public ListBoxModel doFillNetworkIdItems(@QueryParameter String networkId,
-                                                 @RelativePath("..") @QueryParameter String endPointUrl,
-                                                 @RelativePath("..") @QueryParameter String identity,
-                                                 @RelativePath("..") @QueryParameter String credential,
-                                                 @RelativePath("..") @QueryParameter String zone
-        ) {
-
-            ListBoxModel m = new ListBoxModel();
-            m.add("None specified", "");
-
-            try {
-                Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
-                for (org.openstack4j.model.network.Network network: openstack.getSortedNetworks()) {
-                    m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
-                }
-                return m;
-            } catch (AuthenticationException _) {
-                // Incorrect credentials - noop
-            } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-            }
-
-            if (Util.fixEmpty(networkId) != null) {
-                m.add(networkId);
-            }
-
-            return m;
-        }
-
-        @Restricted(DoNotUse.class)
-        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-            if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getInstance()).hasPermission(Computer.CONFIGURE)) {
-                return new ListBoxModel();
-            }
-            return new StandardUsernameListBoxModel().withMatching(SSHAuthenticator.matcher(Connection.class),
-                    CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class, context,
-                            ACL.SYSTEM, SSHLauncher.SSH_SCHEME));
-        }
-
-        @Restricted(DoNotUse.class)
-        public FormValidation doCheckOverrideRetentionTime(@QueryParameter String value) {
-            try {if (Integer.parseInt(value) == -1) {return FormValidation.ok();}
-                } catch (NumberFormatException e) {}
-            return FormValidation.validateNonNegativeInteger(value);
-        }
-
-        @Restricted(DoNotUse.class)
-        public ListBoxModel doFillUserDataIdItems() {
-
-            ListBoxModel m = new ListBoxModel();
-            m.add("None specified", "");
-
-            ConfigProvider provider = getConfigProvider();
-            for(Config config : provider.getAllConfigs()) {
-                m.add(config.name, config.id);
-            }
-
-            return m;
-        }
-
-        private ConfigProvider getConfigProvider() {
-            ExtensionList<ConfigProvider> providers = ConfigProvider.all();
-            return providers.get(UserDataConfig.UserDataConfigProvider.class);
         }
     }
 }

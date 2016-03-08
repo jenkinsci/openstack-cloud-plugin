@@ -24,7 +24,6 @@ import java.util.List;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.collection.IsArrayContainingInAnyOrder.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 public class JCloudsBuildWrapperTest {
@@ -35,18 +34,18 @@ public class JCloudsBuildWrapperTest {
     @Test
     public void provisionSeveral() throws Exception {
         final JCloudsCloud cloud = j.createCloudProvisioningDummySlaves("label");
+        JCloudsSlaveTemplate template = cloud.getTemplates().get(0);
         Openstack os = cloud.getOpenstack();
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Arrays.asList(
-                new InstancesToRun("openstack", "template", null, 2),
-                new InstancesToRun("openstack", "template", null, 1)
+                new InstancesToRun(cloud.profile, template.name, null, 2),
+                new InstancesToRun(cloud.profile, template.name, null, 1)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
         p.getBuildersList().add(new TestBuilder() {
             @Override
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-                System.out.println();
                 String[] ips = build.getEnvironment(TaskListener.NULL).get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
                 assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));
@@ -57,7 +56,7 @@ public class JCloudsBuildWrapperTest {
         j.buildAndAssertSuccess(p);
 
         verify(os, times(3)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
-        verify(os, times(3)).assignFloatingIp(any(Server.class));
+        verify(os, times(3)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(3)).updateInfo(any(Server.class));
         verify(os, times(3)).destroyServer(any(Server.class));
         verifyNoMoreInteractions(os);
@@ -65,7 +64,8 @@ public class JCloudsBuildWrapperTest {
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
     public void failToProvisionWhenOpenstackFails() throws Exception {
-        JCloudsCloud cloud = j.dummyCloud(j.dummySlaveTemplate("label"));
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
 
         Server success = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
@@ -79,7 +79,7 @@ public class JCloudsBuildWrapperTest {
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Collections.singletonList(
-                new InstancesToRun("openstack", "template", null, 2)
+                new InstancesToRun(cloud.profile, template.name, null, 2)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
 
@@ -88,7 +88,7 @@ public class JCloudsBuildWrapperTest {
 
         verify(os, times(6)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class)); // 5 retries on exception
         verify(os, times(1)).updateInfo(any(Server.class));
-        verify(os, times(1)).assignFloatingIp(any(Server.class));
+        verify(os, times(1)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(1)).destroyServer(any(Server.class)); // Cleanup after the successful attempt
         verifyNoMoreInteractions(os);
     }

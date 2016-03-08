@@ -1,140 +1,93 @@
 package jenkins.plugins.openstack.compute;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import hudson.Extension;
-import hudson.FilePath;
-import hudson.model.TaskListener;
-import hudson.remoting.Channel;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.NodeProperty;
-import hudson.slaves.OfflineCause;
-import hudson.slaves.ComputerLauncher;
-import hudson.slaves.ComputerListener;
-import hudson.slaves.RetentionStrategy;
-import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.internal.Openstack.ActionFailed;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.openstack4j.model.compute.Server;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
-
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.openstack4j.model.compute.Server;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.logging.Logger;
 
 /**
- * Jenkins Slave node - managed by JClouds.
- *
- * @author Vijay Kiran
+ * Jenkins Slave node.
  */
 public class JCloudsSlave extends AbstractCloudSlave {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
 
     private @Nonnull Server metadata;
 
-    private final String cloudName;
-    private final int overrideRetentionTime;
-    private final String jvmOptions;
-    private final String credentialsId;
-    private final JCloudsCloud.SlaveType slaveType;
+    private final @Nonnull String cloudName;
+    private final @Nonnull SlaveOptions options;
 
-    /**
-     * Constructs a new slave.
-     *
-     * @param cloudName             - the name of the cloud that's provisioning this slave.
-     * @param fsRoot                - Location of Jenkins root (homedir) on the slave.
-     * @param metadata              - node metadata
-     * @param labelString           - Label(s) for this slave.
-     * @param numExecutors          - Number of executors for this slave.
-     * @param overrideRetentionTime - Retention time to use specifically for this slave, overriding the cloud default.
-     * @param jvmOptions            - Custom options for lauching the JVM on the slave.
-     * @param credentialsId         - Id of the credentials in Jenkin's global credentials database.
-     * @throws IOException
-     * @throws Descriptor.FormException
-     */
-    public JCloudsSlave(final String cloudName, final String fsRoot, Server metadata, final String labelString,
-            final String numExecutors, final int overrideRetentionTime,
-            String jvmOptions, final String credentialsId, final JCloudsCloud.SlaveType slaveType) throws IOException, Descriptor.FormException {
+    // Backward compatibility
+    private @Deprecated transient int overrideRetentionTime;
+    private @Deprecated transient String jvmOptions;
+    private @Deprecated transient String credentialsId;
+    private @Deprecated transient JCloudsCloud.SlaveType slaveType;
+
+    public JCloudsSlave(
+            @Nonnull String cloudName, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
+    ) throws IOException, Descriptor.FormException {
         super(
                 metadata.getName(),
                 null,
-                fsRoot,
-                numExecutors,
+                slaveOptions.getFsRoot(),
+                slaveOptions.getNumExecutors(),
                 Mode.NORMAL,
                 labelString,
-                new JCloudsLauncher(Openstack.getPublicAddress(metadata)),
+                new JCloudsLauncher(),
                 new JCloudsRetentionStrategy(),
                 Collections.<NodeProperty<?>>emptyList()
         );
         this.cloudName = cloudName;
-        this.overrideRetentionTime = overrideRetentionTime;
-        this.jvmOptions = jvmOptions;
-        this.credentialsId = credentialsId;
-        this.slaveType = slaveType;
+        this.options = slaveOptions;
         this.metadata = metadata;
     }
 
-    /**
-     * Get Jclouds Custom JVM Options associated with this Slave.
-     *
-     * @return jvmOptions
-     */
-    public String getJvmOptions() {
-        return jvmOptions;
-    }
-
-    /**
-     * Get the retention time for this slave, defaulting to the parent cloud's if not set.
-     * Sometime parent cloud cannot be determined (returns Null as I see), in which case this method will
-     * return default value set in CloudInstanceDefaults.
-     *
-     * @return overrideTime
-     * @see CloudInstanceDefaults#DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES
-     */
-    public int getRetentionTime() {
-        /**
-         * Checks if retention time for this slave is set.
-         * -1 means - keep slave forever
-         */
-        if (overrideRetentionTime != 0) {
-            return overrideRetentionTime;
+    @SuppressWarnings({"unused", "deprecation"})
+    protected Object readResolve() {
+        super.readResolve(); // Call parent
+        if (options == null) {
+            SlaveOptions carry = SlaveOptions.builder()
+                    .retentionTime(overrideRetentionTime)
+                    .jvmOptions(jvmOptions)
+                    .credentialsId(credentialsId)
+                    .slaveType(slaveType)
+                    .build()
+            ;
+            jvmOptions = null;
+            credentialsId = null;
+            slaveType = null;
         }
 
-        JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
-        return cloud == null ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : cloud.getRetentionTime();
+        return this;
     }
 
     /**
-     * Get the JClouds profile identifier for the Cloud associated with this slave.
-     *
-     * @return cloudName
+     * Get public IP address of the server.
      */
-    public String getCloudName() {
-        return cloudName;
+    public @CheckForNull String getPublicAddress() {
+        return Openstack.getPublicAddress(metadata);
     }
 
-    public String getCredentialsId() {
-        return credentialsId;
+    /**
+     * Get effective options used to configure this slave.
+     */
+    public @Nonnull SlaveOptions getSlaveOptions() {
+        return options;
     }
 
     public JCloudsCloud.SlaveType getSlaveType() {
-        return slaveType;
+        return options.getSlaveType();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AbstractCloudComputer<JCloudsSlave> createComputer() {
         LOGGER.info("Creating a new JClouds Slave");

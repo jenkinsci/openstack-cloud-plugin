@@ -1,44 +1,72 @@
 package jenkins.plugins.openstack.compute;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
+
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import jenkins.plugins.openstack.PluginTestRule;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
 import org.junit.Rule;
 import org.junit.Test;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 public class JCloudsSlaveTemplateTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    // Following will be null if can not be validated: imageId, hardwareId, networkId, availabilityZone
-    // TODO test userDataId, credentialsId
-    final String TEMPLATE_PROPERTIES = "name,labelString,numExecutors,jvmOptions,fsRoot,overrideRetentionTime,keyPairName,securityGroups,slaveType";
-    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,instanceCap,retentionTime,startTimeout,zone";
+    final String TEMPLATE_PROPERTIES = "name,labelString";
+    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,zone";
 
     @Test
     public void configRoundtrip() throws Exception {
-        final String TEMPLATE_NAME = "test-template";
-        final String CLOUD_NAME = "my-openstack";
+        JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(
+                "test-template", "openstack-slave-type1 openstack-type2", j.dummySlaveOptions()
+        );
 
-        JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(TEMPLATE_NAME, "imageId", "hardwareId",
-                "openstack-slave-type1 openstack-type2", "userData", "1", null, null, 0,
-                "keyPair", "network1_id,network2_id", "default", null, JCloudsCloud.SlaveType.SSH, null);
-
-        List<JCloudsSlaveTemplate> templates = new ArrayList<>();
-        templates.add(originalTemplate);
-
-        JCloudsCloud originalCloud = new JCloudsCloud(CLOUD_NAME, "identity", "credential", "endPointUrl", 1, DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES,
-                600 * 1000, null, templates, true);
+        JCloudsCloud originalCloud = new JCloudsCloud(
+                "my-openstack", "identity", "credential", "endPointUrl", "zone",
+                SlaveOptions.empty(),
+                Collections.singletonList(originalTemplate)
+        );
 
         j.jenkins.clouds.add(originalCloud);
-        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+        HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
 
-        final JCloudsCloud actualCloud = JCloudsCloud.getByName(CLOUD_NAME);
+        j.submit(form);
 
+        final JCloudsCloud actualCloud = JCloudsCloud.getByName("my-openstack");
         j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
-        j.assertEqualBeans(originalTemplate, actualCloud.getTemplate(TEMPLATE_NAME), TEMPLATE_PROPERTIES);
+        assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
+        assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
+
+        JCloudsSlaveTemplate actualTemplate = actualCloud.getTemplate("test-template");
+        j.assertEqualBeans(originalTemplate, actualTemplate, TEMPLATE_PROPERTIES);
+        assertThat(actualTemplate.getEffectiveSlaveOptions(), equalTo(originalTemplate.getEffectiveSlaveOptions()));
+        assertThat(actualTemplate.getRawSlaveOptions(), equalTo(originalTemplate.getRawSlaveOptions()));
+    }
+
+    @Test
+    public void eraseDefaults() throws Exception {
+        SlaveOptions cloudOpts = j.dummySlaveOptions().getBuilder().numExecutors(5).build(); // Do not collide with cloud defaults so we test template erasure only
+        SlaveOptions templateOpts = cloudOpts.getBuilder().imageId("42").availabilityZone("other").build();
+        assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
+
+        JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
+                "test-templateOpts", "openstack-slave-type1 openstack-type2", templateOpts
+        );
+
+        JCloudsCloud cloud = new JCloudsCloud(
+                "my-openstack", "identity", "credential", "endPointUrl", "zone",
+                cloudOpts,
+                Collections.singletonList(template)
+        );
+
+        assertEquals(cloudOpts, cloud.getRawSlaveOptions());
+        assertEquals(SlaveOptions.builder().imageId("42").availabilityZone("other").build(), template.getRawSlaveOptions());
     }
 }

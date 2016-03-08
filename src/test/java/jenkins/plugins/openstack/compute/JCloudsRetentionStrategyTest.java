@@ -16,12 +16,10 @@ public class JCloudsRetentionStrategyTest {
         int retentionTime = 1; // minute
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
-                "template", "imageId", "hardwareId", "label", null, "42",
-                "-verbose", "/tmp/slave", retentionTime, "keyPairName", "networkId",
-                "securityGroups", "", JCloudsCloud.SlaveType.JNLP, "availabilityZone"
+                "template", "label", SlaveOptions.builder().retentionTime(retentionTime).build()
         );
 
-        JCloudsCloud cloud = j.createCloudProvisioningSlaves(template);
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
         assertEquals(1, computer.getRetentionTime());

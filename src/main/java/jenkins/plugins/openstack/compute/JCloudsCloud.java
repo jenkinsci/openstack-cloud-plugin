@@ -1,22 +1,24 @@
 package jenkins.plugins.openstack.compute;
 
-import static jenkins.plugins.openstack.compute.CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES;
-
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.slaves.ComputerLauncher;
+import hudson.slaves.JNLPLauncher;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -47,26 +49,54 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
  *
  * @author Vijay Kiran
  */
-public class JCloudsCloud extends Cloud {
+public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
-    static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
-    public final String identity;
-    public final Secret credential;
-    public final String endPointUrl;
-    public final String profile;
-    private final int retentionTime;
-    public final int instanceCap;
-    private final List<JCloudsSlaveTemplate> templates;
-    public final int startTimeout;
+    public final @Nonnull String profile;
+    public final @Nonnull String endPointUrl;
+    public final @Nonnull String identity;
+    public final @Nonnull Secret credential;
     public final String zone;
-    // Ask for a floating IP to be associated for every machine provisioned
-    private final boolean floatingIps;
 
-    public enum SlaveType {SSH, JNLP}
+    private final @Nonnull List<JCloudsSlaveTemplate> templates;
+
+    private /*final*/ @Nonnull SlaveOptions slaveOptions;
+
+    // Backward compatibility
+    private transient @Deprecated Integer instanceCap;
+    private transient @Deprecated Integer retentionTime;
+    private transient @Deprecated Integer startTimeout;
+    private transient @Deprecated Boolean floatingIps;
+
+    // TODO: refactor to interface/extension point
+    public enum SlaveType {
+        SSH {
+            @Override
+            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+                String publicAddress = slave.getPublicAddress();
+                if (publicAddress == null) {
+                    throw new IOException("The slave is likely deleted");
+                }
+                if ("0.0.0.0".equals(publicAddress)) {
+                    throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
+                }
+                SlaveOptions opts = slave.getSlaveOptions();
+                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
+            }
+        },
+        JNLP {
+            @Override
+            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
+                return new JNLPLauncher();
+            }
+        };
+
+        public abstract ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException;
+    }
 
     public static List<String> getCloudNames() {
-        List<String> cloudNames = new ArrayList<String>();
+        List<String> cloudNames = new ArrayList<>();
         for (Cloud c : Jenkins.getInstance().clouds) {
             if (JCloudsCloud.class.isInstance(c)) {
                 cloudNames.add(c.name);
@@ -83,33 +113,59 @@ public class JCloudsCloud extends Cloud {
     }
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
-    public JCloudsCloud(final String profile, final String identity, final String credential, final String endPointUrl, final int instanceCap,
-                        final int retentionTime, final int startTimeout, final String zone, final List<JCloudsSlaveTemplate> templates,
-                        final boolean floatingIps
+    public JCloudsCloud(
+            final String profile, final String identity, final String credential, final String endPointUrl, final String zone,
+            final SlaveOptions slaveOptions,
+            final List<JCloudsSlaveTemplate> templates
     ) {
         super(Util.fixEmptyAndTrim(profile));
         this.profile = Util.fixEmptyAndTrim(profile);
+        this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         this.identity = Util.fixEmptyAndTrim(identity);
         this.credential = Secret.fromString(credential);
-        this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-        this.instanceCap = instanceCap;
-        this.retentionTime = retentionTime;
-        this.startTimeout = startTimeout;
-        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
         this.zone = Util.fixEmptyAndTrim(zone);
-        this.floatingIps = floatingIps;
+
+        this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
+
+        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
+        injectReferenceIntoTemplates();
     }
 
-    /**
-     * Get the retention time in minutes or default value from CloudInstanceDefaults if not set.
-     * @see CloudInstanceDefaults#DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES
-     */
-    public int getRetentionTime() {
-        return retentionTime == 0 ? DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES : retentionTime;
+    @SuppressWarnings({"unused", "deprecation"})
+    private Object readResolve() {
+        if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null) {
+            SlaveOptions carry = SlaveOptions.builder()
+                    .instanceCap(instanceCap)
+                    .retentionTime(retentionTime)
+                    .startTimeout(startTimeout)
+                    .floatingIpPool(floatingIps ? "public" : null)
+                    .build()
+            ;
+            slaveOptions = DescriptorImpl.DEFAULTS.override(carry);
+            retentionTime = null;
+            startTimeout = null;
+            floatingIps = null;
+            instanceCap = null;
+        }
+
+        injectReferenceIntoTemplates();
+
+        return this;
     }
 
-    public boolean isFloatingIps() {
-        return floatingIps;
+    private void injectReferenceIntoTemplates() {
+        for(JCloudsSlaveTemplate t: templates) {
+            t.setOwner(this);
+        }
+    }
+
+    public @Nonnull SlaveOptions getEffectiveSlaveOptions() {
+        // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated config
+        return DescriptorImpl.DEFAULTS.override(slaveOptions);
+    }
+
+    public @Nonnull SlaveOptions getRawSlaveOptions() {
+        return slaveOptions;
     }
 
     @Restricted(NoExternalUse.class)
@@ -137,12 +193,13 @@ public class JCloudsCloud extends Cloud {
     public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
         final JCloudsSlaveTemplate template = getTemplate(label);
         if (template == null) throw new AssertionError("No template for label: " + label);
+        final SlaveOptions opts = template.getEffectiveSlaveOptions();
 
-        List<PlannedNode> plannedNodeList = new ArrayList<PlannedNode>();
+        List<PlannedNode> plannedNodeList = new ArrayList<>();
 
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
 
-            if ((getRunningNodesCount() + plannedNodeList.size()) >= instanceCap) {
+            if ((getRunningNodesCount() + plannedNodeList.size()) >= opts.getInstanceCap()) {
                 LOGGER.info("Instance cap reached while adding capacity for label " + ((label != null) ? label.toString() : "null"));
                 break; // maxed out
             }
@@ -164,17 +221,17 @@ public class JCloudsCloud extends Cloud {
                     because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
                     there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
                     successful prevents this problem.  */
-                    ensureLaunched(jcloudsSlave);
+                    ensureLaunched(jcloudsSlave, opts);
                     return jcloudsSlave;
                 }
-            }), Util.tryParseNumber(template.numExecutors, 1).intValue()));
-            excessWorkload -= template.getNumExecutors();
+            }), opts.getNumExecutors()));
+            excessWorkload -= opts.getNumExecutors();
         }
         return plannedNodeList;
     }
 
-    private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
-        Integer launchTimeoutSec = this.startTimeout;
+    private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ExecutionException {
+        Integer launchTimeoutSec = opts.getStartTimeout();
         JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
         while (computer.isOffline()) {
@@ -187,7 +244,7 @@ public class JCloudsCloud extends Cloud {
             }
 
             if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {
-                String message = String.format("Failed to connect to slave within timeout (%d s).", launchTimeoutSec);
+                String message = String.format("Failed to connect to slave within timeout (%d ms).", launchTimeoutSec);
                 LOGGER.warning(message);
                 computer.setPendingDelete(true);
                 throw new ExecutionException(new Throwable(message));
@@ -227,6 +284,7 @@ public class JCloudsCloud extends Cloud {
      * @throws IOException
      * @throws Descriptor.FormException
      */
+    @Restricted(DoNotUse.class)
     public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException,
             Descriptor.FormException {
         checkPermission(PROVISION);
@@ -240,6 +298,7 @@ public class JCloudsCloud extends Cloud {
             return;
         }
 
+        Integer instanceCap = t.getEffectiveSlaveOptions().getInstanceCap();
         if (getRunningNodesCount() < instanceCap) {
             JCloudsSlave node;
             try {
@@ -253,14 +312,15 @@ public class JCloudsCloud extends Cloud {
             Jenkins.getInstance().addNode(node);
             rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
         } else {
-            sendError("Instance cap for this cloud is now reached for cloud profile: " + profile + " for template type " + name, req, rsp);
+            String msg = String.format("Instance cap for this cloud/profile (%s/%s) is now reached: %d", profile, name, instanceCap);
+            sendError(msg, req, rsp);
         }
     }
 
     /**
      * Determine how many nodes are currently running for this cloud.
      */
-    public int getRunningNodesCount() {
+    private int getRunningNodesCount() {
         return getOpenstack().getRunningNodes().size();
     }
 
@@ -275,19 +335,33 @@ public class JCloudsCloud extends Cloud {
     @Extension
     public static class DescriptorImpl extends Descriptor<Cloud> {
 
-        /**
-         * Human readable name of this kind of configurable object.
-         */
+        // Plugin default slave attributes - the root of all overriding
+        private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
+                .instanceCap(10)
+                .retentionTime(30)
+                .startTimeout(600000)
+                .numExecutors(1)
+                .fsRoot("/jenkins")
+                .securityGroups("default")
+                .slaveType(SlaveType.SSH)
+                .build()
+        ;
+
         @Override
         public String getDisplayName() {
             return "Cloud (OpenStack)";
         }
 
+        public SlaveOptions getDefaultOptions() {
+            return DEFAULTS;
+        }
+
         @Restricted(DoNotUse.class)
-        public FormValidation doTestConnection(@QueryParameter String zone,
-                                               @QueryParameter String endPointUrl,
-                                               @QueryParameter String identity,
-                                               @QueryParameter String credential
+        public FormValidation doTestConnection(
+                @QueryParameter String zone,
+                @QueryParameter String endPointUrl,
+                @QueryParameter String identity,
+                @QueryParameter String credential
         ) {
             try {
                 getOpenstack(endPointUrl, identity, credential, zone);
@@ -299,42 +373,14 @@ public class JCloudsCloud extends Cloud {
             return FormValidation.ok("Connection succeeded!");
         }
 
-        public FormValidation doCheckProfile(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckCredential(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckIdentity(@QueryParameter String value) {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckInstanceCap(@QueryParameter String value) {
-            return FormValidation.validatePositiveInteger(value);
-        }
-
-        public FormValidation doCheckRetentionTime(@QueryParameter String value) {
-            try {
-                if (Integer.parseInt(value) == -1)
-                    return FormValidation.ok();
-            } catch (NumberFormatException e) {
-            }
-            return FormValidation.validateNonNegativeInteger(value);
-        }
-
-        public FormValidation doCheckScriptTimeout(@QueryParameter String value) {
-            return FormValidation.validatePositiveInteger(value);
-        }
-
-        public FormValidation doCheckStartTimeout(@QueryParameter String value) {
-            return FormValidation.validatePositiveInteger(value);
-        }
-
+        @Restricted(DoNotUse.class)
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
-            if (!value.isEmpty() && !value.startsWith("http")) {
-                return FormValidation.error("The endpoint must be an URL");
+            if (Util.fixEmpty(value) == null) return FormValidation.validateRequired(value);
+
+            try {
+                new URL(value);
+            } catch (MalformedURLException ex) {
+                FormValidation.error(ex, "The endpoint must be an URL"  );
             }
             return FormValidation.ok();
         }

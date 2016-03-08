@@ -126,8 +126,14 @@ public class Openstack {
         }
     };
 
-    public @Nonnull List<? extends Server> getRunningNodes() {
-        List<Server> running = new ArrayList<Server>();
+    public @Nonnull List<String> getSortedIpPools() {
+        List<String> names = new ArrayList<>(client.compute().floatingIps().getPoolNames());
+        Collections.sort(names);
+        return names;
+    }
+
+    public @Nonnull List<Server> getRunningNodes() {
+        List<Server> running = new ArrayList<>();
 
         // We need details to inspect state and metadata
         boolean detailed = true;
@@ -229,11 +235,18 @@ public class Openstack {
         }
     }
 
-    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server) {
+    /**
+     * Assign floating id address to the server.
+     *
+     * Note that after the successful assignment, the Server instance becomes outdated as it does not contain the IP details.
+     *
+     * @param server Server to assign FIP
+     * @param poolName Name of the FIP pool to use. If null, openstack default pool will be used.
+     */
+    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) {
         debug("Allocating floating IP for " + server.getName());
         ComputeFloatingIPService fips = client.compute().floatingIps();
-        String publicPool = null;
-        FloatingIP ip = fips.allocateIP(publicPool);
+        FloatingIP ip = fips.allocateIP(poolName);
         debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
             debug("Assigning floating IP to " + server.getName());

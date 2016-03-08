@@ -41,11 +41,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
     }
 
     public int getRetentionTime() {
-        return getNode().getRetentionTime();
-    }
-
-    public String getCloudName() {
-        return getNode().getCloudName();
+        return getNode().getSlaveOptions().getRetentionTime();
     }
 
     private final Object pendingDeleteLock = new Object();

@@ -7,17 +7,23 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
-import jenkins.plugins.openstack.compute.CloudInstanceDefaults;
+import jenkins.plugins.openstack.compute.SlaveOptions;
+import jenkins.plugins.openstack.compute.UserDataConfig;
+import org.jenkinsci.lib.configprovider.ConfigProvider;
+import org.jenkinsci.lib.configprovider.model.Config;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -57,6 +63,20 @@ public final class PluginTestRule extends JenkinsRule {
 
     private static final Random rnd = new Random();
     private final AtomicInteger slaveCount = new AtomicInteger(0);
+    private final AtomicInteger templateCount = new AtomicInteger(0);
+
+    private final Map<String, Proc> slavesToKill = new HashMap<>();
+
+    public SlaveOptions dummySlaveOptions() {
+        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("dummyUserDataId", "Fake", "It is a fake", "Fake content"));
+        SystemCredentialsProvider.getInstance().getCredentials().add(
+                new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "dummyCredentialId", "john", null, null, "Description")
+        );
+        return new SlaveOptions(
+                "dummyImageId", "dummyHardwareId", "dummyNetworkId", "dummyUserDataId", 1, "dummyPoolName", "dummySecurityGroup", "dummyAvailabilityzone",
+                60000, "dummyKeyPairName", 1, "dummyJvmOptions", "dummyFsRoot", "dummyCredentialId", JCloudsCloud.SlaveType.JNLP, 1
+        );
+    }
 
     public void autoconnectJnlpSlaves() {
         JnlpAutoConnect launcher = jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class);
@@ -69,16 +89,19 @@ public final class PluginTestRule extends JenkinsRule {
      * The rule will kill it after the test if not killed already.
      */
     public Proc connectJnlpSlave(String slaveName) throws IOException, InterruptedException {
+        if (slavesToKill.get(slaveName) != null) {
+            throw new Error("Connecting JNLP slave that is already running: " + jenkins.getComputer(slaveName).getSystemProperties().get("startedBy"));
+        }
         File jar = Which.jarFile(Channel.class);
         String url = getURL() + "computer/" + slaveName + "/slave-agent.jnlp";
         StreamTaskListener listener = StreamTaskListener.fromStdout();
         Proc proc = new LocalLauncher(listener).launch()
-                .cmds("java", "-jar", jar.getAbsolutePath(), "-jnlpUrl", url)
+                .cmds("java", "-jar", "-DstartedBy=" + getTestDescription(), jar.getAbsolutePath(), "-jnlpUrl", url)
                 .stderr(System.err)
                 .stdout(System.out)
                 .start()
         ;
-        slavesToKill.add(proc);
+        slavesToKill.put(slaveName, proc);
         return proc;
     }
 
@@ -90,11 +113,12 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
-        return new JCloudsSlaveTemplate(
-                "template", "imageId", "hardwareId", labels, null, "42",
-                "-verbose", "/tmp/slave", 42, "keyPairName", "networkId",
-                "securityGroups", "", JCloudsCloud.SlaveType.JNLP, "availabilityZone"
-        );
+        return dummySlaveTemplate(SlaveOptions.empty(), labels);
+    }
+
+    public JCloudsSlaveTemplate dummySlaveTemplate(SlaveOptions opts, String labels) {
+        int num = templateCount.getAndIncrement();
+        return new JCloudsSlaveTemplate("template" + num, labels, opts);
     }
 
     public JCloudsCloud dummyCloud(JCloudsSlaveTemplate... templates) {
@@ -103,12 +127,17 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
-    public JCloudsCloud createCloudProvisioningDummySlaves(String labels) {
-        return createCloudProvisioningSlaves(dummySlaveTemplate(labels));
+    public JCloudsCloud dummyCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
+        JCloudsCloud cloud = new MockJCloudsCloud(opts, templates);
+        jenkins.clouds.add(cloud);
+        return cloud;
     }
 
-    public JCloudsCloud createCloudProvisioningSlaves(JCloudsSlaveTemplate... templates) {
-        JCloudsCloud cloud = dummyCloud(templates);
+    public JCloudsCloud createCloudProvisioningDummySlaves(String labels) {
+        return configureSlaveProvisioning(dummyCloud(dummySlaveTemplate(labels)));
+    }
+
+    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud) {
         autoconnectJnlpSlaves();
         Openstack os = cloud.getOpenstack();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {
@@ -139,13 +168,16 @@ public final class PluginTestRule extends JenkinsRule {
         return new MockServerBuilder();
     }
 
-    public static class MockServerBuilder {
+    public class MockServerBuilder {
 
         private final Server server;
+        private final Map<String, String> metadata = new HashMap<>();
 
         public MockServerBuilder() {
             server = mock(Server.class);
             when(server.getAddresses()).thenReturn(new NovaAddresses());
+            when(server.getMetadata()).thenReturn(metadata);
+            metadata.put("jenkins-instance", jenkins.getRootUrl()); // Mark the slave as ours
         }
 
         public MockServerBuilder name(String name) {
@@ -167,12 +199,15 @@ public final class PluginTestRule extends JenkinsRule {
             return this;
         }
 
+        public MockServerBuilder metadataItem(String key, String value) {
+            metadata.put(key, value);
+            return this;
+        }
+
         public Server get() {
             return server;
         }
     }
-
-    private final List<Proc> slavesToKill = new ArrayList<>();
 
     @Override
     public Statement apply(Statement base, Description description) {
@@ -184,10 +219,11 @@ public final class PluginTestRule extends JenkinsRule {
                 try {
                     jenkinsRuleStatement.evaluate();
                 } finally {
-                    for (Proc s: slavesToKill) {
-                        if (s.isAlive()) {
-                            System.err.println("Killing agent" + s);
-                            s.kill();
+                    for (Map.Entry<String, Proc> slave: slavesToKill.entrySet()) {
+                        Proc p = slave.getValue();
+                        while (p.isAlive()) {
+                            System.err.println("Killing agent" + p + " for " + slave.getKey());
+                            p.kill();
                         }
                     }
                 }
@@ -205,13 +241,33 @@ public final class PluginTestRule extends JenkinsRule {
             System.out.println("Autolaunching agent for slave: " + c.getDisplayName());
             rule.connectJnlpSlave(c.getDisplayName());
         }
+
+        @Override
+        public void onOnline(Computer c, TaskListener listener) throws IOException, InterruptedException {
+            if (rule == null) return;
+            String current = rule.getTestDescription().toString();
+            Object agent = c.getSystemProperties().get("startedBy");
+            if (!current.equals(agent)) {
+                throw new Error("Leaked agent connected from: " + agent);
+            }
+        }
     }
 
-    private static final class MockJCloudsCloud extends JCloudsCloud {
+    public static final class MockJCloudsCloud extends JCloudsCloud {
+        private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
+                .floatingIpPool("custom")
+                .fsRoot("/tmp/jenkins")
+                .build()
+        ;
+
         private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", 1, CloudInstanceDefaults.DEFAULT_INSTANCE_RETENTION_TIME_IN_MINUTES, 600 * 1000, null, Arrays.asList(templates), true);
+            this(DEFAULTS, templates);
+        }
+
+        public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
+            super("openstack", "identity", "credential", "endPointUrl", "zone", opts, Arrays.asList(templates));
         }
 
         @Override
