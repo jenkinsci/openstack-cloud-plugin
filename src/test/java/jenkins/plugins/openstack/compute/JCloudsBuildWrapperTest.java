@@ -92,4 +92,10 @@ public class JCloudsBuildWrapperTest {
         verify(os, times(1)).destroyServer(any(Server.class)); // Cleanup after the successful attempt
         verifyNoMoreInteractions(os);
     }
+
+    @Test
+    public void checkUi() throws Exception {
+        FreeStyleProject p = j.createFreeStyleProject();
+        j.createWebClient().getPage(p, "configure");
+    }
 }

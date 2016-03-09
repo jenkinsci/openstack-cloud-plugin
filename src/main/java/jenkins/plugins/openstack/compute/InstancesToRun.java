@@ -7,10 +7,12 @@ import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
-
+@Restricted(NoExternalUse.class)
 public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun> {
     public final String cloudName;
     public final String templateName;
@@ -54,8 +56,8 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
 
         public ListBoxModel doFillTemplateNameItems(@QueryParameter String cloudName) {
             ListBoxModel m = new ListBoxModel();
-            JCloudsCloud c = JCloudsCloud.getByName(cloudName);
-            if (c != null) {
+            if (Util.fixEmpty(cloudName) != null) {
+                JCloudsCloud c = JCloudsCloud.getByName(cloudName);
                 for (JCloudsSlaveTemplate t : c.getTemplates()) {
                     m.add(String.format("%s in cloud %s", t.name, cloudName), t.name);
                 }

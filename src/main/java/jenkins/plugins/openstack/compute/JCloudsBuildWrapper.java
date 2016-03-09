@@ -23,6 +23,8 @@ import jenkins.plugins.openstack.compute.internal.ProvisionPlannedInstancesAndDe
 import jenkins.plugins.openstack.compute.internal.RunningNode;
 import jenkins.plugins.openstack.compute.internal.TerminateNodes;
 
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.openstack4j.model.compute.Server;
 
@@ -37,6 +39,11 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     @DataBoundConstructor
     public JCloudsBuildWrapper(List<InstancesToRun> instancesToRun) {
         this.instancesToRun = instancesToRun;
+    }
+
+    @Restricted(NoExternalUse.class) // View
+    public List<InstancesToRun> getInstancesToRun() {
+        return instancesToRun;
     }
 
     //
