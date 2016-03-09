@@ -95,8 +95,9 @@ public final class PluginTestRule extends JenkinsRule {
         File jar = Which.jarFile(Channel.class);
         String url = getURL() + "computer/" + slaveName + "/slave-agent.jnlp";
         StreamTaskListener listener = StreamTaskListener.fromStdout();
+        String java = System.getProperty("java.home") + "/bin/java";
         Proc proc = new LocalLauncher(listener).launch()
-                .cmds("java", "-jar", "-DstartedBy=" + getTestDescription(), jar.getAbsolutePath(), "-jnlpUrl", url)
+                .cmds(java, "-jar", "-DstartedBy=" + getTestDescription(), jar.getAbsolutePath(), "-jnlpUrl", url)
                 .stderr(System.err)
                 .stdout(System.out)
                 .start()
