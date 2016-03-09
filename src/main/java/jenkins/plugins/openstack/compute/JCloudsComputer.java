@@ -99,13 +99,17 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         JCloudsSlave slave = getNode();
 
         // Slave already deleted
-        if (slave == null) return;
+        if (slave == null) {
+            LOGGER.info("Skipping, computer is gone already: " + getName());
+            return;
+        }
 
         if (slave.getChannel() != null) {
             slave.getChannel().close();
         }
         slave.terminate();
         Jenkins.getInstance().removeNode(slave);
+        LOGGER.info("Terminated " + getName());
     }
 
     // Singleton

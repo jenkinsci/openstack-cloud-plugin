@@ -95,7 +95,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         public abstract ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException;
     }
 
-    public static List<String> getCloudNames() {
+    public static @Nonnull List<String> getCloudNames() {
         List<String> cloudNames = new ArrayList<>();
         for (Cloud c : Jenkins.getInstance().clouds) {
             if (JCloudsCloud.class.isInstance(c)) {
