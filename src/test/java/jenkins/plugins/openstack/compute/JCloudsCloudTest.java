@@ -64,7 +64,7 @@ public class JCloudsCloudTest {
     public PluginTestRule j = new PluginTestRule();
 
     @Test
-    public void incompleteteTestConnection() {
+    public void incompleteTestConnection() {
         DescriptorImpl desc = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class);
         FormValidation v;
 
@@ -79,7 +79,7 @@ public class JCloudsCloudTest {
     }
 
     @Test
-    public void failtoTestConnection() throws Exception {
+    public void failToTestConnection() throws Exception {
         FormValidation validation = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class)
                 .doTestConnection(null, "https://example.com", "a", "a:b")
         ;
