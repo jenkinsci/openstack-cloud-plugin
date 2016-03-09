@@ -27,10 +27,10 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private final @Nonnull SlaveOptions options;
 
     // Backward compatibility
-    private @Deprecated transient int overrideRetentionTime;
-    private @Deprecated transient String jvmOptions;
-    private @Deprecated transient String credentialsId;
-    private @Deprecated transient JCloudsCloud.SlaveType slaveType;
+    private transient @Deprecated int overrideRetentionTime;
+    private transient @Deprecated String jvmOptions;
+    private transient @Deprecated String credentialsId;
+    private transient @Deprecated JCloudsCloud.SlaveType slaveType;
 
     public JCloudsSlave(
             @Nonnull String cloudName, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
