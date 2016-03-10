@@ -2,9 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -115,7 +113,7 @@ public class JCloudsCloudTest {
         assertNotNull(deleteCloudButton);
     }
 
-    @Test @Ignore("HtmlUnit is not able to triger form validation")
+    @Test @Ignore("HtmlUnit is not able to trigger form validation")
     public void presentUIDefaults() throws Exception {
         SlaveOptions DEF = ((JCloudsCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
 
