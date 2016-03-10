@@ -24,7 +24,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private @Nonnull Server metadata;
 
     private final @Nonnull String cloudName;
-    private final @Nonnull SlaveOptions options;
+    private /*final*/ @Nonnull SlaveOptions options;
 
     // Backward compatibility
     private transient @Deprecated int overrideRetentionTime;
@@ -55,7 +55,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
     protected Object readResolve() {
         super.readResolve(); // Call parent
         if (options == null) {
-            SlaveOptions carry = SlaveOptions.builder()
+            options = SlaveOptions.builder()
                     .retentionTime(overrideRetentionTime)
                     .jvmOptions(jvmOptions)
                     .credentialsId(credentialsId)
