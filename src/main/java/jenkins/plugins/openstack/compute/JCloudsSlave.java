@@ -5,6 +5,7 @@ import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
+import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.openstack4j.model.compute.Server;
@@ -44,7 +45,9 @@ public class JCloudsSlave extends AbstractCloudSlave {
                 labelString,
                 new JCloudsLauncher(),
                 new JCloudsRetentionStrategy(),
-                Collections.<NodeProperty<?>>emptyList()
+                Collections.singletonList(new EnvironmentVariablesNodeProperty(
+                        new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getPublicAddress(metadata))
+                ))
         );
         this.cloudName = cloudName;
         this.options = slaveOptions;

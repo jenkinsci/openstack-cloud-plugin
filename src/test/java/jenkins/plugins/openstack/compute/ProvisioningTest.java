@@ -3,6 +3,7 @@ package jenkins.plugins.openstack.compute;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -20,6 +21,7 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.TaskListener;
 import hudson.plugins.sshslaves.SSHLauncher;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -49,6 +51,7 @@ public class ProvisioningTest {
     public void manuallyProvisionAndKill() throws Exception {
         Computer computer = j.provisionDummySlave("label").toComputer();
         assertTrue("Slave should be connected", computer.isOnline());
+        assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
 
         computer.doDoDelete();
         assertTrue("Slave is temporarily offline", computer.isTemporarilyOffline());
