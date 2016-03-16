@@ -46,7 +46,7 @@ public class ProvisioningTest {
     public PluginTestRule j = new PluginTestRule();
 
     @Test @SuppressWarnings("deprecation")
-    public void manullyProvisionAndKill() throws Exception {
+    public void manuallyProvisionAndKill() throws Exception {
         Computer computer = j.provisionDummySlave("label").toComputer();
         assertTrue("Slave should be connected", computer.isOnline());
 
