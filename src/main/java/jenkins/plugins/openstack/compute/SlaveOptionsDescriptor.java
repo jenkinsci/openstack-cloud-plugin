@@ -157,7 +157,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         m.add("None specified", "");
 
         try {
-            final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
             for (String p : openstack.getSortedIpPools()) {
                 m.add(p);
             }
@@ -201,7 +201,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         m.add("None specified", "");
 
         try {
-            final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
             for (Flavor flavor : openstack.getSortedFlavors()) {
                 m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
             }
@@ -245,7 +245,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         m.add("None specified", "");
 
         try {
-            final Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
             for (Image image : openstack.getSortedImages()) {
                 m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
             }
@@ -289,7 +289,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         m.add("None specified", "");
 
         try {
-            Openstack openstack = JCloudsCloud.getOpenstack(endPointUrl, identity, credential, zone);
+            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
             for (org.openstack4j.model.network.Network network : openstack.getSortedNetworks()) {
                 m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
             }

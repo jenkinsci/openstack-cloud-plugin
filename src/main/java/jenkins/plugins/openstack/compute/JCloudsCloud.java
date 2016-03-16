@@ -21,7 +21,6 @@ import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -166,20 +165,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public @Nonnull SlaveOptions getRawSlaveOptions() {
         return slaveOptions;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public static @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
-        endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-        identity = Util.fixEmptyAndTrim(identity);
-        credential = Util.fixEmptyAndTrim(credential);
-        region = Util.fixEmptyAndTrim(region);
-
-        if (endPointUrl == null || identity == null || credential == null) {
-            throw FormValidation.error("Invalid parameters");
-        }
-
-        return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
     }
 
     public @Nonnull List<JCloudsSlaveTemplate> getTemplates() {
@@ -364,7 +349,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 @QueryParameter String credential
         ) {
             try {
-                getOpenstack(endPointUrl, identity, credential, zone);
+                Openstack.Factory.get(endPointUrl, identity, credential, zone);
             } catch (FormValidation ex) {
                 return ex;
             } catch (Exception ex) {

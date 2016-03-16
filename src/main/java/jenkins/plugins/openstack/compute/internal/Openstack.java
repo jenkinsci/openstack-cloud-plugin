@@ -36,11 +36,15 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.ExtensionPoint;
+import hudson.Util;
+import hudson.util.FormValidation;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
-import org.openstack4j.api.image.ImageService;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
@@ -340,5 +344,37 @@ public class Openstack {
 
     private static void debug(@Nonnull String msg, @Nonnull String... args) {
         LOGGER.log(Level.FINE, msg, args);
+    }
+
+    @Restricted(NoExternalUse.class) // Extension point just for testing
+    public static abstract class FactoryEP implements ExtensionPoint {
+        protected abstract @Nonnull Openstack getOpenstack(
+                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+        ) throws FormValidation;
+
+        /**
+         * Instantiate Openstack client.
+         */
+        public static @Nonnull Openstack get(
+                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+        ) throws FormValidation {
+            return ExtensionList.lookup(FactoryEP.class).get(0).getOpenstack(endPointUrl, identity, credential, region);
+        }
+    }
+
+    @Extension
+    public static final class Factory extends FactoryEP {
+        protected @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
+            endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
+            identity = Util.fixEmptyAndTrim(identity);
+            credential = Util.fixEmptyAndTrim(credential);
+            region = Util.fixEmptyAndTrim(region);
+
+            if (endPointUrl == null || identity == null || credential == null) {
+                throw FormValidation.error("Invalid parameters");
+            }
+
+            return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
+        }
     }
 }
