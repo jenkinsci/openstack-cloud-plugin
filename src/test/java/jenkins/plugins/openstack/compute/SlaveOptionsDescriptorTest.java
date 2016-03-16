@@ -121,7 +121,7 @@ public class SlaveOptionsDescriptorTest {
         ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "", "", "", "", "");
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
-        assertEquals("image-name (image-id)", item.name);
+        assertEquals("image-name", item.name);
         assertEquals("image-name", item.value);
     }
 }
