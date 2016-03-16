@@ -3,14 +3,21 @@ package jenkins.plugins.openstack.compute;
 import hudson.util.FormValidation;
 import static hudson.util.FormValidation.Kind.*;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doReturn;
 
+import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.openstack4j.model.image.Image;
+import org.openstack4j.openstack.image.domain.GlanceImage;
 
+import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -100,5 +107,21 @@ public class SlaveOptionsDescriptorTest {
                 return kind.equals(item.kind) && Objects.equals(item.getMessage(), msg);
             }
         };
+    }
+
+    @Test
+    public void populateImageNamesNotIds() {
+        Image image = new GlanceImage();
+        image.setId("image-id");
+        image.setName("image-name");
+
+        Openstack os = j.fakeOpenstackFactory();
+        doReturn(Collections.singletonList(image)).when(os).getSortedImages();
+
+        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "", "", "", "", "");
+        assertEquals(2, list.size());
+        ListBoxModel.Option item = list.get(1);
+        assertEquals("image-name (image-id)", item.name);
+        assertEquals("image-name", item.value);
     }
 }

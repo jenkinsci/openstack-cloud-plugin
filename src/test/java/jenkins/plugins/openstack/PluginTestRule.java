@@ -18,8 +18,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import hudson.ExtensionList;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
+import hudson.util.FormValidation;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
@@ -52,6 +54,7 @@ import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /**
@@ -163,6 +166,19 @@ public final class PluginTestRule extends JenkinsRule {
     public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException {
         JCloudsCloud cloud = createCloudProvisioningDummySlaves(labels);
         return provision(cloud, labels);
+    }
+
+    public Openstack fakeOpenstackFactory() {
+        final Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
+        ExtensionList.lookup(Openstack.FactoryEP.class).add(new Openstack.FactoryEP() {
+            @Override
+            protected @Nonnull Openstack getOpenstack(
+                    @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+            ) throws FormValidation {
+                return os;
+            }
+        });
+        return os;
     }
 
     public MockServerBuilder mockServer() {

@@ -247,7 +247,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         try {
             final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
             for (Image image : openstack.getSortedImages()) {
-                m.add(String.format("%s (%s)", image.getName(), image.getId()), image.getId());
+                m.add(image.getName());
             }
             return m;
         } catch (AuthenticationException | FormValidation | ConnectionException _) {

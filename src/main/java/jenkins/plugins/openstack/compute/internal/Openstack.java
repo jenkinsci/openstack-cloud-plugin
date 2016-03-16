@@ -24,11 +24,15 @@
 package jenkins.plugins.openstack.compute.internal;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -93,7 +97,7 @@ public class Openstack {
         debug("Openstack client creatd for " + endPointUrl);
     }
 
-    public @Nonnull List<? extends Network> getSortedNetworks() {
+    public @Nonnull Collection<? extends Network> getSortedNetworks() {
         List<? extends Network> nets = client.networking().network().list();
         Collections.sort(nets, NETWORK_COMPARATOR);
         return nets;
@@ -106,10 +110,11 @@ public class Openstack {
         }
     };
 
-    public @Nonnull List<? extends Image> getSortedImages() {
+    public @Nonnull Collection<? extends Image> getSortedImages() {
         List<? extends Image> images = client.images().listAll();
-        Collections.sort(images, IMAGE_COMPARATOR);
-        return images;
+        TreeSet set = new TreeSet(IMAGE_COMPARATOR); // Eliminate duplicate names
+        set.addAll(images);
+        return set;
     }
 
     private static final Comparator<Image> IMAGE_COMPARATOR = new Comparator<Image>() {
@@ -119,7 +124,7 @@ public class Openstack {
         }
     };
 
-    public @Nonnull List<? extends Flavor> getSortedFlavors() {
+    public @Nonnull Collection<? extends Flavor> getSortedFlavors() {
         List<? extends Flavor> flavors = client.compute().flavors().list();
         Collections.sort(flavors, FLAVOR_COMPARATOR);
         return flavors;
