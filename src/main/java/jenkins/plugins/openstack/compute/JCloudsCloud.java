@@ -73,6 +73,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         SSH {
             @Override
             public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+                Integer noTimeout = null;
+                int maxNumRetries = 5;
+                int retryWaitTime = 15;
+
                 String publicAddress = slave.getPublicAddress();
                 if (publicAddress == null) {
                     throw new IOException("The slave is likely deleted");
@@ -81,7 +85,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                 }
                 SlaveOptions opts = slave.getSlaveOptions();
-                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
+                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", noTimeout, maxNumRetries, retryWaitTime);
             }
         },
         JNLP {
