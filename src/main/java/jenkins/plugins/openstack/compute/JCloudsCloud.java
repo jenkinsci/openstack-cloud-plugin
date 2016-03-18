@@ -228,8 +228,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 LOGGER.fine(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
                 Thread.sleep(2000l);
                 computer.connect(false).get();
-            } catch (InterruptedException|ExecutionException|NullPointerException e) {
-                LOGGER.fine(String.format("Error while launching slave: %s", e));
+            } catch (ExecutionException|NullPointerException e) {
+                LOGGER.warning(String.format("Error while launching slave: %s", e));
             }
 
             if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {
