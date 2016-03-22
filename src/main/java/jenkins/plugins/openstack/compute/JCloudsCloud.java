@@ -10,6 +10,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
@@ -73,7 +76,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         SSH {
             @Override
             public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
-                Integer noTimeout = null;
                 int maxNumRetries = 5;
                 int retryWaitTime = 15;
 
@@ -85,7 +87,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                 }
                 SlaveOptions opts = slave.getSlaveOptions();
-                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", noTimeout, maxNumRetries, retryWaitTime);
+                Integer timeout = opts.getStartTimeout();
+                timeout = timeout == null ? 0 : (timeout / 1000); // Never propagate null - always set some timeout
+                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
             }
         },
         JNLP {
@@ -220,23 +224,30 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ExecutionException {
-        Integer launchTimeoutSec = opts.getStartTimeout();
         JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
+
+        Integer launchTimeout = opts.getStartTimeout();
         long startMoment = System.currentTimeMillis();
+
+        String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", computer.getName(), launchTimeout);
         while (computer.isOffline()) {
             try {
                 LOGGER.fine(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
                 Thread.sleep(2000l);
-                computer.connect(false).get();
+                computer.connect(false).get(launchTimeout, TimeUnit.MILLISECONDS);
             } catch (ExecutionException|NullPointerException e) {
-                LOGGER.warning(String.format("Error while launching slave: %s", e));
+                LOGGER.log(Level.WARNING, "Error while launching slave: " + computer.getName(), e);
+                // Retry
+            } catch (TimeoutException e) {
+                LOGGER.log(Level.WARNING, timeoutMessage, e);
+                computer.setPendingDelete(true);
+                throw new ExecutionException(e);
             }
 
-            if ((System.currentTimeMillis() - startMoment) > launchTimeoutSec) {
-                String message = String.format("Failed to connect to slave within timeout (%d ms).", launchTimeoutSec);
-                LOGGER.warning(message);
+            if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
+                LOGGER.warning(timeoutMessage);
                 computer.setPendingDelete(true);
-                throw new ExecutionException(new Throwable(message));
+                throw new ExecutionException(new Throwable(timeoutMessage));
             }
         }
     }
