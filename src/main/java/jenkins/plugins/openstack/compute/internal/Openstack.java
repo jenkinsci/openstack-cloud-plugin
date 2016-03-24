@@ -27,11 +27,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
-import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -244,6 +242,18 @@ public class Openstack {
         // this implementation are ours.
         ActionResponse res = client.compute().servers().delete(server.getId());
         throwIfFailed(res);
+
+        // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
+        for (int i = 0; i < 5; i++) {
+            Server cur = client.compute().servers().get(server.getId());
+            if (cur != null || cur.getStatus() != Server.Status.DELETED) break;
+
+            LOGGER.warning("Server deletion attempt failed, retrying");
+
+            res = client.compute().servers().delete(server.getId());
+            throwIfFailed(res);
+        }
+
         debug("Machine destroyed: " + server.getName());
 
         ComputeFloatingIPService fips = client.compute().floatingIps();
