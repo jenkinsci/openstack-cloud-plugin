@@ -250,7 +250,7 @@ public class Openstack {
         for (FloatingIP ip: fips.list()) {
             if (server.getId().equals(ip.getInstanceId())) {
                 String fip = ip.getFloatingIpAddress();
-                debug("Removing floating IP %s of %s", fip, server.getName());
+                debug("Removing floating IP {} of {}", fip, server.getName());
                 fips.removeFloatingIP(server, fip);
                 debug("Floating IP removed: " + fip);
                 fips.deallocateIP(ip.getId());
