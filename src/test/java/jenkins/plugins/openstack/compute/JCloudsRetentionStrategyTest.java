@@ -16,6 +16,7 @@ import org.jvnet.hudson.test.TestExtension;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -73,28 +74,29 @@ public class JCloudsRetentionStrategyTest {
         NodeProvisioner.PlannedNode node = slaves.iterator().next();
         assertFalse(node.future.isDone());
 
-        JCloudsComputer computer = null;
-
         // Wait for the future to create computer
         while (j.jenkins.getComputer("provisioned0") == null) {
             Thread.sleep(100);
         }
 
-        while (!node.future.isDone()) {
-            // As long as the slave exists it has to be connecting
-            computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
-            assertFalse(computer.isPendingDelete());
-            assertTrue(computer.isConnecting());
-            System.out.println("connecting");
+        JCloudsComputer computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
+        assertFalse(computer.isPendingDelete());
+        assertTrue(computer.isConnecting());
 
-            Thread.sleep(500);
+        computer.getRetentionStrategy().check(computer);
 
-            computer.getRetentionStrategy().check(computer);
-        }
+        // Still connecting after retention strategy run
+        computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
+        assertFalse(computer.isPendingDelete());
+        assertTrue(computer.isConnecting());
 
-        LaunchBlocker.unlock.signal();
+        try {
+            node.future.get();
+            fail("Expected to timeout");
+        } catch (ExecutionException _) {}
 
         // Once provisioning times out, slave will be scheduled for deletion
+        LaunchBlocker.unlock.signal();
         assertFalse(computer.isConnecting());
         assertTrue(computer.isPendingDelete());
     }
