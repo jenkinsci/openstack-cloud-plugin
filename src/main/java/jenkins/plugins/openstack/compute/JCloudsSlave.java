@@ -43,7 +43,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
                 slaveOptions.getNumExecutors(),
                 Mode.NORMAL,
                 labelString,
-                new JCloudsLauncher(),
+                null,
                 new JCloudsRetentionStrategy(),
                 Collections.singletonList(new EnvironmentVariablesNodeProperty(
                         new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getPublicAddress(metadata))
@@ -52,6 +52,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
         this.cloudName = cloudName;
         this.options = slaveOptions;
         this.metadata = metadata;
+        setLauncher(new JCloudsLauncher(getSlaveType().createLauncher(this)));
     }
 
     @SuppressWarnings({"unused", "deprecation"})

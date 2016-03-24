@@ -278,6 +278,7 @@ public final class PluginTestRule extends JenkinsRule {
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
                 .floatingIpPool("custom")
                 .fsRoot("/tmp/jenkins")
+                .slaveType(SlaveType.JNLP)
                 .build()
         ;
 

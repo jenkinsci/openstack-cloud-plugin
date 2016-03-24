@@ -5,6 +5,7 @@ import hudson.model.Descriptor;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /*
@@ -12,25 +13,25 @@ import java.io.IOException;
  */
 public class JCloudsLauncher extends ComputerLauncher {
 
-    /*package for testing*/ ComputerLauncher lastLauncher;
+    /*package for testing*/ final @Nonnull ComputerLauncher launcher;
+
+    public JCloudsLauncher(@Nonnull ComputerLauncher launcher) {
+        this.launcher = launcher;
+    }
 
     @Override
     public void launch(SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
-
-        final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
-
-        lastLauncher = slave.getSlaveType().createLauncher(slave);
-        lastLauncher.launch(computer, listener);
+        launcher.launch(computer, listener);
     }
 
     @Override
     public void afterDisconnect(SlaveComputer computer, TaskListener listener) {
-        lastLauncher.afterDisconnect(computer, listener);
+        launcher.afterDisconnect(computer, listener);
     }
 
     @Override
     public void beforeDisconnect(SlaveComputer computer, TaskListener listener) {
-        lastLauncher.afterDisconnect(computer, listener);
+        launcher.afterDisconnect(computer, listener);
     }
 
     @Override
