@@ -6,9 +6,7 @@ import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.*;
 
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.PluginTestRule;
-import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -26,7 +24,7 @@ public class InstancesToRunTest {
         assertThat(desc.doFillTemplateNameItems(""), emptyIterable());
         assertThat(desc.doFillTemplateNameItems(null), emptyIterable());
 
-        j.createCloudProvisioningDummySlaves("l");
+        j.createCloudLaunchingDummySlaves("l");
 
         assertThat(desc.doFillCloudNameItems().size(), equalTo(1));
         assertThat(desc.doFillCloudNameItems().get(0).value, equalTo("openstack"));

@@ -62,7 +62,7 @@ public class ProvisioningTest {
 
     @Test
     public void provisionSlaveOnDemand() throws Exception {
-        JCloudsCloud cloud = j.createCloudProvisioningDummySlaves("label");
+        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
 
         Computer[] originalComputers = j.jenkins.getComputers();
 
@@ -183,7 +183,7 @@ public class ProvisioningTest {
     @Test
     public void verifyOptionsPropagatedToLauncher() throws Exception {
         SlaveOptions expected = j.dummySlaveOptions().getBuilder().slaveType(JCloudsCloud.SlaveType.SSH).retentionTime(10).build();
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
                 expected,
                 j.dummySlaveTemplate("label"),
                 j.dummySlaveTemplate(expected.getBuilder().retentionTime(42).build(), "retention")
@@ -205,7 +205,7 @@ public class ProvisioningTest {
     @Test
     public void allowToUseImageNameAsWellAsId() throws Exception {
         SlaveOptions opts = j.dummySlaveOptions().getBuilder().imageId("image-id").build();
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
         // simulate same image resolved to different ids

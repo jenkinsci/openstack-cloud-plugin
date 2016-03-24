@@ -137,12 +137,16 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
-    public JCloudsCloud createCloudProvisioningDummySlaves(String labels) {
-        return configureSlaveProvisioning(dummyCloud(dummySlaveTemplate(labels)));
+    public JCloudsCloud createCloudLaunchingDummySlaves(String labels) {
+        return configureSlaveLaunching(dummyCloud(dummySlaveTemplate(labels)));
+    }
+
+    public JCloudsCloud configureSlaveLaunching(JCloudsCloud cloud) {
+        autoconnectJnlpSlaves();
+        return configureSlaveProvisioning(cloud);
     }
 
     public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud) {
-        autoconnectJnlpSlaves();
         Openstack os = cloud.getOpenstack();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {
             @Override public Server answer(InvocationOnMock invocation) throws Throwable {
@@ -164,7 +168,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException {
-        JCloudsCloud cloud = createCloudProvisioningDummySlaves(labels);
+        JCloudsCloud cloud = createCloudLaunchingDummySlaves(labels);
         return provision(cloud, labels);
     }
 

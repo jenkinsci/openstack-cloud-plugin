@@ -93,7 +93,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
 
     @Override
     public AbstractCloudComputer<JCloudsSlave> createComputer() {
-        LOGGER.info("Creating a new JClouds Slave");
+        LOGGER.info("Creating a new computer for " + getNodeName());
         return new JCloudsComputer(this);
     }
 

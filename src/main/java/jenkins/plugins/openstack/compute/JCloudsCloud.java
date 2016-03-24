@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
@@ -231,17 +232,20 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", computer.getName(), launchTimeout);
         while (computer.isOffline()) {
+            LOGGER.fine(String.format("Slave %s not connected yet", jcloudsSlave.getDisplayName()));
+            Thread.sleep(2000);
+            Future<?> connectionActivity = computer.connect(false);
             try {
-                LOGGER.fine(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
-                Thread.sleep(2000l);
-                computer.connect(false).get(launchTimeout, TimeUnit.MILLISECONDS);
-            } catch (ExecutionException|NullPointerException e) {
+                connectionActivity.get(launchTimeout, TimeUnit.MILLISECONDS);
+            } catch (ExecutionException e) {
                 LOGGER.log(Level.WARNING, "Error while launching slave: " + computer.getName(), e);
                 // Retry
             } catch (TimeoutException e) {
                 LOGGER.log(Level.WARNING, timeoutMessage, e);
                 computer.setPendingDelete(true);
                 throw new ExecutionException(e);
+            } finally {
+                connectionActivity.cancel(true);
             }
 
             if ((System.currentTimeMillis() - startMoment) > launchTimeout) {

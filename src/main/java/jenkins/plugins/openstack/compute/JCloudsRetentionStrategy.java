@@ -34,14 +34,12 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
             return 1;
         } else {
             try {
-                if (c.isIdle() && !c.isPendingDelete()) {
-                    // Get the retention time, in minutes, from the JCloudsCloud this JCloudsComputer belongs to.
+                if (c.isIdle() && !c.isPendingDelete() && !c.isConnecting()) {
                     final int retentionTime = c.getRetentionTime();
-                    // check executor to ensure we are terminating online slaves
-                    if (retentionTime > -1 && c.countExecutors() > 0) {
+                    if (retentionTime > -1) {
                         final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
                         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
-                            LOGGER.fine("Scheduling " + c .getNode() + " for termination");
+                            LOGGER.info("Scheduling " + c .getName() + " for termination");
                             c.setPendingDelete(true);
                         }
                     }

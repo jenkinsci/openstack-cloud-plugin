@@ -33,7 +33,7 @@ public class JCloudsBuildWrapperTest {
 
     @Test
     public void provisionSeveral() throws Exception {
-        final JCloudsCloud cloud = j.createCloudProvisioningDummySlaves("label");
+        final JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
         JCloudsSlaveTemplate template = cloud.getTemplates().get(0);
         Openstack os = cloud.getOpenstack();
 
