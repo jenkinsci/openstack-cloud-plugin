@@ -24,6 +24,16 @@ public class JCloudsLauncher extends ComputerLauncher {
     }
 
     @Override
+    public void afterDisconnect(SlaveComputer computer, TaskListener listener) {
+        lastLauncher.afterDisconnect(computer, listener);
+    }
+
+    @Override
+    public void beforeDisconnect(SlaveComputer computer, TaskListener listener) {
+        lastLauncher.afterDisconnect(computer, listener);
+    }
+
+    @Override
     public Descriptor<ComputerLauncher> getDescriptor() {
         throw new UnsupportedOperationException();
     }
