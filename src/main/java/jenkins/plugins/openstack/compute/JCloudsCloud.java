@@ -215,6 +215,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
                     there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
                     successful prevents this problem.  */
+                    // TODO: this seems to be a cause of constant problems, consider removing this. If the problem really
+                    // TODO: exists, it should be fixed in core instead as several plugins must face this problem. Also,
+                    // TODO: we do not use init script anymore.
                     ensureLaunched(jcloudsSlave, opts);
                     return jcloudsSlave;
                 }
@@ -244,10 +247,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 // Retry
             } catch (TimeoutException e) {
                 LOGGER.log(Level.WARNING, timeoutMessage, e);
+
+                // Wait for the activity to be canceled before letting the slave to get deleted. Otherwise launcher can
+                // still be using slave/computer pair while it is being deleted producing misleading exceptions.
+                connectionActivity.cancel(true);
+                try {
+                    connectionActivity.get(5, TimeUnit.SECONDS);
+                } catch (Throwable ex) { }
+
                 computer.setPendingDelete(true);
                 throw new ExecutionException(e);
-            } finally {
-                connectionActivity.cancel(true);
             }
 
             if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
