@@ -232,13 +232,15 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", computer.getName(), launchTimeout);
         while (computer.isOffline()) {
-            LOGGER.fine(String.format("Slave %s not connected yet", jcloudsSlave.getDisplayName()));
+            LOGGER.fine(String.format("Waiting for slave %s to launch", jcloudsSlave.getDisplayName()));
             Thread.sleep(2000);
+            Throwable lastError = null;
             Future<?> connectionActivity = computer.connect(false);
             try {
                 connectionActivity.get(launchTimeout, TimeUnit.MILLISECONDS);
             } catch (ExecutionException e) {
-                LOGGER.log(Level.WARNING, "Error while launching slave: " + computer.getName(), e);
+                lastError = e.getCause() == null ? e : e.getCause();
+                LOGGER.log(Level.FINE, "Error while launching slave, retrying: " + computer.getName(), lastError);
                 // Retry
             } catch (TimeoutException e) {
                 LOGGER.log(Level.WARNING, timeoutMessage, e);
@@ -251,9 +253,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
                 LOGGER.warning(timeoutMessage);
                 computer.setPendingDelete(true);
-                throw new ExecutionException(new Throwable(timeoutMessage));
+                throw new ExecutionException(timeoutMessage, lastError);
             }
         }
+
+        LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
     }
 
     @Override

@@ -95,7 +95,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
      * @throws InterruptedException
      */
     public void deleteSlave() throws IOException, InterruptedException {
-        LOGGER.info("Terminating " + getName() + " slave");
+        LOGGER.info("Deleting slave " + getName());
         JCloudsSlave slave = getNode();
 
         // Slave already deleted
@@ -109,7 +109,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
         }
         slave.terminate();
         Jenkins.getInstance().removeNode(slave);
-        LOGGER.info("Terminated " + getName());
+        LOGGER.info("Deleted slave " + getName());
     }
 
     // Singleton

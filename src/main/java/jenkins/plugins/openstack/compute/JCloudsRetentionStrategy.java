@@ -4,6 +4,7 @@ import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
+import java.util.Date;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
@@ -37,9 +38,10 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
                 if (c.isIdle() && !c.isPendingDelete() && !c.isConnecting()) {
                     final int retentionTime = c.getRetentionTime();
                     if (retentionTime > -1) {
-                        final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
+                        long idleSince = c.getIdleStartMilliseconds();
+                        final long idleMilliseconds = System.currentTimeMillis() - idleSince;
                         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
-                            LOGGER.info("Scheduling " + c .getName() + " for termination");
+                            LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
                             c.setPendingDelete(true);
                         }
                     }
