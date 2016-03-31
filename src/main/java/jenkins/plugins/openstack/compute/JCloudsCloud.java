@@ -206,7 +206,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     try {
                         jcloudsSlave = template.provisionSlave(JCloudsCloud.this, StreamTaskListener.fromStdout());
                     } catch (Openstack.ActionFailed ex) {
-                        throw new ExecutionException(ex); // Wrap to exception Jenkins will understand
+                        throw new ProvisioningFailedException("Openstack failed to provision the slave", ex);
                     }
                     Jenkins.getInstance().addNode(jcloudsSlave);
 
@@ -227,7 +227,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return plannedNodeList;
     }
 
-    private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ExecutionException {
+    private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ProvisioningFailedException {
         JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
 
         Integer launchTimeout = opts.getStartTimeout();
@@ -256,13 +256,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 } catch (Throwable ex) { }
 
                 computer.setPendingDelete(true);
-                throw new ExecutionException(e);
+                throw new ProvisioningFailedException("Slave launch of " + computer.getName() + "timed out", e);
             }
 
             if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
                 LOGGER.warning(timeoutMessage);
                 computer.setPendingDelete(true);
-                throw new ExecutionException(timeoutMessage, lastError);
+                throw new ProvisioningFailedException(timeoutMessage, lastError);
             }
         }
 
@@ -400,6 +400,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 FormValidation.error(ex, "The endpoint must be an URL"  );
             }
             return FormValidation.ok();
+        }
+    }
+
+    /**
+     * The request to provision was not fulfilled.
+     */
+    public static final class ProvisioningFailedException extends Exception {
+
+        public ProvisioningFailedException(String msg, Throwable cause) {
+            super(msg, cause);
         }
     }
 }
