@@ -1,10 +1,10 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
 import hudson.model.Computer;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerListener;
 import hudson.slaves.NodeProvisioner;
@@ -17,9 +17,6 @@ import org.jvnet.hudson.test.TestExtension;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class JCloudsRetentionStrategyTest {
 
@@ -91,14 +88,14 @@ public class JCloudsRetentionStrategyTest {
         assertTrue(computer.isConnecting());
 
         try {
+            System.out.println("Waiting for timeout");
             node.future.get();
             fail("Expected to timeout");
-        } catch (ExecutionException _) {}
+        } catch (ExecutionException ex) {
+            assertThat(ex.getCause(), instanceOf(JCloudsCloud.ProvisioningFailedException.class));
+        }
 
-        // Once provisioning times out, slave will be scheduled for deletion
         LaunchBlocker.unlock.signal();
-        assertFalse(computer.isConnecting());
-        assertTrue(computer.isPendingDelete());
     }
 
     @TestExtension("doNotDeleteTheSlaveWhileLaunching")
