@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.node_monitors.DiskSpaceMonitorDescriptor;
+import hudson.slaves.OfflineCause;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -37,12 +39,13 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
 
         for (final Computer c : Jenkins.getInstance().getComputers()) {
-            if (JCloudsComputer.class.isInstance(c)) {
+            if (c instanceof JCloudsComputer) {
                 final JCloudsComputer comp = (JCloudsComputer) c;
-                if (comp.isPendingDelete()) {
+                final OfflineCause offlineCause = comp.getOfflineCause();
+                if (comp.isPendingDelete() || offlineCause instanceof DiskSpaceMonitorDescriptor.DiskSpace) {
                     ListenableFuture<?> f = executor.submit(new Runnable() {
                         public void run() {
-                            LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName());
+                            LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + offlineCause.toString());
                             try {
                                 comp.deleteSlave();
                             } catch (IOException|InterruptedException e) {
