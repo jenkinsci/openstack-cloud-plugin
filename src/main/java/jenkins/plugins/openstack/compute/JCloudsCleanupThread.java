@@ -41,6 +41,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         for (final Computer c : Jenkins.getInstance().getComputers()) {
             if (c instanceof JCloudsComputer) {
                 final JCloudsComputer comp = (JCloudsComputer) c;
+
+                if (!c.isIdle()) continue;
+
                 final OfflineCause offlineCause = comp.getOfflineCause();
                 if (comp.isPendingDelete() || offlineCause instanceof DiskSpaceMonitorDescriptor.DiskSpace) {
                     ListenableFuture<?> f = executor.submit(new Runnable() {
