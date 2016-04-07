@@ -2,7 +2,10 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
@@ -16,16 +19,19 @@ import static org.mockito.Mockito.when;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequestSettings;
+import com.gargoylesoftware.htmlunit.WebResponse;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
+import hudson.model.labels.LabelAtom;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,6 +45,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
@@ -128,11 +136,11 @@ public class ProvisioningTest {
         assertEquals(1, restrictedTmplt.getRunningNodes().size());
         assertEquals(3, openTmplt.getRunningNodes().size());
 
-        restricted.getNodes().iterator().next().toComputer().doDoDelete();
+        open.getNodes().iterator().next().toComputer().doDoDelete();
         j.triggerOpenstackSlaveCleanup();
         assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
 
-        // Choose the available one when on doubt
+        // Choose the available one when multiple options
         assertProvisioned(1, cloud.provision(Label.get("common"), 1));
         assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
         assertEquals(1, restrictedTmplt.getRunningNodes().size());
@@ -244,5 +252,64 @@ public class ProvisioningTest {
         assertEquals(2, builders.size());
         assertEquals("image-id", builders.get(0).build().getImageRef());
         assertEquals("something-else", builders.get(1).build().getImageRef());
+    }
+
+    @Test
+    public void doProvision() throws Exception {
+        JCloudsSlaveTemplate constrained = j.dummySlaveTemplate(j.dummySlaveOptions().getBuilder().instanceCap(1).build(), "label");
+        JCloudsSlaveTemplate free = j.dummySlaveTemplate("free");
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
+                j.dummySlaveOptions().getBuilder().instanceCap(2).build(),
+                constrained, free
+        ));
+
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.setThrowExceptionOnFailingStatusCode(false);
+        wc.setPrintContentOnFailingStatusCode(false);
+        assertThat(
+                wc.goTo("cloud/" + cloud.name + "/provision").getWebResponse().getContentAsString(),
+                containsString("The slave template name query parameter is missing")
+        );
+        assertThat(
+                wc.goTo("cloud/" + cloud.name + "/provision?name=no_such_template").getWebResponse().getContentAsString(),
+                containsString("No such slave template with name : no_such_template")
+        );
+
+        j.provision(cloud, "label"); // Exceed template quota
+
+        assertThat(
+                wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
+                containsString("Instance cap for this template (openstack/template0) is now reached: 1")
+        );
+
+        j.provision(cloud, "free"); // Exceed global quota
+
+        assertThat(
+                wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name).getWebResponse().getContentAsString(),
+                containsString("Instance cap of openstack is now reached: 2")
+        );
+    }
+
+    @Test
+    public void useSeveralTemplatesToProvisionInOneBatchWhenTemplateInstanceCapExceeded() throws Exception {
+        SlaveOptions opts = j.dummySlaveOptions().getBuilder().instanceCap(1).build();
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
+                j.dummySlaveTemplate(opts, "label 1"),
+                j.dummySlaveTemplate(opts, "label 2"),
+                j.dummySlaveTemplate(opts, "label 3")
+        ));
+
+
+        Collection<NodeProvisioner.PlannedNode> plan = cloud.provision(Label.get("label"), 4);
+        assertEquals(3, plan.size());
+
+        int cntr = 1;
+        for (NodeProvisioner.PlannedNode pn: plan) {
+            LabelAtom expectedLabel = LabelAtom.get(String.valueOf(cntr));
+
+            Set<LabelAtom> assignedLabels = pn.future.get().getAssignedLabels();
+            assertTrue(assignedLabels.toString(), assignedLabels.contains(expectedLabel));
+            cntr++;
+        }
     }
 }

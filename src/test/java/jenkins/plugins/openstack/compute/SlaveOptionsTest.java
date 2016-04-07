@@ -9,13 +9,16 @@ import org.junit.Test;
  */
 public class SlaveOptionsTest {
 
-    public static final SlaveOptions ORIGINAL = new SlaveOptions(
-            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 1, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
+    /**
+     * Reusable options instance guaranteed not to collide with defaults
+     */
+    public static final SlaveOptions CUSTOM = new SlaveOptions(
+            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
     );
 
     @Test // instanceCap is a subject of different overriding rules
     public void defaultOverrides() {
-        SlaveOptions unmodified = ORIGINAL.override(SlaveOptions.empty());
+        SlaveOptions unmodified = CUSTOM.override(SlaveOptions.empty());
 
         assertEquals("img", unmodified.getImageId());
         assertEquals("hw", unmodified.getHardwareId());
@@ -26,7 +29,7 @@ public class SlaveOptionsTest {
         assertEquals("sg", unmodified.getSecurityGroups());
         assertEquals("az", unmodified.getAvailabilityZone());
         assertEquals(1, (int) unmodified.getStartTimeout());
-        assertEquals(1, (int) unmodified.getNumExecutors());
+        assertEquals(10, (int) unmodified.getNumExecutors());
         assertEquals("jvmo", unmodified.getJvmOptions());
         assertEquals("fsRoot", unmodified.getFsRoot());
         assertEquals(null, unmodified.getKeyPairName());
@@ -53,7 +56,7 @@ public class SlaveOptionsTest {
                 .retentionTime(3)
                 .build()
         ;
-        SlaveOptions overridden = ORIGINAL.override(override);
+        SlaveOptions overridden = CUSTOM.override(override);
 
         assertEquals("IMG", overridden.getImageId());
         assertEquals("HW", overridden.getHardwareId());
@@ -122,6 +125,6 @@ public class SlaveOptionsTest {
 
     @Test
     public void modifyThroughBuilder() {
-        assertEquals(ORIGINAL, ORIGINAL.getBuilder().build());
+        assertEquals(CUSTOM, CUSTOM.getBuilder().build());
     }
 }

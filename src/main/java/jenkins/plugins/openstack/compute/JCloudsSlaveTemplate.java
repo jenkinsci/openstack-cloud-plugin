@@ -149,6 +149,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return labelSet;
     }
 
+    public boolean canProvision(final Label label) {
+        return label == null || label.matches(labelSet);
+    }
+
+    /*package*/ boolean hasProvisioned(@Nonnull Server server) {
+        return name.equals(server.getMetadata().get(OPENSTACK_TEMPLATE_NAME_KEY));
+    }
+
     /*package*/ Supplier<Server> getSuplier(@Nonnull final JCloudsCloud cloud) throws Openstack.ActionFailed {
         return new Supplier<Server>() {
             @Override public Server get() {
@@ -273,7 +281,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         ;
     }
 
-    /*package*/ List<? extends Server> getRunningNodes() {
+    /*package for testing*/ List<? extends Server> getRunningNodes() {
         List<Server> tmplt = new ArrayList<>();
         for (Server server : cloud.getOpenstack().getRunningNodes()) {
             Map<String, String> md = server.getMetadata();
@@ -282,31 +290,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         }
         return tmplt;
-    }
-
-    /**
-     * Get maximal allowed capacity to be provisioned not to exceed configured instanceCap.
-     *
-     * It takes both global and template limit into account.
-     */
-    // TODO: In fact, consulting Openstack can be both slow and counterproductive. There can be substantial delay between
-    // TODO: provisioning is scheduled and server appearing in the openstack causing instance cap to overflow. How about counting Nodes?
-    /*package*/ @Nonnegative int getRemainingInstanceCapacity(@Nonnegative int globalMax, @Nonnegative int templateMax) {
-        int global = 0;
-        int template = 0;
-        for (Server server : cloud.getOpenstack().getRunningNodes()) {
-            global++;
-            Map<String, String> md = server.getMetadata();
-            if (name.equals(md.get(OPENSTACK_TEMPLATE_NAME_KEY))) {
-                template++;
-            }
-        }
-
-        // This can happen if we reduce the number in config while maxed out or due to a race condition.
-        // Anyway, there is no capacity in such case.
-        if (global > globalMax || template > templateMax) return 0;
-
-        return Math.min(globalMax - global, templateMax - template);
     }
 
     @Override

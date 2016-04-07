@@ -1,17 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.verify;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import hudson.plugins.sshslaves.SSHLauncher;
@@ -146,13 +140,14 @@ public class JCloudsCloudTest {
     public void eraseDefaults() {
         int biggerInstanceCap = j.getCloudDescriptor().getDefaultOptions().getInstanceCap() * 2;
 
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().securityGroups("mine").instanceCap(biggerInstanceCap).build();
+        // Base tests on cloud defaults as that is the baseline for erasure
+        SlaveOptions opts = j.getCloudDescriptor().getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(JCloudsCloud.SlaveType.SSH).build();
         JCloudsCloud cloud = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
         );
 
         assertEquals(opts, cloud.getEffectiveSlaveOptions());
-        assertEquals(opts.getBuilder().numExecutors(null).securityGroups("mine").build(), cloud.getRawSlaveOptions());
+        assertEquals(SlaveOptions.builder().instanceCap(biggerInstanceCap).build(), cloud.getRawSlaveOptions());
     }
 
     @Test

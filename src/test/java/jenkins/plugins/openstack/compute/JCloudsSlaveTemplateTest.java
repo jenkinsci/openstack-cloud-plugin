@@ -52,7 +52,7 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void eraseDefaults() throws Exception {
-        SlaveOptions cloudOpts = j.dummySlaveOptions().getBuilder().numExecutors(5).build(); // Do not collide with cloud defaults so we test template erasure only
+        SlaveOptions cloudOpts = SlaveOptionsTest.CUSTOM; // Make sure nothing collides with defaults
         SlaveOptions templateOpts = cloudOpts.getBuilder().imageId("42").availabilityZone("other").build();
         assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
 

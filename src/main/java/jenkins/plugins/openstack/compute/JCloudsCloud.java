@@ -7,8 +7,12 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +50,7 @@ import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.openstack4j.model.compute.Server;
 
 /**
  * The JClouds version of the Jenkins Cloud.
@@ -181,119 +186,180 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     /**
-     * {@inheritDoc}
+     * Get a queue of templates to be used to provision slaves of label.
+     *
+     * The queue contains the same template in as many instances as is the number of machines that can be safely
+     * provisioned without violating instanceCap constrain.
      */
+    private @CheckForNull Queue<JCloudsSlaveTemplate> getAvailableTemplateProvider(@CheckForNull Label label) {
+        final String labelString = (label != null) ? label.toString() : "none";
+        final List<Server> runningNodes = getOpenstack().getRunningNodes();
+        final int globalMax = getEffectiveSlaveOptions().getInstanceCap();
+
+        final Queue<JCloudsSlaveTemplate> queue = new ConcurrentLinkedDeque<>();
+        int globalCapacity = globalMax - runningNodes.size();
+        if (globalCapacity <= 0) {
+            LOGGER.log(Level.INFO,
+                    "Global instance cap ({0}) reached while adding capacity for label: {1}",
+                    new Object[] { globalMax, labelString}
+            );
+            return queue; // No need to proceed any further;
+        }
+
+        final Map<JCloudsSlaveTemplate, Integer> template2capacity = new LinkedHashMap<>();
+        for (JCloudsSlaveTemplate t : templates) {
+            if (t.canProvision(label)) {
+                final int templateMax = t.getEffectiveSlaveOptions().getInstanceCap();
+
+                int templateCapacity = templateMax;
+                for (Server server : runningNodes) {
+                    if (t.hasProvisioned(server)) {
+                        templateCapacity--;
+                    }
+                }
+
+                if (templateCapacity > 0) {
+                    template2capacity.put(t, templateCapacity);
+                } else {
+                    LOGGER.log(Level.INFO,
+                            "Template instance cap for {0} ({1}) reached while adding capacity for label: {2}",
+                            new Object[] { t.name, templateMax, labelString }
+                    );
+                }
+            }
+        }
+
+        done: for (Map.Entry<JCloudsSlaveTemplate, Integer> e : template2capacity.entrySet()) {
+            for (int i = e.getValue(); i > 0; i--) {
+                if (globalCapacity > 0) {
+                    queue.add(e.getKey());
+                    globalCapacity--;
+                } else {
+                    LOGGER.log(Level.INFO,
+                            "Global instance cap ({0}) reached while adding capacity for label: {1}",
+                            new Object[] { globalMax, labelString}
+                    );
+                    break done;
+                }
+            }
+        }
+
+        return queue;
+    }
+
     @Override
     public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
-        final JCloudsSlaveTemplate template = getTemplate(label);
-        if (template == null) throw new AssertionError("No template for label: " + label);
-        final SlaveOptions opts = template.getEffectiveSlaveOptions();
-
-        int globalMax = getEffectiveSlaveOptions().getInstanceCap();
-        int templateMax = template.getEffectiveSlaveOptions().getInstanceCap();
+        Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
 
-            int capacity = template.getRemainingInstanceCapacity(globalMax, templateMax);
-            if (plannedNodeList.size() >= capacity) {
-                LOGGER.log(
-                        Level.INFO,
-                        "Instance cap {0}/{1} reached while adding capacity for label: {2}",
-                        new Object[] { globalMax, templateMax, (label != null) ? label.toString() : "none" }
-                );
-                break; // maxed out
+            final JCloudsSlaveTemplate template = templateProvider.poll();
+            if (template == null) {
+                LOGGER.info("Instance cap exceeded on all available templates");
+                break;
             }
 
-            plannedNodeList.add(new PlannedNode(template.name, Computer.threadPoolForRemoting.submit(new Callable<Node>() {
-                @Override
-                public Node call() throws Exception {
-                    // TODO: record the output somewhere
-                    JCloudsSlave jcloudsSlave;
-                    try {
-                        jcloudsSlave = template.provisionSlave(JCloudsCloud.this, StreamTaskListener.fromStdout());
-                    } catch (Openstack.ActionFailed ex) {
-                        throw new ProvisioningFailedException("Openstack failed to provision the slave", ex);
-                    }
-                    Jenkins.getInstance().addNode(jcloudsSlave);
+            LOGGER.fine("Provisioning slave for " + label + " from template " + template.name);
 
-                    /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
-                    without the connect operation, NodeProvisioner may decide that it still wants one more instance,
-                    because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
-                    there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
-                    successful prevents this problem.  */
-                    // TODO: this seems to be a cause of constant problems, consider removing this. If the problem really
-                    // TODO: exists, it should be fixed in core instead as several plugins must face this problem. Also,
-                    // TODO: we do not use init script anymore.
-                    ensureLaunched(jcloudsSlave, opts);
-                    return jcloudsSlave;
-                }
-            }), opts.getNumExecutors()));
-            excessWorkload -= opts.getNumExecutors();
+            int numExecutors = template.getEffectiveSlaveOptions().getNumExecutors();
+
+            Future<Node> task = Computer.threadPoolForRemoting.submit(new NodeCallable(this, template));
+            plannedNodeList.add(new PlannedNode(template.name, task, numExecutors));
+
+            excessWorkload -= numExecutors;
         }
         return plannedNodeList;
     }
 
-    private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ProvisioningFailedException {
-        JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
+    private static class NodeCallable implements Callable<Node> {
+        private final JCloudsCloud cloud;
+        private final JCloudsSlaveTemplate template;
+        private final SlaveOptions opts;
 
-        Integer launchTimeout = opts.getStartTimeout();
-        long startMoment = System.currentTimeMillis();
-
-        String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", computer.getName(), launchTimeout);
-        while (computer.isOffline()) {
-            LOGGER.fine(String.format("Waiting for slave %s to launch", jcloudsSlave.getDisplayName()));
-            Thread.sleep(2000);
-            Throwable lastError = null;
-            Future<?> connectionActivity = computer.connect(false);
-            try {
-                connectionActivity.get(launchTimeout, TimeUnit.MILLISECONDS);
-            } catch (ExecutionException e) {
-                lastError = e.getCause() == null ? e : e.getCause();
-                LOGGER.log(Level.FINE, "Error while launching slave, retrying: " + computer.getName(), lastError);
-                // Retry
-            } catch (TimeoutException e) {
-                LOGGER.log(Level.WARNING, timeoutMessage, e);
-
-                // Wait for the activity to be canceled before letting the slave to get deleted. Otherwise launcher can
-                // still be using slave/computer pair while it is being deleted producing misleading exceptions.
-                connectionActivity.cancel(true);
-                try {
-                    connectionActivity.get(5, TimeUnit.SECONDS);
-                } catch (Throwable ex) { }
-
-                computer.setPendingDelete(true);
-                throw new ProvisioningFailedException("Slave launch of " + computer.getName() + "timed out", e);
-            }
-
-            if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
-                LOGGER.warning(timeoutMessage);
-                computer.setPendingDelete(true);
-                throw new ProvisioningFailedException(timeoutMessage, lastError);
-            }
+        public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template) {
+            this.cloud = cloud;
+            this.template = template;
+            this.opts = template.getEffectiveSlaveOptions();
         }
 
-        LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
+        @Override
+        public Node call() throws Exception {
+            // TODO: record the output somewhere
+            JCloudsSlave jcloudsSlave;
+            try {
+                jcloudsSlave = template.provisionSlave(cloud, StreamTaskListener.fromStdout());
+            } catch (Openstack.ActionFailed ex) {
+                throw new ProvisioningFailedException("Openstack failed to provision the slave", ex);
+            }
+            Jenkins.getInstance().addNode(jcloudsSlave);
+
+            /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
+            without the connect operation, NodeProvisioner may decide that it still wants one more instance,
+            because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
+            there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
+            successful prevents this problem.  */
+            // TODO: this seems to be a cause of constant problems, consider removing this. If the problem really
+            // TODO: exists, it should be fixed in core instead as several plugins must face this problem. Also,
+            // TODO: we do not use init script anymore.
+            ensureLaunched(jcloudsSlave, opts);
+            return jcloudsSlave;
+        }
+
+        private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ProvisioningFailedException {
+            JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
+
+            Integer launchTimeout = opts.getStartTimeout();
+            long startMoment = System.currentTimeMillis();
+
+            String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", computer.getName(), launchTimeout);
+            while (computer.isOffline()) {
+                LOGGER.fine(String.format("Waiting for slave %s to launch", jcloudsSlave.getDisplayName()));
+                Thread.sleep(2000);
+                Throwable lastError = null;
+                Future<?> connectionActivity = computer.connect(false);
+                try {
+                    connectionActivity.get(launchTimeout, TimeUnit.MILLISECONDS);
+                } catch (ExecutionException e) {
+                    lastError = e.getCause() == null ? e : e.getCause();
+                    LOGGER.log(Level.FINE, "Error while launching slave, retrying: " + computer.getName(), lastError);
+                    // Retry
+                } catch (TimeoutException e) {
+                    LOGGER.log(Level.WARNING, timeoutMessage, e);
+
+                    // Wait for the activity to be canceled before letting the slave to get deleted. Otherwise launcher can
+                    // still be using slave/computer pair while it is being deleted producing misleading exceptions.
+                    connectionActivity.cancel(true);
+                    try {
+                        connectionActivity.get(5, TimeUnit.SECONDS);
+                    } catch (Throwable ex) { }
+
+                    computer.setPendingDelete(true);
+                    throw new ProvisioningFailedException("Slave launch of " + computer.getName() + "timed out", e);
+                }
+
+                if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
+                    LOGGER.warning(timeoutMessage);
+                    computer.setPendingDelete(true);
+                    throw new ProvisioningFailedException(timeoutMessage, lastError);
+                }
+            }
+
+            LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
+        }
     }
 
     @Override
     public boolean canProvision(final Label label) {
-        return getTemplate(label) != null;
+        for (JCloudsSlaveTemplate t : templates)
+            if (t.canProvision(label))
+                return true;
+        return false;
     }
 
     public @CheckForNull JCloudsSlaveTemplate getTemplate(String name) {
         for (JCloudsSlaveTemplate t : templates)
             if (t.name.equals(name))
-                return t;
-        return null;
-    }
-
-    /**
-     * Gets {@link jenkins.plugins.openstack.compute.JCloudsSlaveTemplate} that has the matching {@link Label}.
-     */
-    private @CheckForNull JCloudsSlaveTemplate getTemplate(@CheckForNull Label label) {
-        for (JCloudsSlaveTemplate t : templates)
-            if (label == null || label.matches(t.getLabelSet()))
                 return t;
         return null;
     }
@@ -322,30 +388,41 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return;
         }
 
-        Integer instanceCap = t.getEffectiveSlaveOptions().getInstanceCap();
-        if (getRunningNodesCount() < instanceCap) {
-            JCloudsSlave node;
-            try {
-                StringWriter sw = new StringWriter();
-                StreamTaskListener listener = new StreamTaskListener(sw);
-                node = t.provisionSlave(this, listener);
-            } catch (Openstack.ActionFailed ex) {
-                sendError(ex.getMessage());
-                return;
-            }
-            Jenkins.getInstance().addNode(node);
-            rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
-        } else {
-            String msg = String.format("Instance cap for this cloud/profile (%s/%s) is now reached: %d", profile, name, instanceCap);
-            sendError(msg, req, rsp);
-        }
-    }
+        List<Server> nodes = getOpenstack().getRunningNodes();
+        final int global = nodes.size();
 
-    /**
-     * Determine how many nodes are currently running for this cloud.
-     */
-    private int getRunningNodesCount() {
-        return getOpenstack().getRunningNodes().size();
+        Integer globalCap = getEffectiveSlaveOptions().getInstanceCap();
+        if (global >= globalCap) {
+            String msg = String.format("Instance cap of %s is now reached: %d", profile, globalCap);
+            sendError(msg, req, rsp);
+            return;
+        }
+
+        int template = 0;
+        for (Server node : nodes) {
+            if (t.hasProvisioned(node)) {
+                template++;
+            }
+        }
+
+        int templateCap = t.getEffectiveSlaveOptions().getInstanceCap();
+        if (template >= templateCap) {
+            String msg = String.format("Instance cap for this template (%s/%s) is now reached: %d", profile, name, templateCap);
+            sendError(msg, req, rsp);
+            return;
+        }
+
+        JCloudsSlave node;
+        try {
+            StringWriter sw = new StringWriter();
+            StreamTaskListener listener = new StreamTaskListener(sw);
+            node = t.provisionSlave(this, listener);
+        } catch (Openstack.ActionFailed ex) {
+            sendError(ex.getMessage());
+            return;
+        }
+        Jenkins.getInstance().addNode(node);
+        rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
 
     /**

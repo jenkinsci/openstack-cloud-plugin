@@ -2,6 +2,7 @@ package jenkins.plugins.openstack;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -78,10 +79,20 @@ public final class PluginTestRule extends JenkinsRule {
         SystemCredentialsProvider.getInstance().getCredentials().add(
                 new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "dummyCredentialId", "john", null, null, "Description")
         );
-        return new SlaveOptions(
-                "dummyImageId", "dummyHardwareId", "dummyNetworkId", "dummyUserDataId", 1, "dummyPoolName", "dummySecurityGroup", "dummyAvailabilityzone",
-                60000, "dummyKeyPairName", 1, "dummyJvmOptions", "dummyFsRoot", "dummyCredentialId", JCloudsCloud.SlaveType.JNLP, 1
-        );
+        // Use some real-looking values preserving defaults to make sure plugin works with them
+        return getCloudDescriptor().getDefaultOptions().getBuilder()
+                .imageId("dummyImageId")
+                .hardwareId("dummyHardwareId")
+                .networkId("dummyNetworkId")
+                .userDataId("dummyUserDataId")
+                .floatingIpPool("dummyPoolName")
+                .availabilityZone("dummyAvailabilityZone")
+                .keyPairName("dummyKeyPairName")
+                .jvmOptions("dummyJvmOptions")
+                .credentialsId("dummyCredentialId")
+                .slaveType(JCloudsCloud.SlaveType.JNLP)
+                .build()
+        ;
     }
 
     public void autoconnectJnlpSlaves() {
@@ -149,8 +160,13 @@ public final class PluginTestRule extends JenkinsRule {
         return configureSlaveProvisioning(cloud);
     }
 
+    /**
+     * The provisioning future will never complete as it will wait for launch.
+     */
     public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud) {
-        final List<Server> provisioned = new ArrayList<>();
+        if (cloud.getTemplates().size() == 0) throw new Error("Unable to provision - no templates provided");
+
+        final List<Server> running = new ArrayList<>();
 
         Openstack os = cloud.getOpenstack();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {
@@ -163,8 +179,8 @@ public final class PluginTestRule extends JenkinsRule {
                         .metadata(builder.build().getMetaData())
                         .get()
                 ;
-                synchronized (provisioned) {
-                    provisioned.add(machine);
+                synchronized (running) {
+                    running.add(machine);
                 }
                 return machine;
             }
@@ -176,16 +192,24 @@ public final class PluginTestRule extends JenkinsRule {
         });
         when(os.getRunningNodes()).thenAnswer(new Answer<List<Server>>() {
             @Override public List<Server> answer(InvocationOnMock invocation) throws Throwable {
-                synchronized (provisioned) {
-                    return new ArrayList<>(provisioned);
+                synchronized (running) {
+                    return new ArrayList<>(running);
                 }
             }
         });
+        doAnswer(new Answer() {
+            @Override public Object answer(InvocationOnMock invocation) throws Throwable {
+                Server server = (Server) invocation.getArguments()[0];
+                running.remove(server);
+                return null;
+            }
+        }).when(os).destroyServer(any(Server.class));
         return cloud;
     }
 
     public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException {
         Collection<PlannedNode> slaves = cloud.provision(Label.get(label), 1);
+        if (slaves.size() != 1) throw new AssertionError("One slave expected to be provisioned, was " + slaves.size());
         return (JCloudsSlave) slaves.iterator().next().future.get();
     }
 
