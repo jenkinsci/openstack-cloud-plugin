@@ -39,6 +39,7 @@ import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 /**
@@ -46,9 +47,10 @@ import javax.annotation.Nonnull;
  */
 public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, SlaveOptions.Holder {
 
+    public static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
+
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
     private static final char SEPARATOR_CHAR = ',';
-    /*package*/ static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
 
     public final String name;
     public final String labelString;
@@ -280,6 +282,31 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         }
         return tmplt;
+    }
+
+    /**
+     * Get maximal allowed capacity to be provisioned not to exceed configured instanceCap.
+     *
+     * It takes both global and template limit into account.
+     */
+    // TODO: In fact, consulting Openstack can be both slow and counterproductive. There can be substantial delay between
+    // TODO: provisioning is scheduled and server appearing in the openstack causing instance cap to overflow. How about counting Nodes?
+    /*package*/ @Nonnegative int getRemainingInstanceCapacity(@Nonnegative int globalMax, @Nonnegative int templateMax) {
+        int global = 0;
+        int template = 0;
+        for (Server server : cloud.getOpenstack().getRunningNodes()) {
+            global++;
+            Map<String, String> md = server.getMetadata();
+            if (name.equals(md.get(OPENSTACK_TEMPLATE_NAME_KEY))) {
+                template++;
+            }
+        }
+
+        // This can happen if we reduce the number in config while maxed out or due to a race condition.
+        // Anyway, there is no capacity in such case.
+        if (global > globalMax || template > templateMax) return 0;
+
+        return Math.min(globalMax - global, templateMax - template);
     }
 
     @Override

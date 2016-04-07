@@ -23,6 +23,7 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Matchers;
@@ -36,6 +37,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Future;
 
@@ -91,35 +93,47 @@ public class ProvisioningTest {
     }
 
     @Test
-    public void doNotProvisionOnceInstanceCapReached() {
-        JCloudsSlaveTemplate restricted = j.dummySlaveTemplate(SlaveOptions.builder().instanceCap(1).build(), "restricted");
-        JCloudsSlaveTemplate open = j.dummySlaveTemplate(SlaveOptions.builder().instanceCap(null).build(), "open");
-        JCloudsCloud cloud = j.dummyCloud(SlaveOptions.builder().instanceCap(4).build(), restricted, open);
+    public void doNotProvisionOnceInstanceCapReached() throws Exception {
+        SlaveOptions init = j.dummySlaveOptions();
+        JCloudsSlaveTemplate restrictedTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
+        JCloudsSlaveTemplate openTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
+        JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(4).build(), restrictedTmplt, openTmplt);
+        j.configureSlaveLaunching(cloud);
 
-        Server restrictedMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, restricted.name).get();
-        Server openMachine = j.mockServer().metadataItem(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY, open.name).get();
-
-        List<Server> running = new ArrayList<>();
-
-        when(cloud.getOpenstack().getRunningNodes()).thenReturn(running);
+        Label restricted = Label.get("restricted");
+        Label open = Label.get("open");
 
         // Template quota exceeded
-        assertEquals(1, cloud.provision(Label.get("restricted"), 2).size());
-        running.add(restrictedMachine);
-        assertEquals(0, cloud.provision(Label.get("restricted"), 1).size());
-        assertEquals(1, restricted.getRunningNodes().size());
+        assertProvisioned(1, cloud.provision(restricted, 2));
+        assertEquals(1, cloud.getOpenstack().getRunningNodes().size());
+        assertEquals(1, restrictedTmplt.getRunningNodes().size());
+
+        assertProvisioned(0, cloud.provision(restricted, 1));
+        assertEquals(1, cloud.getOpenstack().getRunningNodes().size());
+        assertEquals(1, restrictedTmplt.getRunningNodes().size());
 
         // Cloud quota exceeded
-        assertEquals(2, cloud.provision(Label.get("open"), 2).size());
-        running.add(openMachine);
-        running.add(openMachine);
-        assertEquals(2, open.getRunningNodes().size());
-        assertEquals(1, cloud.provision(Label.get("open"), 2).size());
-        running.add(openMachine);
-        assertEquals(3, open.getRunningNodes().size());
+        assertProvisioned(2, cloud.provision(open, 2));
+        assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
+        assertEquals(2, openTmplt.getRunningNodes().size());
 
-        assertEquals(0, cloud.provision(Label.get("restricted"), 1).size());
-        assertEquals(0, cloud.provision(Label.get("open"), 1).size());
+        assertProvisioned(1, cloud.provision(open, 2));
+        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
+        assertEquals(3, openTmplt.getRunningNodes().size());
+
+        // Both exceeded
+        assertProvisioned(0, cloud.provision(restricted, 1));
+        assertProvisioned(0, cloud.provision(open, 1));
+        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
+        assertEquals(1, restrictedTmplt.getRunningNodes().size());
+        assertEquals(3, openTmplt.getRunningNodes().size());
+    }
+
+    public void assertProvisioned(int expectedCount, Collection<NodeProvisioner.PlannedNode> nodes) throws Exception {
+        assertEquals(expectedCount, nodes.size());
+        for (NodeProvisioner.PlannedNode node : nodes) {
+            node.future.get();
+        }
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")

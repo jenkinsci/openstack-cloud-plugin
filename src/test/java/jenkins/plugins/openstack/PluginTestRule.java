@@ -7,9 +7,12 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -147,16 +150,35 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud) {
+        final List<Server> provisioned = new ArrayList<>();
+
         Openstack os = cloud.getOpenstack();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {
             @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
                 int num = slaveCount.getAndIncrement();
-                return mockServer().name("provisioned" + num).floatingIp("42.42.42." + num).get();
+                Server machine = mockServer()
+                        .name("provisioned" + num)
+                        .floatingIp("42.42.42." + num)
+                        .metadata(builder.build().getMetaData())
+                        .get()
+                ;
+                synchronized (provisioned) {
+                    provisioned.add(machine);
+                }
+                return machine;
             }
         });
         when(os.updateInfo(any(Server.class))).thenAnswer(new Answer<Server>() {
             @Override public Server answer(InvocationOnMock invocation) throws Throwable {
                 return (Server) invocation.getArguments()[0];
+            }
+        });
+        when(os.getRunningNodes()).thenAnswer(new Answer<List<Server>>() {
+            @Override public List<Server> answer(InvocationOnMock invocation) throws Throwable {
+                synchronized (provisioned) {
+                    return new ArrayList<>(provisioned);
+                }
             }
         });
         return cloud;
@@ -222,6 +244,11 @@ public final class PluginTestRule extends JenkinsRule {
 
         public MockServerBuilder metadataItem(String key, String value) {
             metadata.put(key, value);
+            return this;
+        }
+
+        public MockServerBuilder metadata(Map<String, String> metadata) {
+            this.metadata.putAll(metadata);
             return this;
         }
 

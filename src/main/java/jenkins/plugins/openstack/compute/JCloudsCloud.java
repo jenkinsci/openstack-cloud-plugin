@@ -189,12 +189,19 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         if (template == null) throw new AssertionError("No template for label: " + label);
         final SlaveOptions opts = template.getEffectiveSlaveOptions();
 
-        List<PlannedNode> plannedNodeList = new ArrayList<>();
+        int globalMax = getEffectiveSlaveOptions().getInstanceCap();
+        int templateMax = template.getEffectiveSlaveOptions().getInstanceCap();
 
+        List<PlannedNode> plannedNodeList = new ArrayList<>();
         while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
 
-            if ((getRunningNodesCount() + plannedNodeList.size()) >= opts.getInstanceCap()) {
-                LOGGER.info("Instance cap reached while adding capacity for label " + ((label != null) ? label.toString() : "null"));
+            int capacity = template.getRemainingInstanceCapacity(globalMax, templateMax);
+            if (plannedNodeList.size() >= capacity) {
+                LOGGER.log(
+                        Level.INFO,
+                        "Instance cap {0}/{1} reached while adding capacity for label: {2}",
+                        new Object[] { globalMax, templateMax, (label != null) ? label.toString() : "none" }
+                );
                 break; // maxed out
             }
 
