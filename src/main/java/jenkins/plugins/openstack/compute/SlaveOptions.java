@@ -198,7 +198,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .hardwareId(_override(this.hardwareId, o.hardwareId))
                 .networkId(_override(this.networkId, o.networkId))
                 .userDataId(_override(this.userDataId, o.userDataId))
-                .instanceCap(_overrideInstanceCap(this.instanceCap, o.instanceCap))
+                .instanceCap(_override(this.instanceCap, o.instanceCap))
                 .floatingIpPool(_override(this.floatingIpPool, o.floatingIpPool))
                 .securityGroups(_override(this.securityGroups, o.securityGroups))
                 .availabilityZone(_override(this.availabilityZone, o.availabilityZone))
@@ -216,17 +216,6 @@ public class SlaveOptions implements Describable<SlaveOptions> {
 
     private @CheckForNull <T> T _override(@CheckForNull T base, @CheckForNull T override) {
         return override == null ? base : override;
-    }
-
-    // Use the smallest nonnull
-    private Integer _overrideInstanceCap(Integer base, Integer override) {
-        if (base == null) return override;
-        if (override == null) return base;
-
-        return base.compareTo(override) < 0
-                ? base
-                : override
-        ;
     }
 
     /**
@@ -267,7 +256,8 @@ public class SlaveOptions implements Describable<SlaveOptions> {
                 .append("hardwareId", hardwareId)
                 .append("networkId", networkId)
                 .append("userDataId", userDataId)
-                .append("floatingIpPool=", floatingIpPool)
+                .append("instanceCap", instanceCap)
+                .append("floatingIpPool", floatingIpPool)
                 .append("securityGroups", securityGroups)
                 .append("availabilityZone", availabilityZone)
                 .append("startTimeout", startTimeout)

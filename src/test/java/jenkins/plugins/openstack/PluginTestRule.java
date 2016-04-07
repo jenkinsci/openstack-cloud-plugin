@@ -211,6 +211,10 @@ public final class PluginTestRule extends JenkinsRule {
         return new MockServerBuilder();
     }
 
+    public JCloudsCloud.DescriptorImpl getCloudDescriptor() {
+        return jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class);
+    }
+
     public class MockServerBuilder {
 
         private final Server server;

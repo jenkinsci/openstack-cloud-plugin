@@ -15,29 +15,31 @@ public class SlaveOptionsTest {
 
     @Test // instanceCap is a subject of different overriding rules
     public void defaultOverrides() {
-        SlaveOptions overridden = ORIGINAL.override(SlaveOptions.empty());
+        SlaveOptions unmodified = ORIGINAL.override(SlaveOptions.empty());
 
-        assertEquals("img", overridden.getImageId());
-        assertEquals("hw", overridden.getHardwareId());
-        assertEquals("nw", overridden.getNetworkId());
-        assertEquals("ud", overridden.getUserDataId());
-        assertEquals("pool", overridden.getFloatingIpPool());
-        assertEquals("sg", overridden.getSecurityGroups());
-        assertEquals("az", overridden.getAvailabilityZone());
-        assertEquals(1, (int) overridden.getStartTimeout());
-        assertEquals(1, (int) overridden.getNumExecutors());
-        assertEquals("jvmo", overridden.getJvmOptions());
-        assertEquals("fsRoot", overridden.getFsRoot());
-        assertEquals(null, overridden.getKeyPairName());
-        assertEquals("cid", overridden.getCredentialsId());
-        assertEquals(JCloudsCloud.SlaveType.JNLP, overridden.getSlaveType());
-        assertEquals(1, (int) overridden.getRetentionTime());
+        assertEquals("img", unmodified.getImageId());
+        assertEquals("hw", unmodified.getHardwareId());
+        assertEquals("nw", unmodified.getNetworkId());
+        assertEquals("ud", unmodified.getUserDataId());
+        assertEquals(1, (int) unmodified.getInstanceCap());
+        assertEquals("pool", unmodified.getFloatingIpPool());
+        assertEquals("sg", unmodified.getSecurityGroups());
+        assertEquals("az", unmodified.getAvailabilityZone());
+        assertEquals(1, (int) unmodified.getStartTimeout());
+        assertEquals(1, (int) unmodified.getNumExecutors());
+        assertEquals("jvmo", unmodified.getJvmOptions());
+        assertEquals("fsRoot", unmodified.getFsRoot());
+        assertEquals(null, unmodified.getKeyPairName());
+        assertEquals("cid", unmodified.getCredentialsId());
+        assertEquals(JCloudsCloud.SlaveType.JNLP, unmodified.getSlaveType());
+        assertEquals(1, (int) unmodified.getRetentionTime());
 
         SlaveOptions override = SlaveOptions.builder()
                 .imageId("IMG")
                 .hardwareId("HW")
                 .networkId("NW")
                 .userDataId("UD")
+                .instanceCap(42)
                 .floatingIpPool("POOL")
                 .securityGroups("SG")
                 .availabilityZone("AZ")
@@ -51,12 +53,13 @@ public class SlaveOptionsTest {
                 .retentionTime(3)
                 .build()
         ;
-        overridden = ORIGINAL.override(override);
+        SlaveOptions overridden = ORIGINAL.override(override);
 
         assertEquals("IMG", overridden.getImageId());
         assertEquals("HW", overridden.getHardwareId());
         assertEquals("NW", overridden.getNetworkId());
         assertEquals("UD", overridden.getUserDataId());
+        assertEquals(42, (int) overridden.getInstanceCap());
         assertEquals("POOL", overridden.getFloatingIpPool());
         assertEquals("SG", overridden.getSecurityGroups());
         assertEquals("AZ", overridden.getAvailabilityZone());
@@ -115,19 +118,6 @@ public class SlaveOptionsTest {
         assertEquals(null, emptyStrings.getFsRoot());
         assertEquals(null, emptyStrings.getKeyPairName());
         assertEquals(null, emptyStrings.getCredentialsId());
-    }
-
-    @Test
-    public void instanceCap() {
-        SlaveOptions none = SlaveOptions.empty();
-
-        SlaveOptions ten = SlaveOptions.builder().instanceCap(10).build();
-        SlaveOptions two = SlaveOptions.builder().instanceCap(2).build();
-
-        assertEquals(10, (int) none.override(ten).getInstanceCap());
-        assertEquals(10, (int) ten.override(none).getInstanceCap());
-        assertEquals(2, (int) ten.override(two).getInstanceCap());
-        assertEquals(2, (int) two.override(ten).getInstanceCap());
     }
 
     @Test

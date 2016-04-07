@@ -11,23 +11,12 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
-import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.Page;
-import com.gargoylesoftware.htmlunit.WebRequestSettings;
-import hudson.model.FreeStyleBuild;
-import hudson.model.Node;
 import hudson.plugins.sshslaves.SSHLauncher;
 import jenkins.plugins.openstack.GlobalConfig;
-import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.apache.commons.io.IOUtils;
-import org.hamcrest.Matchers;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,25 +26,16 @@ import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
-import hudson.model.Computer;
-import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
-import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
-import org.openstack4j.model.compute.Server;
-import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.Future;
 
 public class JCloudsCloudTest {
     @Rule
@@ -63,7 +43,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void incompleteTestConnection() {
-        DescriptorImpl desc = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class);
+        DescriptorImpl desc = j.getCloudDescriptor();
         FormValidation v;
 
         v = desc.doTestConnection("REGION", null, "a:b", "passwd");
@@ -78,9 +58,7 @@ public class JCloudsCloudTest {
 
     @Test
     public void failToTestConnection() throws Exception {
-        FormValidation validation = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class)
-                .doTestConnection(null, "https://example.com", "a", "a:b")
-        ;
+        FormValidation validation = j.getCloudDescriptor().doTestConnection(null, "https://example.com", "a", "a:b");
 
         assertEquals(FormValidation.Kind.ERROR, validation.kind);
         assertThat(validation.getMessage(), containsString("Cannot connect to specified cloud"));
@@ -131,7 +109,7 @@ public class JCloudsCloudTest {
         GlobalConfig.Cloud c = GlobalConfig.addCloud(page);
         c.openAdvanced();
 
-        // TODO image, network, hardware, userdata, floatingIp, credentialsId, slavetype, floatingips
+        // TODO image, network, hardware, userdata, credentialsId, slavetype, floatingips
 
 //        assertEquals("IMG", c.value("imageId"));
 //        assertEquals(DEF.getImageId(), c.def("imageId"));
@@ -166,7 +144,9 @@ public class JCloudsCloudTest {
 
     @Test
     public void eraseDefaults() {
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().securityGroups("mine").build();
+        int biggerInstanceCap = j.getCloudDescriptor().getDefaultOptions().getInstanceCap() * 2;
+
+        SlaveOptions opts = j.dummySlaveOptions().getBuilder().securityGroups("mine").instanceCap(biggerInstanceCap).build();
         JCloudsCloud cloud = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
         );

@@ -127,6 +127,16 @@ public class ProvisioningTest {
         assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
         assertEquals(1, restrictedTmplt.getRunningNodes().size());
         assertEquals(3, openTmplt.getRunningNodes().size());
+
+        restricted.getNodes().iterator().next().toComputer().doDoDelete();
+        j.triggerOpenstackSlaveCleanup();
+        assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
+
+        // Choose the available one when on doubt
+        assertProvisioned(1, cloud.provision(Label.get("common"), 1));
+        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
+        assertEquals(1, restrictedTmplt.getRunningNodes().size());
+        assertEquals(3, openTmplt.getRunningNodes().size());
     }
 
     public void assertProvisioned(int expectedCount, Collection<NodeProvisioner.PlannedNode> nodes) throws Exception {
