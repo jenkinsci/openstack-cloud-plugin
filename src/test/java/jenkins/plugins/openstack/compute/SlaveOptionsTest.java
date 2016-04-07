@@ -15,23 +15,23 @@ public class SlaveOptionsTest {
 
     @Test // instanceCap is a subject of different overriding rules
     public void defaultOverrides() {
-        SlaveOptions overriden = ORIGINAL.override(SlaveOptions.empty());
+        SlaveOptions overridden = ORIGINAL.override(SlaveOptions.empty());
 
-        assertEquals("img", overriden.getImageId());
-        assertEquals("hw", overriden.getHardwareId());
-        assertEquals("nw", overriden.getNetworkId());
-        assertEquals("ud", overriden.getUserDataId());
-        assertEquals("pool", overriden.getFloatingIpPool());
-        assertEquals("sg", overriden.getSecurityGroups());
-        assertEquals("az", overriden.getAvailabilityZone());
-        assertEquals(1, (int) overriden.getStartTimeout());
-        assertEquals(1, (int) overriden.getNumExecutors());
-        assertEquals("jvmo", overriden.getJvmOptions());
-        assertEquals("fsRoot", overriden.getFsRoot());
-        assertEquals(null, overriden.getKeyPairName());
-        assertEquals("cid", overriden.getCredentialsId());
-        assertEquals(JCloudsCloud.SlaveType.JNLP, overriden.getSlaveType());
-        assertEquals(1, (int) overriden.getRetentionTime());
+        assertEquals("img", overridden.getImageId());
+        assertEquals("hw", overridden.getHardwareId());
+        assertEquals("nw", overridden.getNetworkId());
+        assertEquals("ud", overridden.getUserDataId());
+        assertEquals("pool", overridden.getFloatingIpPool());
+        assertEquals("sg", overridden.getSecurityGroups());
+        assertEquals("az", overridden.getAvailabilityZone());
+        assertEquals(1, (int) overridden.getStartTimeout());
+        assertEquals(1, (int) overridden.getNumExecutors());
+        assertEquals("jvmo", overridden.getJvmOptions());
+        assertEquals("fsRoot", overridden.getFsRoot());
+        assertEquals(null, overridden.getKeyPairName());
+        assertEquals("cid", overridden.getCredentialsId());
+        assertEquals(JCloudsCloud.SlaveType.JNLP, overridden.getSlaveType());
+        assertEquals(1, (int) overridden.getRetentionTime());
 
         SlaveOptions override = SlaveOptions.builder()
                 .imageId("IMG")
@@ -51,23 +51,23 @@ public class SlaveOptionsTest {
                 .retentionTime(3)
                 .build()
         ;
-        overriden = ORIGINAL.override(override);
+        overridden = ORIGINAL.override(override);
 
-        assertEquals("IMG", overriden.getImageId());
-        assertEquals("HW", overriden.getHardwareId());
-        assertEquals("NW", overriden.getNetworkId());
-        assertEquals("UD", overriden.getUserDataId());
-        assertEquals("POOL", overriden.getFloatingIpPool());
-        assertEquals("SG", overriden.getSecurityGroups());
-        assertEquals("AZ", overriden.getAvailabilityZone());
-        assertEquals(4, (int) overriden.getStartTimeout());
-        assertEquals(2, (int) overriden.getNumExecutors());
-        assertEquals("JVMO", overriden.getJvmOptions());
-        assertEquals("FSROOT", overriden.getFsRoot());
-        assertEquals("KPN", overriden.getKeyPairName());
-        assertEquals("cid", overriden.getCredentialsId());
-        assertEquals(JCloudsCloud.SlaveType.SSH, overriden.getSlaveType());
-        assertEquals(3, (int) overriden.getRetentionTime());
+        assertEquals("IMG", overridden.getImageId());
+        assertEquals("HW", overridden.getHardwareId());
+        assertEquals("NW", overridden.getNetworkId());
+        assertEquals("UD", overridden.getUserDataId());
+        assertEquals("POOL", overridden.getFloatingIpPool());
+        assertEquals("SG", overridden.getSecurityGroups());
+        assertEquals("AZ", overridden.getAvailabilityZone());
+        assertEquals(4, (int) overridden.getStartTimeout());
+        assertEquals(2, (int) overridden.getNumExecutors());
+        assertEquals("JVMO", overridden.getJvmOptions());
+        assertEquals("FSROOT", overridden.getFsRoot());
+        assertEquals("KPN", overridden.getKeyPairName());
+        assertEquals("cid", overridden.getCredentialsId());
+        assertEquals(JCloudsCloud.SlaveType.SSH, overridden.getSlaveType());
+        assertEquals(3, (int) overridden.getRetentionTime());
     }
 
     @Test
@@ -131,7 +131,7 @@ public class SlaveOptionsTest {
     }
 
     @Test
-    public void modifyThrougBuilder() {
+    public void modifyThroughBuilder() {
         assertEquals(ORIGINAL, ORIGINAL.getBuilder().build());
     }
 }
