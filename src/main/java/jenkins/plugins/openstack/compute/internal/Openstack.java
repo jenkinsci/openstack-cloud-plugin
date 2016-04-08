@@ -49,6 +49,8 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
+import org.openstack4j.api.exceptions.ResponseException;
+import org.openstack4j.model.compute.Action;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
@@ -218,10 +220,14 @@ public class Openstack {
      */
     public @Nonnull Server bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) throws ActionFailed {
         debug("Booting machine");
-        Server server = _bootAndWaitActive(request, timeout);
-        debug("Machine started: " + server.getName());
-        throwIfFailed(server);
-        return server;
+        try {
+            Server server = _bootAndWaitActive(request, timeout);
+            debug("Machine started: " + server.getName());
+            throwIfFailed(server);
+            return server;
+        } catch (ResponseException ex) {
+            throw new ActionFailed("Boot failed", ex);
+        }
     }
 
     @Restricted(NoExternalUse.class) // Test hook
@@ -276,7 +282,7 @@ public class Openstack {
     }
 
     /**
-     * Assign floating id address to the server.
+     * Assign floating ip address to the server.
      *
      * Note that after the successful assignment, the Server instance becomes outdated as it does not contain the IP details.
      *
@@ -286,14 +292,28 @@ public class Openstack {
     public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) {
         debug("Allocating floating IP for " + server.getName());
         ComputeFloatingIPService fips = client.compute().floatingIps();
-        FloatingIP ip = fips.allocateIP(poolName);
+        FloatingIP ip;
+        try {
+            ip = fips.allocateIP(poolName);
+        } catch (ResponseException ex) {
+            throw new ActionFailed("Failed to allocate IP", ex);
+        }
         debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
             debug("Assigning floating IP to " + server.getName());
-            fips.addFloatingIP(server, ip.getFloatingIpAddress());
+            ActionResponse res = fips.addFloatingIP(server, ip.getFloatingIpAddress());
+            throwIfFailed(res);
             debug("Floating IP assigned");
-        } catch (Throwable ex) {
-            fips.deallocateIP(ip.getId());
+        } catch (Throwable _ex) {
+            ActionFailed ex = _ex instanceof ActionFailed
+                    ? (ActionFailed) _ex
+                    : new ActionFailed("Unable to assign floating IP", _ex)
+            ;
+
+            ActionResponse res = fips.deallocateIP(ip.getId());
+            if (!res.isSuccess()) {
+                ex.addSuppressed(new ActionFailed(res.toString()));
+            }
             throw ex;
         }
 
@@ -360,6 +380,10 @@ public class Openstack {
     public static final class ActionFailed extends RuntimeException {
         public ActionFailed(String msg) {
             super(msg);
+        }
+
+        public ActionFailed(String msg, Throwable cause) {
+            super(msg, cause);
         }
     }
 
