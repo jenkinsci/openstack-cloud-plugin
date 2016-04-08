@@ -27,7 +27,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeSet;
@@ -156,7 +158,11 @@ public class Openstack {
     }
 
     public @CheckForNull String getImageIdFor(String name) {
-        List<? extends Image> images = client.images().listAll(Collections.singletonMap("name", name));
+        Map<String, String> query = new HashMap<>(2);
+        query.put("name", name);
+        query.put("status", "ACTIVE");
+
+        List<? extends Image> images = client.images().listAll(query);
         if (images.size() > 0) {
             // Pick one at random to point out failures ASAP
             return images.get(new Random().nextInt(images.size())).getId();
