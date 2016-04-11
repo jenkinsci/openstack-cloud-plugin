@@ -73,12 +73,12 @@ public class ProvisioningTest {
 
     @Test
     public void provisionSlaveOnDemand() throws Exception {
+        j.jenkins.setNumExecutors(0);
         Computer[] originalComputers = j.jenkins.getComputers();
         assertThat(originalComputers, arrayWithSize(1)); // Only master expected
 
         JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
 
-        j.jenkins.setNumExecutors(0);
         FreeStyleProject p = j.createFreeStyleProject();
         // Provision with label
         p.setAssignedLabel(Label.get("label"));
@@ -87,7 +87,7 @@ public class ProvisioningTest {
         node.toComputer().doDoDelete();
         assertTrue(((JCloudsComputer) node.toComputer()).isPendingDelete());
         j.triggerOpenstackSlaveCleanup();
-        assertThat(j.jenkins.getComputers(), arrayContainingInAnyOrder(originalComputers));
+        assertArrayEquals(originalComputers, j.jenkins.getComputers());
 
         // Provision without label
         p.setAssignedLabel(null);
