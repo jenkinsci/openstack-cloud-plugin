@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -192,7 +193,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         final ServerCreateBuilder builder = Builders.server();
         builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
 
-        final String nodeName = name + "-" + System.currentTimeMillis() % 1000;
+        final String nodeName = name + "-" + new Random().nextInt(1000);
         LOGGER.info("Provisioning new openstack node " + nodeName + " with options " + opts);
         // Ensure predictable node name so we can inject it into user data
         builder.name(nodeName);
