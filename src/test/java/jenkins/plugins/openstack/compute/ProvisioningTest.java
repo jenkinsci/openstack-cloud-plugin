@@ -84,7 +84,8 @@ public class ProvisioningTest {
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
         node.toComputer().doDoDelete();
         j.triggerOpenstackSlaveCleanup();
-        assertThat(originalComputers, arrayContainingInAnyOrder(j.jenkins.getComputers()));
+        Thread.sleep(500);
+        assertThat(j.jenkins.getComputers(), arrayContainingInAnyOrder(originalComputers));
 
         // Provision without label
         p.setAssignedLabel(null);
