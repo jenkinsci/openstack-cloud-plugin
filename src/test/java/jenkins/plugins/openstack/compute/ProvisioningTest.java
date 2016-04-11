@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -72,9 +73,10 @@ public class ProvisioningTest {
 
     @Test
     public void provisionSlaveOnDemand() throws Exception {
-        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
-
         Computer[] originalComputers = j.jenkins.getComputers();
+        assertThat(originalComputers, arrayWithSize(1)); // Only master expected
+
+        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
 
         j.jenkins.setNumExecutors(0);
         FreeStyleProject p = j.createFreeStyleProject();
@@ -83,8 +85,8 @@ public class ProvisioningTest {
         Node node = j.buildAndAssertSuccess(p).getBuiltOn();
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
         node.toComputer().doDoDelete();
+        assertTrue(((JCloudsComputer) node.toComputer()).isPendingDelete());
         j.triggerOpenstackSlaveCleanup();
-        Thread.sleep(500);
         assertThat(j.jenkins.getComputers(), arrayContainingInAnyOrder(originalComputers));
 
         // Provision without label
