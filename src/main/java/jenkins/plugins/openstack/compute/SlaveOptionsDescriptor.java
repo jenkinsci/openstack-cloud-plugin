@@ -358,16 +358,16 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
-    public FormValidation doCheckCredentialsIs(
+    public FormValidation doCheckCredentialsId(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("credentialsId") String def
     ) {
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getCredentialsId());
             if (d != null) return FormValidation.ok(def(d));
-            return OK;
+            return REQUIRED;
         }
-        return OK;
+        return REQUIRED;
     }
 
     @Restricted(DoNotUse.class)
