@@ -87,7 +87,7 @@ public class ProvisioningTest {
         node.toComputer().doDoDelete();
         assertTrue(((JCloudsComputer) node.toComputer()).isPendingDelete());
         j.triggerOpenstackSlaveCleanup();
-        assertArrayEquals(originalComputers, j.jenkins.getComputers());
+        assertEquals("Slave is discarded", null, j.jenkins.getComputer(node.getNodeName()));
 
         // Provision without label
         p.setAssignedLabel(null);
