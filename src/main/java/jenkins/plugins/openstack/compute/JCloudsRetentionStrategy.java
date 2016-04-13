@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.model.Descriptor;
+import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
@@ -45,7 +46,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     private void doCheck(JCloudsComputer c) {
         if (c.isPendingDelete()) return; // No need to do it again
         if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
-        if (!c.isIdle()) return;
+        if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
 
         final int retentionTime = c.getRetentionTime();
         if (c.getRetentionTime() < 0) return; // Keep forever

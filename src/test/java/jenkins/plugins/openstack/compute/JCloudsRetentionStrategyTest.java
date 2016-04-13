@@ -6,8 +6,10 @@ import static org.junit.Assert.*;
 import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.TaskListener;
+import hudson.model.User;
 import hudson.slaves.ComputerListener;
 import hudson.slaves.NodeProvisioner;
+import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.junit.Rule;
@@ -97,7 +99,6 @@ public class JCloudsRetentionStrategyTest {
 
         LaunchBlocker.unlock.signal();
     }
-
     @TestExtension("doNotDeleteTheSlaveWhileLaunching")
     public static class LaunchBlocker extends ComputerListener {
         private static OneShotEvent unlock = new OneShotEvent();
@@ -105,5 +106,25 @@ public class JCloudsRetentionStrategyTest {
         public void preLaunch(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
             unlock.block();
         }
+    }
+
+    @Test
+    public void doNotDeleteSlavePutOfflineByUser() throws ExecutionException, InterruptedException {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+                // no retention to make the slave disposable w.r.t retention time
+                j.dummySlaveOptions().getBuilder().retentionTime(0).build(),
+                "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Offline"));
+
+        computer.getRetentionStrategy().check(computer);
+        assertFalse(computer.isPendingDelete());
+
+        computer.setTemporarilyOffline(false, null);
+
+        computer.getRetentionStrategy().check(computer);
+        assertTrue(computer.isPendingDelete());
     }
 }
