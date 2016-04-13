@@ -1,6 +1,9 @@
 package jenkins.plugins.openstack.compute;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -12,12 +15,16 @@ import hudson.model.Result;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.util.OneShotEvent;
 import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.TestBuilder;
+import org.openstack4j.model.compute.Server;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * @author ogondza.
@@ -61,7 +68,6 @@ public class JCloudsCleanupThreadTest {
         FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
         assertTrue(build.isBuilding());
         Thread.sleep(500); // Wait for correct computer to be assigned - master until that
-        //j.interactiveBreak();
         assertEquals(build.getBuiltOn(), slave);
 
         computer.doDoDelete(); // simulate deletion from UI
@@ -79,5 +85,17 @@ public class JCloudsCleanupThreadTest {
         j.triggerOpenstackSlaveCleanup();
 
         assertNull(j.jenkins.getNode(slave.getDisplayName()));
+    }
+
+    @Test @Ignore // WIP
+    public void deleteMachinesNotConnectedToAnySlave() {
+        JCloudsCloud cloud = j.dummyCloud();
+        Server server = mock(Server.class);
+        Openstack os = cloud.getOpenstack();
+        when(os.getRunningNodes()).thenReturn(Arrays.asList(server));
+
+        j.triggerOpenstackSlaveCleanup();
+
+        verify(os).destroyServer(server);
     }
 }
