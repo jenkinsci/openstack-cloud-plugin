@@ -26,31 +26,36 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         if (disabled) {
             LOGGER.fine("Skipping check - disabled");
             return 1;
-        } else {
-            LOGGER.fine("Checking");
         }
+        LOGGER.fine("Checking");
 
         if (!checkLock.tryLock()) {
             LOGGER.info("Failed to acquire retention lock - skipping");
             return 1;
-        } else {
-            try {
-                if (c.isIdle() && !c.isPendingDelete() && !c.isConnecting()) {
-                    final int retentionTime = c.getRetentionTime();
-                    if (retentionTime > -1) {
-                        long idleSince = c.getIdleStartMilliseconds();
-                        final long idleMilliseconds = System.currentTimeMillis() - idleSince;
-                        if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
-                            LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
-                            c.setPendingDelete(true);
-                        }
-                    }
-                }
-            } finally {
-                checkLock.unlock();
-            }
+        }
+
+        try {
+            doCheck(c);
+        } finally {
+            checkLock.unlock();
         }
         return 1;
+    }
+
+    private void doCheck(JCloudsComputer c) {
+        if (c.isPendingDelete()) return; // No need to do it again
+        if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
+        if (!c.isIdle()) return;
+
+        final int retentionTime = c.getRetentionTime();
+        if (c.getRetentionTime() < 0) return; // Keep forever
+
+        long idleSince = c.getIdleStartMilliseconds();
+        final long idleMilliseconds = System.currentTimeMillis() - idleSince;
+        if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
+            LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
+            c.setPendingDelete(true);
+        }
     }
 
     /**
