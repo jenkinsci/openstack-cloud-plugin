@@ -219,7 +219,10 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public Openstack fakeOpenstackFactory() {
-        final Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
+        return fakeOpenstackFactory(mock(Openstack.class, RETURNS_SMART_NULLS));
+    }
+
+    public Openstack fakeOpenstackFactory(final Openstack os) {
         ExtensionList.lookup(Openstack.FactoryEP.class).add(new Openstack.FactoryEP() {
             @Override
             protected @Nonnull Openstack getOpenstack(

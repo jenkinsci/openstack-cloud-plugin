@@ -45,12 +45,13 @@ import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.Util;
 import hudson.util.FormValidation;
+import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.exceptions.ResponseException;
-import org.openstack4j.model.compute.Action;
+import org.openstack4j.model.common.BasicResource;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
@@ -99,30 +100,28 @@ public class Openstack {
         debug("Openstack client creatd for " + endPointUrl);
     }
 
+    /*exposed for testing*/
+    public Openstack(@Nonnull OSClient client) {
+        this.client = client;
+    }
+
     public @Nonnull Collection<? extends Network> getSortedNetworks() {
         List<? extends Network> nets = client.networking().network().list();
-        Collections.sort(nets, NETWORK_COMPARATOR);
+        Collections.sort(nets, RESOURCE_COMPARATOR);
         return nets;
     }
 
-    private static final Comparator<Network> NETWORK_COMPARATOR = new Comparator<Network>() {
-        @Override
-        public int compare(Network o1, Network o2) {
-            return o1.getName().compareTo(o2.getName());
-        }
-    };
-
     public @Nonnull Collection<? extends Image> getSortedImages() {
         List<? extends Image> images = client.images().listAll();
-        TreeSet set = new TreeSet(IMAGE_COMPARATOR); // Eliminate duplicate names
+        TreeSet set = new TreeSet(RESOURCE_COMPARATOR); // Eliminate duplicate names
         set.addAll(images);
         return set;
     }
 
-    private static final Comparator<Image> IMAGE_COMPARATOR = new Comparator<Image>() {
+    private static final Comparator<BasicResource> RESOURCE_COMPARATOR = new Comparator<BasicResource>() {
         @Override
-        public int compare(Image o1, Image o2) {
-            return o1.getName().compareTo(o2.getName());
+        public int compare(BasicResource o1, BasicResource o2) {
+            return ObjectUtils.compare(o1.getName(), o2.getName());
         }
     };
 
@@ -135,7 +134,7 @@ public class Openstack {
     private Comparator<Flavor> FLAVOR_COMPARATOR = new Comparator<Flavor>() {
         @Override
         public int compare(Flavor o1, Flavor o2) {
-            return o1.getName().compareTo(o2.getName());
+            return ObjectUtils.compare(o1.getName(), o2.getName());
         }
     };
 
@@ -170,7 +169,6 @@ public class Openstack {
             return images.get(new Random().nextInt(images.size())).getId();
         }
 
-        // backward compatibility uses image id
         if (name.matches("[0-1a-f-]{36}")) return name;
 
         return null;

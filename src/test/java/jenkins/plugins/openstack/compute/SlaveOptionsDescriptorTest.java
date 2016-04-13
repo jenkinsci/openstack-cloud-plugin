@@ -5,15 +5,23 @@ import static hudson.util.FormValidation.Kind.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Description;
+import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
+import org.openstack4j.api.OSClient;
+import org.openstack4j.api.image.ImageService;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.openstack.image.domain.GlanceImage;
 
@@ -123,5 +131,29 @@ public class SlaveOptionsDescriptorTest {
         ListBoxModel.Option item = list.get(1);
         assertEquals("image-name", item.name);
         assertEquals("image-name", item.value);
+    }
+
+    @Test @Issue("JENKINS-29993")
+    public void acceptNullAsImageName() {
+        Image image = new GlanceImage();
+        image.setId("image-id");
+        image.setName(null);
+
+        OSClient osClient = mock(OSClient.class);
+        ImageService imageService = mock(ImageService.class);
+        when(osClient.images()).thenReturn(imageService);
+        doReturn(Collections.singletonList(image)).when(imageService).listAll();
+
+        j.fakeOpenstackFactory(new Openstack(osClient));
+
+        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "", "", "", "", "");
+        assertThat(list.get(0).name, list, Matchers.<ListBoxModel.Option>iterableWithSize(2));
+        assertEquals(2, list.size());
+        ListBoxModel.Option item = list.get(1);
+        assertEquals("image-id", item.name);
+        assertEquals("image-id", item.value);
+
+        verify(imageService).listAll();
+        verifyNoMoreInteractions(imageService);
     }
 }
