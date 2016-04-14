@@ -25,17 +25,14 @@ package jenkins.plugins.openstack;
 
 import com.gargoylesoftware.htmlunit.SgmlPage;
 import com.gargoylesoftware.htmlunit.html.DomElement;
-import com.gargoylesoftware.htmlunit.html.DomNode;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlDivision;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.javascript.host.Event;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 
 /**
  * @author ogondza.
@@ -44,7 +41,7 @@ public class GlobalConfig {
 
     public static Cloud addCloud(HtmlPage page) throws IOException {
         HtmlForm f = page.getFormByName("config");
-        f.getButtonByCaption("Add a new cloud").click();
+        HtmlFormUtil.getButtonByCaption(f, "Add a new cloud").click();
         page.getAnchorByText("Cloud (OpenStack)").click();
         return new Cloud(f, "//div[@descriptorid='jenkins.plugins.openstack.compute.JCloudsCloud']");
     }

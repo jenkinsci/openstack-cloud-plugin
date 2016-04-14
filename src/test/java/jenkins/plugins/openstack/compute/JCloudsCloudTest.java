@@ -8,6 +8,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
 import hudson.plugins.sshslaves.SSHLauncher;
 import jenkins.plugins.openstack.GlobalConfig;
 import org.apache.commons.io.IOUtils;
@@ -26,6 +27,7 @@ import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
+import org.springframework.web.util.HtmlUtils;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -67,11 +69,13 @@ public class JCloudsCloudTest {
         assertTrue("Cloud Section must be present in the global configuration ", pageText.contains("Cloud"));
 
         final HtmlForm configForm = page.getFormByName("config");
-        final HtmlButton buttonByCaption = configForm.getButtonByCaption("Add a new cloud");
+        final HtmlButton buttonByCaption = HtmlFormUtil.getButtonByCaption(configForm, "Add a new cloud");
         HtmlPage page1 = buttonByCaption.click();
         WebAssert.assertLinkPresentWithText(page1, "Cloud (OpenStack)");
 
         HtmlPage page2 = page.getAnchorByText("Cloud (OpenStack)").click();
+        Thread.sleep(1000); // Wait for JS
+
         WebAssert.assertInputPresent(page2, "_.endPointUrl");
         WebAssert.assertInputPresent(page2, "_.identity");
         WebAssert.assertInputPresent(page2, "_.credential");
@@ -79,8 +83,8 @@ public class JCloudsCloudTest {
         WebAssert.assertInputPresent(page2, "_.retentionTime");
 
         HtmlForm configForm2 = page2.getFormByName("config");
-        HtmlButton testConnectionButton = configForm2.getButtonByCaption("Test Connection");
-        HtmlButton deleteCloudButton = configForm2.getButtonByCaption("Delete cloud");
+        HtmlButton testConnectionButton = HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
+        HtmlButton deleteCloudButton = HtmlFormUtil.getButtonByCaption(configForm2, "Delete cloud");
         assertNotNull(testConnectionButton);
         assertNotNull(deleteCloudButton);
     }

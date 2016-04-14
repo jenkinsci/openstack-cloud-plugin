@@ -1,26 +1,8 @@
 package jenkins.plugins.openstack.compute;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
-import static org.hamcrest.Matchers.arrayWithSize;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
-
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
-import com.gargoylesoftware.htmlunit.WebRequestSettings;
-import com.gargoylesoftware.htmlunit.WebResponse;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -32,7 +14,6 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,12 +24,26 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayWithSize;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * @author ogondza.
@@ -181,10 +176,8 @@ public class ProvisioningTest {
         Openstack os = cloud.getOpenstack();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
 
-        JenkinsRule.WebClient wc = j.createWebClient();
-        wc.setThrowExceptionOnFailingStatusCode(false);
-        wc.setPrintContentOnFailingStatusCode(false);
-        Page page = wc.getPage(wc.addCrumb(new WebRequestSettings(
+        JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
+        Page page = wc.getPage(wc.addCrumb(new WebRequest(
                 new URL(wc.getContextPath() + "cloud/openstack/provision?name=" + template.name),
                 HttpMethod.POST
         )));
@@ -266,9 +259,7 @@ public class ProvisioningTest {
                 constrained, free
         ));
 
-        JenkinsRule.WebClient wc = j.createWebClient();
-        wc.setThrowExceptionOnFailingStatusCode(false);
-        wc.setPrintContentOnFailingStatusCode(false);
+        JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision").getWebResponse().getContentAsString(),
                 containsString("The slave template name query parameter is missing")
