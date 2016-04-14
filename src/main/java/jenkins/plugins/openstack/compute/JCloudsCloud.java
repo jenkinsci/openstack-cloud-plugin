@@ -61,7 +61,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
-    public final @Nonnull String profile;
     public final @Nonnull String endPointUrl;
     public final @Nonnull String identity;
     public final @Nonnull Secret credential;
@@ -127,12 +126,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(
-            final String profile, final String identity, final String credential, final String endPointUrl, final String zone,
+            final String name, final String identity, final String credential, final String endPointUrl, final String zone,
             final SlaveOptions slaveOptions,
             final List<JCloudsSlaveTemplate> templates
     ) {
-        super(Util.fixEmptyAndTrim(profile));
-        this.profile = Util.fixEmptyAndTrim(profile);
+        super(Util.fixEmptyAndTrim(name));
         this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         this.identity = Util.fixEmptyAndTrim(identity);
         this.credential = Secret.fromString(credential);
@@ -393,7 +391,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         Integer globalCap = getEffectiveSlaveOptions().getInstanceCap();
         if (global >= globalCap) {
-            String msg = String.format("Instance cap of %s is now reached: %d", profile, globalCap);
+            String msg = String.format("Instance cap of %s is now reached: %d", this.name, globalCap);
             sendError(msg, req, rsp);
             return;
         }
@@ -407,7 +405,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         int templateCap = t.getEffectiveSlaveOptions().getInstanceCap();
         if (template >= templateCap) {
-            String msg = String.format("Instance cap for this template (%s/%s) is now reached: %d", profile, name, templateCap);
+            String msg = String.format("Instance cap for this template (%s/%s) is now reached: %d", this.name, name, templateCap);
             sendError(msg, req, rsp);
             return;
         }

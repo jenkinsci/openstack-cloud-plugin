@@ -20,7 +20,7 @@ public class JCloudsSlaveTemplateTest {
     public PluginTestRule j = new PluginTestRule();
 
     final String TEMPLATE_PROPERTIES = "name,labelString";
-    final String CLOUD_PROPERTIES = "profile,identity,credential,endPointUrl,zone";
+    final String CLOUD_PROPERTIES = "name,identity,credential,endPointUrl,zone";
 
     @Test
     public void configRoundtrip() throws Exception {

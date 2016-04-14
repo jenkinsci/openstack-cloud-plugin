@@ -39,8 +39,8 @@ public class JCloudsBuildWrapperTest {
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Arrays.asList(
-                new InstancesToRun(cloud.profile, template.name, null, 2),
-                new InstancesToRun(cloud.profile, template.name, null, 1)
+                new InstancesToRun(cloud.name, template.name, null, 2),
+                new InstancesToRun(cloud.name, template.name, null, 1)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
         p.getBuildersList().add(new TestBuilder() {
@@ -79,7 +79,7 @@ public class JCloudsBuildWrapperTest {
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Collections.singletonList(
-                new InstancesToRun(cloud.profile, template.name, null, 2)
+                new InstancesToRun(cloud.name, template.name, null, 2)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
 
