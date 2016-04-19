@@ -256,7 +256,7 @@ public class Openstack {
         // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
         for (int i = 0; i < 5; i++) {
             Server cur = client.compute().servers().get(server.getId());
-            if (cur != null || cur.getStatus() != Server.Status.DELETED) break;
+            if (cur == null || cur.getStatus() == Server.Status.DELETED) break;
 
             LOGGER.warning("Server deletion attempt failed, retrying");
 
