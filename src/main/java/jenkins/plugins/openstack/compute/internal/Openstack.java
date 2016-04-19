@@ -97,7 +97,7 @@ public class Openstack {
                 .authenticate()
                 .useRegion(region)
         ;
-        debug("Openstack client creatd for " + endPointUrl);
+        debug("Openstack client created for " + endPointUrl);
     }
 
     /*exposed for testing*/
@@ -349,10 +349,11 @@ public class Openstack {
         if (status == Server.Status.ACTIVE) return; // Success
 
         StringBuilder sb = new StringBuilder();
+        sb.append("Failed to boot server ").append(server.getName());
         if (status == Server.Status.BUILD) {
-            sb.append("Failed to boot server in time (consider extending timeout setting):");
+            sb.append(" in time (consider extending timeout setting):");
         } else {
-            sb.append("Failed to boot server:");
+            sb.append(":");
         }
 
         sb.append(" status=").append(status);
