@@ -371,7 +371,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             if (d != null) return FormValidation.ok(def(d));
             return REQUIRED;
         }
-        return REQUIRED;
+        return OK;
     }
 
     @Restricted(DoNotUse.class)
