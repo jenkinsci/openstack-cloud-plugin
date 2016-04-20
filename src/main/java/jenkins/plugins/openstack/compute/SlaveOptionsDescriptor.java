@@ -396,7 +396,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     ) {
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getUserDataId());
-            if (d != null) return FormValidation.ok(def(d));
+            if (d != null) {
+                d = getConfigProvider().getConfigById(d).name;
+                return FormValidation.ok(def(d));
+            }
             return OK;
         }
         return OK;
