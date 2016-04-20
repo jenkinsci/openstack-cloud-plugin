@@ -24,6 +24,7 @@
 package jenkins.plugins.openstack.compute;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
+import com.cloudbees.plugins.credentials.CredentialsNameProvider;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
@@ -369,7 +370,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     ) {
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getCredentialsId());
-            if (d != null) return FormValidation.ok(def(d));
+            if (d != null) {
+                d = CredentialsNameProvider.name(SSHLauncher.lookupSystemCredentials(d)); // ID to name
+                return FormValidation.ok(def(d));
+            }
             return REQUIRED;
         }
         return OK;
