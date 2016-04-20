@@ -57,6 +57,7 @@ import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.FloatingIP;
+import org.openstack4j.model.compute.Keypair;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
@@ -156,6 +157,14 @@ public class Openstack {
         }
 
         return running;
+    }
+
+    public @Nonnull List<String> getSortedKeyPairNames() {
+        List<String> keyPairs = new ArrayList<>();
+        for (Keypair kp : client.compute().keypairs().list()) {
+            keyPairs.add(kp.getName());
+        }
+        return keyPairs;
     }
 
     public @CheckForNull String getImageIdFor(String name) {

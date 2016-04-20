@@ -32,6 +32,7 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
 import hudson.Util;
+import hudson.model.AutoCompletionCandidates;
 import hudson.model.Computer;
 import hudson.model.ItemGroup;
 import hudson.plugins.sshslaves.SSHLauncher;
@@ -430,6 +431,37 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             return OK;
         }
         return OK;
+    }
+
+    @Restricted(DoNotUse.class)
+    public ListBoxModel doFillKeyPairNameItems(
+            @QueryParameter String keyPairName,
+            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+    ) {
+
+        ListBoxModel m = new ListBoxModel();
+        m.add("None specified", "");
+
+        try {
+            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            for (String keyPair: openstack.getSortedKeyPairNames()) {
+                m.add(keyPair);
+            }
+            return m;
+        } catch (AuthenticationException | FormValidation | ConnectionException _) {
+            // Incorrect credentials - noop
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+        }
+
+        if (Util.fixEmpty(keyPairName) != null) {
+            m.add(keyPairName);
+        }
+
+        return m;
     }
 
     @Restricted(DoNotUse.class)

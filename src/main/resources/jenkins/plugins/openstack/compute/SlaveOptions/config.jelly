@@ -45,7 +45,7 @@
                         <f:textbox/>
                     </f:entry>
                     <f:entry title="Key Pair Name" field="keyPairName">
-                        <f:textbox/>
+                        <f:select/>
                     </f:entry>
                 </f:section>
 
