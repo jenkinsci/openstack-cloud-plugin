@@ -208,7 +208,7 @@ public class ProvisioningTest {
             template.provision(cloud);
             fail();
         } catch (Openstack.ActionFailed ex) {
-            assertThat(ex.getMessage(), containsString("Failed to boot server in time"));
+            assertThat(ex.getMessage(), containsString("Failed to boot server provisioned in time"));
             assertThat(ex.getMessage(), containsString("status=BUILD"));
         }
 

@@ -248,9 +248,10 @@ public class Openstack {
      */
     public void destroyServer(@Nonnull Server server) throws ActionFailed {
         debug("Destroying machine " + server.getName());
+        ActionResponse res;
         // Do not checking fingerprint here presuming all Servers provided by
         // this implementation are ours.
-        ActionResponse res = client.compute().servers().delete(server.getId());
+        res = client.compute().servers().delete(server.getId());
         throwIfFailed(res);
 
         // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
@@ -271,10 +272,14 @@ public class Openstack {
             if (server.getId().equals(ip.getInstanceId())) {
                 String fip = ip.getFloatingIpAddress();
                 debug("Removing floating IP {} of {}", fip, server.getName());
-                fips.removeFloatingIP(server, fip);
-                debug("Floating IP removed: " + fip);
-                fips.deallocateIP(ip.getId());
-                debug("Floating IP deallocated: " + fip);
+                res = fips.removeFloatingIP(server, fip);
+                if (logIfFailed(res)) {
+                    debug("Floating IP removed: " + fip);
+                }
+                res = fips.deallocateIP(ip.getId());
+                if (logIfFailed(res)) {
+                    debug("Floating IP deallocated: " + fip);
+                }
             }
         }
     }
@@ -309,9 +314,7 @@ public class Openstack {
             ;
 
             ActionResponse res = fips.deallocateIP(ip.getId());
-            if (!res.isSuccess()) {
-                ex.addSuppressed(new ActionFailed(res.toString()));
-            }
+            logIfFailed(res);
             throw ex;
         }
 
@@ -339,6 +342,15 @@ public class Openstack {
         return fixed;
     }
 
+    /**
+     * @return true if succeeded.
+     */
+    private boolean logIfFailed(@Nonnull ActionResponse res) {
+        if (res.isSuccess()) return true;
+        LOGGER.log(Level.INFO, res.toString());
+        return false;
+    }
+
     private void throwIfFailed(@Nonnull ActionResponse res) {
         if (res.isSuccess()) return;
         throw new ActionFailed(res.toString());
@@ -351,7 +363,7 @@ public class Openstack {
         StringBuilder sb = new StringBuilder();
         sb.append("Failed to boot server ").append(server.getName());
         if (status == Server.Status.BUILD) {
-            sb.append(" in time (consider extending timeout setting):");
+            sb.append(" in time:");
         } else {
             sb.append(":");
         }
@@ -372,7 +384,7 @@ public class Openstack {
         } catch (ActionFailed suppressed) {
             ex.addSuppressed(suppressed);
         }
-        LOGGER.log(Level.WARNING, "Machine provisioning failed", ex);
+        LOGGER.log(Level.WARNING, "Machine provisioning failed: " + server, ex);
         throw ex;
     }
 
