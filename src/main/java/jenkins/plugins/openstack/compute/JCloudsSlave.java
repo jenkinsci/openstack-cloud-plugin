@@ -8,6 +8,8 @@ import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.CheckForNull;
@@ -19,13 +21,14 @@ import java.util.logging.Logger;
 /**
  * Jenkins Slave node.
  */
-public class JCloudsSlave extends AbstractCloudSlave {
+public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
 
     private @Nonnull Server metadata;
 
     private final @Nonnull String cloudName;
     private /*final*/ @Nonnull SlaveOptions options;
+    private final ProvisioningActivity.Id provisioningId;
 
     // Backward compatibility
     private transient @Deprecated int overrideRetentionTime;
@@ -34,7 +37,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private transient @Deprecated JCloudsCloud.SlaveType slaveType;
 
     public JCloudsSlave(
-            @Nonnull String cloudName, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
+            @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
     ) throws IOException, Descriptor.FormException {
         super(
                 metadata.getName(),
@@ -49,7 +52,8 @@ public class JCloudsSlave extends AbstractCloudSlave {
                         new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getPublicAddress(metadata))
                 ))
         );
-        this.cloudName = cloudName;
+        this.cloudName = id.getCloudName(); // TODO deprecate field
+        this.provisioningId = id;
         this.options = slaveOptions;
         this.metadata = metadata;
         setLauncher(new JCloudsLauncher(getSlaveType().createLauncher(this)));
@@ -96,6 +100,11 @@ public class JCloudsSlave extends AbstractCloudSlave {
     public AbstractCloudComputer<JCloudsSlave> createComputer() {
         LOGGER.info("Creating a new computer for " + getNodeName());
         return new JCloudsComputer(this);
+    }
+
+    @Override
+    public @Nonnull ProvisioningActivity.Id getId() {
+        return this.provisioningId;
     }
 
     @Extension

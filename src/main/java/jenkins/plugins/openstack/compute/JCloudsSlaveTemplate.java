@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.regex.Pattern;
 import hudson.remoting.Base64;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -171,12 +173,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      *
      * @throws Openstack.ActionFailed Provisioning failed.
      */
-    public @Nonnull JCloudsSlave provisionSlave(@Nonnull JCloudsCloud cloud, @Nonnull TaskListener listener) throws IOException, Openstack.ActionFailed {
+    public @Nonnull JCloudsSlave provisionSlave(
+            @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id, @Nonnull TaskListener listener
+    ) throws IOException, Openstack.ActionFailed {
         Server nodeMetadata = provision(cloud);
         SlaveOptions opts = getEffectiveSlaveOptions();
 
         try {
-            return new JCloudsSlave(cloud.getDisplayName(), nodeMetadata, labelString, opts);
+            return new JCloudsSlave(id, nodeMetadata, labelString, opts);
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }
@@ -186,7 +190,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      * Provision OpenStack machine.
      *
      * @throws Openstack.ActionFailed In case the provisioning failed.
-     * @see #provisionSlave(JCloudsCloud, TaskListener)
+     * @see #provisionSlave(JCloudsCloud, ProvisioningActivity.Id, TaskListener)
      */
     public @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
         final SlaveOptions opts = getEffectiveSlaveOptions();
@@ -213,7 +217,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         String nid = opts.getNetworkId();
         if (!Strings.isNullOrEmpty(nid)) {
             LOGGER.fine("Setting network to " + nid);
-            builder.networks(Arrays.asList(nid));
+            builder.networks(Collections.singletonList(nid));
         }
 
         if (!Strings.isNullOrEmpty(opts.getSecurityGroups())) {

@@ -9,6 +9,8 @@ import java.util.logging.Logger;
 
 import jenkins.model.Jenkins;
 
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -16,6 +18,7 @@ import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerResponse;
 
+import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -23,7 +26,7 @@ import javax.servlet.http.HttpServletResponse;
  *
  * @author Vijay Kiran
  */
-public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
+public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> implements TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
 
@@ -42,6 +45,11 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
 
     public int getRetentionTime() {
         return getNode().getSlaveOptions().getRetentionTime();
+    }
+
+    @Override
+    public @Nonnull ProvisioningActivity.Id getId() {
+        return getNode().getId();
     }
 
     private final Object pendingDeleteLock = new Object();
@@ -114,6 +122,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
 
     // Singleton
     private static final PendingTermination PENDING_TERMINATION = new PendingTermination();
+
     private static final class PendingTermination extends SimpleOfflineCause {
 
         protected PendingTermination() {

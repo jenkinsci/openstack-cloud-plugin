@@ -16,6 +16,8 @@ import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Matchers;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -34,10 +36,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -99,6 +103,9 @@ public class ProvisioningTest {
         verify(os, atLeastOnce()).destroyServer(any(Server.class));
 
         verifyNoMoreInteractions(os);
+
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertThat(activities, Matchers.<ProvisioningActivity>iterableWithSize(2));
     }
 
     @Test
@@ -298,6 +305,15 @@ public class ProvisioningTest {
                 wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name).getWebResponse().getContentAsString(),
                 containsString("Instance cap of openstack is now reached: 2")
         );
+
+        List<ProvisioningActivity> all = CloudStatistics.get().getActivities();
+        assertThat(all, Matchers.<ProvisioningActivity>iterableWithSize(2));
+        for (ProvisioningActivity pa : all) {
+            assertNotNull(pa.getPhaseExecution(ProvisioningActivity.Phase.OPERATING));
+            assertNull(pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED));
+            assertNotNull(j.jenkins.getComputer(pa.getName()));
+            assertEquals(cloud.name, pa.getId().getCloudName());
+        }
     }
 
     @Test

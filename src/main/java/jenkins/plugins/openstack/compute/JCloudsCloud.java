@@ -27,6 +27,9 @@ import javax.servlet.ServletException;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -262,8 +265,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             int numExecutors = template.getEffectiveSlaveOptions().getNumExecutors();
 
-            Future<Node> task = Computer.threadPoolForRemoting.submit(new NodeCallable(this, template));
-            plannedNodeList.add(new PlannedNode(template.name, task, numExecutors));
+            ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.name);
+            Future<Node> task = Computer.threadPoolForRemoting.submit(new NodeCallable(this, template, id));
+            plannedNodeList.add(new TrackedPlannedNode(id, numExecutors, task));
 
             excessWorkload -= numExecutors;
         }
@@ -273,11 +277,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private static class NodeCallable implements Callable<Node> {
         private final JCloudsCloud cloud;
         private final JCloudsSlaveTemplate template;
+        private final ProvisioningActivity.Id id;
         private final SlaveOptions opts;
 
-        public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template) {
+        public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template, ProvisioningActivity.Id id) {
             this.cloud = cloud;
             this.template = template;
+            this.id = id;
             this.opts = template.getEffectiveSlaveOptions();
         }
 
@@ -286,7 +292,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             // TODO: record the output somewhere
             JCloudsSlave jcloudsSlave;
             try {
-                jcloudsSlave = template.provisionSlave(cloud, StreamTaskListener.fromStdout());
+                jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
             } catch (Openstack.ActionFailed ex) {
                 throw new ProvisioningFailedException("Openstack failed to provision the slave", ex);
             }
@@ -410,12 +416,18 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return;
         }
 
+        CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
+        ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, t.name);
+
         JCloudsSlave node;
         try {
             StringWriter sw = new StringWriter();
             StreamTaskListener listener = new StreamTaskListener(sw);
-            node = t.provisionSlave(this, listener);
+            provisioningListener.onStarted(id);
+            node = t.provisionSlave(this, id, listener);
+            provisioningListener.onComplete(id, node);
         } catch (Openstack.ActionFailed ex) {
+            provisioningListener.onFailure(id, ex);
             sendError(ex.getMessage());
             return;
         }
