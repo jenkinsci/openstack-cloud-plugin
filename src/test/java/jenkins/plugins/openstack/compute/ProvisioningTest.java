@@ -1,26 +1,9 @@
 package jenkins.plugins.openstack.compute;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
-import static org.hamcrest.Matchers.arrayWithSize;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
-
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequestSettings;
-import com.gargoylesoftware.htmlunit.WebResponse;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -32,7 +15,6 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,12 +25,28 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayWithSize;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * @author ogondza.
@@ -269,6 +267,7 @@ public class ProvisioningTest {
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.setThrowExceptionOnFailingStatusCode(false);
         wc.setPrintContentOnFailingStatusCode(false);
+
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision").getWebResponse().getContentAsString(),
                 containsString("The slave template name query parameter is missing")
@@ -278,14 +277,22 @@ public class ProvisioningTest {
                 containsString("No such slave template with name : no_such_template")
         );
 
-        j.provision(cloud, "label"); // Exceed template quota
+        // Exceed template quota
+        HtmlPage provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name);
+        assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
+        String slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
                 containsString("Instance cap for this template (openstack/template0) is now reached: 1")
         );
 
-        j.provision(cloud, "free"); // Exceed global quota
+        // Exceed global quota
+        provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name);
+        assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
+        slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name).getWebResponse().getContentAsString(),
