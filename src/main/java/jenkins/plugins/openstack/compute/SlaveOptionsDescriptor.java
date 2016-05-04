@@ -68,7 +68,7 @@ import java.util.logging.Logger;
 public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveOptions> {
     private static final Logger LOGGER = Logger.getLogger(SlaveOptionsDescriptor.class.getName());
     private static final FormValidation OK = FormValidation.ok();
-    public static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
+    private static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
 
     public SlaveOptionsDescriptor() {
         super(SlaveOptions.class);
@@ -164,8 +164,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(p);
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -208,8 +208,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -256,8 +256,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(name);
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -300,8 +300,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -458,8 +458,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(keyPair);
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
