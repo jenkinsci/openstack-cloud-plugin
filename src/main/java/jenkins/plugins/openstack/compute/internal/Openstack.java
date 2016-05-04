@@ -258,23 +258,29 @@ public class Openstack {
     public void destroyServer(@Nonnull Server server) throws ActionFailed {
         debug("Destroying machine " + server.getName());
         ActionResponse res;
-        // Do not checking fingerprint here presuming all Servers provided by
-        // this implementation are ours.
-        res = client.compute().servers().delete(server.getId());
-        throwIfFailed(res);
 
         // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
+        Server deleted = null;
         for (int i = 0; i < 5; i++) {
-            Server cur = client.compute().servers().get(server.getId());
-            if (cur == null || cur.getStatus() == Server.Status.DELETED) break;
+            // Not checking fingerprint here presuming all Servers provided by this implementation are ours.
+            deleted = client.compute().servers().get(server.getId());
+            if (deleted == null || deleted.getStatus() == Server.Status.DELETED) break;
 
-            LOGGER.warning("Server deletion attempt failed, retrying");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                break;
+            }
 
             res = client.compute().servers().delete(server.getId());
             throwIfFailed(res);
         }
 
-        debug("Machine destroyed: " + server.getName());
+        if (deleted == null) {
+            debug("Machine destroyed: " + server.getName());
+        } else {
+            LOGGER.warning("Server deletion attempt failed: " + deleted);
+        }
 
         ComputeFloatingIPService fips = client.compute().floatingIps();
         for (FloatingIP ip: fips.list()) {
