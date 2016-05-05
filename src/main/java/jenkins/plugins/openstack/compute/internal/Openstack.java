@@ -403,6 +403,22 @@ public class Openstack {
         throw ex;
     }
 
+    /**
+     * Perform some tests before calling the connection successfully established.
+     */
+    public @CheckForNull Throwable sanityCheck() {
+        // Try to talk to all endpoints the plugin rely on so we know they exist, are enabled, user have permission to
+        // access them and JVM trusts their SSL cert.
+        try {
+            client.networking().network().get("");
+            client.images().listMembers("");
+            client.compute().listExtensions().size();
+        } catch (Throwable ex) {
+            return ex;
+        }
+        return null;
+    }
+
     public static final class ActionFailed extends RuntimeException {
         public ActionFailed(String msg) {
             super(msg);
