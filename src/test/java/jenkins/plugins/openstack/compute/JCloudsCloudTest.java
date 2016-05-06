@@ -6,10 +6,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import hudson.plugins.sshslaves.SSHLauncher;
 import jenkins.plugins.openstack.GlobalConfig;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.apache.commons.io.IOUtils;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -36,7 +38,7 @@ public class JCloudsCloudTest {
     public PluginTestRule j = new PluginTestRule();
 
     @Test
-    public void incompleteTestConnection() {
+    public void failToTestConnection() {
         DescriptorImpl desc = j.getCloudDescriptor();
         FormValidation v;
 
@@ -48,14 +50,17 @@ public class JCloudsCloudTest {
 
         v = desc.doTestConnection("REGION", "https://example.com", "a:b", null);
         assertEquals("Credential is required", FormValidation.Kind.ERROR, v.kind);
-    }
 
-    @Test
-    public void failToTestConnection() throws Exception {
-        FormValidation validation = j.getCloudDescriptor().doTestConnection(null, "https://example.com", "a", "a:b");
+        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
+        assertEquals(FormValidation.Kind.ERROR, v.kind);
+        assertThat(v.getMessage(), containsString("Cannot connect to specified cloud"));
 
-        assertEquals(FormValidation.Kind.ERROR, validation.kind);
-        assertThat(validation.getMessage(), containsString("Cannot connect to specified cloud"));
+        Openstack os = j.fakeOpenstackFactory();
+        when(os.sanityCheck()).thenReturn(new NullPointerException("It is broken, alright?"));
+
+        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
+        assertEquals(FormValidation.Kind.WARNING, v.kind);
+        assertThat(v.getMessage(), containsString("It is broken, alright?"));
     }
 
     @Test

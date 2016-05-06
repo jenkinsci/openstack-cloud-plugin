@@ -6,7 +6,7 @@
         <version>1.580</version>
     </parent>
     <artifactId>openstack-cloud</artifactId>
-    <version>2.5-SNAPSHOT</version>
+    <version>2.6-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Openstack Cloud Plugin</name>
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
