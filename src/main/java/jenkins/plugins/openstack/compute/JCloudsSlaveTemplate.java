@@ -3,7 +3,6 @@ package jenkins.plugins.openstack.compute;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -27,7 +26,6 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
 
 import au.com.bytecode.opencsv.CSVReader;
 import hudson.Extension;
@@ -42,7 +40,6 @@ import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 
 import javax.annotation.CheckForNull;
-import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 /**
@@ -158,14 +155,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     /*package*/ boolean hasProvisioned(@Nonnull Server server) {
         return name.equals(server.getMetadata().get(OPENSTACK_TEMPLATE_NAME_KEY));
-    }
-
-    /*package*/ Supplier<Server> getSuplier(@Nonnull final JCloudsCloud cloud) throws Openstack.ActionFailed {
-        return new Supplier<Server>() {
-            @Override public Server get() {
-                return JCloudsSlaveTemplate.this.provision(cloud);
-            }
-        };
     }
 
     /**

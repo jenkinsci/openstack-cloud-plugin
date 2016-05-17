@@ -60,7 +60,8 @@ public class JCloudsBuildWrapper extends BuildWrapper {
             public NodePlan apply(InstancesToRun instance) {
                 String cloudName = instance.cloudName;
                 String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
-                Supplier<Server> nodeSupplier = JCloudsCloud.getByName(cloudName).getTemplate(templateName).getSuplier(JCloudsCloud.getByName(cloudName));
+                JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
+                Supplier<Server> nodeSupplier = new ServerSupplier(cloud, cloud.getTemplate(templateName));
                 return new NodePlan(cloudName, templateName, instance.count, nodeSupplier);
             }
         });
@@ -101,6 +102,21 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         return Util.join(ips, ",");
+    }
+
+    private static final class ServerSupplier implements Supplier<Server> {
+
+        private final @Nonnull JCloudsCloud cloud;
+        private final @Nonnull JCloudsSlaveTemplate template;
+
+        private ServerSupplier(@Nonnull JCloudsCloud cloud, @Nonnull JCloudsSlaveTemplate template) {
+            this.cloud = cloud;
+            this.template = template;
+        }
+
+        @Override public Server get() {
+            return template.provision(cloud);
+        }
     }
 
     @Extension
