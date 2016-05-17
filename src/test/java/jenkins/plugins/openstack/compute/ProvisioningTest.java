@@ -338,4 +338,21 @@ public class ProvisioningTest {
             cntr++;
         }
     }
+
+    @Test
+    public void destroyTheServerWhenFipAllocationFails() {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        Openstack os = cloud.getOpenstack();
+        when(os.assignFloatingIp(any(Server.class), any(String.class))).thenThrow(new Openstack.ActionFailed("Unable to assign"));
+
+        try {
+            template.provision(cloud);
+            fail();
+        } catch (Openstack.ActionFailed ex) {
+            assertThat(ex.getMessage(), containsString("Unable to assign"));
+        }
+
+        verify(os).destroyServer(any(Server.class));
+    }
 }

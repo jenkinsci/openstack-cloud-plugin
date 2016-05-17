@@ -307,14 +307,14 @@ public class Openstack {
      * @param server Server to assign FIP
      * @param poolName Name of the FIP pool to use. If null, openstack default pool will be used.
      */
-    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) {
+    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) throws ActionFailed {
         debug("Allocating floating IP for " + server.getName());
         ComputeFloatingIPService fips = client.compute().floatingIps();
         FloatingIP ip;
         try {
             ip = fips.allocateIP(poolName);
         } catch (ResponseException ex) {
-            throw new ActionFailed("Failed to allocate IP", ex);
+            throw new ActionFailed("Failed to allocate IP for " + server.getName(), ex);
         }
         debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
@@ -325,7 +325,7 @@ public class Openstack {
         } catch (Throwable _ex) {
             ActionFailed ex = _ex instanceof ActionFailed
                     ? (ActionFailed) _ex
-                    : new ActionFailed("Unable to assign floating IP", _ex)
+                    : new ActionFailed("Unable to assign floating IP for " + server.getName(), _ex)
             ;
 
             ActionResponse res = fips.deallocateIP(ip.getId());

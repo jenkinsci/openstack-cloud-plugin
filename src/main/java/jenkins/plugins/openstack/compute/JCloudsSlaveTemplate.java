@@ -248,9 +248,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         String poolName = opts.getFloatingIpPool();
         if (poolName != null) {
             LOGGER.fine("Assigning floating IP from " + poolName + " to " + nodeName);
-            openstack.assignFloatingIp(server, poolName);
-            // Make sure address information is refreshed
-            return openstack.updateInfo(server);
+            try {
+                openstack.assignFloatingIp(server, poolName);
+                // Make sure address information is reflected in metadata
+                return openstack.updateInfo(server);
+            } catch (Throwable ex) {
+                // Do not leak the server as we are aborting the provisioning
+                openstack.destroyServer(server);
+                throw ex;
+            }
         }
 
         return server;
