@@ -29,9 +29,11 @@ import javax.servlet.http.HttpServletResponse;
 public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> implements TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
+    private final ProvisioningActivity.Id provisioningId;
 
     public JCloudsComputer(JCloudsSlave slave) {
         super(slave);
+        this.provisioningId = slave.getId();
     }
 
     public String getInstanceId() {
@@ -49,7 +51,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     @Override
     public @Nonnull ProvisioningActivity.Id getId() {
-        return getNode().getId();
+        return provisioningId;
     }
 
     private final Object pendingDeleteLock = new Object();
