@@ -22,9 +22,7 @@ import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * JClouds version of Jenkins {@link SlaveComputer} - responsible for terminating an instance.
- *
- * @author Vijay Kiran
+ * OpenStack version of Jenkins {@link SlaveComputer} - responsible for terminating an instance.
  */
 public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> implements TrackedItem {
 
@@ -34,10 +32,6 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     public JCloudsComputer(JCloudsSlave slave) {
         super(slave);
         this.provisioningId = slave.getId();
-    }
-
-    public String getInstanceId() {
-        return getName();
     }
 
     @Override
