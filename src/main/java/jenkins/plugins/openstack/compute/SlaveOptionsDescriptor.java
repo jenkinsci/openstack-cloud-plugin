@@ -515,6 +515,6 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
      */
     @Restricted(DoNotUse.class) // For view
     public @Nonnull String def(@CheckForNull Object val) {
-        return val == null ? "" : ("Inherited vlaue: " + val);
+        return val == null ? "" : ("Inherited value: " + val);
     }
 }
