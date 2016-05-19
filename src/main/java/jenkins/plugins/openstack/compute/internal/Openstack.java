@@ -273,6 +273,13 @@ public class Openstack {
             }
 
             res = client.compute().servers().delete(server.getId());
+
+            // Ignore if server is not found. It may have already been deleted.
+            if (res.getCode() == 404) {
+                debug("Machine " + deleted.getName() + " not found.");
+                break;
+            }
+
             throwIfFailed(res);
         }
 
