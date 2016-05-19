@@ -92,7 +92,7 @@ public class GlobalConfig {
                 xpathExpr += "/../../following-sibling::tr[@class='validation-error-area']/td/div";
                 HtmlDivision validation = page.getFirstByXPath(xpathExpr);
                 return new Element(
-                        fixEmpty(validation.getTextContent().replace("Inherited vlaue: ", "")),
+                        fixEmpty(validation.getTextContent().replace("Inherited value: ", "")),
                         fixEmpty(input.getAttribute("value"))
                 );
             }

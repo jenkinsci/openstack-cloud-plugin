@@ -44,9 +44,9 @@ public class SlaveOptionsDescriptorTest {
 
     @Test
     public void doCheckInstanceCap() throws Exception {
-        assertThat(d.doCheckInstanceCap(null, null), hasState(OK, "Inherited vlaue: 10"));
-        assertThat(d.doCheckInstanceCap(null, "3"), hasState(OK, "Inherited vlaue: 3"));
-        assertThat(d.doCheckInstanceCap(null, "err"), hasState(OK, "Inherited vlaue: err")); // It is ok, error should be reported for the default
+        assertThat(d.doCheckInstanceCap(null, null), hasState(OK, "Inherited value: 10"));
+        assertThat(d.doCheckInstanceCap(null, "3"), hasState(OK, "Inherited value: 3"));
+        assertThat(d.doCheckInstanceCap(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
         assertThat(d.doCheckInstanceCap("1", "1"), hasState(OK, null)); // TODO do we want to report def == value ?
         // assertEquals(OK, d.doCheckInstanceCap("0", "1").kind); TODO this can be a handy way to disable the cloud/template temporarily
 
@@ -58,10 +58,10 @@ public class SlaveOptionsDescriptorTest {
 
     @Test
     public void doCheckStartTimeout() throws Exception {
-        assertThat(d.doCheckStartTimeout(null, null), hasState(OK, "Inherited vlaue: 600000"));
-        assertThat(d.doCheckStartTimeout(null, "10"), hasState(OK, "Inherited vlaue: 10"));
-        assertThat(d.doCheckStartTimeout(null, "err"), hasState(OK, "Inherited vlaue: err")); // It is ok, error should be reported for the default
-        assertThat(d.doCheckStartTimeout("1", "1"), hasState(OK, null)); //"Inherited vlaue: 1"
+        assertThat(d.doCheckStartTimeout(null, null), hasState(OK, "Inherited value: 600000"));
+        assertThat(d.doCheckStartTimeout(null, "10"), hasState(OK, "Inherited value: 10"));
+        assertThat(d.doCheckStartTimeout(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
+        assertThat(d.doCheckStartTimeout("1", "1"), hasState(OK, null)); //"Inherited value: 1"
 
         assertThat(d.doCheckStartTimeout("0", "1"), hasState(ERROR, "Not a positive number"));
         assertThat(d.doCheckStartTimeout("err", null), hasState(ERROR, "Not a number"));
@@ -72,10 +72,10 @@ public class SlaveOptionsDescriptorTest {
 
     @Test
     public void doCheckNumExecutors() throws Exception {
-        assertThat(d.doCheckNumExecutors(null, null), hasState(OK, "Inherited vlaue: 1"));
-        assertThat(d.doCheckNumExecutors(null, "10"), hasState(OK, "Inherited vlaue: 10"));
-        assertThat(d.doCheckNumExecutors(null, "err"), hasState(OK, "Inherited vlaue: err")); // It is ok, error should be reported for the default
-        assertThat(d.doCheckNumExecutors("1", "1"), hasState(OK, null)); //"Inherited vlaue: 1"
+        assertThat(d.doCheckNumExecutors(null, null), hasState(OK, "Inherited value: 1"));
+        assertThat(d.doCheckNumExecutors(null, "10"), hasState(OK, "Inherited value: 10"));
+        assertThat(d.doCheckNumExecutors(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
+        assertThat(d.doCheckNumExecutors("1", "1"), hasState(OK, null)); //"Inherited value: 1"
 
         assertThat(d.doCheckNumExecutors("0", "1"), hasState(ERROR, "Not a positive number"));
         assertThat(d.doCheckNumExecutors("err", null), hasState(ERROR, "Not a number"));
@@ -86,10 +86,10 @@ public class SlaveOptionsDescriptorTest {
 
     @Test
     public void doCheckRetentionTime() throws Exception {
-        assertThat(d.doCheckRetentionTime(null, null), hasState(OK, "Inherited vlaue: 30"));
-        assertThat(d.doCheckRetentionTime(null, "10"), hasState(OK, "Inherited vlaue: 10"));
-        assertThat(d.doCheckRetentionTime(null, "err"), hasState(OK, "Inherited vlaue: err")); // It is ok, error should be reported for the default
-        assertThat(d.doCheckRetentionTime("1", "1"), hasState(OK, null)); //"Inherited vlaue: 1"
+        assertThat(d.doCheckRetentionTime(null, null), hasState(OK, "Inherited value: 30"));
+        assertThat(d.doCheckRetentionTime(null, "10"), hasState(OK, "Inherited value: 10"));
+        assertThat(d.doCheckRetentionTime(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
+        assertThat(d.doCheckRetentionTime("1", "1"), hasState(OK, null)); //"Inherited value: 1"
         assertThat(d.doCheckRetentionTime("0", "1"), hasState(OK, null));
         assertThat(d.doCheckRetentionTime("-1", null), hasState(OK, "Keep forever"));
         assertThat(d.doCheckRetentionTime("-1", "1"), hasState(OK, "Keep forever"));
