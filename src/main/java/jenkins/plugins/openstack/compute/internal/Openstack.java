@@ -279,7 +279,7 @@ public class Openstack {
         if (deleted == null) {
             debug("Machine destroyed: " + server.getName());
         } else {
-            LOGGER.warning("Server deletion attempt failed: " + deleted);
+            throw new ActionFailed("Server deletion attempt failed (OpenStack is probably in troubles): " + deleted);
         }
 
         ComputeFloatingIPService fips = client.compute().floatingIps();
