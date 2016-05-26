@@ -70,9 +70,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
      * Is slave pending termination.
      */
     public boolean isPendingDelete() {
-        synchronized (pendingDeleteLock) {
-            return getOfflineCause() instanceof PendingTermination;
-        }
+        // No need  to synchronize reading as offlineCause is volatile
+        return offlineCause instanceof PendingTermination;
     }
 
     // Hide /configure view inherited from Computer
