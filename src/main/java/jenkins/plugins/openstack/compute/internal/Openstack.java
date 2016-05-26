@@ -262,18 +262,20 @@ public class Openstack {
         // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
         Server deleted = null;
         for (int i = 0; i < 5; i++) {
+
             // Not checking fingerprint here presuming all Servers provided by this implementation are ours.
             deleted = client.compute().servers().get(server.getId());
-            if (deleted == null || deleted.getStatus() == Server.Status.DELETED) break;
+            if (deleted == null || deleted.getStatus() == Server.Status.DELETED) break; // Deleted
+
+            res = client.compute().servers().delete(server.getId());
+            if (res.getCode() == 404) break; // Deleted
+            throwIfFailed(res);
 
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 break;
             }
-
-            res = client.compute().servers().delete(server.getId());
-            throwIfFailed(res);
         }
 
         if (deleted == null) {
