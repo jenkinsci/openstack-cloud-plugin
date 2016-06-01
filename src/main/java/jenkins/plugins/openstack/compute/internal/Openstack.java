@@ -265,10 +265,16 @@ public class Openstack {
 
             // Not checking fingerprint here presuming all Servers provided by this implementation are ours.
             deleted = client.compute().servers().get(server.getId());
-            if (deleted == null || deleted.getStatus() == Server.Status.DELETED) break; // Deleted
+            if (deleted == null || deleted.getStatus() == Server.Status.DELETED) { // Deleted
+                deleted = null;
+                break;
+            }
 
             res = client.compute().servers().delete(server.getId());
-            if (res.getCode() == 404) break; // Deleted
+            if (res.getCode() == 404) { // Deleted
+                deleted = null;
+                break;
+            }
             throwIfFailed(res);
 
             try {
