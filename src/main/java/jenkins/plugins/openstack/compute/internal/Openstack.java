@@ -288,11 +288,6 @@ public class Openstack {
         for (FloatingIP ip: fips.list()) {
             if (server.getId().equals(ip.getInstanceId())) {
                 String fip = ip.getFloatingIpAddress();
-                debug("Removing floating IP {} of {}", fip, server.getName());
-                res = fips.removeFloatingIP(server, fip);
-                if (logIfFailed(res)) {
-                    debug("Floating IP removed: " + fip);
-                }
                 res = fips.deallocateIP(ip.getId());
                 if (logIfFailed(res)) {
                     debug("Floating IP deallocated: " + fip);
