@@ -257,7 +257,14 @@ public class Openstack {
      */
     public void destroyServer(@Nonnull Server server) throws ActionFailed {
         debug("Destroying machine " + server.getName());
-        ActionResponse res;
+
+        final ComputeFloatingIPService fipsService = client.compute().floatingIps();
+        final List<String> fips = new ArrayList<>();
+        for (FloatingIP ip: fipsService.list()) {
+            if (server.getId().equals(ip.getInstanceId())) {
+                fips.add(ip.getId());
+            }
+        }
 
         // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
         Server deleted = null;
@@ -270,7 +277,7 @@ public class Openstack {
                 break;
             }
 
-            res = client.compute().servers().delete(server.getId());
+            ActionResponse res = client.compute().servers().delete(server.getId());
             if (res.getCode() == 404) { // Deleted
                 deleted = null;
                 break;
@@ -290,14 +297,10 @@ public class Openstack {
             throw new ActionFailed("Server deletion attempt failed (OpenStack is probably in troubles): " + deleted);
         }
 
-        ComputeFloatingIPService fips = client.compute().floatingIps();
-        for (FloatingIP ip: fips.list()) {
-            if (server.getId().equals(ip.getInstanceId())) {
-                String fip = ip.getFloatingIpAddress();
-                res = fips.deallocateIP(ip.getId());
-                if (logIfFailed(res)) {
-                    debug("Floating IP deallocated: " + fip);
-                }
+        for (String ip: fips) {
+            ActionResponse res = fipsService.deallocateIP(ip);
+            if (logIfFailed(res)) {
+                debug("Floating IP deallocated: " + ip);
             }
         }
     }
