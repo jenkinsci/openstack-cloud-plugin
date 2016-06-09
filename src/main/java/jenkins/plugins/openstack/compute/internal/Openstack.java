@@ -50,9 +50,11 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
+import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.BasicResource;
-import org.openstack4j.model.compute.ActionResponse;
+import org.openstack4j.model.common.ActionResponse;
+import org.openstack4j.model.common.Identifier;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
@@ -92,13 +94,26 @@ public class Openstack {
         String[] id = identity.split(":", 2);
         String tenant = id.length > 0 ? id[0] : "";
         String username = id.length > 1 ? id[1] : "";
-        client = OSFactory.builder().endpoint(endPointUrl)
-                .credentials(username, credential.getPlainText())
-                .tenantName(tenant)
-                .authenticate()
-                .useRegion(region)
-        ;
+        client = getClient(endPointUrl, credential, region, tenant, username);
         debug("Openstack client created for " + endPointUrl);
+    }
+
+    private OSClient getClient(@Nonnull String endPointUrl, @Nonnull Secret credential, @CheckForNull String region, String tenant, String username) {
+        try {
+            return OSFactory.builderV2().endpoint(endPointUrl)
+                    .credentials(username, credential.getPlainText())
+                    .tenantName(tenant)
+                    .authenticate()
+                    .useRegion(region)
+            ;
+        } catch (ClientResponseException ex) {
+            return OSFactory.builderV3().endpoint(endPointUrl)
+                    .credentials(username, credential.getPlainText())
+                    .scopeToProject(Identifier.byName(tenant))
+                    .authenticate()
+                    .useRegion(region)
+            ;
+        }
     }
 
     /*exposed for testing*/
