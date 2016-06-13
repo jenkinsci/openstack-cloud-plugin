@@ -254,7 +254,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 return openstack.updateInfo(server);
             } catch (Throwable ex) {
                 // Do not leak the server as we are aborting the provisioning
-                openstack.destroyServer(server);
+                try {
+                    openstack.destroyServer(server);
+                } catch (Throwable e) {
+                    ex.addSuppressed(e);
+                }
                 throw ex;
             }
         }
