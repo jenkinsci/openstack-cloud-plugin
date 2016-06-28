@@ -8,6 +8,8 @@ import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.openstack4j.model.compute.Server;
@@ -123,7 +125,19 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
-        os.destroyServer(metadata);
+        try {
+            Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
+            os.destroyServer(metadata);
+        } catch (Throwable ex) {
+            CloudStatistics statistics = CloudStatistics.get();
+            ProvisioningActivity activity = statistics.getActivityFor(this);
+            if (activity != null) {
+                activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
+                statistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, new PhaseExecutionAttachment.ExceptionAttachment(
+                        ProvisioningActivity.Status.WARN, ex
+                ));
+            }
+            throw ex;
+        }
     }
 }
