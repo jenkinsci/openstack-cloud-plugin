@@ -267,8 +267,9 @@ public class Openstack {
         }
 
         // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
+        // 6 iteration with 1s sleep seems to be minimum for some deployments
         Server deleted = null;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
 
             // Not checking fingerprint here presuming all Servers provided by this implementation are ours.
             deleted = client.compute().servers().get(server.getId());
@@ -289,12 +290,14 @@ public class Openstack {
             } catch (InterruptedException e) {
                 break;
             }
+
+            debug("Machine deletion retry " + i + ": " + deleted);
         }
 
         if (deleted == null) {
             debug("Machine destroyed: " + server.getName());
         } else {
-            throw new ActionFailed("Server deletion attempt failed (OpenStack is probably in troubles): " + deleted);
+            throw new ActionFailed(String.format("Server deletion attempt failed:%n%s", deleted));
         }
 
         for (String ip: fips) {

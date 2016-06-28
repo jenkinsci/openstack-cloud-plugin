@@ -53,6 +53,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                                 comp.deleteSlave();
                             } catch (IOException|InterruptedException e) {
                                 LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + c.getName(), e);
+                            } catch (Throwable e) {
+                                // The fancy futures stuff ignores failures silently
+                                LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + c.getName(), e);
                             }
                         }
                     });
