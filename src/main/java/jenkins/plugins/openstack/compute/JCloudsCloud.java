@@ -24,6 +24,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
+import hudson.Functions;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
@@ -428,7 +429,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             provisioningListener.onComplete(id, node);
         } catch (Openstack.ActionFailed ex) {
             provisioningListener.onFailure(id, ex);
-            sendError(ex.getMessage());
+            req.setAttribute("message", ex.getMessage());
+            req.setAttribute("exception", ex);
+            rsp.forward(this,"error",req);
             return;
         }
         Jenkins.getInstance().addNode(node);
