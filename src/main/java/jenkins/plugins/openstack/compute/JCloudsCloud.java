@@ -88,6 +88,12 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 int maxNumRetries = 5;
                 int retryWaitTime = 15;
 
+                SlaveOptions opts = slave.getSlaveOptions();
+                String credentialsId = opts.getCredentialsId();
+                if (credentialsId == null) {
+                    throw new ProvisioningFailedException("No ssh credentials selected");
+                }
+
                 String publicAddress = slave.getPublicAddress();
                 if (publicAddress == null) {
                     throw new IOException("The slave is likely deleted");
@@ -95,10 +101,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 if ("0.0.0.0".equals(publicAddress)) {
                     throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                 }
-                SlaveOptions opts = slave.getSlaveOptions();
+
                 Integer timeout = opts.getStartTimeout();
                 timeout = timeout == null ? 0 : (timeout / 1000); // Never propagate null - always set some timeout
-                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
+
+                return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
             }
         },
         JNLP {
@@ -506,10 +513,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     /**
      * The request to provision was not fulfilled.
      */
-    public static final class ProvisioningFailedException extends Exception {
+    public static final class ProvisioningFailedException extends RuntimeException {
 
         public ProvisioningFailedException(String msg, Throwable cause) {
             super(msg, cause);
+        }
+
+        public ProvisioningFailedException(String msg) {
+            super(msg);
         }
     }
 }
