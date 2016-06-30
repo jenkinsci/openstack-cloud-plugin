@@ -42,8 +42,103 @@
       <label>docker openjdk</label>
       <nodeProperties/>
       <userId>anonymous</userId>
-      <metadata/> <!-- Removed for the purposed of testing -->
-      <cloudName>Openstack</cloudName>
+      <metadata class="org.openstack4j.openstack.compute.domain.NovaServer">
+        <id>a26f166b-1102-45c9-93a0-9911f4f0368d</id>
+        <name>template-name-2660</name>
+        <addresses>
+          <addresses>
+            <entry>
+              <string>network-name</string>
+              <list>
+                <org.openstack4j.openstack.compute.domain.NovaAddresses_-NovaAddress>
+                  <macAddr>fa:16:3e:35:c1:07</macAddr>
+                  <version>4</version>
+                  <addr>42.42.42.42</addr>
+                  <type>fixed</type>
+                </org.openstack4j.openstack.compute.domain.NovaAddresses_-NovaAddress>
+                <org.openstack4j.openstack.compute.domain.NovaAddresses_-NovaAddress>
+                  <macAddr>fa:16:3e:35:c1:07</macAddr>
+                  <version>4</version>
+                  <addr>41.41.41.41</addr>
+                  <type>floating</type>
+                </org.openstack4j.openstack.compute.domain.NovaAddresses_-NovaAddress>
+              </list>
+            </entry>
+          </addresses>
+        </addresses>
+        <links>
+          <org.openstack4j.openstack.common.GenericLink>
+            <rel>self</rel>
+            <href>XXX</href>
+          </org.openstack4j.openstack.common.GenericLink>
+          <org.openstack4j.openstack.common.GenericLink>
+            <rel>bookmark</rel>
+            <href>XXX</href>
+          </org.openstack4j.openstack.common.GenericLink>
+        </links>
+        <image class="linked-hash-map">
+          <entry>
+            <string>id</string>
+            <string>d73699fe-ca8c-413a-8d97-24f14417402b</string>
+          </entry>
+          <entry>
+            <string>links</string>
+            <list>
+              <linked-hash-map>
+                <entry>
+                  <string>href</string>
+                  <string>XXX</string>
+                </entry>
+                <entry>
+                  <string>rel</string>
+                  <string>bookmark</string>
+                </entry>
+              </linked-hash-map>
+            </list>
+          </entry>
+        </image>
+        <flavor>
+          <id>4</id>
+          <ephemeral>0</ephemeral>
+          <swap>0</swap>
+          <rxtxFactor>1.0</rxtxFactor>
+          <isPublic>true</isPublic>
+          <links>
+            <org.openstack4j.openstack.common.GenericLink>
+              <rel>bookmark</rel>
+              <href>XXX</href>
+            </org.openstack4j.openstack.common.GenericLink>
+          </links>
+        </flavor>
+        <accessIPv4></accessIPv4>
+        <accessIPv6></accessIPv6>
+        <configDrive></configDrive>
+        <status>ACTIVE</status>
+        <progress>0</progress>
+        <tenantId>a3c88a833d454efea719b961d61ec3bb</tenantId>
+        <userId>f88a40fa02264184a4f8ac3ca59d36bf</userId>
+        <keyName>key-name</keyName>
+        <hostId>fbc5290923c3145eea8928edddd3e117b151e0e75f2ab03ea23cf2d2</hostId>
+        <updated>2016-06-29 12:51:33.0 UTC</updated>
+        <created>2016-06-29 12:51:08.0 UTC</created>
+        <metadata class="linked-hash-map">
+          <entry>
+            <string>jenkins-instance</string>
+            <string>back-url</string>
+          </entry>
+          <entry>
+            <string>jenkins-template-name</string>
+            <string>template-name</string>
+          </entry>
+        </metadata>
+        <powerState>1</powerState>
+        <vmState>active</vmState>
+        <diskConfig>MANUAL</diskConfig>
+        <availabilityZone>nova</availabilityZone>
+        <launchedAt>2016-06-29 12:51:33.0 UTC</launchedAt>
+        <osExtendedVolumesAttached/>
+      </metadata>
+      <cloudName>OSCloud</cloudName>
       <overrideRetentionTime>42</overrideRetentionTime>
       <jvmOptions>-verbose</jvmOptions>
       <credentialsId>8f3da277-c60e-444c-ab86-517e96ffe508</credentialsId>

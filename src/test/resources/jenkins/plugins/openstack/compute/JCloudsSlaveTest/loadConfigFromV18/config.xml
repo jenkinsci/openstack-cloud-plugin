@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<hudson>
+    <disabledAdministrativeMonitors/>
+    <version>1.609</version>
+    <numExecutors>2</numExecutors>
+    <mode>NORMAL</mode>
+    <useSecurity>true</useSecurity>
+    <authorizationStrategy class="hudson.security.AuthorizationStrategy$Unsecured"/>
+    <securityRealm class="hudson.security.SecurityRealm$None"/>
+    <disableRememberMe>false</disableRememberMe>
+    <projectNamingStrategy class="jenkins.model.ProjectNamingStrategy$DefaultProjectNamingStrategy"/>
+    <workspaceDir>${ITEM_ROOTDIR}/workspace</workspaceDir>
+    <buildsDir>${ITEM_ROOTDIR}/builds</buildsDir>
+    <jdks/>
+    <viewsTabBar class="hudson.views.DefaultViewsTabBar"/>
+    <myViewsTabBar class="hudson.views.DefaultMyViewsTabBar"/>
+    <clouds>
+        <jenkins.plugins.openstack.compute.JCloudsCloud plugin="openstack-cloud@1.8">
+            <name>OSCloud</name>
+            <identity>as:df</identity>
+            <credential>t+5+JzqtT14Wczatsd6Kf+g+LPQ74zywv6JVCSpYRWY=</credential>
+            <endPointUrl>http://my.openstack:5000/v2.0</endPointUrl>
+            <profile>OSCloud</profile>
+            <retentionTime>30</retentionTime>
+            <instanceCap>10</instanceCap>
+            <templates>
+                <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+                    <name>ath-integration-test</name>
+                    <imageId>REGION1/0c64fd4a-75bc-4879-86b9-d038439364d6</imageId>
+                    <hardwareId>REGION1/16</hardwareId>
+                    <labelString>label</labelString>
+                    <userDataId>jenkins.plugins.openstack.compute.UserDataConfig.1467204943090</userDataId>
+                    <numExecutors>1</numExecutors>
+                    <stopOnTerminate>false</stopOnTerminate>
+                    <fsRoot>/tmp/jenkins</fsRoot>
+                    <installPrivateKey>false</installPrivateKey>
+                    <overrideRetentionTime>0</overrideRetentionTime>
+                    <keyPairName>jenkins-testing</keyPairName>
+                    <networkId></networkId>
+                    <securityGroups>default</securityGroups>
+                    <credentialsId>7067f3ce-b517-4dee-b833-61c6c0d5f0c2</credentialsId>
+                    <slaveType>SSH</slaveType>
+                    <availabilityZone></availabilityZone>
+                </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+            </templates>
+            <scriptTimeout>600000</scriptTimeout>
+            <startTimeout>600000</startTimeout>
+            <floatingIps>true</floatingIps>
+        </jenkins.plugins.openstack.compute.JCloudsCloud>
+    </clouds>
+    <slaves>
+        <jenkins.plugins.openstack.compute.JCloudsSlave plugin="openstack-cloud@1.8">
+            <name>cloud-slave</name>
+            <remoteFS>/tmp/jenkins</remoteFS>
+            <numExecutors>1</numExecutors>
+            <mode>EXCLUSIVE</mode>
+            <retentionStrategy class="jenkins.plugins.openstack.compute.JCloudsRetentionStrategy"/>
+            <launcher class="jenkins.plugins.openstack.compute.JCloudsLauncher"/>
+            <label>label</label>
+            <nodeProperties/>
+            <userId>anonymous</userId>
+            <stopOnTerminate>false</stopOnTerminate>
+            <cloudName>OSCloud</cloudName>
+            <nodeId>REGION1/2235b04d-267c-4487-908f-e55d2e81c0a9</nodeId>
+            <pendingDelete>false</pendingDelete>
+            <overrideRetentionTime>0</overrideRetentionTime>
+            <jvmOptions/>
+            <credentialsId>2040d591-062a-4ccf-8f36-0a3340a1c51b</credentialsId>
+            <slaveType>SSH</slaveType>
+        </jenkins.plugins.openstack.compute.JCloudsSlave>
+    </slaves>
+    <quietPeriod>5</quietPeriod>
+    <scmCheckoutRetryCount>0</scmCheckoutRetryCount>
+    <views>
+        <hudson.model.AllView>
+            <owner class="hudson" reference="../../.."/>
+            <name>All</name>
+            <filterExecutors>false</filterExecutors>
+            <filterQueue>false</filterQueue>
+            <properties class="hudson.model.View$PropertyList"/>
+        </hudson.model.AllView>
+    </views>
+    <primaryView>All</primaryView>
+    <slaveAgentPort>0</slaveAgentPort>
+    <label></label>
+    <nodeProperties/>
+    <globalNodeProperties/>
+</hudson>

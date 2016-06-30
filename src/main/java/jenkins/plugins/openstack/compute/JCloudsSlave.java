@@ -18,6 +18,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 /**
@@ -26,17 +27,18 @@ import java.util.logging.Logger;
 public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
 
-    private @Nonnull Server metadata;
-
     private final @Nonnull String cloudName;
     private /*final*/ @Nonnull SlaveOptions options;
     private final ProvisioningActivity.Id provisioningId;
+
+    private /*final*/ @Nonnull String nodeId;
 
     // Backward compatibility
     private transient @Deprecated int overrideRetentionTime;
     private transient @Deprecated String jvmOptions;
     private transient @Deprecated String credentialsId;
     private transient @Deprecated JCloudsCloud.SlaveType slaveType;
+    private transient @Deprecated Server metadata;
 
     public JCloudsSlave(
             @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
@@ -57,10 +59,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.cloudName = id.getCloudName(); // TODO deprecate field
         this.provisioningId = id;
         this.options = slaveOptions;
-        this.metadata = metadata;
+        this.nodeId = metadata.getId();
         setLauncher(new JCloudsLauncher(getSlaveType().createLauncher(this)));
     }
 
+    // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.
+    // The configurations stored are expected to have at least one of them.
     @SuppressWarnings({"unused", "deprecation"})
     protected Object readResolve() {
         super.readResolve(); // Call parent
@@ -77,6 +81,13 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             slaveType = null;
         }
 
+        if (metadata != null && (nodeId == null || !nodeId.equals(metadata.getId()))) {
+            nodeId = metadata.getId();
+            metadata = null;
+        }
+
+        nodeId =  nodeId.replaceFirst(".*/", ""); // Remove region prefix
+
         return this;
     }
 
@@ -84,7 +95,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * Get public IP address of the server.
      */
     public @CheckForNull String getPublicAddress() {
-        return Openstack.getPublicAddress(metadata);
+        return Openstack.getPublicAddress(getOpenstack().getServerById(nodeId));
     }
 
     /**
@@ -96,6 +107,11 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     public JCloudsCloud.SlaveType getSlaveType() {
         return options.getSlaveType();
+    }
+
+    // Exposed for testing
+    /*package*/ @Nonnull String getServerId() {
+        return nodeId;
     }
 
     @Override
@@ -126,8 +142,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         try {
-            Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
-            os.destroyServer(metadata);
+            getOpenstack().destroyServer(getOpenstack().getServerById(nodeId));
+        } catch (NoSuchElementException ex) {
+            // Already deleted
         } catch (Throwable ex) {
             CloudStatistics statistics = CloudStatistics.get();
             ProvisioningActivity activity = statistics.getActivityFor(this);
@@ -139,5 +156,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             }
             throw ex;
         }
+    }
+
+    private Openstack getOpenstack() {
+        return JCloudsCloud.getByName(cloudName).getOpenstack();
     }
 }

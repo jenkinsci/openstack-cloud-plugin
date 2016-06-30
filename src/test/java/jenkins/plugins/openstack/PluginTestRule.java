@@ -16,14 +16,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import hudson.ExtensionList;
+import hudson.model.Node;
 import hudson.slaves.Cloud;
+import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.compute.SlaveOptions;
@@ -197,6 +201,20 @@ public final class PluginTestRule extends JenkinsRule {
                 }
             }
         });
+        when(os.getServerById(any(String.class))).thenAnswer(new Answer<Server>() {
+            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                String expected = (String) invocation.getArguments()[0];
+                synchronized (running) {
+                    for (Server s: running) {
+                        if (expected.equals(s.getId())) {
+                            return s;
+                        }
+                    }
+                }
+
+                return null;
+            }
+        });
         doAnswer(new Answer() {
             @Override public Object answer(InvocationOnMock invocation) throws Throwable {
                 Server server = (Server) invocation.getArguments()[0];
@@ -210,7 +228,25 @@ public final class PluginTestRule extends JenkinsRule {
     public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException {
         Collection<PlannedNode> slaves = cloud.provision(Label.get(label), 1);
         if (slaves.size() != 1) throw new AssertionError("One slave expected to be provisioned, was " + slaves.size());
-        return (JCloudsSlave) slaves.iterator().next().future.get();
+
+        PlannedNode plannedNode = slaves.iterator().next();
+
+        // Simulate what NodeProvisioner does.
+        for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
+            cl.onStarted(cloud, Label.get(label), slaves);
+        }
+        try {
+            JCloudsSlave slave = (JCloudsSlave) plannedNode.future.get();
+            for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
+                cl.onComplete(plannedNode, slave);
+            }
+            return slave;
+        } catch (Throwable ex) {
+            for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
+                cl.onFailure(plannedNode, ex);
+            }
+            throw ex;
+        }
     }
 
     public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException {
@@ -250,6 +286,7 @@ public final class PluginTestRule extends JenkinsRule {
 
         public MockServerBuilder() {
             server = mock(Server.class);
+            when(server.getId()).thenReturn(UUID.randomUUID().toString());
             when(server.getAddresses()).thenReturn(new NovaAddresses());
             when(server.getMetadata()).thenReturn(metadata);
             metadata.put("jenkins-instance", jenkins.getRootUrl()); // Mark the slave as ours

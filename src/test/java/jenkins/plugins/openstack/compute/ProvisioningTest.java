@@ -101,6 +101,7 @@ public class ProvisioningTest {
         verify(os, times(2)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(2)).updateInfo(any(Server.class));
         verify(os, atLeastOnce()).destroyServer(any(Server.class));
+        verify(os, atLeastOnce()).getServerById(any(String.class));
 
         verifyNoMoreInteractions(os);
 
