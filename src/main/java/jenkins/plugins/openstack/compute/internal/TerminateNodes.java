@@ -35,9 +35,9 @@ public class TerminateNodes implements Function<Iterable<RunningNode>, Void> {
     private void destroy(Multimap<String, Server> cloudNodesToDestroy) {
         for (String cloudToDestroy : cloudNodesToDestroy.keySet()) {
             final Collection<Server> nodesToDestroy = cloudNodesToDestroy.get(cloudToDestroy);
-            listener.getLogger().println("Destroying nodes: " + nodesToDestroy);
             Openstack os = JCloudsCloud.getByName(cloudToDestroy).getOpenstack();
             for (Server node: nodesToDestroy) {
+                listener.getLogger().println("Destroying node: " + node.getName());
                 os.destroyServer(node);
             }
         }
