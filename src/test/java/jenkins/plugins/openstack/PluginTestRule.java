@@ -11,21 +11,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import hudson.ExtensionList;
-import hudson.model.Node;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
@@ -263,7 +260,7 @@ public final class PluginTestRule extends JenkinsRule {
         ExtensionList.lookup(Openstack.FactoryEP.class).add(new Openstack.FactoryEP() {
             @Override
             protected @Nonnull Openstack getOpenstack(
-                    @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+                    @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String project, @CheckForNull String domain, @CheckForNull String region, @CheckForNull String zone
             ) throws FormValidation {
                 return os;
             }
@@ -385,7 +382,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", "zone", opts, Arrays.asList(templates));
+            super("openstack", "identity", "credential", "endPointUrl", "project", "domain", 10, 10, 10, 10, opts, Arrays.asList(templates), true, "region", "zone");
         }
 
         @Override

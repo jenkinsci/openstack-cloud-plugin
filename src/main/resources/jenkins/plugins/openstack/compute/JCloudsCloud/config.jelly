@@ -12,11 +12,19 @@
     <f:entry title="Password" field="credential">
         <f:password clazz="required"/>
     </f:entry>
-    <f:entry title="Default OpenStack Region" field="zone">
+    <f:entry title="Project" field="project">
         <f:textbox/>
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="zone,endPointUrl,identity,credential"/>
-
+    <f:entry title="Domain" field="domain">
+        <f:textbox/>
+    </f:entry>
+    <f:entry title="Region" field="region">
+        <f:textbox/>
+    </f:entry>
+    <f:entry title="Availability Zone" field="zone">
+        <f:textbox/>
+    </f:entry>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,identity,credential,project,domain,region,zone"/>
     <f:advanced>
         <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>
         <j:set var="instance" value="${instance.rawSlaveOptions}"/>

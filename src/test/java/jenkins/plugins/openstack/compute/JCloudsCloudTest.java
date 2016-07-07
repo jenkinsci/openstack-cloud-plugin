@@ -41,26 +41,30 @@ public class JCloudsCloudTest {
     public void failToTestConnection() {
         DescriptorImpl desc = j.getCloudDescriptor();
         FormValidation v;
+        FormValidation validation = j.jenkins.getDescriptorByType(JCloudsCloud.DescriptorImpl.class)
+                .doTestConnection("https://example.com", "user", "password", "project", "domain", "REGION", "zone");
 
-        v = desc.doTestConnection("REGION", null, "a:b", "passwd");
+        v = desc.doTestConnection(null, "user", "passwd", "project", "domain", "REGION", "zone");
         assertEquals("Endpoint URL is required", FormValidation.Kind.ERROR, v.kind);
 
-        v = desc.doTestConnection("REGION", "https://example.com", null, "passwd");
+        v = desc.doTestConnection("https://example.com", null, "passwd", "project", "domain", "REGION", "zone");
         assertEquals("Identity is required", FormValidation.Kind.ERROR, v.kind);
 
-        v = desc.doTestConnection("REGION", "https://example.com", "a:b", null);
+        v = desc.doTestConnection("https://example.com", "user", null, "project", "domain", "REGION", "zone");
         assertEquals("Credential is required", FormValidation.Kind.ERROR, v.kind);
-
-        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
-        assertEquals(FormValidation.Kind.ERROR, v.kind);
-        assertThat(v.getMessage(), containsString("Cannot connect to specified cloud"));
 
         Openstack os = j.fakeOpenstackFactory();
         when(os.sanityCheck()).thenReturn(new NullPointerException("It is broken, alright?"));
 
-        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
-        assertEquals(FormValidation.Kind.WARNING, v.kind);
+        v = desc.doTestConnection("https://example.com", "a", "a:b", null, null, "REGION", "zone");
         assertThat(v.getMessage(), containsString("It is broken, alright?"));
+        assertEquals(FormValidation.Kind.WARNING, v.kind);
+
+        v = desc.doTestConnection("https://example.com", "user", "password", null, "domain", "REGION", "zone");
+        assertEquals("Project is required", FormValidation.Kind.WARNING, v.kind);
+
+        v = desc.doTestConnection("https://example.com", "user", "password", "project", null, "REGION", "zone");
+        assertEquals("Domain is required", FormValidation.Kind.WARNING, v.kind);
     }
 
     @Test
@@ -98,9 +102,9 @@ public class JCloudsCloudTest {
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
                 "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 4
         ));
-        JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "zone", new SlaveOptions(
+        JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "project", "domain", 5, 20, 20, 20, new SlaveOptions(
                 "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
-        ), Arrays.asList(template));
+        ), Arrays.asList(template), true, "region", "zone");
         j.jenkins.clouds.add(cloud);
 
         JenkinsRule.WebClient wc = j.createWebClient();
@@ -148,8 +152,8 @@ public class JCloudsCloudTest {
         // Base tests on cloud defaults as that is the baseline for erasure
         SlaveOptions opts = j.getCloudDescriptor().getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(JCloudsCloud.SlaveType.SSH).build();
         JCloudsCloud cloud = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
-        );
+                "openstack", "identity", "credential", "endPointUrl", "project", "domain", 5, 5, 5, 5, opts, Collections.<JCloudsSlaveTemplate>emptyList(), true, "region",
+                "zone");
 
         assertEquals(opts, cloud.getEffectiveSlaveOptions());
         assertEquals(SlaveOptions.builder().instanceCap(biggerInstanceCap).build(), cloud.getRawSlaveOptions());
@@ -157,12 +161,11 @@ public class JCloudsCloudTest {
 
     @Test
     public void testConfigRoundtrip() throws Exception {
-        String beans = "identity,credential,endPointUrl,zone";
+        String beans = "name,identity,credential,endPointUrl,project,domain,region,zone";
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", "zone",
-                j.dummySlaveOptions(),
-                Collections.<JCloudsSlaveTemplate>emptyList()
-        );
+                "openstack", "identity", "credential", "endPointUrl",
+                "project", "domain", 1, 10, 600 * 1000, 600 * 1000, j.dummySlaveOptions(),
+                Collections.<JCloudsSlaveTemplate>emptyList(), true, "region", "zone");
         j.jenkins.clouds.add(original);
 
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
