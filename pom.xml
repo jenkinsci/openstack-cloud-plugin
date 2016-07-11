@@ -6,7 +6,7 @@
         <version>1.580</version>
     </parent>
     <artifactId>openstack-cloud</artifactId>
-    <version>2.9</version>
+    <version>2.10-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Openstack Cloud Plugin</name>
     <description>Allows Jenkins to build Openstack Slaves via JClouds</description>
@@ -168,7 +168,7 @@
         <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openstack-cloud-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
-        <tag>openstack-cloud-2.9</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <repositories>
