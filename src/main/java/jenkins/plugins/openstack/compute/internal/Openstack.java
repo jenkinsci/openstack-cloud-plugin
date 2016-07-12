@@ -46,6 +46,7 @@ import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
+import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.core.transport.Config;
@@ -92,24 +93,21 @@ public class Openstack {
         String[] id = identity.split(":", 2);
         String tenant = id.length > 0 ? id[0] : "";
         String username = id.length > 1 ? id[1] : "";
-        if (Jenkins.getInstance() != null && Jenkins.getInstance().proxy != null){
-            ProxyConfiguration proxy = Jenkins.getInstance().proxy;
-            LOGGER.info("So we have a proxy defined with the following details:");
-            LOGGER.info("proxy.name= " +proxy.name);
-            LOGGER.info("proxy.port= " +proxy.port);
-            client = OSFactory.builder().endpoint(endPointUrl).credentials(username, credential.getPlainText())
-                    .tenantName(tenant)
-                    .withConfig(Config.newConfig().withSSLVerificationDisabled().withProxy(ProxyHost.of(HTTP_PREFIX +proxy.name,proxy.port,proxy.getUserName(), proxy.getPassword())))
-                    .authenticate()
-                    .useRegion(region);
 
-        } else {
-            client = OSFactory.builder().endpoint(endPointUrl)
-                    .credentials(username, credential.getPlainText())
-                    .tenantName(tenant)
-                    .authenticate()
-                    .useRegion(region);
+        Config config = Config.newConfig();
+
+        if (Jenkins.getInstance() != null && Jenkins.getInstance().proxy != null) {
+            ProxyConfiguration proxy = Jenkins.getInstance().proxy;
+            debug("Jenkins has a proxy defined with the following details: proxy.name= " +proxy.name +"proxy.port= " +proxy.port);
+            config = Config.newConfig().withProxy(ProxyHost.of(HTTP_PREFIX + proxy.name, proxy.port, proxy.getUserName(), proxy.getPassword()));
         }
+
+        client = OSFactory.builder().endpoint(endPointUrl).credentials(username, credential.getPlainText())
+                .tenantName(tenant)
+                .withConfig(config)
+                .authenticate()
+                .useRegion(region);
+
         debug("Openstack client created for " + endPointUrl);
     }
 
