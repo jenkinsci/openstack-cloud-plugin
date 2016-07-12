@@ -102,7 +102,7 @@ public class JCloudsCloudTest {
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
                 "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 4
         ));
-        JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "project", "domain", 5, 20, 20, 20, new SlaveOptions(
+        JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "project", "domain", 5, 20, 20, new SlaveOptions(
                 "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
         ), Arrays.asList(template), true, "region", "zone");
         j.jenkins.clouds.add(cloud);
@@ -152,7 +152,7 @@ public class JCloudsCloudTest {
         // Base tests on cloud defaults as that is the baseline for erasure
         SlaveOptions opts = j.getCloudDescriptor().getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(JCloudsCloud.SlaveType.SSH).build();
         JCloudsCloud cloud = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", "project", "domain", 5, 5, 5, 5, opts, Collections.<JCloudsSlaveTemplate>emptyList(), true, "region",
+                "openstack", "identity", "credential", "endPointUrl", "project", "domain", 5, 5, 5, opts, Collections.<JCloudsSlaveTemplate>emptyList(), true, "region",
                 "zone");
 
         assertEquals(opts, cloud.getEffectiveSlaveOptions());
@@ -164,7 +164,7 @@ public class JCloudsCloudTest {
         String beans = "name,identity,credential,endPointUrl,project,domain,region,zone";
         JCloudsCloud original = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl",
-                "project", "domain", 1, 10, 600 * 1000, 600 * 1000, j.dummySlaveOptions(),
+                "project", "domain", 1, 10, 600 * 1000, j.dummySlaveOptions(),
                 Collections.<JCloudsSlaveTemplate>emptyList(), true, "region", "zone");
         j.jenkins.clouds.add(original);
 

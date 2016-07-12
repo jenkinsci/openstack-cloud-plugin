@@ -28,7 +28,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "project",
-                "domain", 1, 10, 600 * 1000, 600 * 1000, SlaveOptions.empty(), Collections.singletonList(originalTemplate), true, "region", "zone");
+                "domain", 1, 10, 600 * 1000, SlaveOptions.empty(), Collections.singletonList(originalTemplate), true, "region", "zone");
 
         j.jenkins.clouds.add(originalCloud);
         HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
@@ -57,7 +57,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud cloud = new JCloudsCloud(
-                "my-openstack", "identity", "credential", "endPointUrl", "project", "domain", 10, 10, 10, 10,
+                "my-openstack", "identity", "credential", "endPointUrl", "project", "domain", 10, 10, 10,
                 cloudOpts,
                 Collections.singletonList(template), true, "region",
                 "zone");

@@ -382,7 +382,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", "project", "domain", 10, 10, 10, 10, opts, Arrays.asList(templates), true, "region", "zone");
+            super("openstack", "identity", "credential", "endPointUrl", "project", "domain", 10, 10, 10, opts, Arrays.asList(templates), true, "region", "zone");
         }
 
         @Override

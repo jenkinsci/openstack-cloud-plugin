@@ -72,7 +72,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public final String domain;
     public final String region;
     public final String zone;
-    public final int scriptTimeout;
 
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
@@ -95,7 +94,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 SlaveOptions opts = slave.getSlaveOptions();
                 String credentialsId = opts.getCredentialsId();
                 if (credentialsId == null) {
-                    throw new ProvisioningFailedException("No ssh credentials selected", new Throwable());
+                    throw new ProvisioningFailedException("No ssh credentials selected");
                 }
 
                 String publicAddress = slave.getPublicAddress();
@@ -142,7 +141,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(final String name, final String identity, final String credential, final String endPointUrl,
                         final String project, final String domain, final int instanceCap, final int retentionTime,
-                        final int scriptTimeout, final int startTimeout, final SlaveOptions slaveOptions,
+                        final int startTimeout, final SlaveOptions slaveOptions,
                         final List<JCloudsSlaveTemplate> templates, final boolean floatingIps,
                         final String region, String zone) {
         super(Util.fixEmptyAndTrim(name));
@@ -153,7 +152,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         this.domain = Util.fixEmptyAndTrim(domain);
         this.instanceCap = instanceCap;
         this.retentionTime = retentionTime;
-        this.scriptTimeout = scriptTimeout;
         this.startTimeout = startTimeout;
         this.floatingIps = floatingIps;
         this.region = region;
@@ -547,6 +545,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         public ProvisioningFailedException(String msg, Throwable cause) {
             super(msg, cause);
+        }
+
+        public ProvisioningFailedException(String msg) {
+            super(msg);
         }
 
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
