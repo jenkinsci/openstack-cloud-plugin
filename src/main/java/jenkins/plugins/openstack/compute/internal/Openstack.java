@@ -95,19 +95,16 @@ public class Openstack {
         String username = id.length > 1 ? id[1] : "";
 
         Config config = Config.newConfig();
-
         if (Jenkins.getInstance() != null && Jenkins.getInstance().proxy != null) {
             ProxyConfiguration proxy = Jenkins.getInstance().proxy;
             debug("Jenkins has a proxy defined with the following details: proxy.name= " +proxy.name +"proxy.port= " +proxy.port);
             config = Config.newConfig().withProxy(ProxyHost.of(HTTP_PREFIX + proxy.name, proxy.port, proxy.getUserName(), proxy.getPassword()));
         }
-
         client = OSFactory.builder().endpoint(endPointUrl).credentials(username, credential.getPlainText())
                 .tenantName(tenant)
                 .withConfig(config)
                 .authenticate()
                 .useRegion(region);
-
         debug("Openstack client created for " + endPointUrl);
     }
 
