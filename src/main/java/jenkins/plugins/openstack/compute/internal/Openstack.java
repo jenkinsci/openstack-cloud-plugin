@@ -444,7 +444,7 @@ public class Openstack {
 
     @Restricted(NoExternalUse.class) // Extension point just for testing
     public static abstract class FactoryEP implements ExtensionPoint {
-        protected abstract @Nonnull Openstack getOpenstack(
+        public abstract @Nonnull Openstack getOpenstack(
                 @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
         ) throws FormValidation;
 
@@ -460,15 +460,15 @@ public class Openstack {
 
     @Extension
     public static final class Factory extends FactoryEP {
-        protected @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
+        public @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Util.fixEmptyAndTrim(credential);
             region = Util.fixEmptyAndTrim(region);
 
-            if (endPointUrl == null || identity == null || credential == null) {
-                throw FormValidation.error("Invalid parameters");
-            }
+            if (endPointUrl == null) throw FormValidation.error("No endPoint specified");
+            if (identity == null) throw FormValidation.error("No identity specified");
+            if (credential == null) throw FormValidation.error("No credential specified");
 
             return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
         }

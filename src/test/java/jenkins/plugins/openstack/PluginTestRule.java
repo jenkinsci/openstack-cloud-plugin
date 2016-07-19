@@ -262,13 +262,22 @@ public final class PluginTestRule extends JenkinsRule {
     public Openstack fakeOpenstackFactory(final Openstack os) {
         ExtensionList.lookup(Openstack.FactoryEP.class).add(new Openstack.FactoryEP() {
             @Override
-            protected @Nonnull Openstack getOpenstack(
+            public @Nonnull Openstack getOpenstack(
                     @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
             ) throws FormValidation {
                 return os;
             }
         });
         return os;
+    }
+
+    @SuppressWarnings("deprecation")
+    public Openstack.FactoryEP mockOpenstackFactory() {
+        Openstack.FactoryEP factory = mock(Openstack.FactoryEP.class);
+        ExtensionList<Openstack.FactoryEP> lookup = ExtensionList.lookup(Openstack.FactoryEP.class);
+        lookup.clear();
+        lookup.add(factory);
+        return factory;
     }
 
     public MockServerBuilder mockServer() {
