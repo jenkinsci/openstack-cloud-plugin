@@ -8,7 +8,6 @@ import jenkins.plugins.openstack.PluginTestRule;
 import org.junit.Rule;
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -28,18 +27,15 @@ public class JCloudsSlaveTemplateTest {
                 "test-template", "openstack-slave-type1 openstack-type2", j.dummySlaveOptions()
         );
 
-        JCloudsCloud originalCloud = new JCloudsCloud(
-                "my-openstack", "identity", "credential", "endPointUrl", "zone",
-                SlaveOptions.empty(),
-                Collections.singletonList(originalTemplate)
-        );
+        JCloudsCloud originalCloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "project",
+                "domain", 1, 10, 600 * 1000, SlaveOptions.empty(), Collections.singletonList(originalTemplate), true, "region", "zone");
 
         j.jenkins.clouds.add(originalCloud);
         HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
 
         j.submit(form);
 
-        final JCloudsCloud actualCloud = JCloudsCloud.getByName("my-openstack");
+        final JCloudsCloud actualCloud = JCloudsCloud.getByName("openstack");
         j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
         assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
@@ -61,10 +57,10 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud cloud = new JCloudsCloud(
-                "my-openstack", "identity", "credential", "endPointUrl", "zone",
+                "my-openstack", "identity", "credential", "endPointUrl", "project", "domain", 10, 10, 10,
                 cloudOpts,
-                Collections.singletonList(template)
-        );
+                Collections.singletonList(template), true, "region",
+                "zone");
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());
         assertEquals(SlaveOptions.builder().imageId("42").availabilityZone("other").build(), template.getRawSlaveOptions());

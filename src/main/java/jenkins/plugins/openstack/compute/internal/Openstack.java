@@ -25,6 +25,7 @@ package jenkins.plugins.openstack.compute.internal;
 
 import java.util.ArrayList;
 import java.util.Collection;
+
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -52,7 +53,8 @@ import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.BasicResource;
-import org.openstack4j.model.compute.ActionResponse;
+import org.openstack4j.model.common.Identifier;
+import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
@@ -87,18 +89,13 @@ public class Openstack {
 
     private final OSClient client;
 
-    public Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull Secret credential, @CheckForNull String region) {
-        // TODO refactor to split tenant:username everywhere including UI
-        String[] id = identity.split(":", 2);
-        String tenant = id.length > 0 ? id[0] : "";
-        String username = id.length > 1 ? id[1] : "";
-        client = OSFactory.builder().endpoint(endPointUrl)
-                .credentials(username, credential.getPlainText())
-                .tenantName(tenant)
+    public Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull Secret credential,
+                     @Nonnull String project, @Nonnull String domain, @CheckForNull String region) {
+        client = OSFactory.builderV3().endpoint(endPointUrl)
+                .credentials(identity, credential.getPlainText(), Identifier.byName(domain))
+                .scopeToProject(Identifier.byName(project), Identifier.byName(domain))
                 .authenticate()
-                .useRegion(region)
-        ;
-        debug("Openstack client created for " + endPointUrl);
+                .useRegion(region);
     }
 
     /*exposed for testing*/
@@ -445,22 +442,22 @@ public class Openstack {
     @Restricted(NoExternalUse.class) // Extension point just for testing
     public static abstract class FactoryEP implements ExtensionPoint {
         protected abstract @Nonnull Openstack getOpenstack(
-                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String project, @CheckForNull String domain, @CheckForNull String region, @CheckForNull String zone
         ) throws FormValidation;
 
         /**
          * Instantiate Openstack client.
          */
         public static @Nonnull Openstack get(
-                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String project, @CheckForNull String domain,  @CheckForNull String region, @CheckForNull String zone
         ) throws FormValidation {
-            return ExtensionList.lookup(FactoryEP.class).get(0).getOpenstack(endPointUrl, identity, credential, region);
+            return ExtensionList.lookup(FactoryEP.class).get(0).getOpenstack(endPointUrl, identity, credential, project, domain, region, zone);
         }
     }
 
     @Extension
     public static final class Factory extends FactoryEP {
-        protected @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
+        protected @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String project, @CheckForNull String domain, @CheckForNull String region, @CheckForNull String zone) throws FormValidation {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Util.fixEmptyAndTrim(credential);
@@ -470,7 +467,7 @@ public class Openstack {
                 throw FormValidation.error("Invalid parameters");
             }
 
-            return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
+            return new Openstack(endPointUrl, identity, Secret.fromString(credential), project, domain, region);
         }
     }
 }
