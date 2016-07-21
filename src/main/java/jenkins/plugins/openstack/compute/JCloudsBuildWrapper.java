@@ -66,7 +66,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
             }
         });
 
-        final TerminateNodes terminateNodes = new TerminateNodes(listener);
+        final TerminateNodes terminateNodes = new TerminateNodes();
 
         ProvisionPlannedInstancesAndDestroyAllOnError provisioner = new ProvisionPlannedInstancesAndDestroyAllOnError(
                 MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting), listener, terminateNodes);

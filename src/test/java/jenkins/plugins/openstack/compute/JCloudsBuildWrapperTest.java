@@ -59,7 +59,6 @@ public class JCloudsBuildWrapperTest {
         verify(os, times(3)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(3)).updateInfo(any(Server.class));
         verify(os, times(3)).destroyServer(any(Server.class));
-        verifyNoMoreInteractions(os);
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
@@ -90,7 +89,6 @@ public class JCloudsBuildWrapperTest {
         verify(os, times(1)).updateInfo(any(Server.class));
         verify(os, times(1)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(1)).destroyServer(any(Server.class)); // Cleanup after the successful attempt
-        verifyNoMoreInteractions(os);
     }
 
     @Test

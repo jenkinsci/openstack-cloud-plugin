@@ -27,9 +27,9 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
     }
 
     public Iterable<RunningNode> apply(Iterable<NodePlan> nodePlans) {
-        final ImmutableList.Builder<RunningNode> cloudTemplateNodeBuilder = ImmutableList.<RunningNode>builder();
+        final ImmutableList.Builder<RunningNode> cloudTemplateNodeBuilder = ImmutableList.builder();
 
-        final ImmutableList.Builder<ListenableFuture<Server>> plannedInstancesBuilder = ImmutableList.<ListenableFuture<Server>>builder();
+        final ImmutableList.Builder<ListenableFuture<Server>> plannedInstancesBuilder = ImmutableList.builder();
 
         final AtomicInteger failedLaunches = new AtomicInteger();
 
@@ -47,7 +47,7 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
                     public void onSuccess(Server result) {
                         if (result != null) {
                             synchronized (cloudTemplateNodeBuilder) {
-                                // Builder in not threadsafec
+                                // Builder in not threadsafe
                                 cloudTemplateNodeBuilder.add(new RunningNode(nodePlan.getCloudName(), nodePlan.getTemplateName(), result));
                             }
                         } else {

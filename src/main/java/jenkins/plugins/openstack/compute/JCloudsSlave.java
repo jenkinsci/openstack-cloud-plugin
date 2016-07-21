@@ -6,19 +6,20 @@ import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
-import hudson.slaves.NodeProperty;
+import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 /**
@@ -95,7 +96,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * Get public IP address of the server.
      */
     public @CheckForNull String getPublicAddress() {
-        return Openstack.getPublicAddress(getOpenstack().getServerById(nodeId));
+        return Openstack.getPublicAddress(getOpenstack(cloudName).getServerById(nodeId));
     }
 
     /**
@@ -141,24 +142,53 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        try {
-            getOpenstack().destroyServer(getOpenstack().getServerById(nodeId));
-        } catch (NoSuchElementException ex) {
-            // Already deleted
-        } catch (Throwable ex) {
-            CloudStatistics statistics = CloudStatistics.get();
-            ProvisioningActivity activity = statistics.getActivityFor(this);
-            if (activity != null) {
-                activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
-                statistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, new PhaseExecutionAttachment.ExceptionAttachment(
-                        ProvisioningActivity.Status.WARN, ex
-                ));
-            }
-            throw ex;
+        ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
+        if (activity != null) {
+            activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
         }
+
+        // Wrap deletion disposables into statistics tracking disposables
+        AsyncResourceDisposer.get().dispose(
+                new RecordDisposal(
+                        new DestroyMachine(cloudName, nodeId),
+                        provisioningId
+                )
+        );
     }
 
-    private Openstack getOpenstack() {
+    private static Openstack getOpenstack(String cloudName) {
         return JCloudsCloud.getByName(cloudName).getOpenstack();
+    }
+
+    private final static class RecordDisposal implements Disposable {
+        private final Disposable inner;
+        private final ProvisioningActivity.Id provisioningId;
+
+        private RecordDisposal(Disposable inner, ProvisioningActivity.Id provisioningId) {
+            this.inner = inner;
+            this.provisioningId = provisioningId;
+        }
+
+        @Override
+        public @Nonnull State dispose() throws Exception {
+            try {
+                return inner.dispose();
+            } catch (Throwable ex) {
+                CloudStatistics statistics = CloudStatistics.get();
+                ProvisioningActivity activity = statistics.getActivityFor(provisioningId);
+                if (activity != null) {
+                    PhaseExecutionAttachment.ExceptionAttachment attachment = new PhaseExecutionAttachment.ExceptionAttachment(
+                            ProvisioningActivity.Status.WARN, ex
+                    );
+                    statistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, attachment);
+                }
+                throw ex;
+            }
+        }
+
+        @Override
+        public @Nonnull String getDisplayName() {
+            return inner.getDisplayName();
+        }
     }
 }

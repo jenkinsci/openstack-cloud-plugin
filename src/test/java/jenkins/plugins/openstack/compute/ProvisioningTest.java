@@ -26,9 +26,12 @@ import org.mockito.ArgumentCaptor;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
+import javax.servlet.ServletException;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -62,7 +65,7 @@ public class ProvisioningTest {
 
     @Test @SuppressWarnings("deprecation")
     public void manuallyProvisionAndKill() throws Exception {
-        Computer computer = j.provisionDummySlave("label").toComputer();
+        JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
         assertTrue("Slave should be connected", computer.isOnline());
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
 
@@ -355,5 +358,19 @@ public class ProvisioningTest {
         }
 
         verify(os).destroyServer(any(Server.class));
+    }
+
+    @Test
+    public void correctMetadataSet() throws Exception {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+
+        Server server = template.provision(cloud);
+        Map<String, String> m = server.getMetadata();
+
+        assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
+        assertEquals(cloud.name, m.get(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY));
+        assertEquals(template.name, m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
+        assertEquals(ServerScope.scope(ServerScope.SCOPE_NODE, server.getName()), m.get(ServerScope.METADATA_KEY));
     }
 }

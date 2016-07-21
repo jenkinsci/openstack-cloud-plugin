@@ -18,6 +18,8 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.openstack.compute.domain.NovaFloatingIP;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 public class OpenstackTest {
@@ -60,10 +62,11 @@ public class OpenstackTest {
         OSClient client = mock(OSClient.class, RETURNS_DEEP_STUBS);
         when(client.compute().servers().get(server.getId())).thenAnswer(sequencer.getServer());
 
-        when(client.compute().servers().delete(server.getId())).thenAnswer(sequencer.delete());
+        when(client.compute().servers().delete(server.getId())).thenAnswer(sequencer.deleteServer());
 
         ComputeFloatingIPService fips = client.compute().floatingIps();
         when(fips.list()).thenAnswer(sequencer.getAllFips());
+        when(fips.deallocateIP(any(String.class))).thenAnswer(sequencer.deleteFip());
 
         Openstack os = new Openstack(client);
         os.destroyServer(server);
@@ -78,12 +81,15 @@ public class OpenstackTest {
      */
     private class DeleteMachineSequencer {
         private volatile Server server;
-        private ActionResponse deleteSucceeded;
+        private final List<FloatingIP> fips = new ArrayList<>(Arrays.asList(
+                NovaFloatingIP.builder().id("keep-me").instanceId("someone-elses").floatingIpAddress("0.0.0.0").build(),
+                NovaFloatingIP.builder().id("release-me").instanceId("instance-id").floatingIpAddress("1.1.1.1").build()
+        ));
+        private ActionResponse success = ActionResponse.actionSuccess();
+        private ActionResponse failure = ActionResponse.actionFailed("fake", 500);
 
         private DeleteMachineSequencer(Server server) {
             this.server = server;
-            deleteSucceeded = mock(ActionResponse.class);
-            when(deleteSucceeded.isSuccess()).thenReturn(true);
         }
 
         private Answer<Server> getServer() {
@@ -94,24 +100,36 @@ public class OpenstackTest {
             };
         }
 
-        private Answer<ActionResponse> delete() {
+        private Answer<ActionResponse> deleteServer() {
             return new Answer<ActionResponse>() {
                 @Override public ActionResponse answer(InvocationOnMock invocation) throws Throwable {
                     server = null;
-                    return deleteSucceeded;
+                    return success;
                 }
             };
         }
 
         private Answer<List<FloatingIP>> getAllFips() {
-            final List<FloatingIP> ret = new ArrayList<>();
-            ret.add(NovaFloatingIP.builder().id("keep-me").instanceId("someone-elses").floatingIpAddress("0.0.0.0").build());
-            if (server != null) {
-                ret.add(NovaFloatingIP.builder().id("release-me").instanceId("instance-id").floatingIpAddress("1.1.1.1").build());
-            }
             return new Answer<List<FloatingIP>>() {
                 @Override public List<FloatingIP> answer(InvocationOnMock invocation) throws Throwable {
-                    return ret;
+                    return new ArrayList<>(fips); // Defensive copy so deleteFip can modify this
+                }
+            };
+        }
+
+        private Answer<ActionResponse> deleteFip() {
+            return new Answer<ActionResponse>() {
+                @Override public ActionResponse answer(InvocationOnMock invocation) throws Throwable {
+                    String id = (String) invocation.getArguments()[0];
+                    Iterator<FloatingIP> iter = fips.iterator();
+                    while (iter.hasNext()) {
+                        FloatingIP fip = iter.next();
+                        if (fip.getId().equals(id)) {
+                            iter.remove();
+                            return success;
+                        }
+                    }
+                    return failure;
                 }
             };
         }

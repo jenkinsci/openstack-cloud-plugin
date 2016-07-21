@@ -178,7 +178,7 @@ public final class PluginTestRule extends JenkinsRule {
                 ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
                 int num = slaveCount.getAndIncrement();
                 Server machine = mockServer()
-                        .name("provisioned" + num)
+                        .name(builder.build().getName())
                         .floatingIp("42.42.42." + num)
                         .metadata(builder.build().getMetaData())
                         .get()
