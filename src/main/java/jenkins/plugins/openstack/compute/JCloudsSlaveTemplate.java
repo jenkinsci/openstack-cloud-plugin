@@ -243,6 +243,20 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             builder.userData(Base64.encode(content.getBytes(Charsets.UTF_8)));
         }
 
+        String metadata = opts.getMetadata();
+        if (metadata != null){
+          String[] p = metadata.split(",");
+          for(Integer i = 0; i < p.length; i++){
+            String[] nv = p[i].split("=", 2);
+            if (nv.length == 2) {
+                builder.addMetadataItem(nv[0], nv[1]);
+            }
+            else if (nv.length == 1) {
+                builder.addMetadataItem(nv[0], "");
+            }
+          }
+        }
+
         final Openstack openstack = cloud.getOpenstack();
         final Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
         LOGGER.info("Provisioned: " + server.toString());
