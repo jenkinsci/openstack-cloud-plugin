@@ -226,6 +226,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         String az = opts.getAvailabilityZone();
         if (!Strings.isNullOrEmpty(az)) {
+            // Allow for one of X azs to be given, and
+            // picking one at random from that set.
+            String[] azs = az.split(",");
+            if (azs.length > 1) {
+                az = azs[new Random().nextInt(azs.length)];
+            }
+            else {
+                az = azs[0];
+            }
             LOGGER.fine("Setting availabilityZone to " + az);
             builder.availabilityZone(az);
         }
