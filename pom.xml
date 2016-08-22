@@ -64,7 +64,7 @@
             <dependency>
                 <groupId>org.jenkins-ci.plugins</groupId>
                 <artifactId>ssh-slaves</artifactId>
-                <version>1.9</version>
+                <version>1.10</version>
             </dependency>
             <dependency>
                 <groupId>org.jenkins-ci.plugins</groupId>
@@ -74,7 +74,7 @@
             <dependency>
                 <groupId>org.jenkins-ci.plugins</groupId>
                 <artifactId>cloud-stats</artifactId>
-                <version>0.2</version>
+                <version>0.3</version>
             </dependency>
 
             <!-- Test Dependencies -->
@@ -170,6 +170,18 @@
         <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
         <tag>HEAD</tag>
     </scm>
+
+    <!-- Can be removed once moved to 2.6 parent pom -->
+    <distributionManagement>
+        <repository>
+            <id>maven.jenkins-ci.org</id>
+            <url>https://repo.jenkins-ci.org/releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>maven.jenkins-ci.org</id>
+            <url>https://repo.jenkins-ci.org/snapshots/</url>
+        </snapshotRepository>
+   </distributionManagement>
 
     <repositories>
         <repository>
