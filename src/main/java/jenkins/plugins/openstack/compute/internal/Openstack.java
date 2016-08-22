@@ -294,17 +294,17 @@ public class Openstack {
             debug("Machine deletion retry " + i + ": " + deleted);
         }
 
-        if (deleted == null) {
-            debug("Machine destroyed: " + server.getName());
-        } else {
-            throw new ActionFailed(String.format("Server deletion attempt failed:%n%s", deleted));
-        }
-
         for (String ip: fips) {
             ActionResponse res = fipsService.deallocateIP(ip);
             if (logIfFailed(res)) {
                 debug("Floating IP deallocated: " + ip);
             }
+        }
+
+        if (deleted == null) {
+            debug("Machine destroyed: " + server.getName());
+        } else {
+            throw new ActionFailed(String.format("Server deletion attempt failed:%n%s", deleted));
         }
     }
 
