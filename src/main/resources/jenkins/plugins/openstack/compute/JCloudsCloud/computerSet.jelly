@@ -1,8 +1,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler"
          xmlns:f="/lib/form">
-    <j:getStatic var="buildPermission" className="hudson.model.Item" field="BUILD"/>
-    <j:if test="${it.hasPermission(buildPermission)}">
+    <j:if test="${it.hasPermission(it.PROVISION)}">
 
         <tr>
             <td/>
