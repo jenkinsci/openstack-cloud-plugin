@@ -27,7 +27,6 @@ import javax.servlet.ServletException;
 import hudson.Functions;
 import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.security.Permission;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
@@ -391,7 +390,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     @Restricted(DoNotUse.class)
     public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException,
             Descriptor.FormException {
-        checkPermission(PROVISION);
+        checkPermission(Item.BUILD);
         if (name == null) {
             sendError("The slave template name query parameter is missing", req, rsp);
             return;
@@ -525,9 +524,4 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             super(msg);
         }
     }
-
-    // Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
-    // Using Item.CONFIGURE as users authorized to do so can create a job to do the same thing.
-    @Restricted(DoNotUse.class)
-    public static final Permission PROVISION = Item.CONFIGURE;
 }
