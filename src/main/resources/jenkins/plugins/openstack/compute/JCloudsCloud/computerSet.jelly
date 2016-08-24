@@ -1,8 +1,12 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler"
-         xmlns:f="/lib/form">
-    <j:getStatic var="buildPermission" className="hudson.model.Item" field="BUILD"/>
-    <j:if test="${it.hasPermission(buildPermission)}">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:f="/lib/form">
+    <!--
+        Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
+        Using Item.CONFIGURE as users authorized to do so can provision via job execution.
+        Once the plugins starts to depend on core new enough, we can use Cloud.PROVISION again.
+     -->
+    <j:getStatic var="buildPermission" className="hudson.model.Item" field="CONFIGURE"/>
+    <j:if test="${it.hasPermission(buildPermission) or it.hasPermission(it.PROVISION)}">
 
         <tr>
             <td/>

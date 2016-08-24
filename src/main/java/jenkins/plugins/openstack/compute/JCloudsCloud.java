@@ -34,6 +34,7 @@ import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -383,14 +384,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * @param req  {@link StaplerRequest}
      * @param rsp  {@link StaplerResponse}
      * @param name Name of the template to provision
-     * @throws ServletException
-     * @throws IOException
-     * @throws Descriptor.FormException
      */
-    @Restricted(DoNotUse.class)
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException,
-            Descriptor.FormException {
-        checkPermission(Item.BUILD);
+    @Restricted(NoExternalUse.class)
+    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException, Descriptor.FormException {
+        // Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
+        // Using Item.CONFIGURE as users authorized to do so can provision via job execution.
+        // Once the plugins starts to depend on core new enough, we can use Cloud.PROVISION again.
+        if (!hasPermission(Item.CONFIGURE) && !hasPermission(Cloud.PROVISION)) {
+            checkPermission(Cloud.PROVISION);
+        }
+
         if (name == null) {
             sendError("The slave template name query parameter is missing", req, rsp);
             return;
