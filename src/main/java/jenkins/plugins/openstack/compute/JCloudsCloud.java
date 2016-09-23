@@ -304,7 +304,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             try {
                 jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
             } catch (Openstack.ActionFailed ex) {
-                throw new ProvisioningFailedException(ex.toString(), ex);
+                throw new ProvisioningFailedException(ex.getMessage(), ex);
             }
             Jenkins.getInstance().addNode(jcloudsSlave);
 
