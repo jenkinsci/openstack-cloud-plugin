@@ -527,7 +527,11 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     public void calcFillSettings(String field, Map<String, Object> attributes) {
         super.calcFillSettings(field, attributes);
 
-        List<String> deps = new ArrayList<>(Splitter.on(' ').splitToList((String) attributes.get("fillDependsOn")));
+        List<String> deps = new ArrayList<>();
+        String fillDependsOn = (String) attributes.get("fillDependsOn");
+        if (fillDependsOn != null) {
+            deps.addAll(Arrays.asList(fillDependsOn.split(" ")));
+        }
 
         String capitalizedFieldName = StringUtils.capitalize(field);
         String methodName = "doFill" + capitalizedFieldName + "Items";
