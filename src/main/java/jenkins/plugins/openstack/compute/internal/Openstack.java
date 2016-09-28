@@ -40,17 +40,17 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
-import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.ExtensionPoint;
-import hudson.Util;
+import hudson.*;
 import hudson.util.FormValidation;
 import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
+import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.exceptions.ResponseException;
+import org.openstack4j.core.transport.Config;
+import org.openstack4j.core.transport.ProxyHost;
 import org.openstack4j.model.common.BasicResource;
 import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Address;
@@ -84,6 +84,7 @@ public class Openstack {
 
     private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
     private static final String FINGERPRINT_KEY = "jenkins-instance";
+    private static final String HTTP_PREFIX = "http://";
 
     private final OSClient client;
 
@@ -92,12 +93,18 @@ public class Openstack {
         String[] id = identity.split(":", 2);
         String tenant = id.length > 0 ? id[0] : "";
         String username = id.length > 1 ? id[1] : "";
-        client = OSFactory.builder().endpoint(endPointUrl)
-                .credentials(username, credential.getPlainText())
+
+        Config config = Config.newConfig();
+        if (Jenkins.getInstance() != null && Jenkins.getInstance().proxy != null) {
+            ProxyConfiguration proxy = Jenkins.getInstance().proxy;
+            debug("Jenkins has a proxy defined with the following details: proxy.name= " +proxy.name +"proxy.port= " +proxy.port);
+            config = Config.newConfig().withProxy(ProxyHost.of(HTTP_PREFIX + proxy.name, proxy.port, proxy.getUserName(), proxy.getPassword()));
+        }
+        client = OSFactory.builder().endpoint(endPointUrl).credentials(username, credential.getPlainText())
                 .tenantName(tenant)
+                .withConfig(config)
                 .authenticate()
-                .useRegion(region)
-        ;
+                .useRegion(region);
         debug("Openstack client created for " + endPointUrl);
     }
 
