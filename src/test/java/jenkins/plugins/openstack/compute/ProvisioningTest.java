@@ -234,11 +234,11 @@ public class ProvisioningTest {
         assertEquals(slave.getPublicAddress(), launcher.getHost());
         assertEquals(expected.getCredentialsId(), launcher.getCredentialsId());
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
-        assertEquals(10, ((JCloudsComputer) slave.toComputer()).getRetentionTime());
+        assertEquals(10, (int) slave.getSlaveOptions().getRetentionTime());
 
         slave = j.provision(cloud, "retention");
 
-        assertEquals(42, ((JCloudsComputer) slave.toComputer()).getRetentionTime());
+        assertEquals(42, (int) slave.getSlaveOptions().getRetentionTime());
     }
 
     @Test

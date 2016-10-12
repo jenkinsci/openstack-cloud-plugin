@@ -49,10 +49,13 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
         if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
 
-        final int retentionTime = c.getRetentionTime();
-        if (c.getRetentionTime() < 0) return; // Keep forever
+        final JCloudsSlave node = c.getNode();
+        if (node == null) return; // Node is gone already
 
-        long idleSince = c.getIdleStartMilliseconds();
+        final int retentionTime = node.getSlaveOptions().getRetentionTime();
+        if (retentionTime < 0) return; // Keep forever
+
+        final long idleSince = c.getIdleStartMilliseconds();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
             LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));

@@ -24,7 +24,6 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
-import hudson.Functions;
 import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
@@ -143,11 +142,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             final SlaveOptions slaveOptions,
             final List<JCloudsSlaveTemplate> templates
     ) {
-        super(Util.fixEmptyAndTrim(name));
-        this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-        this.identity = Util.fixEmptyAndTrim(identity);
+        super(Util.fixNull(name).trim());
+        this.endPointUrl = Util.fixNull(endPointUrl).trim();
+        this.identity = Util.fixNull(identity).trim();
         this.credential = Secret.fromString(credential);
-        this.zone = Util.fixEmptyAndTrim(zone);
+        this.zone = Util.fixNull(zone).trim();
 
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
