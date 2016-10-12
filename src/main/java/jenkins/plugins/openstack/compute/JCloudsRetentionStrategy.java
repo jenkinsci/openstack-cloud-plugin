@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Descriptor;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
@@ -82,5 +83,6 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsRetentionStrategy.class.getName());
 
-    public static boolean disabled = Boolean.getBoolean(JCloudsRetentionStrategy.class.getName() + ".disabled");
+    @SuppressFBWarnings({"MS_SHOULD_BE_FINAL", "Left modifiable from groovy"})
+    /*package*/ static boolean disabled = Boolean.getBoolean(JCloudsRetentionStrategy.class.getName() + ".disabled");
 }
