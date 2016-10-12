@@ -57,6 +57,7 @@ import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.FloatingIP;
+import org.openstack4j.model.compute.Keypair;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
@@ -97,7 +98,7 @@ public class Openstack {
                 .authenticate()
                 .useRegion(region)
         ;
-        debug("Openstack client creatd for " + endPointUrl);
+        debug("Openstack client created for " + endPointUrl);
     }
 
     /*exposed for testing*/
@@ -158,10 +159,18 @@ public class Openstack {
         return running;
     }
 
+    public @Nonnull List<String> getSortedKeyPairNames() {
+        List<String> keyPairs = new ArrayList<>();
+        for (Keypair kp : client.compute().keypairs().list()) {
+            keyPairs.add(kp.getName());
+        }
+        return keyPairs;
+    }
+
     public @CheckForNull String getImageIdFor(String name) {
         Map<String, String> query = new HashMap<>(2);
         query.put("name", name);
-        query.put("status", "ACTIVE");
+        query.put("status", "active");
 
         List<? extends Image> images = client.images().listAll(query);
         if (images.size() > 0) {
@@ -248,34 +257,54 @@ public class Openstack {
      */
     public void destroyServer(@Nonnull Server server) throws ActionFailed {
         debug("Destroying machine " + server.getName());
-        // Do not checking fingerprint here presuming all Servers provided by
-        // this implementation are ours.
-        ActionResponse res = client.compute().servers().delete(server.getId());
-        throwIfFailed(res);
 
-        // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
-        for (int i = 0; i < 5; i++) {
-            Server cur = client.compute().servers().get(server.getId());
-            if (cur != null || cur.getStatus() != Server.Status.DELETED) break;
-
-            LOGGER.warning("Server deletion attempt failed, retrying");
-
-            res = client.compute().servers().delete(server.getId());
-            throwIfFailed(res);
+        final ComputeFloatingIPService fipsService = client.compute().floatingIps();
+        final List<String> fips = new ArrayList<>();
+        for (FloatingIP ip: fipsService.list()) {
+            if (server.getId().equals(ip.getInstanceId())) {
+                fips.add(ip.getId());
+            }
         }
 
-        debug("Machine destroyed: " + server.getName());
+        // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
+        // 6 iteration with 1s sleep seems to be minimum for some deployments
+        Server deleted = null;
+        for (int i = 0; i < 10; i++) {
 
-        ComputeFloatingIPService fips = client.compute().floatingIps();
-        for (FloatingIP ip: fips.list()) {
-            if (server.getId().equals(ip.getInstanceId())) {
-                String fip = ip.getFloatingIpAddress();
-                debug("Removing floating IP {} of {}", fip, server.getName());
-                fips.removeFloatingIP(server, fip);
-                debug("Floating IP removed: " + fip);
-                fips.deallocateIP(ip.getId());
-                debug("Floating IP deallocated: " + fip);
+            // Not checking fingerprint here presuming all Servers provided by this implementation are ours.
+            deleted = client.compute().servers().get(server.getId());
+            if (deleted == null || deleted.getStatus() == Server.Status.DELETED) { // Deleted
+                deleted = null;
+                break;
             }
+
+            ActionResponse res = client.compute().servers().delete(server.getId());
+            if (res.getCode() == 404) { // Deleted
+                deleted = null;
+                break;
+            }
+            throwIfFailed(res);
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                break;
+            }
+
+            debug("Machine deletion retry " + i + ": " + deleted);
+        }
+
+        for (String ip: fips) {
+            ActionResponse res = fipsService.deallocateIP(ip);
+            if (logIfFailed(res)) {
+                debug("Floating IP deallocated: " + ip);
+            }
+        }
+
+        if (deleted == null) {
+            debug("Machine destroyed: " + server.getName());
+        } else {
+            throw new ActionFailed(String.format("Server deletion attempt failed:%n%s", deleted));
         }
     }
 
@@ -287,14 +316,14 @@ public class Openstack {
      * @param server Server to assign FIP
      * @param poolName Name of the FIP pool to use. If null, openstack default pool will be used.
      */
-    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) {
+    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) throws ActionFailed {
         debug("Allocating floating IP for " + server.getName());
         ComputeFloatingIPService fips = client.compute().floatingIps();
         FloatingIP ip;
         try {
             ip = fips.allocateIP(poolName);
         } catch (ResponseException ex) {
-            throw new ActionFailed("Failed to allocate IP", ex);
+            throw new ActionFailed("Failed to allocate IP for " + server.getName(), ex);
         }
         debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
@@ -305,13 +334,11 @@ public class Openstack {
         } catch (Throwable _ex) {
             ActionFailed ex = _ex instanceof ActionFailed
                     ? (ActionFailed) _ex
-                    : new ActionFailed("Unable to assign floating IP", _ex)
+                    : new ActionFailed("Unable to assign floating IP for " + server.getName(), _ex)
             ;
 
             ActionResponse res = fips.deallocateIP(ip.getId());
-            if (!res.isSuccess()) {
-                ex.addSuppressed(new ActionFailed(res.toString()));
-            }
+            logIfFailed(res);
             throw ex;
         }
 
@@ -339,6 +366,15 @@ public class Openstack {
         return fixed;
     }
 
+    /**
+     * @return true if succeeded.
+     */
+    private boolean logIfFailed(@Nonnull ActionResponse res) {
+        if (res.isSuccess()) return true;
+        LOGGER.log(Level.INFO, res.toString());
+        return false;
+    }
+
     private void throwIfFailed(@Nonnull ActionResponse res) {
         if (res.isSuccess()) return;
         throw new ActionFailed(res.toString());
@@ -349,10 +385,11 @@ public class Openstack {
         if (status == Server.Status.ACTIVE) return; // Success
 
         StringBuilder sb = new StringBuilder();
+        sb.append("Failed to boot server ").append(server.getName());
         if (status == Server.Status.BUILD) {
-            sb.append("Failed to boot server in time (consider extending timeout setting):");
+            sb.append(" in time:");
         } else {
-            sb.append("Failed to boot server:");
+            sb.append(":");
         }
 
         sb.append(" status=").append(status);
@@ -371,8 +408,24 @@ public class Openstack {
         } catch (ActionFailed suppressed) {
             ex.addSuppressed(suppressed);
         }
-        LOGGER.log(Level.WARNING, "Machine provisioning failed", ex);
+        LOGGER.log(Level.WARNING, "Machine provisioning failed: " + server, ex);
         throw ex;
+    }
+
+    /**
+     * Perform some tests before calling the connection successfully established.
+     */
+    public @CheckForNull Throwable sanityCheck() {
+        // Try to talk to all endpoints the plugin rely on so we know they exist, are enabled, user have permission to
+        // access them and JVM trusts their SSL cert.
+        try {
+            client.networking().network().get("");
+            client.images().listMembers("");
+            client.compute().listExtensions().size();
+        } catch (Throwable ex) {
+            return ex;
+        }
+        return null;
     }
 
     public static final class ActionFailed extends RuntimeException {
@@ -391,7 +444,7 @@ public class Openstack {
 
     @Restricted(NoExternalUse.class) // Extension point just for testing
     public static abstract class FactoryEP implements ExtensionPoint {
-        protected abstract @Nonnull Openstack getOpenstack(
+        public abstract @Nonnull Openstack getOpenstack(
                 @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
         ) throws FormValidation;
 
@@ -407,15 +460,15 @@ public class Openstack {
 
     @Extension
     public static final class Factory extends FactoryEP {
-        protected @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
+        public @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Util.fixEmptyAndTrim(credential);
             region = Util.fixEmptyAndTrim(region);
 
-            if (endPointUrl == null || identity == null || credential == null) {
-                throw FormValidation.error("Invalid parameters");
-            }
+            if (endPointUrl == null) throw FormValidation.error("No endPoint specified");
+            if (identity == null) throw FormValidation.error("No identity specified");
+            if (credential == null) throw FormValidation.error("No credential specified");
 
             return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
         }

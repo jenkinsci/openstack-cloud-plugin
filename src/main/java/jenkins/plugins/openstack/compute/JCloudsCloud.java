@@ -24,11 +24,17 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
+import hudson.Functions;
+import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -84,6 +90,12 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 int maxNumRetries = 5;
                 int retryWaitTime = 15;
 
+                SlaveOptions opts = slave.getSlaveOptions();
+                String credentialsId = opts.getCredentialsId();
+                if (credentialsId == null) {
+                    throw new ProvisioningFailedException("No ssh credentials selected");
+                }
+
                 String publicAddress = slave.getPublicAddress();
                 if (publicAddress == null) {
                     throw new IOException("The slave is likely deleted");
@@ -91,10 +103,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 if ("0.0.0.0".equals(publicAddress)) {
                     throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                 }
-                SlaveOptions opts = slave.getSlaveOptions();
+
                 Integer timeout = opts.getStartTimeout();
                 timeout = timeout == null ? 0 : (timeout / 1000); // Never propagate null - always set some timeout
-                return new SSHLauncher(publicAddress, 22, opts.getCredentialsId(), opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
+
+                return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
             }
         },
         JNLP {
@@ -262,8 +275,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             int numExecutors = template.getEffectiveSlaveOptions().getNumExecutors();
 
-            Future<Node> task = Computer.threadPoolForRemoting.submit(new NodeCallable(this, template));
-            plannedNodeList.add(new PlannedNode(template.name, task, numExecutors));
+            ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.name);
+            Future<Node> task = Computer.threadPoolForRemoting.submit(new NodeCallable(this, template, id));
+            plannedNodeList.add(new TrackedPlannedNode(id, numExecutors, task));
 
             excessWorkload -= numExecutors;
         }
@@ -273,11 +287,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private static class NodeCallable implements Callable<Node> {
         private final JCloudsCloud cloud;
         private final JCloudsSlaveTemplate template;
+        private final ProvisioningActivity.Id id;
         private final SlaveOptions opts;
 
-        public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template) {
+        public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template, ProvisioningActivity.Id id) {
             this.cloud = cloud;
             this.template = template;
+            this.id = id;
             this.opts = template.getEffectiveSlaveOptions();
         }
 
@@ -286,9 +302,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             // TODO: record the output somewhere
             JCloudsSlave jcloudsSlave;
             try {
-                jcloudsSlave = template.provisionSlave(cloud, StreamTaskListener.fromStdout());
+                jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
             } catch (Openstack.ActionFailed ex) {
-                throw new ProvisioningFailedException("Openstack failed to provision the slave", ex);
+                throw new ProvisioningFailedException(ex.getMessage(), ex);
             }
             Jenkins.getInstance().addNode(jcloudsSlave);
 
@@ -368,14 +384,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * @param req  {@link StaplerRequest}
      * @param rsp  {@link StaplerResponse}
      * @param name Name of the template to provision
-     * @throws ServletException
-     * @throws IOException
-     * @throws Descriptor.FormException
      */
-    @Restricted(DoNotUse.class)
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException,
-            Descriptor.FormException {
-        checkPermission(PROVISION);
+    @Restricted(NoExternalUse.class)
+    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException, Descriptor.FormException {
+        // Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
+        // Using Item.CONFIGURE as users authorized to do so can provision via job execution.
+        // Once the plugins starts to depend on core new enough, we can use Cloud.PROVISION again.
+        if (!hasPermission(Item.CONFIGURE) && !hasPermission(Cloud.PROVISION)) {
+            checkPermission(Cloud.PROVISION);
+        }
+
         if (name == null) {
             sendError("The slave template name query parameter is missing", req, rsp);
             return;
@@ -410,13 +428,21 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return;
         }
 
+        CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
+        ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, t.name);
+
         JCloudsSlave node;
         try {
             StringWriter sw = new StringWriter();
             StreamTaskListener listener = new StreamTaskListener(sw);
-            node = t.provisionSlave(this, listener);
+            provisioningListener.onStarted(id);
+            node = t.provisionSlave(this, id, listener);
+            provisioningListener.onComplete(id, node);
         } catch (Openstack.ActionFailed ex) {
-            sendError(ex.getMessage());
+            provisioningListener.onFailure(id, ex);
+            req.setAttribute("message", ex.getMessage());
+            req.setAttribute("exception", ex);
+            rsp.forward(this,"error",req);
             return;
         }
         Jenkins.getInstance().addNode(node);
@@ -463,7 +489,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 @QueryParameter String credential
         ) {
             try {
-                Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                Throwable ex = Openstack.Factory.get(endPointUrl, identity, credential, zone).sanityCheck();
+                if (ex != null) {
+                    return FormValidation.warning(ex, "Connection not validated, plugin might not operate correctly: " + ex.getMessage());
+                }
             } catch (FormValidation ex) {
                 return ex;
             } catch (Exception ex) {
@@ -488,10 +517,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     /**
      * The request to provision was not fulfilled.
      */
-    public static final class ProvisioningFailedException extends Exception {
+    public static final class ProvisioningFailedException extends RuntimeException {
 
         public ProvisioningFailedException(String msg, Throwable cause) {
             super(msg, cause);
+        }
+
+        public ProvisioningFailedException(String msg) {
+            super(msg);
         }
     }
 }

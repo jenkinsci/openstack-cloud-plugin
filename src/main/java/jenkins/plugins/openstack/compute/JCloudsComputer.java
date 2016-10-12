@@ -9,6 +9,8 @@ import java.util.logging.Logger;
 
 import jenkins.model.Jenkins;
 
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -16,23 +18,20 @@ import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerResponse;
 
+import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * JClouds version of Jenkins {@link SlaveComputer} - responsible for terminating an instance.
- *
- * @author Vijay Kiran
+ * OpenStack version of Jenkins {@link SlaveComputer} - responsible for terminating an instance.
  */
-public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
+public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> implements TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
+    private final ProvisioningActivity.Id provisioningId;
 
     public JCloudsComputer(JCloudsSlave slave) {
         super(slave);
-    }
-
-    public String getInstanceId() {
-        return getName();
+        this.provisioningId = slave.getId();
     }
 
     @Override
@@ -42,6 +41,11 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
 
     public int getRetentionTime() {
         return getNode().getSlaveOptions().getRetentionTime();
+    }
+
+    @Override
+    public @Nonnull ProvisioningActivity.Id getId() {
+        return provisioningId;
     }
 
     private final Object pendingDeleteLock = new Object();
@@ -66,9 +70,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
      * Is slave pending termination.
      */
     public boolean isPendingDelete() {
-        synchronized (pendingDeleteLock) {
-            return getOfflineCause() instanceof PendingTermination;
-        }
+        // No need  to synchronize reading as offlineCause is volatile
+        return offlineCause instanceof PendingTermination;
     }
 
     // Hide /configure view inherited from Computer
@@ -114,6 +117,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
 
     // Singleton
     private static final PendingTermination PENDING_TERMINATION = new PendingTermination();
+
     private static final class PendingTermination extends SimpleOfflineCause {
 
         protected PendingTermination() {

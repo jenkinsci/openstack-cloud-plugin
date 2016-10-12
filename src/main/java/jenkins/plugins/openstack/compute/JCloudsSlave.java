@@ -8,33 +8,40 @@ import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 /**
  * Jenkins Slave node.
  */
-public class JCloudsSlave extends AbstractCloudSlave {
+public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
-
-    private @Nonnull Server metadata;
 
     private final @Nonnull String cloudName;
     private /*final*/ @Nonnull SlaveOptions options;
+    private final ProvisioningActivity.Id provisioningId;
+
+    private /*final*/ @Nonnull String nodeId;
 
     // Backward compatibility
     private transient @Deprecated int overrideRetentionTime;
     private transient @Deprecated String jvmOptions;
     private transient @Deprecated String credentialsId;
     private transient @Deprecated JCloudsCloud.SlaveType slaveType;
+    private transient @Deprecated Server metadata;
 
     public JCloudsSlave(
-            @Nonnull String cloudName, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
+            @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
     ) throws IOException, Descriptor.FormException {
         super(
                 metadata.getName(),
@@ -49,12 +56,15 @@ public class JCloudsSlave extends AbstractCloudSlave {
                         new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getPublicAddress(metadata))
                 ))
         );
-        this.cloudName = cloudName;
+        this.cloudName = id.getCloudName(); // TODO deprecate field
+        this.provisioningId = id;
         this.options = slaveOptions;
-        this.metadata = metadata;
+        this.nodeId = metadata.getId();
         setLauncher(new JCloudsLauncher(getSlaveType().createLauncher(this)));
     }
 
+    // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.
+    // The configurations stored are expected to have at least one of them.
     @SuppressWarnings({"unused", "deprecation"})
     protected Object readResolve() {
         super.readResolve(); // Call parent
@@ -71,6 +81,13 @@ public class JCloudsSlave extends AbstractCloudSlave {
             slaveType = null;
         }
 
+        if (metadata != null && (nodeId == null || !nodeId.equals(metadata.getId()))) {
+            nodeId = metadata.getId();
+            metadata = null;
+        }
+
+        nodeId =  nodeId.replaceFirst(".*/", ""); // Remove region prefix
+
         return this;
     }
 
@@ -78,7 +95,7 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * Get public IP address of the server.
      */
     public @CheckForNull String getPublicAddress() {
-        return Openstack.getPublicAddress(metadata);
+        return Openstack.getPublicAddress(getOpenstack().getServerById(nodeId));
     }
 
     /**
@@ -92,10 +109,20 @@ public class JCloudsSlave extends AbstractCloudSlave {
         return options.getSlaveType();
     }
 
+    // Exposed for testing
+    /*package*/ @Nonnull String getServerId() {
+        return nodeId;
+    }
+
     @Override
     public AbstractCloudComputer<JCloudsSlave> createComputer() {
         LOGGER.info("Creating a new computer for " + getNodeName());
         return new JCloudsComputer(this);
+    }
+
+    @Override
+    public @Nonnull ProvisioningActivity.Id getId() {
+        return this.provisioningId;
     }
 
     @Extension
@@ -114,7 +141,24 @@ public class JCloudsSlave extends AbstractCloudSlave {
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
-        os.destroyServer(metadata);
+        try {
+            getOpenstack().destroyServer(getOpenstack().getServerById(nodeId));
+        } catch (NoSuchElementException ex) {
+            // Already deleted
+        } catch (Throwable ex) {
+            CloudStatistics statistics = CloudStatistics.get();
+            ProvisioningActivity activity = statistics.getActivityFor(this);
+            if (activity != null) {
+                activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
+                statistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, new PhaseExecutionAttachment.ExceptionAttachment(
+                        ProvisioningActivity.Status.WARN, ex
+                ));
+            }
+            throw ex;
+        }
+    }
+
+    private Openstack getOpenstack() {
+        return JCloudsCloud.getByName(cloudName).getOpenstack();
     }
 }

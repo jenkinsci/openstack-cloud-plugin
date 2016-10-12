@@ -23,10 +23,10 @@
         <st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>
     </f:advanced>
 
-    <f:entry title="Cloud Instance Templates">
+    <f:entry title="Templates">
         <!-- Propagate cloud opts as defaultOpts to templates -->
         <j:set var="defaultOpts" value="${instance == null ? descriptor.defaultOptions : instance.effectiveSlaveOptions}"/>
-        <f:repeatable field="templates">
+        <f:repeatable field="templates" header="${%Template}" add="${%Add template}">
             <st:include page="config.jelly" class="${descriptor.clazz}"/>
         </f:repeatable>
     </f:entry>

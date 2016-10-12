@@ -24,9 +24,12 @@
 package jenkins.plugins.openstack.compute;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
+import com.cloudbees.plugins.credentials.CredentialsNameProvider;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.trilead.ssh2.Connection;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -39,6 +42,7 @@ import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import hudson.util.ReflectionUtils;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
@@ -52,12 +56,22 @@ import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.image.Image;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * @author ogondza.
@@ -66,7 +80,7 @@ import java.util.logging.Logger;
 public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveOptions> {
     private static final Logger LOGGER = Logger.getLogger(SlaveOptionsDescriptor.class.getName());
     private static final FormValidation OK = FormValidation.ok();
-    public static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
+    private static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
 
     public SlaveOptionsDescriptor() {
         super(SlaveOptions.class);
@@ -146,12 +160,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
@@ -162,8 +174,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(p);
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -189,12 +201,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillHardwareIdItems(
             @QueryParameter String hardwareId,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
 
         ListBoxModel m = new ListBoxModel();
@@ -206,8 +216,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -233,12 +243,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillImageIdItems(
             @QueryParameter String imageId,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
 
         ListBoxModel m = new ListBoxModel();
@@ -254,8 +262,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(name);
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -281,12 +289,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillNetworkIdItems(
             @QueryParameter String networkId,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
 
         ListBoxModel m = new ListBoxModel();
@@ -298,8 +304,8 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
                 m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
             }
             return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException _) {
-            // Incorrect credentials - noop
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
@@ -368,10 +374,13 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     ) {
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getCredentialsId());
-            if (d != null) return FormValidation.ok(def(d));
+            if (d != null) {
+                d = CredentialsNameProvider.name(SSHLauncher.lookupSystemCredentials(d)); // ID to name
+                return FormValidation.ok(def(d));
+            }
             return REQUIRED;
         }
-        return REQUIRED;
+        return OK;
     }
 
     @Restricted(DoNotUse.class)
@@ -395,7 +404,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     ) {
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getUserDataId());
-            if (d != null) return FormValidation.ok(def(d));
+            if (d != null) {
+                d = getConfigProvider().getConfigById(d).name;
+                return FormValidation.ok(def(d));
+            }
             return OK;
         }
         return OK;
@@ -430,6 +442,35 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             return OK;
         }
         return OK;
+    }
+
+    @Restricted(DoNotUse.class)
+    @InjectOsAuth
+    public ListBoxModel doFillKeyPairNameItems(
+            @QueryParameter String keyPairName,
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+    ) {
+
+        ListBoxModel m = new ListBoxModel();
+        m.add("None specified", "");
+
+        try {
+            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            for (String keyPair: openstack.getSortedKeyPairNames()) {
+                m.add(keyPair);
+            }
+            return m;
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+        }
+
+        if (Util.fixEmpty(keyPairName) != null) {
+            m.add(keyPairName);
+        }
+
+        return m;
     }
 
     @Restricted(DoNotUse.class)
@@ -476,6 +517,39 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
      */
     @Restricted(DoNotUse.class) // For view
     public @Nonnull String def(@CheckForNull Object val) {
-        return val == null ? "" : ("Inherited vlaue: " + val);
+        return val == null ? "" : ("Inherited value: " + val);
     }
+
+    /**
+     * Add dependencies on credentials
+     */
+    @Override
+    public void calcFillSettings(String field, Map<String, Object> attributes) {
+        super.calcFillSettings(field, attributes);
+
+        List<String> deps = new ArrayList<>();
+        String fillDependsOn = (String) attributes.get("fillDependsOn");
+        if (fillDependsOn != null) {
+            deps.addAll(Arrays.asList(fillDependsOn.split(" ")));
+        }
+
+        String capitalizedFieldName = StringUtils.capitalize(field);
+        String methodName = "doFill" + capitalizedFieldName + "Items";
+        Method method = ReflectionUtils.getPublicMethodNamed(getClass(), methodName);
+
+        // Replace direct reference to references to possible relative paths
+        if (method.getAnnotation(InjectOsAuth.class) != null) {
+            for (String attr: Arrays.asList("endPointUrl", "identity", "credential", "zone")) {
+                deps.remove(attr);
+                deps.add("../" + attr);
+                deps.add("../../" + attr);
+            }
+        }
+
+        attributes.put("fillDependsOn", Joiner.on(' ').join(deps));
+    }
+
+    @Retention(RUNTIME)
+    @Target({METHOD})
+    private @interface InjectOsAuth {}
 }

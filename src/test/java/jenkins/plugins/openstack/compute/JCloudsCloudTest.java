@@ -6,11 +6,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
+import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.security.ACL;
+import hudson.security.Permission;
+import hudson.security.SidACL;
+import hudson.slaves.Cloud;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.GlobalConfig;
+import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.acegisecurity.AccessDeniedException;
+import org.acegisecurity.acls.sid.Sid;
 import org.apache.commons.io.IOUtils;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -27,18 +37,19 @@ import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
-import org.springframework.web.util.HtmlUtils;
+import org.kohsuke.stapler.Stapler;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.Callable;
 
 public class JCloudsCloudTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
     @Test
-    public void incompleteTestConnection() {
+    public void failToTestConnection() {
         DescriptorImpl desc = j.getCloudDescriptor();
         FormValidation v;
 
@@ -50,14 +61,17 @@ public class JCloudsCloudTest {
 
         v = desc.doTestConnection("REGION", "https://example.com", "a:b", null);
         assertEquals("Credential is required", FormValidation.Kind.ERROR, v.kind);
-    }
 
-    @Test
-    public void failToTestConnection() throws Exception {
-        FormValidation validation = j.getCloudDescriptor().doTestConnection(null, "https://example.com", "a", "a:b");
+        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
+        assertEquals(FormValidation.Kind.ERROR, v.kind);
+        assertThat(v.getMessage(), containsString("Cannot connect to specified cloud"));
 
-        assertEquals(FormValidation.Kind.ERROR, validation.kind);
-        assertThat(validation.getMessage(), containsString("Cannot connect to specified cloud"));
+        Openstack os = j.fakeOpenstackFactory();
+        when(os.sanityCheck()).thenReturn(new NullPointerException("It is broken, alright?"));
+
+        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
+        assertEquals(FormValidation.Kind.WARNING, v.kind);
+        assertThat(v.getMessage(), containsString("It is broken, alright?"));
     }
 
     @Test
@@ -208,5 +222,50 @@ public class JCloudsCloudTest {
 
     private String fileAsString(String filename) throws IOException {
         return IOUtils.toString(getClass().getResourceAsStream(getClass().getSimpleName() + "/" + filename));
+    }
+
+    @Test
+    public void doProvision() throws Exception {
+        final JCloudsSlaveTemplate template = j.dummySlaveTemplate("asdf");
+
+        final JCloudsCloud cloudProvision = getCloudWhereUserIsAuthorizedTo(Cloud.PROVISION, template);
+        j.executeOnServer(new DoProvision(cloudProvision, template));
+
+        final JCloudsCloud itemConfigure = getCloudWhereUserIsAuthorizedTo(Item.CONFIGURE, template);
+        j.executeOnServer(new DoProvision(itemConfigure, template));
+
+        final JCloudsCloud jenkinsRead = getCloudWhereUserIsAuthorizedTo(Jenkins.READ, template);
+        try {
+            j.executeOnServer(new DoProvision(jenkinsRead, template));
+        } catch (AccessDeniedException ex) {
+            // Expected
+        }
+    }
+
+    private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {
+        return j.configureSlaveLaunching(new PluginTestRule.MockJCloudsCloud(template) {
+            @Override public ACL getACL() {
+                return new SidACL() {
+                    @Override protected Boolean hasPermission(Sid p, Permission permission) {
+                        return permission.equals(authorized);
+                    }
+                };
+            }
+        });
+    }
+
+    private static class DoProvision implements Callable<Object> {
+        private final JCloudsCloud jenkinsRead;
+        private final JCloudsSlaveTemplate template;
+
+        public DoProvision(JCloudsCloud jenkinsRead, JCloudsSlaveTemplate template) {
+            this.jenkinsRead = jenkinsRead;
+            this.template = template;
+        }
+
+        @Override public Object call() throws Exception {
+            jenkinsRead.doProvision(Stapler.getCurrentRequest(), Stapler.getCurrentResponse(), template.name);
+            return null;
+        }
     }
 }

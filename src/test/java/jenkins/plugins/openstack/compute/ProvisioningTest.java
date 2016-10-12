@@ -3,6 +3,7 @@ package jenkins.plugins.openstack.compute;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequest;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -15,6 +16,8 @@ import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Matchers;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -32,9 +35,12 @@ import java.util.concurrent.Future;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -94,8 +100,12 @@ public class ProvisioningTest {
         verify(os, times(2)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(2)).updateInfo(any(Server.class));
         verify(os, atLeastOnce()).destroyServer(any(Server.class));
+        verify(os, atLeastOnce()).getServerById(any(String.class));
 
         verifyNoMoreInteractions(os);
+
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertThat(activities, Matchers.<ProvisioningActivity>iterableWithSize(2));
     }
 
     @Test
@@ -201,7 +211,7 @@ public class ProvisioningTest {
             template.provision(cloud);
             fail();
         } catch (Openstack.ActionFailed ex) {
-            assertThat(ex.getMessage(), containsString("Failed to boot server in time"));
+            assertThat(ex.getMessage(), containsString("Failed to boot server provisioned in time"));
             assertThat(ex.getMessage(), containsString("status=BUILD"));
         }
 
@@ -269,19 +279,36 @@ public class ProvisioningTest {
                 containsString("No such slave template with name : no_such_template")
         );
 
-        j.provision(cloud, "label"); // Exceed template quota
+        // Exceed template quota
+        HtmlPage provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name);
+        assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
+        String slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
                 containsString("Instance cap for this template (openstack/template0) is now reached: 1")
         );
 
-        j.provision(cloud, "free"); // Exceed global quota
+        // Exceed global quota
+        provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name);
+        assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
+        slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name).getWebResponse().getContentAsString(),
                 containsString("Instance cap of openstack is now reached: 2")
         );
+
+        List<ProvisioningActivity> all = CloudStatistics.get().getActivities();
+        assertThat(all, Matchers.<ProvisioningActivity>iterableWithSize(2));
+        for (ProvisioningActivity pa : all) {
+            assertNotNull(pa.getPhaseExecution(ProvisioningActivity.Phase.OPERATING));
+            assertNull(pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED));
+            assertNotNull(j.jenkins.getComputer(pa.getName()));
+            assertEquals(cloud.name, pa.getId().getCloudName());
+        }
     }
 
     @Test
@@ -305,5 +332,22 @@ public class ProvisioningTest {
             assertTrue(assignedLabels.toString(), assignedLabels.contains(expectedLabel));
             cntr++;
         }
+    }
+
+    @Test
+    public void destroyTheServerWhenFipAllocationFails() {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        Openstack os = cloud.getOpenstack();
+        when(os.assignFloatingIp(any(Server.class), any(String.class))).thenThrow(new Openstack.ActionFailed("Unable to assign"));
+
+        try {
+            template.provision(cloud);
+            fail();
+        } catch (Openstack.ActionFailed ex) {
+            assertThat(ex.getMessage(), containsString("Unable to assign"));
+        }
+
+        verify(os).destroyServer(any(Server.class));
     }
 }
