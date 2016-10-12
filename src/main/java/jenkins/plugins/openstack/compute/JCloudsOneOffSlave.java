@@ -6,6 +6,7 @@ import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Computer;
+import hudson.model.Executor;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
 
@@ -28,20 +29,21 @@ public class JCloudsOneOffSlave extends BuildWrapper {
     @Override
     @SuppressWarnings("rawtypes")
     public Environment setUp(AbstractBuild build, Launcher launcher, final BuildListener listener) {
-        final Computer c = build.getExecutor().getOwner();
-        if (c instanceof JCloudsComputer) {
-            return new Environment() {
-                @Override
-                public boolean tearDown(AbstractBuild build, final BuildListener listener) throws IOException, InterruptedException {
-                    ((JCloudsComputer) c).setPendingDelete(true);
-                    return true;
-                }
-            };
-        } else {
-            return new Environment() {
-            };
+        final Executor executor = build.getExecutor();
+        if (executor != null) {
+            final Computer c = executor.getOwner();
+            if (c instanceof JCloudsComputer) {
+                return new Environment() {
+                    @Override
+                    public boolean tearDown(AbstractBuild build, final BuildListener listener) throws IOException, InterruptedException {
+                        ((JCloudsComputer) c).setPendingDelete(true);
+                        return true;
+                    }
+                };
+            }
         }
 
+        return new Environment() {};
     }
 
     @Extension

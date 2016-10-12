@@ -321,6 +321,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ProvisioningFailedException {
             JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
+            if (computer == null) throw new ProvisioningFailedException("Computer does not exist");
 
             Integer launchTimeout = opts.getStartTimeout();
             long startMoment = System.currentTimeMillis();
@@ -406,7 +407,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         List<Server> nodes = getOpenstack().getRunningNodes();
         final int global = nodes.size();
 
-        Integer globalCap = getEffectiveSlaveOptions().getInstanceCap();
+        int globalCap = getEffectiveSlaveOptions().getInstanceCap();
         if (global >= globalCap) {
             String msg = String.format("Instance cap of %s is now reached: %d", this.name, globalCap);
             sendError(msg, req, rsp);
