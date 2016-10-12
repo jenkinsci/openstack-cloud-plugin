@@ -26,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
@@ -282,7 +283,7 @@ public class ProvisioningTest {
         // Exceed template quota
         HtmlPage provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        String slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        String slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
@@ -293,7 +294,7 @@ public class ProvisioningTest {
         // Exceed global quota
         provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
@@ -309,6 +310,10 @@ public class ProvisioningTest {
             assertNotNull(j.jenkins.getComputer(pa.getName()));
             assertEquals(cloud.name, pa.getId().getCloudName());
         }
+    }
+
+    private String extractNodeNameFomUrl(HtmlPage provision) throws MalformedURLException {
+        return provision.getFullyQualifiedUrl("").toExternalForm().replaceAll("^.*/(.*)/$", "$1");
     }
 
     @Test
