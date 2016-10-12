@@ -231,7 +231,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         @CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
             HashMap<String, String> vars = new HashMap<>();
-            String rootUrl = Jenkins.getInstance().getRootUrl();
+            String rootUrl = Jenkins.getActiveInstance().getRootUrl();
             vars.put("JENKINS_URL", rootUrl);
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
@@ -299,7 +299,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     @Override
     @SuppressWarnings("unchecked")
     public Descriptor<JCloudsSlaveTemplate> getDescriptor() {
-        return Jenkins.getInstance().getDescriptor(getClass());
+        return Jenkins.getActiveInstance().getDescriptor(getClass());
     }
 
     @Extension

@@ -122,7 +122,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public static @Nonnull List<String> getCloudNames() {
         List<String> cloudNames = new ArrayList<>();
-        for (Cloud c : Jenkins.getInstance().clouds) {
+        for (Cloud c : Jenkins.getActiveInstance().clouds) {
             if (JCloudsCloud.class.isInstance(c)) {
                 cloudNames.add(c.name);
             }
@@ -132,7 +132,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     public static @Nonnull JCloudsCloud getByName(@Nonnull String name) throws IllegalArgumentException {
-        Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
+        Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
         if (cloud instanceof JCloudsCloud) return (JCloudsCloud) cloud;
         throw new IllegalArgumentException(name + " is not an OpenStack cloud: " + cloud);
     }
@@ -263,7 +263,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
-        while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
+        while (excessWorkload > 0 && !Jenkins.getActiveInstance().isQuietingDown() && !Jenkins.getActiveInstance().isTerminating()) {
 
             final JCloudsSlaveTemplate template = templateProvider.poll();
             if (template == null) {
@@ -306,7 +306,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             } catch (Openstack.ActionFailed ex) {
                 throw new ProvisioningFailedException(ex.getMessage(), ex);
             }
-            Jenkins.getInstance().addNode(jcloudsSlave);
+            Jenkins.getActiveInstance().addNode(jcloudsSlave);
 
             /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
             without the connect operation, NodeProvisioner may decide that it still wants one more instance,
@@ -445,7 +445,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             rsp.forward(this,"error",req);
             return;
         }
-        Jenkins.getInstance().addNode(node);
+        Jenkins.getActiveInstance().addNode(node);
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
 

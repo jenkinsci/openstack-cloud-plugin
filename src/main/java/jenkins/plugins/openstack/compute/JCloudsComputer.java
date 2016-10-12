@@ -111,7 +111,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
             slave.getChannel().close();
         }
         slave.terminate();
-        Jenkins.getInstance().removeNode(slave);
+        Jenkins.getActiveInstance().removeNode(slave);
         LOGGER.info("Deleted slave " + getName());
     }
 

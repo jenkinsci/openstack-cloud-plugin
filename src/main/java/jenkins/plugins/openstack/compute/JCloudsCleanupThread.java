@@ -38,7 +38,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         final ImmutableList.Builder<ListenableFuture<?>> deletedNodesBuilder = ImmutableList.builder();
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
 
-        for (final Computer c : Jenkins.getInstance().getComputers()) {
+        for (final Computer c : Jenkins.getActiveInstance().getComputers()) {
             if (c instanceof JCloudsComputer) {
                 final JCloudsComputer comp = (JCloudsComputer) c;
 
