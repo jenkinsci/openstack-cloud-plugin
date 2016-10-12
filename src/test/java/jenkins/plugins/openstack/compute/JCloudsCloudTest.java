@@ -92,7 +92,7 @@ public class JCloudsCloudTest {
         HtmlForm configForm2 = page2.getFormByName("config");
         for (int i = 0; i < 10; i++) { // Wait for JS
             try {
-                HtmlFormUtil.getButtonByCaption(configForm2, "Delete cloud");
+                HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
                 break;
             } catch (ElementNotFoundException ex) {
                 Thread.sleep(1000);
