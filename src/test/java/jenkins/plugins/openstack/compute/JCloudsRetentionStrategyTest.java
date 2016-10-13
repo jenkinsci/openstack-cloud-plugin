@@ -36,7 +36,7 @@ public class JCloudsRetentionStrategyTest {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
-        assertEquals(1, computer.getRetentionTime());
+        assertEquals(1, (int) slave.getSlaveOptions().getRetentionTime());
 
         JCloudsRetentionStrategy strategy = (JCloudsRetentionStrategy) slave.getRetentionStrategy();
         strategy.check(computer);

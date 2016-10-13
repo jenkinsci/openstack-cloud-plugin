@@ -6,10 +6,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
+import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
 import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.security.ACL;
@@ -83,22 +84,29 @@ public class JCloudsCloudTest {
         assertTrue("Cloud Section must be present in the global configuration ", pageText.contains("Cloud"));
 
         final HtmlForm configForm = page.getFormByName("config");
-        final HtmlButton buttonByCaption = configForm.getButtonByCaption("Add a new cloud");
+        final HtmlButton buttonByCaption = HtmlFormUtil.getButtonByCaption(configForm, "Add a new cloud");
         HtmlPage page1 = buttonByCaption.click();
         WebAssert.assertLinkPresentWithText(page1, "Cloud (OpenStack)");
 
         HtmlPage page2 = page.getAnchorByText("Cloud (OpenStack)").click();
+        HtmlForm configForm2 = page2.getFormByName("config");
+        for (int i = 0; i < 10; i++) { // Wait for JS
+            try {
+                HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
+                break;
+            } catch (ElementNotFoundException ex) {
+                Thread.sleep(1000);
+            }
+        }
+
         WebAssert.assertInputPresent(page2, "_.endPointUrl");
         WebAssert.assertInputPresent(page2, "_.identity");
         WebAssert.assertInputPresent(page2, "_.credential");
         WebAssert.assertInputPresent(page2, "_.instanceCap");
         WebAssert.assertInputPresent(page2, "_.retentionTime");
 
-        HtmlForm configForm2 = page2.getFormByName("config");
-        HtmlButton testConnectionButton = configForm2.getButtonByCaption("Test Connection");
-        HtmlButton deleteCloudButton = configForm2.getButtonByCaption("Delete cloud");
-        assertNotNull(testConnectionButton);
-        assertNotNull(deleteCloudButton);
+        HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
+        HtmlFormUtil.getButtonByCaption(configForm2, "Delete cloud");
     }
 
     @Test @Ignore("HtmlUnit is not able to trigger form validation")

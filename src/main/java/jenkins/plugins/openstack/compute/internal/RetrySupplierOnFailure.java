@@ -9,12 +9,12 @@ import com.google.common.base.Supplier;
 import hudson.Functions;
 import hudson.model.TaskListener;
 
-class RetrySupplierOnException implements Callable<Server> {
-    private final int MAX_ATTEMPTS = 5;
+class RetrySupplierOnFailure implements Callable<Server> {
+    private static final int MAX_ATTEMPTS = 5;
     private final TaskListener listener;
     private final Supplier<Server> supplier;
 
-    RetrySupplierOnException(Supplier<Server> supplier, TaskListener listener) {
+    RetrySupplierOnFailure(Supplier<Server> supplier, TaskListener listener) {
         this.supplier = supplier;
         this.listener = listener;
     }

@@ -2,7 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
-import com.gargoylesoftware.htmlunit.WebRequestSettings;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
@@ -26,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
@@ -36,7 +37,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -187,10 +187,8 @@ public class ProvisioningTest {
         Openstack os = cloud.getOpenstack();
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
 
-        JenkinsRule.WebClient wc = j.createWebClient();
-        wc.setThrowExceptionOnFailingStatusCode(false);
-        wc.setPrintContentOnFailingStatusCode(false);
-        Page page = wc.getPage(wc.addCrumb(new WebRequestSettings(
+        JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
+        Page page = wc.getPage(wc.addCrumb(new WebRequest(
                 new URL(wc.getContextPath() + "cloud/openstack/provision?name=" + template.name),
                 HttpMethod.POST
         )));
@@ -236,11 +234,11 @@ public class ProvisioningTest {
         assertEquals(slave.getPublicAddress(), launcher.getHost());
         assertEquals(expected.getCredentialsId(), launcher.getCredentialsId());
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
-        assertEquals(10, ((JCloudsComputer) slave.toComputer()).getRetentionTime());
+        assertEquals(10, (int) slave.getSlaveOptions().getRetentionTime());
 
         slave = j.provision(cloud, "retention");
 
-        assertEquals(42, ((JCloudsComputer) slave.toComputer()).getRetentionTime());
+        assertEquals(42, (int) slave.getSlaveOptions().getRetentionTime());
     }
 
     @Test
@@ -272,10 +270,7 @@ public class ProvisioningTest {
                 constrained, free
         ));
 
-        JenkinsRule.WebClient wc = j.createWebClient();
-        wc.setThrowExceptionOnFailingStatusCode(false);
-        wc.setPrintContentOnFailingStatusCode(false);
-
+        JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision").getWebResponse().getContentAsString(),
                 containsString("The slave template name query parameter is missing")
@@ -288,7 +283,7 @@ public class ProvisioningTest {
         // Exceed template quota
         HtmlPage provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        String slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        String slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
@@ -299,7 +294,7 @@ public class ProvisioningTest {
         // Exceed global quota
         provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        slaveName = provision.getDocumentURI().replaceAll("^.*/(.*)/$", "$1");
+        slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
@@ -315,6 +310,10 @@ public class ProvisioningTest {
             assertNotNull(j.jenkins.getComputer(pa.getName()));
             assertEquals(cloud.name, pa.getId().getCloudName());
         }
+    }
+
+    private String extractNodeNameFomUrl(HtmlPage provision) throws MalformedURLException {
+        return provision.getFullyQualifiedUrl("").toExternalForm().replaceAll("^.*/(.*)/$", "$1");
     }
 
     @Test

@@ -33,6 +33,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.Serializable;
 
 /**
  * Configured options for a slave to create.
@@ -42,7 +44,8 @@ import javax.annotation.Nonnull;
  *
  * @author ogondza.
  */
-public class SlaveOptions implements Describable<SlaveOptions> {
+public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
+    private static final long serialVersionUID = -1L;
     private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
@@ -50,22 +53,22 @@ public class SlaveOptions implements Describable<SlaveOptions> {
     private final @CheckForNull String hardwareId;
     private final @CheckForNull String networkId;
     private final @CheckForNull String userDataId;
-    private final @CheckForNull Integer instanceCap;
+    private final Integer instanceCap;
     private final @CheckForNull String floatingIpPool;
-    private final @CheckForNull String securityGroups;
+    private final String securityGroups;
     private final @CheckForNull String availabilityZone;
-    private final @CheckForNull Integer startTimeout;
+    private final Integer startTimeout;
     private final @CheckForNull String keyPairName;
 
     // Slave launch attributes
-    private final @CheckForNull Integer numExecutors;
+    private final Integer numExecutors;
     private final @CheckForNull String jvmOptions;
-    private final @CheckForNull String fsRoot;
+    private final String fsRoot;
     private final @CheckForNull String credentialsId;
-    private final @CheckForNull JCloudsCloud.SlaveType slaveType;
+    private final JCloudsCloud.SlaveType slaveType;
 
     // Slave attributes
-    private final @CheckForNull Integer retentionTime;
+    private final Integer retentionTime;
 
     public @CheckForNull String getFsRoot() {
         return fsRoot;
@@ -87,7 +90,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return userDataId;
     }
 
-    public @CheckForNull Integer getInstanceCap() {
+    public Integer getInstanceCap() {
         return instanceCap;
     }
 
@@ -95,7 +98,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return floatingIpPool;
     }
 
-    public @CheckForNull String getSecurityGroups() {
+    public String getSecurityGroups() {
         return securityGroups;
     }
 
@@ -103,7 +106,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return availabilityZone;
     }
 
-    public @CheckForNull Integer getStartTimeout() {
+    public Integer getStartTimeout() {
         return startTimeout;
     }
 
@@ -111,7 +114,7 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return keyPairName;
     }
 
-    public @CheckForNull Integer getNumExecutors() {
+    public Integer getNumExecutors() {
         return numExecutors;
     }
 
@@ -123,11 +126,11 @@ public class SlaveOptions implements Describable<SlaveOptions> {
         return credentialsId;
     }
 
-    public @CheckForNull JCloudsCloud.SlaveType getSlaveType() {
+    public JCloudsCloud.SlaveType getSlaveType() {
         return slaveType;
     }
 
-    public @CheckForNull Integer getRetentionTime() {
+    public Integer getRetentionTime() {
         return retentionTime;
     }
 
@@ -481,6 +484,6 @@ public class SlaveOptions implements Describable<SlaveOptions> {
 
     @Override
     public SlaveOptionsDescriptor getDescriptor() {
-        return (SlaveOptionsDescriptor) Jenkins.getInstance().getDescriptorOrDie(getClass());
+        return (SlaveOptionsDescriptor) Jenkins.getActiveInstance().getDescriptorOrDie(getClass());
     }
 }
