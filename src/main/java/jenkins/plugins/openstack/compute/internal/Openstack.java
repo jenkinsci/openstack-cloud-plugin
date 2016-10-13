@@ -70,12 +70,12 @@ import jenkins.model.Jenkins;
 /**
  * Encapsulate {@link OSClient}.
  *
- * The is to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting.
+ * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting
  *
  * For server manipulation, this implementation provides metadata fingerprinting
  * to identify machines started via this plugin from given instance so it will not
  * manipulate servers it does not "own". In other words, pretends that there are no
- * other machines running in connected tenant.
+ * other machines running in connected tenant except for those started using this class.
  *
  * @author ogondza
  */
@@ -112,9 +112,9 @@ public class Openstack {
         return nets;
     }
 
-    public @Nonnull Collection<? extends Image> getSortedImages() {
+    public @Nonnull Collection<Image> getSortedImages() {
         List<? extends Image> images = client.images().listAll();
-        TreeSet set = new TreeSet(RESOURCE_COMPARATOR); // Eliminate duplicate names
+        TreeSet<Image> set = new TreeSet<>(RESOURCE_COMPARATOR); // Eliminate duplicate names
         set.addAll(images);
         return set;
     }
@@ -149,7 +149,7 @@ public class Openstack {
         List<Server> running = new ArrayList<>();
 
         // We need details to inspect state and metadata
-        boolean detailed = true;
+        final boolean detailed = true;
         for (Server n: client.compute().servers().list(detailed)) {
             if (isOccupied(n) && isOurs(n)) {
                 running.add(n);
