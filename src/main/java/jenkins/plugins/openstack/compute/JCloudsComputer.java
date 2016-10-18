@@ -59,7 +59,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
             if (is == newVal) return is;
 
             LOGGER.info("Setting " + getName() + " pending delete status to " + newVal);
-            setTemporarilyOffline(true, newVal ? PENDING_TERMINATION : null);
+            setTemporarilyOffline(newVal, newVal ? PENDING_TERMINATION : null);
             return is;
         }
     }
