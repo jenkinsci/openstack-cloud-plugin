@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.remoting.VirtualChannel;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.SlaveComputer;
 import hudson.slaves.OfflineCause.SimpleOfflineCause;
@@ -18,6 +19,7 @@ import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerResponse;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
@@ -35,12 +37,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     @Override
-    public JCloudsSlave getNode() {
+    public @CheckForNull JCloudsSlave getNode() {
         return super.getNode();
-    }
-
-    public int getRetentionTime() {
-        return getNode().getSlaveOptions().getRetentionTime();
     }
 
     @Override
@@ -61,7 +59,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
             if (is == newVal) return is;
 
             LOGGER.info("Setting " + getName() + " pending delete status to " + newVal);
-            setTemporarilyOffline(true, newVal ? PENDING_TERMINATION : null);
+            setTemporarilyOffline(newVal, newVal ? PENDING_TERMINATION : null);
             return is;
         }
     }
@@ -107,11 +105,12 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
             return;
         }
 
-        if (slave.getChannel() != null) {
-            slave.getChannel().close();
+        VirtualChannel channel = slave.getChannel();
+        if (channel != null) {
+            channel.close();
         }
         slave.terminate();
-        Jenkins.getInstance().removeNode(slave);
+        Jenkins.getActiveInstance().removeNode(slave);
         LOGGER.info("Deleted slave " + getName());
     }
 

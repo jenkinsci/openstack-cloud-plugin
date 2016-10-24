@@ -78,6 +78,13 @@ public final class PluginTestRule extends JenkinsRule {
 
     private final Map<String, Proc> slavesToKill = new HashMap<>();
 
+    public WebClient createWebClientAllowingFailures() {
+        WebClient wc = createWebClient();
+        wc.getOptions().setPrintContentOnFailingStatusCode(false);
+        wc.getOptions().setThrowExceptionOnFailingStatusCode(false);
+        return wc;
+    }
+
     public SlaveOptions dummySlaveOptions() {
         ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("dummyUserDataId", "Fake", "It is a fake", "Fake content"));
         SystemCredentialsProvider.getInstance().getCredentials().add(

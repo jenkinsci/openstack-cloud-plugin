@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
@@ -25,6 +26,7 @@ import java.util.logging.Logger;
  * Jenkins Slave node.
  */
 public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
+    private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
 
     private final @Nonnull String cloudName;
@@ -66,6 +68,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.
     // The configurations stored are expected to have at least one of them.
     @SuppressWarnings({"unused", "deprecation"})
+    @SuppressFBWarnings({"RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", "The fields are non-null after readResolve"})
     protected Object readResolve() {
         super.readResolve(); // Call parent
         if (options == null) {

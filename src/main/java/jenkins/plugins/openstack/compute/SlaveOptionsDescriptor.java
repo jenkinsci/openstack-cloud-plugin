@@ -92,7 +92,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     private SlaveOptions opts() {
-        return ((JCloudsCloud.DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
+        return ((JCloudsCloud.DescriptorImpl) Jenkins.getActiveInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
     }
 
     private String getDefault(String d1, Object d2) {
@@ -355,7 +355,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
 
     @Restricted(DoNotUse.class)
     public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-        if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getInstance()).hasPermission(Computer.CONFIGURE)) {
+        if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
             return new ListBoxModel();
         }
         List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
