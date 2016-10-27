@@ -3,9 +3,10 @@ package jenkins.plugins.openstack.compute;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
@@ -36,9 +37,11 @@ import hudson.model.Label;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.kohsuke.stapler.Stapler;
+import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -48,6 +51,13 @@ import java.util.concurrent.Callable;
 public class JCloudsCloudTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
+
+    @Test @Issue("JENKINS-39282") // The problem does not manifest in jenkins-test-harness - created as a regression test
+    public void guavaLeak() throws Exception {
+        NovaServer server = mock(NovaServer.class, CALLS_REAL_METHODS);
+        server.id = "424242";
+        assertThat(server.toString(), containsString("424242"));
+    }
 
     @Test
     public void failToTestConnection() {

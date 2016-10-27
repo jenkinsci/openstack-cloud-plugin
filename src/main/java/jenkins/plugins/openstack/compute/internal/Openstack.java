@@ -23,6 +23,8 @@
  */
 package jenkins.plugins.openstack.compute.internal;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,11 +42,13 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import com.google.common.base.Objects;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.Util;
+import hudson.remoting.Which;
 import hudson.util.FormValidation;
 import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
@@ -473,6 +477,18 @@ public class Openstack {
             if (credential == null) throw FormValidation.error("No credential specified");
 
             return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
+        }
+    }
+
+    static {
+        // Log where guava is coming from. This can not be reliably tested as jenkins-test-harness, hpi:run and actual
+        // jenkins deployed plugin have different classloader environments. Messing around with maven-hpi-plugin opts can
+        // fix or break any of that and there is no regression test to catch that.
+        try {
+            File path = Which.jarFile(Objects.ToStringHelper.class);
+            LOGGER.info("com.google.common.base.Objects loaded from " + path);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Unable to get source of com.google.common.base.Objects", e);
         }
     }
 }
