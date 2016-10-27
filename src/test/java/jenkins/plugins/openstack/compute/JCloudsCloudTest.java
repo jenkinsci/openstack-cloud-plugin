@@ -249,29 +249,38 @@ public class JCloudsCloudTest {
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {
-        return j.configureSlaveLaunching(new PluginTestRule.MockJCloudsCloud(template) {
-            @Override public ACL getACL() {
-                return new SidACL() {
-                    @Override protected Boolean hasPermission(Sid p, Permission permission) {
-                        return permission.equals(authorized);
-                    }
-                };
-            }
-        });
+        return j.configureSlaveLaunching(new AclControllingJCloudsCloud(template, authorized));
     }
 
     private static class DoProvision implements Callable<Object> {
-        private final JCloudsCloud jenkinsRead;
+        private final JCloudsCloud cloud;
         private final JCloudsSlaveTemplate template;
 
-        public DoProvision(JCloudsCloud jenkinsRead, JCloudsSlaveTemplate template) {
-            this.jenkinsRead = jenkinsRead;
+        public DoProvision(JCloudsCloud cloud, JCloudsSlaveTemplate template) {
+            this.cloud = cloud;
             this.template = template;
         }
 
         @Override public Object call() throws Exception {
-            jenkinsRead.doProvision(Stapler.getCurrentRequest(), Stapler.getCurrentResponse(), template.name);
+            cloud.doProvision(Stapler.getCurrentRequest(), Stapler.getCurrentResponse(), template.name);
             return null;
+        }
+    }
+
+    private static class AclControllingJCloudsCloud extends PluginTestRule.MockJCloudsCloud {
+        private final Permission authorized;
+
+        public AclControllingJCloudsCloud(JCloudsSlaveTemplate template, Permission authorized) {
+            super(template);
+            this.authorized = authorized;
+        }
+
+        @Override public ACL getACL() {
+            return new SidACL() {
+                @Override protected Boolean hasPermission(Sid p, Permission permission) {
+                    return permission.equals(authorized);
+                }
+            };
         }
     }
 }
