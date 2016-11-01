@@ -56,6 +56,11 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                             } catch (Throwable e) {
                                 // The fancy futures stuff ignores failures silently
                                 LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + c.getName(), e);
+
+                                // we are not supposed to try and recover from Errors
+                                if (e instanceof Error) {
+                                    throw (Error) e;
+                                }
                             }
                         }
                     });
