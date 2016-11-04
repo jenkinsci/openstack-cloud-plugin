@@ -170,7 +170,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         }
 
         @Override
-        public @Nonnull State dispose() throws Exception {
+        public @Nonnull State dispose() throws Throwable {
             try {
                 return inner.dispose();
             } catch (Throwable ex) {
