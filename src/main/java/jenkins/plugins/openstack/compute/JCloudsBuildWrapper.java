@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.Util;
@@ -61,7 +62,9 @@ public class JCloudsBuildWrapper extends BuildWrapper {
                 String cloudName = instance.cloudName;
                 String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
                 JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
-                Supplier<Server> nodeSupplier = new ServerSupplier(cloud, cloud.getTemplate(templateName));
+                JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
+                if (template == null) throw new IllegalArgumentException("No such template " + templateName);
+                Supplier<Server> nodeSupplier = new ServerSupplier(cloud, template);
                 return new NodePlan(cloudName, templateName, instance.count, nodeSupplier);
             }
         });

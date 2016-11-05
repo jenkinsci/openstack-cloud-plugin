@@ -23,8 +23,7 @@ public class JCloudsComputerTest {
         WebClient wc = j.createWebClient();
         assertThat(wc.getPage(slave).getTextContent(), not(containsString("Configure")));
 
-        wc.setThrowExceptionOnFailingStatusCode(false);
-        wc.setPrintContentOnFailingStatusCode(false);
+        wc = j.createWebClientAllowingFailures();
         assertEquals(404, wc.getPage(slave, "configure").getWebResponse().getStatusCode());
     }
 

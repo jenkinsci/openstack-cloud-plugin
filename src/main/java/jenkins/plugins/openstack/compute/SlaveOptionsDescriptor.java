@@ -28,12 +28,13 @@ import com.cloudbees.plugins.credentials.CredentialsNameProvider;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.trilead.ssh2.Connection;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
 import hudson.Util;
-import hudson.model.AutoCompletionCandidates;
 import hudson.model.Computer;
 import hudson.model.ItemGroup;
 import hudson.plugins.sshslaves.SSHLauncher;
@@ -41,6 +42,7 @@ import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import hudson.util.ReflectionUtils;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
@@ -54,12 +56,22 @@ import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.image.Image;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * @author ogondza.
@@ -80,7 +92,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     private SlaveOptions opts() {
-        return ((JCloudsCloud.DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
+        return ((JCloudsCloud.DescriptorImpl) Jenkins.getActiveInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
     }
 
     private String getDefault(String d1, Object d2) {
@@ -148,12 +160,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
@@ -191,12 +201,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillHardwareIdItems(
             @QueryParameter String hardwareId,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
 
         ListBoxModel m = new ListBoxModel();
@@ -235,12 +243,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillImageIdItems(
             @QueryParameter String imageId,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
 
         ListBoxModel m = new ListBoxModel();
@@ -283,12 +289,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillNetworkIdItems(
             @QueryParameter String networkId,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
 
         ListBoxModel m = new ListBoxModel();
@@ -351,7 +355,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
 
     @Restricted(DoNotUse.class)
     public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-        if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getInstance()).hasPermission(Computer.CONFIGURE)) {
+        if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
             return new ListBoxModel();
         }
         List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
@@ -441,12 +445,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
     public ListBoxModel doFillKeyPairNameItems(
             @QueryParameter String keyPairName,
-            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
-            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
-            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
-            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
 
         ListBoxModel m = new ListBoxModel();
@@ -517,4 +519,37 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     public @Nonnull String def(@CheckForNull Object val) {
         return val == null ? "" : ("Inherited value: " + val);
     }
+
+    /**
+     * Add dependencies on credentials
+     */
+    @Override
+    public void calcFillSettings(String field, Map<String, Object> attributes) {
+        super.calcFillSettings(field, attributes);
+
+        List<String> deps = new ArrayList<>();
+        String fillDependsOn = (String) attributes.get("fillDependsOn");
+        if (fillDependsOn != null) {
+            deps.addAll(Arrays.asList(fillDependsOn.split(" ")));
+        }
+
+        String capitalizedFieldName = StringUtils.capitalize(field);
+        String methodName = "doFill" + capitalizedFieldName + "Items";
+        Method method = ReflectionUtils.getPublicMethodNamed(getClass(), methodName);
+
+        // Replace direct reference to references to possible relative paths
+        if (method.getAnnotation(InjectOsAuth.class) != null) {
+            for (String attr: Arrays.asList("endPointUrl", "identity", "credential", "zone")) {
+                deps.remove(attr);
+                deps.add("../" + attr);
+                deps.add("../../" + attr);
+            }
+        }
+
+        attributes.put("fillDependsOn", Joiner.on(' ').join(deps));
+    }
+
+    @Retention(RUNTIME)
+    @Target({METHOD})
+    private @interface InjectOsAuth {}
 }

@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
 import hudson.slaves.ComputerLauncher;
@@ -51,7 +52,10 @@ public class JCloudsLauncher extends ComputerLauncher {
         throw new UnsupportedOperationException();
     }
 
-    // Since 2.1, tha launcher is injected in constructor but we need this as a fallback for the slaves that survived the upgrade.
+    @SuppressFBWarnings({
+            "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
+            "Since 2.1, tha launcher is injected in constructor but we need this as a fallback for the slaves that survived the upgrade."
+    })
     private ComputerLauncher launcher(SlaveComputer computer) throws IOException {
         if (launcher != null) return launcher;
         //return null;

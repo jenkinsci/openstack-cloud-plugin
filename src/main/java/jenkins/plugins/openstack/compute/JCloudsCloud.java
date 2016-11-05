@@ -24,7 +24,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
-import hudson.Functions;
+import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
@@ -33,6 +33,7 @@ import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -120,7 +121,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public static @Nonnull List<String> getCloudNames() {
         List<String> cloudNames = new ArrayList<>();
-        for (Cloud c : Jenkins.getInstance().clouds) {
+        for (Cloud c : Jenkins.getActiveInstance().clouds) {
             if (JCloudsCloud.class.isInstance(c)) {
                 cloudNames.add(c.name);
             }
@@ -130,7 +131,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     public static @Nonnull JCloudsCloud getByName(@Nonnull String name) throws IllegalArgumentException {
-        Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
+        Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
         if (cloud instanceof JCloudsCloud) return (JCloudsCloud) cloud;
         throw new IllegalArgumentException(name + " is not an OpenStack cloud: " + cloud);
     }
@@ -141,11 +142,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             final SlaveOptions slaveOptions,
             final List<JCloudsSlaveTemplate> templates
     ) {
-        super(Util.fixEmptyAndTrim(name));
-        this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-        this.identity = Util.fixEmptyAndTrim(identity);
+        super(Util.fixNull(name).trim());
+        this.endPointUrl = Util.fixNull(endPointUrl).trim();
+        this.identity = Util.fixNull(identity).trim();
         this.credential = Secret.fromString(credential);
-        this.zone = Util.fixEmptyAndTrim(zone);
+        this.zone = Util.fixNull(zone).trim();
 
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
@@ -261,7 +262,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
-        while (excessWorkload > 0 && !Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
+        while (excessWorkload > 0 && !Jenkins.getActiveInstance().isQuietingDown() && !Jenkins.getActiveInstance().isTerminating()) {
 
             final JCloudsSlaveTemplate template = templateProvider.poll();
             if (template == null) {
@@ -302,9 +303,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             try {
                 jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
             } catch (Openstack.ActionFailed ex) {
-                throw new ProvisioningFailedException(ex.toString(), ex);
+                throw new ProvisioningFailedException(ex.getMessage(), ex);
             }
-            Jenkins.getInstance().addNode(jcloudsSlave);
+            Jenkins.getActiveInstance().addNode(jcloudsSlave);
 
             /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
             without the connect operation, NodeProvisioner may decide that it still wants one more instance,
@@ -320,6 +321,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ProvisioningFailedException {
             JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
+            if (computer == null) throw new ProvisioningFailedException("Computer does not exist");
 
             Integer launchTimeout = opts.getStartTimeout();
             long startMoment = System.currentTimeMillis();
@@ -382,14 +384,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * @param req  {@link StaplerRequest}
      * @param rsp  {@link StaplerResponse}
      * @param name Name of the template to provision
-     * @throws ServletException
-     * @throws IOException
-     * @throws Descriptor.FormException
      */
-    @Restricted(DoNotUse.class)
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException,
-            Descriptor.FormException {
-        checkPermission(PROVISION);
+    @Restricted(NoExternalUse.class)
+    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException, Descriptor.FormException {
+        // Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
+        // Using Item.CONFIGURE as users authorized to do so can provision via job execution.
+        // Once the plugins starts to depend on core new enough, we can use Cloud.PROVISION again.
+        if (!hasPermission(Item.CONFIGURE) && !hasPermission(Cloud.PROVISION)) {
+            checkPermission(Cloud.PROVISION);
+        }
+
         if (name == null) {
             sendError("The slave template name query parameter is missing", req, rsp);
             return;
@@ -403,7 +407,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         List<Server> nodes = getOpenstack().getRunningNodes();
         final int global = nodes.size();
 
-        Integer globalCap = getEffectiveSlaveOptions().getInstanceCap();
+        int globalCap = getEffectiveSlaveOptions().getInstanceCap();
         if (global >= globalCap) {
             String msg = String.format("Instance cap of %s is now reached: %d", this.name, globalCap);
             sendError(msg, req, rsp);
@@ -441,7 +445,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             rsp.forward(this,"error",req);
             return;
         }
-        Jenkins.getInstance().addNode(node);
+        Jenkins.getActiveInstance().addNode(node);
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
 

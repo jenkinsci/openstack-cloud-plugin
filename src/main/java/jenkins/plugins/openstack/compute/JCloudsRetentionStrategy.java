@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Descriptor;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
@@ -48,10 +49,13 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
         if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
 
-        final int retentionTime = c.getRetentionTime();
-        if (c.getRetentionTime() < 0) return; // Keep forever
+        final JCloudsSlave node = c.getNode();
+        if (node == null) return; // Node is gone already
 
-        long idleSince = c.getIdleStartMilliseconds();
+        final int retentionTime = node.getSlaveOptions().getRetentionTime();
+        if (retentionTime < 0) return; // Keep forever
+
+        final long idleSince = c.getIdleStartMilliseconds();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
             LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
@@ -82,5 +86,6 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsRetentionStrategy.class.getName());
 
-    public static boolean disabled = Boolean.getBoolean(JCloudsRetentionStrategy.class.getName() + ".disabled");
+    @SuppressFBWarnings({"MS_SHOULD_BE_FINAL", "Left modifiable from groovy"})
+    /*package*/ static boolean disabled = Boolean.getBoolean(JCloudsRetentionStrategy.class.getName() + ".disabled");
 }

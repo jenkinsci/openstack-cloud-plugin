@@ -41,7 +41,7 @@ public class ProvisionPlannedInstancesAndDestroyAllOnError implements Function<I
                         index, nodePlan.getCount(), nodePlan.getCloudName(), nodePlan.getTemplateName()
                 );
 
-                ListenableFuture<Server> provisionTemplate = executor.submit(new RetrySupplierOnException(nodePlan.getNodeSupplier(), listener));
+                ListenableFuture<Server> provisionTemplate = executor.submit(new RetrySupplierOnFailure(nodePlan.getNodeSupplier(), listener));
 
                 Futures.addCallback(provisionTemplate, new FutureCallback<Server>() {
                     public void onSuccess(Server result) {

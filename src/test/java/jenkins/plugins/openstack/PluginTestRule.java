@@ -78,6 +78,13 @@ public final class PluginTestRule extends JenkinsRule {
 
     private final Map<String, Proc> slavesToKill = new HashMap<>();
 
+    public WebClient createWebClientAllowingFailures() {
+        WebClient wc = createWebClient();
+        wc.getOptions().setPrintContentOnFailingStatusCode(false);
+        wc.getOptions().setThrowExceptionOnFailingStatusCode(false);
+        return wc;
+    }
+
     public SlaveOptions dummySlaveOptions() {
         ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("dummyUserDataId", "Fake", "It is a fake", "Fake content"));
         SystemCredentialsProvider.getInstance().getCredentials().add(
@@ -262,13 +269,22 @@ public final class PluginTestRule extends JenkinsRule {
     public Openstack fakeOpenstackFactory(final Openstack os) {
         ExtensionList.lookup(Openstack.FactoryEP.class).add(new Openstack.FactoryEP() {
             @Override
-            protected @Nonnull Openstack getOpenstack(
+            public @Nonnull Openstack getOpenstack(
                     @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
             ) throws FormValidation {
                 return os;
             }
         });
         return os;
+    }
+
+    @SuppressWarnings("deprecation")
+    public Openstack.FactoryEP mockOpenstackFactory() {
+        Openstack.FactoryEP factory = mock(Openstack.FactoryEP.class);
+        ExtensionList<Openstack.FactoryEP> lookup = ExtensionList.lookup(Openstack.FactoryEP.class);
+        lookup.clear();
+        lookup.add(factory);
+        return factory;
     }
 
     public MockServerBuilder mockServer() {
@@ -370,7 +386,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    public static final class MockJCloudsCloud extends JCloudsCloud {
+    public static class MockJCloudsCloud extends JCloudsCloud {
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
                 .floatingIpPool("custom")
                 .fsRoot("/tmp/jenkins")
