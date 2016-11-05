@@ -12,6 +12,8 @@ import hudson.slaves.NodeProvisioner;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
 import jenkins.plugins.openstack.PluginTestRule;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestExtension;
@@ -70,22 +72,17 @@ public class JCloudsRetentionStrategyTest {
         )));
         Collection<NodeProvisioner.PlannedNode> slaves = cloud.provision(Label.get("label"), 1);
 
-        NodeProvisioner.PlannedNode node = slaves.iterator().next();
+        TrackedPlannedNode node = (TrackedPlannedNode) slaves.iterator().next();
         assertFalse(node.future.isDone());
+        JCloudsComputer computer = getNodeFor(node.getId());
 
-        // Wait for the future to create computer
-        while (j.jenkins.getComputer("provisioned0") == null) {
-            Thread.sleep(100);
-        }
-
-        JCloudsComputer computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
 
         computer.getRetentionStrategy().check(computer);
 
         // Still connecting after retention strategy run
-        computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
+        computer = getNodeFor(node.getId());
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
 
@@ -99,6 +96,21 @@ public class JCloudsRetentionStrategyTest {
 
         LaunchBlocker.unlock.signal();
     }
+
+    // Wait for the future to create computer
+    private JCloudsComputer getNodeFor(ProvisioningActivity.Id id) throws InterruptedException {
+        while (true) {
+            for (Computer c: j.jenkins.getComputers()) {
+                if (c instanceof JCloudsComputer) {
+                    if (((JCloudsComputer) c).getId().equals(id)) {
+                        return (JCloudsComputer) c;
+                    }
+                }
+            }
+            Thread.sleep(100);
+        }
+    }
+
     @TestExtension("doNotDeleteTheSlaveWhileLaunching")
     public static class LaunchBlocker extends ComputerListener {
         private static OneShotEvent unlock = new OneShotEvent();
