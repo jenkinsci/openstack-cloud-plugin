@@ -14,10 +14,12 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Charsets;
+import hudson.model.*;
 import hudson.remoting.Base64;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.configfiles.ConfigFiles;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -32,10 +34,6 @@ import com.google.common.base.Strings;
 import au.com.bytecode.opencsv.CSVReader;
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.Describable;
-import hudson.model.Descriptor;
-import hudson.model.Label;
-import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
@@ -279,12 +277,20 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {
-        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(getEffectiveSlaveOptions().getUserDataId());
 
-        return (userData == null || userData.content.isEmpty())
-                ? null
-                : userData.content
-        ;
+        Executor executor = Executor.currentExecutor();
+        if (executor != null) {
+            Queue.Executable currentExecutable = executor.getCurrentExecutable();
+            if (currentExecutable != null) {
+                Config userData = ConfigFiles.getByIdOrNull((Run<?, ?>) currentExecutable, getEffectiveSlaveOptions().getUserDataId());
+
+                return (userData == null || userData.content.isEmpty())
+                        ? null
+                        : userData.content
+                        ;
+            }
+        }
+        return null;
     }
 
     /*package for testing*/ List<? extends Server> getRunningNodes() {

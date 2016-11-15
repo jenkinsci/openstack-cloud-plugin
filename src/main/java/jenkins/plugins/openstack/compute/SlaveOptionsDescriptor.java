@@ -47,6 +47,7 @@ import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.configfiles.ConfigFiles;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -384,13 +385,13 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
-    public ListBoxModel doFillUserDataIdItems() {
+    public ListBoxModel doFillUserDataIdItems(@AncestorInPath ItemGroup context) {
 
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
 
-        ConfigProvider provider = getConfigProvider();
-        for (Config config : provider.getAllConfigs()) {
+        List<Config> configsInContext = ConfigFiles.getConfigsInContext(context, UserDataConfig.UserDataConfigProvider.class);
+        for (Config config : configsInContext) {
             m.add(config.name, config.id);
         }
 
@@ -399,23 +400,22 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
 
     @Restricted(DoNotUse.class)
     public FormValidation doCheckUserDataId(
+            @AncestorInPath ItemGroup context,
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("userDataId") String def
     ) {
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getUserDataId());
             if (d != null) {
-                d = getConfigProvider().getConfigById(d).name;
-                return FormValidation.ok(def(d));
+                Config config = ConfigFiles.getByIdOrNull(context, d);
+                if(config != null) {
+                    d = config.name;
+                    return FormValidation.ok(def(d));
+                }
             }
             return OK;
         }
         return OK;
-    }
-
-    private ConfigProvider getConfigProvider() {
-        ExtensionList<ConfigProvider> providers = ConfigProvider.all();
-        return providers.get(UserDataConfig.UserDataConfigProvider.class);
     }
 
     @Restricted(DoNotUse.class)
