@@ -278,12 +278,16 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     /*package for testing*/ @CheckForNull String getUserData() {
 
-        Config userData = ConfigFiles.getByIdOrNull(Jenkins.getActiveInstance(), getEffectiveSlaveOptions().getUserDataId());
+        String userDataId = Util.fixEmpty(getEffectiveSlaveOptions().getUserDataId());
+        if(userDataId != null) {
+            Config userData = ConfigFiles.getByIdOrNull(Jenkins.getActiveInstance(), userDataId);
 
-        return (userData == null || userData.content.isEmpty())
-                ? null
-                : userData.content
-                ;
+            return (userData == null || userData.content.isEmpty())
+                    ? null
+                    : userData.content
+                    ;
+        }
+        return null;
     }
 
     /*package for testing*/ List<? extends Server> getRunningNodes() {
