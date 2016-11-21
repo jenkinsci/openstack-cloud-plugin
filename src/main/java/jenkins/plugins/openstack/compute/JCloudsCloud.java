@@ -69,7 +69,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public final @Nonnull String endPointUrl;
     public final @Nonnull String identity;
     public final @Nonnull Secret credential;
-    public final String zone;
+    // OpenStack4j requires null when there is no zone configured
+    public final @CheckForNull String zone;
 
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
@@ -146,7 +147,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         this.endPointUrl = Util.fixNull(endPointUrl).trim();
         this.identity = Util.fixNull(identity).trim();
         this.credential = Secret.fromString(credential);
-        this.zone = Util.fixNull(zone).trim();
+        this.zone = Util.fixEmptyAndTrim(zone);
 
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 

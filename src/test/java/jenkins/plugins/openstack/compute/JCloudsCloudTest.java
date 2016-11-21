@@ -3,6 +3,7 @@ package jenkins.plugins.openstack.compute;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -200,6 +201,19 @@ public class JCloudsCloudTest {
         assertSame(j.getInstance().clouds.getByName("openstack"), actual);
         j.assertEqualBeans(original, actual, beans);
         assertEquals(original.getRawSlaveOptions(), JCloudsCloud.getByName("openstack").getRawSlaveOptions());
+    }
+
+    @Test
+    public void configRoundtripNullZone() throws Exception {
+        JCloudsCloud original = new JCloudsCloud(
+                "openstack", "identity", "credential", "endPointUrl", null,
+                j.dummySlaveOptions(),
+                Collections.<JCloudsSlaveTemplate>emptyList()
+        );
+        j.jenkins.clouds.add(original);
+
+        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+        assertNull(JCloudsCloud.getByName("openstack").zone);
     }
 
     @Test @LocalData
