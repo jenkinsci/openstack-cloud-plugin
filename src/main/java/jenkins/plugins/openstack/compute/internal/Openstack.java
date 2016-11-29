@@ -99,7 +99,7 @@ public class Openstack {
         String tenant = id.length > 0 ? id[0] : "";
         String username = id.length > 1 ? id[1] : "";
         String domain = id.length > 2 ? id[2] : "";
-        if (domain=="") {
+        if (domain.equals("")) {
             //If domain is empty it is assumed that is being used API V2
             client = OSFactory.builder().endpoint(endPointUrl)
                     .credentials(username, credential.getPlainText())
