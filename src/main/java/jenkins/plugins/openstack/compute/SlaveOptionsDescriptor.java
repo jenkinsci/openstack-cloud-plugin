@@ -194,11 +194,10 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     ) {
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getFloatingIpPool());
-            if (d != null) {
-                return FormValidation.ok(def(d));
-            }
-            return OK;
+            if (d != null) return FormValidation.ok(def(d));
+            // Not required
         }
+        return OK;
     }
 
     @Restricted(DoNotUse.class)
