@@ -38,6 +38,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -61,17 +62,26 @@ public class ProvisioningTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    @Test @SuppressWarnings("deprecation")
+    @Test
     public void manuallyProvisionAndKill() throws Exception {
+        CloudStatistics cs = CloudStatistics.get();
+        assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(0));
+
         JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
         assertTrue("Slave should be connected", computer.isOnline());
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
 
+        assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(1));
+        ProvisioningActivity activity = cs.getActivities().get(0);
+        assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+
         computer.doDoDelete();
+        //noinspection deprecation
         assertTrue("Slave is temporarily offline", computer.isTemporarilyOffline());
 
         j.triggerOpenstackSlaveCleanup();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
+        assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
     }
 
     @Test
