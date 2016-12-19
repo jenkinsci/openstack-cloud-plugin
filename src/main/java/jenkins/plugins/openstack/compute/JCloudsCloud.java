@@ -2,7 +2,10 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -109,15 +112,49 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
                 return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
             }
+
+            @Override
+            public boolean isReady(@Nonnull JCloudsSlave slave) {
+                // Wait until ssh is exposed not to timeout for too long in ssh-slaves launcher
+                try {
+                    Socket socket = new Socket();
+                    socket.connect(new InetSocketAddress(slave.getPublicAddress(), 22), 200);
+                    socket.close();
+                    return true;
+                } catch (IOException ex) {
+                    LOGGER.log(Level.FINE, "SSH port not open (yet)", ex);
+                    return false;
+                } catch (Exception ex) {
+                    LOGGER.log(Level.WARNING, "SSH probe failed", ex);
+                    // We have no idea what happen. Log the cause and proceed with the server so it fail fast.
+                    return true;
+                }
+            }
         },
         JNLP {
             @Override
             public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
                 return new JNLPLauncher();
             }
+
+            @Override
+            public boolean isReady(@Nonnull JCloudsSlave slave) {
+                // The address might not be visible at all so let's just wait for connection.
+                return true;
+            }
         };
 
+        /**
+         * Create launcher to be used to start the computer.
+         */
         public abstract ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException;
+
+        /**
+         * Detect the machine is provisioned and can be added to Jenkins for launching.
+         *
+         * This is guaranteed to be called after server is/was ACTIVE.
+         */
+        public abstract boolean isReady(@Nonnull JCloudsSlave slave);
     }
 
     public static @Nonnull List<String> getCloudNames() {
@@ -299,69 +336,35 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Override
         public Node call() throws Exception {
-            // TODO: record the output somewhere
             JCloudsSlave jcloudsSlave;
             try {
+                // TODO: record the output somewhere
                 jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
             } catch (Openstack.ActionFailed ex) {
                 throw new ProvisioningFailedException(ex.getMessage(), ex);
             }
-            Jenkins.getActiveInstance().addNode(jcloudsSlave);
 
-            /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
-            without the connect operation, NodeProvisioner may decide that it still wants one more instance,
-            because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
-            there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
-            successful prevents this problem.  */
-            // TODO: this seems to be a cause of constant problems, consider removing this. If the problem really
-            // TODO: exists, it should be fixed in core instead as several plugins must face this problem. Also,
-            // TODO: we do not use init script anymore.
-            ensureLaunched(jcloudsSlave, opts);
-            return jcloudsSlave;
-        }
-
-        private void ensureLaunched(JCloudsSlave jcloudsSlave, SlaveOptions opts) throws InterruptedException, ProvisioningFailedException {
-            JCloudsComputer computer = (JCloudsComputer) jcloudsSlave.toComputer();
-            if (computer == null) throw new ProvisioningFailedException("Computer does not exist");
-
-            Integer launchTimeout = opts.getStartTimeout();
+            int timeout = jcloudsSlave.getSlaveOptions().getStartTimeout();
             long startMoment = System.currentTimeMillis();
-
-            String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", computer.getName(), launchTimeout);
-            while (computer.isOffline()) {
-                LOGGER.fine(String.format("Waiting for slave %s to launch", jcloudsSlave.getDisplayName()));
-                Thread.sleep(2000);
-                Throwable lastError = null;
-                Future<?> connectionActivity = computer.connect(false);
-                try {
-                    connectionActivity.get(launchTimeout, TimeUnit.MILLISECONDS);
-                } catch (ExecutionException e) {
-                    lastError = e.getCause() == null ? e : e.getCause();
-                    LOGGER.log(Level.FINE, "Error while launching slave, retrying: " + computer.getName(), lastError);
-                    // Retry
-                } catch (TimeoutException e) {
-                    LOGGER.log(Level.WARNING, timeoutMessage, e);
-
-                    // Wait for the activity to be canceled before letting the slave to get deleted. Otherwise launcher can
-                    // still be using slave/computer pair while it is being deleted producing misleading exceptions.
-                    connectionActivity.cancel(true);
-                    try {
-                        connectionActivity.get(5, TimeUnit.SECONDS);
-                    } catch (Throwable ex) { }
-
-                    computer.setPendingDelete(true);
-                    throw new ProvisioningFailedException("Slave launch of " + computer.getName() + "timed out", e);
-                }
-
-                if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
+            String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", jcloudsSlave.getNodeName(), timeout);
+            while(!cloud.isSlaveReadyToLaunch(jcloudsSlave)) {
+                if ((System.currentTimeMillis() - startMoment) > timeout) {
                     LOGGER.warning(timeoutMessage);
-                    computer.setPendingDelete(true);
-                    throw new ProvisioningFailedException(timeoutMessage, lastError);
+                    jcloudsSlave.terminate();
+                    throw new ProvisioningFailedException(timeoutMessage);
                 }
+
+                Thread.sleep(2000);
             }
 
             LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
+            return jcloudsSlave;
         }
+    }
+
+    @Restricted(NoExternalUse.class)
+    public /*for mocking*/ boolean isSlaveReadyToLaunch(@Nonnull JCloudsSlave slave) {
+        return slave.getSlaveOptions().getSlaveType().isReady(slave);
     }
 
     @Override
