@@ -7,25 +7,24 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import hudson.ExtensionList;
-import hudson.model.Node;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
@@ -126,12 +125,34 @@ public final class PluginTestRule extends JenkinsRule {
         String java = System.getProperty("java.home") + "/bin/java";
         Proc proc = new LocalLauncher(listener).launch()
                 .cmds(java, "-jar", "-DstartedBy=" + getTestDescription(), jar.getAbsolutePath(), "-jnlpUrl", url)
-                .stderr(System.err)
-                .stdout(System.out)
+                .stderr(new DecoratingOutputStream(System.err, slaveName + " err: "))
+                .stdout(new DecoratingOutputStream(System.out, slaveName + " out: "))
                 .start()
         ;
         slavesToKill.put(slaveName, proc);
         return proc;
+    }
+
+    private static final class DecoratingOutputStream extends FilterOutputStream {
+
+        private final byte[] prefix;
+        private boolean newline = true;
+
+        public DecoratingOutputStream(OutputStream out, String prefix) {
+            super(out);
+            this.prefix = prefix.getBytes();
+        }
+
+        @Override public void write(int b) throws IOException {
+            if (newline) {
+                newline = false;
+                write(prefix);
+            }
+            super.write(b);
+            if (b == '\n') {
+                newline = true;
+            }
+        }
     }
 
     /**
@@ -248,8 +269,12 @@ public final class PluginTestRule extends JenkinsRule {
                 cl.onComplete(plannedNode, slave);
             }
             jenkins.addNode(slave);
-            slave.toComputer().waitUntilOnline();
-            return slave;
+            // Wait for node to be added fully - for computer to be created. This does not necessarily wait for it to be online
+            for (int i = 0; i < 10; i++) {
+                if (slave.toComputer() != null) return slave;
+                Thread.sleep(300);
+            }
+            throw new AssertionError("Computer not created in time");
         } catch (Throwable ex) {
             for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
                 cl.onFailure(plannedNode, ex);
@@ -357,7 +382,7 @@ public final class PluginTestRule extends JenkinsRule {
                     for (Map.Entry<String, Proc> slave: slavesToKill.entrySet()) {
                         Proc p = slave.getValue();
                         while (p.isAlive()) {
-                            System.err.println("Killing agent" + p + " for " + slave.getKey());
+                            System.err.println("Killing agent " + p + " for " + slave.getKey());
                             p.kill();
                         }
                     }

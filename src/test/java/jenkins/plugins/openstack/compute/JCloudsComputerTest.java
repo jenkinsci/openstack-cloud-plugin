@@ -30,6 +30,7 @@ public class JCloudsComputerTest {
     @Test
     public void pendingDelete() throws Exception {
         JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
+        computer.waitUntilOnline(); // Not really needed but can affect tests negatively
         assertFalse("New slave should be online", computer.isPendingDelete());
         computer.setPendingDelete(true);
         assertTrue("Computer should be pending delete", computer.isPendingDelete());
