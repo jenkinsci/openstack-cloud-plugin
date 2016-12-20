@@ -7,7 +7,7 @@
     </parent>
 
     <artifactId>openstack-cloud</artifactId>
-    <version>2.14-SNAPSHOT</version>
+    <version>2.15-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Openstack Cloud Plugin</name>
     <description>Allows Jenkins to build Openstack Slaves</description>

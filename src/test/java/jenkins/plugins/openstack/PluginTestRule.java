@@ -232,7 +232,7 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
-    public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException {
+    public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException, IOException {
         Collection<PlannedNode> slaves = cloud.provision(Label.get(label), 1);
         if (slaves.size() != 1) throw new AssertionError("One slave expected to be provisioned, was " + slaves.size());
 
@@ -247,6 +247,8 @@ public final class PluginTestRule extends JenkinsRule {
             for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
                 cl.onComplete(plannedNode, slave);
             }
+            jenkins.addNode(slave);
+            slave.toComputer().waitUntilOnline();
             return slave;
         } catch (Throwable ex) {
             for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
@@ -256,7 +258,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException {
+    public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException, IOException {
         JCloudsCloud cloud = createCloudLaunchingDummySlaves(labels);
         return provision(cloud, labels);
     }
@@ -412,6 +414,10 @@ public final class PluginTestRule extends JenkinsRule {
         @Override
         public Descriptor getDescriptor() {
             return new Descriptor();
+        }
+
+        @Override public boolean isSlaveReadyToLaunch(@Nonnull JCloudsSlave slave) {
+            return true;
         }
 
         public static final class Descriptor extends hudson.model.Descriptor<Cloud> {

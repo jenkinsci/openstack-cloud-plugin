@@ -65,17 +65,17 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void doNotDeleteTheSlaveWhileLaunching() throws Exception {
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate(
-                // no retention to make the slave disposable w.r.t retention time
-                // give up soon enough to speed the test up
-                j.dummySlaveOptions().getBuilder().retentionTime(0).startTimeout(3000).build(),
+                j.dummySlaveOptions().getBuilder().retentionTime(0) // disposable immediately
+                        .startTimeout(3000) // give up soon enough to speed the test up
+                        .build(),
                 "label"
         )));
         Collection<NodeProvisioner.PlannedNode> slaves = cloud.provision(Label.get("label"), 1);
 
-        TrackedPlannedNode node = (TrackedPlannedNode) slaves.iterator().next();
-        assertFalse(node.future.isDone());
-        JCloudsComputer computer = getNodeFor(node.getId());
+        JCloudsSlave node = (JCloudsSlave) slaves.iterator().next().future.get();
+        j.jenkins.addNode(node);
 
+        JCloudsComputer computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
 
@@ -85,14 +85,6 @@ public class JCloudsRetentionStrategyTest {
         computer = getNodeFor(node.getId());
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
-
-        try {
-            System.out.println("Waiting for timeout");
-            node.future.get();
-            fail("Expected to timeout");
-        } catch (ExecutionException ex) {
-            assertThat(ex.getCause(), instanceOf(JCloudsCloud.ProvisioningFailedException.class));
-        }
 
         LaunchBlocker.unlock.signal();
     }
@@ -121,7 +113,7 @@ public class JCloudsRetentionStrategyTest {
     }
 
     @Test
-    public void doNotDeleteSlavePutOfflineByUser() throws ExecutionException, InterruptedException {
+    public void doNotDeleteSlavePutOfflineByUser() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
                 // no retention to make the slave disposable w.r.t retention time
                 j.dummySlaveOptions().getBuilder().retentionTime(0).build(),

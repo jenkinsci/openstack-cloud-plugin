@@ -31,11 +31,9 @@ public class JCloudsComputerTest {
     public void pendingDelete() throws Exception {
         JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
         assertFalse("New slave should be online", computer.isPendingDelete());
-        boolean old = computer.setPendingDelete(true);
-        assertFalse("Computer should be pending delete", old);
+        computer.setPendingDelete(true);
         assertTrue("Computer should be pending delete", computer.isPendingDelete());
-        old = computer.setPendingDelete(false);
-        assertTrue("Computer should be pending delete", old);
+        computer.setPendingDelete(false);
         assertFalse("Computer should not be pending delete", computer.isPendingDelete());
     }
 }
