@@ -46,22 +46,15 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         return provisioningId;
     }
 
-    private final Object pendingDeleteLock = new Object();
-
     /**
      * Flag the slave to be collected asynchronously.
-     *
-     * @return Old value.
      */
-    public boolean setPendingDelete(boolean newVal) {
-        synchronized (pendingDeleteLock) {
-            boolean is = isPendingDelete();
-            if (is == newVal) return is;
+    public void setPendingDelete(boolean newVal) {
+        boolean is = isPendingDelete();
+        if (is == newVal) return;
 
-            LOGGER.info("Setting " + getName() + " pending delete status to " + newVal);
-            setTemporarilyOffline(newVal, newVal ? PENDING_TERMINATION : null);
-            return is;
-        }
+        LOGGER.info("Setting " + getName() + " pending delete status to " + newVal);
+        setTemporarilyOffline(newVal, newVal ? PENDING_TERMINATION : null);
     }
 
     /**
@@ -80,12 +73,10 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     @Override @Restricted(NoExternalUse.class)
     public HttpResponse doDoDelete() throws IOException {
-        boolean isAlready = setPendingDelete(true);
-        if (!isAlready) {
-            JCloudsSlave slave = getNode();
-            if (slave == null) {
-                super.doDoDelete();
-            }
+        setPendingDelete(true);
+        JCloudsSlave slave = getNode();
+        if (slave == null) {
+            super.doDoDelete();
         }
         return new HttpRedirect("..");
     }
