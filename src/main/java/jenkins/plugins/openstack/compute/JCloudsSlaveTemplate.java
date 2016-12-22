@@ -162,18 +162,37 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     /**
      * Provision and connect as a slave.
      *
+     * The node is to be added to Jenkins by the caller. At the time the method completes, the node is ready to be launched.
+     *
      * @throws Openstack.ActionFailed Provisioning failed.
      */
     public @Nonnull JCloudsSlave provisionSlave(
             @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id, @Nonnull TaskListener listener
-    ) throws IOException, Openstack.ActionFailed {
+    ) throws JCloudsCloud.ProvisioningFailedException, InterruptedException {
         Server nodeMetadata = provision(cloud);
         SlaveOptions opts = getEffectiveSlaveOptions();
 
         try {
-            return new JCloudsSlave(id, nodeMetadata, labelString, opts);
+            JCloudsSlave node = new JCloudsSlave(id, nodeMetadata, labelString, opts);
+
+            int timeout = node.getSlaveOptions().getStartTimeout();
+            long startMoment = System.currentTimeMillis();
+            String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", node.getNodeName(), timeout);
+            while (!cloud.isSlaveReadyToLaunch(node)) {
+                if ((System.currentTimeMillis() - startMoment) > timeout) {
+                    LOGGER.warning(timeoutMessage);
+                    node.terminate();
+                    throw new JCloudsCloud.ProvisioningFailedException(timeoutMessage);
+                }
+
+                Thread.sleep(2000);
+            }
+
+            return node;
         } catch (Descriptor.FormException e) {
-            throw new AssertionError("Invalid configuration " + e.getMessage());
+            throw new JCloudsCloud.ProvisioningFailedException("Invalid configuration " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new JCloudsCloud.ProvisioningFailedException("Unable to provision node", e);
         }
     }
 
