@@ -122,7 +122,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     socket.connect(new InetSocketAddress(slave.getPublicAddress(), 22), 200);
                     socket.close();
                     return true;
-                } catch (ConnectException ex) {
+                } catch (ConnectException|SocketTimeoutException ex) {
                     // Exactly what we are looking for
                     LOGGER.log(Level.FINEST, "SSH port not open (yet)", ex);
                     return false;
