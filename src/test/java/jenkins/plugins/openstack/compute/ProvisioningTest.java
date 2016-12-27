@@ -145,8 +145,7 @@ public class ProvisioningTest {
         assertEquals(1, restrictedTmplt.getRunningNodes().size());
         assertEquals(3, openTmplt.getRunningNodes().size());
 
-        open.getNodes().iterator().next().toComputer().doDoDelete();
-        j.triggerOpenstackSlaveCleanup();
+        cloud.getOpenstack().destroyServer(openTmplt.getRunningNodes().get(0));
         assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
 
         // Choose the available one when multiple options
