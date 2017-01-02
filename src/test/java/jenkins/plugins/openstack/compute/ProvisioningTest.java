@@ -62,9 +62,10 @@ public class ProvisioningTest {
 
     @Test @SuppressWarnings("deprecation")
     public void manuallyProvisionAndKill() throws Exception {
-        Computer computer = j.provisionDummySlave("label").toComputer();
+        JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
         assertTrue("Slave should be connected", computer.isOnline());
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
+        assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
 
         computer.doDoDelete();
         assertTrue("Slave is temporarily offline", computer.isTemporarilyOffline());
