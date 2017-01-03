@@ -71,6 +71,7 @@ public class ProvisioningTest {
         computer.waitUntilOnline();
         Thread.sleep(500); // Computer#WaitUntilOnline completes before listeners are called so cloud stats needs a bit of time to notice
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
+        assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
 
         assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(1));
         ProvisioningActivity activity = cs.getActivities().get(0);

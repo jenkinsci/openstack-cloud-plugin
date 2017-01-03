@@ -239,7 +239,7 @@ public class Openstack {
             throwIfFailed(server);
             return server;
         } catch (ResponseException ex) {
-            throw new ActionFailed("Boot failed", ex);
+            throw new ActionFailed(ex.getMessage(), ex);
         }
     }
 

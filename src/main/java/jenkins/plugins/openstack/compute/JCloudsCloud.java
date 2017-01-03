@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Socket;
@@ -121,8 +122,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     socket.connect(new InetSocketAddress(slave.getPublicAddress(), 22), 200);
                     socket.close();
                     return true;
+                } catch (ConnectException|SocketTimeoutException ex) {
+                    // Exactly what we are looking for
+                    LOGGER.log(Level.FINEST, "SSH port not open (yet)", ex);
+                    return false;
                 } catch (IOException ex) {
-                    LOGGER.log(Level.FINE, "SSH port not open (yet)", ex);
+                    // TODO: General IOException to be understood and handled explicitly
+                    LOGGER.log(Level.INFO, "SSH port not (yet) open?", ex);
                     return false;
                 } catch (Exception ex) {
                     LOGGER.log(Level.WARNING, "SSH probe failed", ex);
@@ -321,41 +327,21 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return plannedNodeList;
     }
 
-    private static class NodeCallable implements Callable<Node> {
+    private static final class NodeCallable implements Callable<Node> {
         private final JCloudsCloud cloud;
         private final JCloudsSlaveTemplate template;
         private final ProvisioningActivity.Id id;
-        private final SlaveOptions opts;
 
         public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template, ProvisioningActivity.Id id) {
             this.cloud = cloud;
             this.template = template;
             this.id = id;
-            this.opts = template.getEffectiveSlaveOptions();
         }
 
         @Override
         public Node call() throws Exception {
-            JCloudsSlave jcloudsSlave;
-            try {
-                // TODO: record the output somewhere
-                jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
-            } catch (Openstack.ActionFailed ex) {
-                throw new ProvisioningFailedException(ex.getMessage(), ex);
-            }
-
-            int timeout = jcloudsSlave.getSlaveOptions().getStartTimeout();
-            long startMoment = System.currentTimeMillis();
-            String timeoutMessage = String.format("Failed to connect to slave %s within timeout (%d ms).", jcloudsSlave.getNodeName(), timeout);
-            while(!cloud.isSlaveReadyToLaunch(jcloudsSlave)) {
-                if ((System.currentTimeMillis() - startMoment) > timeout) {
-                    LOGGER.warning(timeoutMessage);
-                    jcloudsSlave.terminate();
-                    throw new ProvisioningFailedException(timeoutMessage);
-                }
-
-                Thread.sleep(2000);
-            }
+            // TODO: record the output somewhere
+            JCloudsSlave jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
 
             LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
             return jcloudsSlave;
@@ -390,7 +376,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * @param name Name of the template to provision
      */
     @Restricted(NoExternalUse.class)
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws ServletException, IOException, Descriptor.FormException {
+    public void doProvision(
+            StaplerRequest req, StaplerResponse rsp, @QueryParameter String name
+    ) throws ServletException, IOException, Descriptor.FormException, InterruptedException {
+
         // Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
         // Using Item.CONFIGURE as users authorized to do so can provision via job execution.
         // Once the plugins starts to depend on core new enough, we can use Cloud.PROVISION again.
