@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.Util;

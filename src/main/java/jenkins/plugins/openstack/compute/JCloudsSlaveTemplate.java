@@ -207,7 +207,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      * @throws Openstack.ActionFailed In case the provisioning failed.
      * @see #provisionSlave(JCloudsCloud, ProvisioningActivity.Id, TaskListener)
      */
-    public @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
+    /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
         return provision(cloud, null);
     }
 
@@ -219,7 +219,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
         builder.addMetadataItem(OPENSTACK_CLOUD_NAME_KEY, cloud.name);
         if (Util.fixEmpty(scope) == null) {
-            scope = ServerScope.scope(ServerScope.SCOPE_NODE, serverName);
+            scope = new ServerScope.Node(serverName).getValue();
         }
         builder.addMetadataItem(ServerScope.METADATA_KEY, scope);
 

@@ -380,6 +380,6 @@ public class ProvisioningTest {
         assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
         assertEquals(cloud.name, m.get(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY));
         assertEquals(template.name, m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
-        assertEquals(ServerScope.scope(ServerScope.SCOPE_NODE, server.getName()), m.get(ServerScope.METADATA_KEY));
+        assertEquals(new ServerScope.Node(server.getName()).getName(), m.get(ServerScope.METADATA_KEY));
     }
 }
