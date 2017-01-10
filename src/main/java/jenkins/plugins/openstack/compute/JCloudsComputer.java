@@ -17,6 +17,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerResponse;
 
 import javax.annotation.CheckForNull;
@@ -74,11 +75,19 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     @Override @Restricted(NoExternalUse.class)
     public HttpResponse doDoDelete() throws IOException {
         setPendingDelete(true);
-        JCloudsSlave slave = getNode();
-        if (slave == null) {
-            super.doDoDelete();
+        try {
+            return super.doDoDelete();
+        } catch (IOException|RuntimeException ex) {
+            setPendingDelete(false);
+            return HttpResponses.error(500, ex);
         }
-        return new HttpRedirect("..");
+    }
+
+    @Restricted(NoExternalUse.class)
+    public HttpRedirect doScheduleTermination() {
+        checkPermission(DISCONNECT);
+        setPendingDelete(true);
+        return new HttpRedirect(".");
     }
 
     /**

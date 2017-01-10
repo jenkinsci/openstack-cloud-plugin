@@ -101,8 +101,6 @@ public class ProvisioningTest {
         Node node = j.buildAndAssertSuccess(p).getBuiltOn();
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
         node.toComputer().doDoDelete();
-        assertTrue(((JCloudsComputer) node.toComputer()).isPendingDelete());
-        j.triggerOpenstackSlaveCleanup();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer(node.getNodeName()));
 
         // Provision without label
@@ -380,6 +378,6 @@ public class ProvisioningTest {
         assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
         assertEquals(cloud.name, m.get(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY));
         assertEquals(template.name, m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
-        assertEquals(new ServerScope.Node(server.getName()).getName(), m.get(ServerScope.METADATA_KEY));
+        assertEquals(new ServerScope.Node(server.getName()).getValue(), m.get(ServerScope.METADATA_KEY));
     }
 }

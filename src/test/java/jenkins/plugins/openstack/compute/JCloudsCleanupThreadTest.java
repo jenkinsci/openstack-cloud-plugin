@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
-import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
@@ -19,12 +18,11 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.TestBuilder;
 import org.openstack4j.model.compute.Server;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * @author ogondza.
@@ -70,7 +68,7 @@ public class JCloudsCleanupThreadTest {
         Thread.sleep(500); // Wait for correct computer to be assigned - master until that
         assertEquals(build.getBuiltOn(), slave);
 
-        computer.doDoDelete(); // simulate deletion from UI
+        computer.doScheduleTermination();
         j.triggerOpenstackSlaveCleanup();
 
         assertTrue(build.isBuilding());
@@ -92,7 +90,7 @@ public class JCloudsCleanupThreadTest {
         JCloudsCloud cloud = j.dummyCloud();
         Server server = mock(Server.class);
         Openstack os = cloud.getOpenstack();
-        when(os.getRunningNodes()).thenReturn(Arrays.asList(server));
+        when(os.getRunningNodes()).thenReturn(Collections.singletonList(server));
 
         j.triggerOpenstackSlaveCleanup();
 
