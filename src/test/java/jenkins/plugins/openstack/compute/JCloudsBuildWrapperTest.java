@@ -85,7 +85,7 @@ public class JCloudsBuildWrapperTest {
         FreeStyleBuild build = j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
         j.assertLogContains("One or more instances failed to launch", build);
 
-        verify(os, times(6)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class)); // 5 retries on exception
+        verify(os, times(2)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
         verify(os, times(1)).updateInfo(any(Server.class));
         verify(os, times(1)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(1)).destroyServer(any(Server.class)); // Cleanup after the successful attempt
