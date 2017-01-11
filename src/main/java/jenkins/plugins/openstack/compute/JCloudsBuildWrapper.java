@@ -57,6 +57,8 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     public Environment setUp(final AbstractBuild build, Launcher launcher, final BuildListener listener) {
         // TODO check quota here to abort the task if we do not have enough resources
 
+        final ServerScope.Build scope = new ServerScope.Build(build);
+
         // eagerly lookup node supplier so that errors occur before we attempt to provision things
         Iterable<NodePlan> nodePlans = Iterables.transform(instancesToRun, new Function<InstancesToRun, NodePlan>() {
 
@@ -66,7 +68,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
                 String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
                 JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
                 if (template == null) throw new IllegalArgumentException("No such template " + templateName);
-                return new NodePlan(cloud, template, instance.count);
+                return new NodePlan(cloud, template, instance.count, scope);
             }
         });
 
@@ -187,11 +189,13 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         private final JCloudsCloud cloud;
         private final JCloudsSlaveTemplate template;
         private final int count;
+        private final ServerScope.Build scope;
 
-        NodePlan(JCloudsCloud cloud, JCloudsSlaveTemplate template, int count) {
+        NodePlan(JCloudsCloud cloud, JCloudsSlaveTemplate template, int count, ServerScope.Build scope) {
             this.cloud = cloud;
             this.template = template;
             this.count = count;
+            this.scope = scope;
         }
 
         public String getCloud() {
@@ -215,7 +219,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
 
                 @Override
                 public Server call() throws Exception {
-                    return template.provision(cloud);
+                    return template.provision(cloud, scope);
                 }
             };
         }

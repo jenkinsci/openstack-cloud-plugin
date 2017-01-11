@@ -211,17 +211,17 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return provision(cloud, null);
     }
 
-    /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud, @CheckForNull String scope) throws Openstack.ActionFailed {
+    /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud, @CheckForNull ServerScope scope) throws Openstack.ActionFailed {
         final String serverName = name + "-" + new Random().nextInt(10000);
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
 
         builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
         builder.addMetadataItem(OPENSTACK_CLOUD_NAME_KEY, cloud.name);
-        if (Util.fixEmpty(scope) == null) {
-            scope = new ServerScope.Node(serverName).getValue();
+        if (scope == null) {
+            scope = new ServerScope.Node(serverName);
         }
-        builder.addMetadataItem(ServerScope.METADATA_KEY, scope);
+        builder.addMetadataItem(ServerScope.METADATA_KEY, scope.getValue());
 
         LOGGER.info("Provisioning new openstack server " + serverName + " with options " + opts);
         // Ensure predictable server name so we can inject it into user data

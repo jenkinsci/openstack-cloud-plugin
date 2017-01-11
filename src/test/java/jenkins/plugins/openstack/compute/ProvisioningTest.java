@@ -67,7 +67,9 @@ public class ProvisioningTest {
         CloudStatistics cs = CloudStatistics.get();
         assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(0));
 
-        JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
+        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
         computer.waitUntilOnline();
         Thread.sleep(500); // Computer#WaitUntilOnline completes before listeners are called so cloud stats needs a bit of time to notice
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
@@ -77,6 +79,9 @@ public class ProvisioningTest {
         ProvisioningActivity activity = cs.getActivities().get(0);
 
         assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+
+        Server server = cloud.getOpenstack().getServerById(computer.getNode().getServerId());
+        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         computer.doDoDelete();
         //noinspection deprecation
@@ -100,6 +105,10 @@ public class ProvisioningTest {
         p.setAssignedLabel(Label.get("label"));
         Node node = j.buildAndAssertSuccess(p).getBuiltOn();
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
+
+        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) node).getServerId());
+        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+
         node.toComputer().doDoDelete();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer(node.getNodeName()));
 
@@ -296,6 +305,9 @@ public class ProvisioningTest {
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
         String slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
+
+        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) j.jenkins.getNode(slaveName)).getServerId());
+        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
