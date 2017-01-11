@@ -66,7 +66,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
             try {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 Jenkins.XSTREAM2.toXMLUTF8(node, out);
-                LOGGER.fine(out.toString());
+                LOGGER.fine(out.toString("UTF-8"));
             } catch (IOException e) {
                 LOGGER.log(Level.WARNING,"Failed to dump node config", e);
             }
