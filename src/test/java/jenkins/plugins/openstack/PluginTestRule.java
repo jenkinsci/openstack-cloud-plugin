@@ -30,10 +30,13 @@ import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
 import hudson.util.FormValidation;
+import jenkins.model.GlobalConfiguration;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.configfiles.GlobalConfigFiles;
+import org.jenkinsci.plugins.configfiles.custom.CustomConfig;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -85,8 +88,17 @@ public final class PluginTestRule extends JenkinsRule {
         return wc;
     }
 
+    private void createConfig() {
+        Config config = new UserDataConfig("dummyUserDataId", "Fake", "It is a fake", "Fake content");
+
+        GlobalConfigFiles globalConfigFiles = jenkins.getExtensionList(GlobalConfigFiles.class).get(GlobalConfigFiles.class);
+        globalConfigFiles.save(config);
+    }
+
+
     public SlaveOptions dummySlaveOptions() {
-        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("dummyUserDataId", "Fake", "It is a fake", "Fake content"));
+        createConfig();
+
         SystemCredentialsProvider.getInstance().getCredentials().add(
                 new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "dummyCredentialId", "john", null, null, "Description")
         );
