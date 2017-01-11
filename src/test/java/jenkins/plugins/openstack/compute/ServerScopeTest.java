@@ -33,9 +33,9 @@ public class ServerScopeTest {
         assertEquals("run:asdf:4", run.getValue());
         assertEquals(run, ServerScope.parse(run.getValue()));
 
-        ServerScope.Time time = (ServerScope.Time) ServerScope.parse("time:2017-01-11T14:09:25.687+0100");
+        ServerScope.Time time = (ServerScope.Time) ServerScope.parse("time:2017-01-11 14:09:25");
         ServerScope.Time time2 = (ServerScope.Time) ServerScope.parse(time.getValue());
-        assertEquals("time:2017-01-11T14:09:25.687+0100", time.getValue());
+        assertEquals("time:2017-01-11 14:09:25", time.getValue());
         assertEquals(time, time2);
     }
 

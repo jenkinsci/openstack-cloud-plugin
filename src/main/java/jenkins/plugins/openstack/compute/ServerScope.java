@@ -184,7 +184,7 @@ public abstract class ServerScope {
     }
 
     public static final class Time extends ServerScope {
-        private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+        private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         // Track the time using master clock so we do not have to sync with openstack time difference
         private final long aliveUntil;
@@ -215,10 +215,6 @@ public abstract class ServerScope {
         @Override
         public String getValue() {
             return name + ":" + FORMAT.format(new Date(aliveUntil));
-        }
-
-        public long getAliveUntil() {
-            return aliveUntil;
         }
 
         @Override
