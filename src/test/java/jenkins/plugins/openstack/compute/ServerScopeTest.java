@@ -34,7 +34,8 @@ public class ServerScopeTest {
         assertEquals(run, ServerScope.parse(run.getValue()));
 
         ServerScope.Time time = (ServerScope.Time) ServerScope.parse("time:2017-01-11T14:09:25.687+0100");
-        assertEquals(time, ServerScope.parse(time.getValue()));
+        ServerScope.Time time2 = (ServerScope.Time) ServerScope.parse(time.getValue());
+        assertEquals(time.getAliveUntil() + " != " + time2.getAliveUntil(), time, time2);
     }
 
     @Test

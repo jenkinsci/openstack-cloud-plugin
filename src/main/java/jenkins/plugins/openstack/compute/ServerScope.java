@@ -217,6 +217,10 @@ public abstract class ServerScope {
             return name + ":" + FORMAT.format(new Date(aliveUntil));
         }
 
+        public long getAliveUntil() {
+            return aliveUntil;
+        }
+
         @Override
         protected boolean _equals(ServerScope o) {
             Time that = (Time) o;
