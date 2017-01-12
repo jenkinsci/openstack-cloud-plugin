@@ -184,7 +184,6 @@ public abstract class ServerScope {
     }
 
     public static final class Time extends ServerScope {
-        private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         // Track the time using master clock so we do not have to sync with openstack time difference
         private final long aliveUntil;
@@ -194,14 +193,19 @@ public abstract class ServerScope {
         }
 
         private Time(long millis) {
-            super("time", FORMAT.format(new Date(millis)));
+            super("time", format().format(new Date(millis)));
             aliveUntil = millis;
+        }
+
+        // The instance is not type safe so create a new one every time
+        private static SimpleDateFormat format() {
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         }
 
         public Time(String specifier) {
             super("time", specifier);
             try {
-                aliveUntil = FORMAT.parse(specifier).getTime();
+                aliveUntil = format().parse(specifier).getTime();
             } catch (ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -214,7 +218,7 @@ public abstract class ServerScope {
 
         @Override
         public String getValue() {
-            return name + ":" + FORMAT.format(new Date(aliveUntil));
+            return name + ":" + format().format(new Date(aliveUntil));
         }
 
         @Override
