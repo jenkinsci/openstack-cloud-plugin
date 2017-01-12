@@ -133,7 +133,7 @@ public abstract class ServerScope {
         @Override
         public boolean isOutOfScope() {
             // TODO it might not exist yet
-            return Jenkins.getInstance().getNode(specifier) == null;
+            return Jenkins.getActiveInstance().getNode(specifier) == null;
         }
     }
 
@@ -168,7 +168,7 @@ public abstract class ServerScope {
 
         @Override
         public boolean isOutOfScope() {
-            Job job = Jenkins.getInstance().getItemByFullName(project, Job.class);
+            Job job = Jenkins.getActiveInstance().getItemByFullName(project, Job.class);
             if (job == null) return true; // Presuming it was deleted/renamed, either way the build do not need the server anymore
             hudson.model.Run run = job.getBuildByNumber(this.run);
             if (run == null) return true; // Presuming it was deleted already

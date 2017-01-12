@@ -86,7 +86,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     private HashMap<String, List<Server>> destroyServersOutOfScope() {
         HashMap<String, List<Server>> runningServers = new HashMap<>();
-        for (Cloud cloud : Jenkins.getInstance().clouds) {
+        for (Cloud cloud : Jenkins.getActiveInstance().clouds) {
             if (cloud instanceof JCloudsCloud) {
                 JCloudsCloud jc = (JCloudsCloud) cloud;
                 runningServers.put(jc.name, new ArrayList<Server>());
