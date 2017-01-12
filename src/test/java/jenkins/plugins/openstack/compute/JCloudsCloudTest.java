@@ -11,7 +11,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.gargoylesoftware.htmlunit.ConfirmHandler;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
+import com.gargoylesoftware.htmlunit.Page;
+import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
 import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
@@ -25,6 +28,7 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.acegisecurity.AccessDeniedException;
 import org.acegisecurity.acls.sid.Sid;
 import org.apache.commons.io.IOUtils;
+import org.apache.tools.ant.taskdefs.Javadoc;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,6 +51,7 @@ import org.openstack4j.openstack.compute.domain.NovaServer;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 public class JCloudsCloudTest {
@@ -240,6 +245,7 @@ public class JCloudsCloudTest {
         assertEquals(JCloudsCloud.SlaveType.SSH, to.getSlaveType());
         assertEquals("default", to.getSecurityGroups());
         assertEquals("zone", to.getAvailabilityZone());
+        assertEquals("jenkins.plugins.openstack.compute.UserDataConfig.1455188317989", to.getUserDataId());
 
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-userData"), template.getUserData());
 
@@ -247,7 +253,36 @@ public class JCloudsCloudTest {
         assertEquals("jenkins", creds.getUsername());
         assertEquals(fileAsString("globalConfigMigrationFromV1/expected-private-key"), creds.getPrivateKey());
 
-        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+        JenkinsRule.WebClient wc = j.createWebClient();
+        // Submit works
+        j.submit(wc.goTo("configure").getFormByName("config"));
+
+        // config files UI works
+        HtmlPage configfiles = wc.goTo("configfiles");
+        HtmlPage edit = clickAction(configfiles, "edit");
+        //j.interactiveBreak();
+        j.submit(edit.getForms().get(1));
+
+        wc.setConfirmHandler(new ConfirmHandler() {
+            @Override public boolean handleConfirm(Page page, String s) {
+                return true;
+            }
+        });
+        clickAction(configfiles, "remove");
+
+        assertEquals(null, template.getUserData());
+
+        configfiles = wc.goTo("configfiles");
+        HtmlPage newOne = configfiles.getAnchorByText("Add a new Config").click();
+        HtmlForm form = newOne.getFormByName("addConfig");
+        form.getOneHtmlElementByAttribute("input", "value", "jenkins.plugins.openstack.compute.UserDataConfig").click();
+        HtmlPage newForm = j.submit(form);
+        j.submit(newForm.getForms().get(1));
+    }
+
+    private HtmlPage clickAction(HtmlPage configfiles, String action) throws IOException {
+        List<HtmlElement> edits = configfiles.getBody().getElementsByAttribute("img", "title", action + " script cloudInit");
+        return edits.iterator().next().getEnclosingElement("a").click();
     }
 
     private String fileAsString(String filename) throws IOException {
