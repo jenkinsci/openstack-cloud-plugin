@@ -39,13 +39,13 @@ public class UserDataConfig extends Config {
         }
 
         @NonNull
-        @Override
+        // @Override c-f-p 2.15+
         public UserDataConfig newConfig(@NonNull String id) {
             return new UserDataConfig(id, "UserData", "", "");
         }
 
         // used for migration only
-        @Override
+        // @Override c-f-p 2.15+
         public UserDataConfig convert(Config config) {
             return new UserDataConfig(config.id, config.name, config.comment, config.content);
         }

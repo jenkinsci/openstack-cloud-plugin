@@ -274,7 +274,7 @@ public class JCloudsCloudTest {
 
         configfiles = wc.goTo("configfiles");
         HtmlPage newOne = configfiles.getAnchorByText("Add a new Config").click();
-        HtmlForm form = newOne.getFormByName("addConfig");
+        HtmlForm form = newOne.getForms().get(1);
         form.getOneHtmlElementByAttribute("input", "value", "jenkins.plugins.openstack.compute.UserDataConfig").click();
         HtmlPage newForm = j.submit(form);
         j.submit(newForm.getForms().get(1));
