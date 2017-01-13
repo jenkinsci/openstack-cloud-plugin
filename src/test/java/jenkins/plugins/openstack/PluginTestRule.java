@@ -33,6 +33,7 @@ import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -160,6 +161,14 @@ public final class PluginTestRule extends JenkinsRule {
      */
     public void triggerOpenstackSlaveCleanup() {
         jenkins.getExtensionList(AsyncPeriodicWork.class).get(JCloudsCleanupThread.class).execute(TaskListener.NULL);
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        while (disposer.isActivated()) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
     }
 
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {

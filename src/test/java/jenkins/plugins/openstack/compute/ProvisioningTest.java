@@ -71,14 +71,18 @@ public class ProvisioningTest {
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
         computer.waitUntilOnline();
-        Thread.sleep(500); // Computer#WaitUntilOnline completes before listeners are called so cloud stats needs a bit of time to notice
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
         assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
 
         assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(1));
         ProvisioningActivity activity = cs.getActivities().get(0);
 
-        assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+        try {
+            assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+        } catch (AssertionError e) {
+            Thread.sleep(1000); // Computer#WaitUntilOnline completes before listeners are called so cloud stats needs a bit of time to notice
+            assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+        }
 
         Server server = cloud.getOpenstack().getServerById(computer.getNode().getServerId());
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
