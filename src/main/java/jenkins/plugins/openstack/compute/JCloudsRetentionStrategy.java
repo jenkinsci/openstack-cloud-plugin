@@ -6,10 +6,14 @@ import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
@@ -59,6 +63,13 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
             LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
+            try {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                Jenkins.XSTREAM2.toXMLUTF8(node, out);
+                LOGGER.fine(out.toString("UTF-8"));
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING,"Failed to dump node config", e);
+            }
             c.setPendingDelete(true);
         }
     }
