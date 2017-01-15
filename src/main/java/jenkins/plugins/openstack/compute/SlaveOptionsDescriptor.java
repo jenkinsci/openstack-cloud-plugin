@@ -389,7 +389,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
 
-        UserDataConfig.UserDataConfigProvider provider = getConfigProvider();
+        ConfigProvider provider = getConfigProvider();
         for (Config config : provider.getAllConfigs()) {
             m.add(config.name, config.id);
         }
@@ -413,7 +413,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         return OK;
     }
 
-    private UserDataConfig.UserDataConfigProvider getConfigProvider() {
+    private ConfigProvider getConfigProvider() {
         ExtensionList<ConfigProvider> providers = ConfigProvider.all();
         return providers.get(UserDataConfig.UserDataConfigProvider.class);
     }
