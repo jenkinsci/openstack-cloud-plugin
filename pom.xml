@@ -46,6 +46,12 @@
             <artifactId>openstack4j-httpclient</artifactId>
             <version>${openstack4j.version}</version>
         </dependency>
+        <!-- http://stackoverflow.com/a/29642453/2091470 -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.2</version>
+        </dependency>
 
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
