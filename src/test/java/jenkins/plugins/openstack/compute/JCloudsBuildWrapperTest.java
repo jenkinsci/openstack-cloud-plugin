@@ -5,10 +5,14 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -22,7 +26,9 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.arrayWithSize;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.collection.IsArrayContainingInAnyOrder.arrayContainingInAnyOrder;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.*;
 
@@ -35,9 +41,9 @@ public class JCloudsBuildWrapperTest {
     public void provisionSeveral() throws Exception {
         final JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
         JCloudsSlaveTemplate template = cloud.getTemplates().get(0);
-        Openstack os = cloud.getOpenstack();
+        final Openstack os = cloud.getOpenstack();
 
-        FreeStyleProject p = j.createFreeStyleProject();
+        final FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Arrays.asList(
                 new InstancesToRun(cloud.name, template.name, null, 2),
                 new InstancesToRun(cloud.name, template.name, null, 1)
@@ -49,6 +55,12 @@ public class JCloudsBuildWrapperTest {
                 String[] ips = build.getEnvironment(TaskListener.NULL).get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
                 assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));
+
+                List<Server> runningNodes = os.getRunningNodes();
+                assertThat(runningNodes, Matchers.<Server>iterableWithSize(3));
+                for (Server server : runningNodes) {
+                    assertEquals("run:" + p.getFullName() + ":1", server.getMetadata().get(ServerScope.METADATA_KEY));
+                }
                 return true;
             }
         });
@@ -59,7 +71,6 @@ public class JCloudsBuildWrapperTest {
         verify(os, times(3)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(3)).updateInfo(any(Server.class));
         verify(os, times(3)).destroyServer(any(Server.class));
-        verifyNoMoreInteractions(os);
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
@@ -86,16 +97,9 @@ public class JCloudsBuildWrapperTest {
         FreeStyleBuild build = j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
         j.assertLogContains("One or more instances failed to launch", build);
 
-        verify(os, times(6)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class)); // 5 retries on exception
+        verify(os, times(2)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
         verify(os, times(1)).updateInfo(any(Server.class));
         verify(os, times(1)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(1)).destroyServer(any(Server.class)); // Cleanup after the successful attempt
-        verifyNoMoreInteractions(os);
-    }
-
-    @Test
-    public void checkUi() throws Exception {
-        FreeStyleProject p = j.createFreeStyleProject();
-        j.createWebClient().getPage(p, "configure");
     }
 }

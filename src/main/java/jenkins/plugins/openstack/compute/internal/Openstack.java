@@ -55,6 +55,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
+import org.openstack4j.api.compute.ServerService;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.BasicResource;
 import org.openstack4j.model.compute.ActionResponse;
@@ -88,7 +89,7 @@ import jenkins.model.Jenkins;
 public class Openstack {
 
     private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
-    private static final String FINGERPRINT_KEY = "jenkins-instance";
+    public static final String FINGERPRINT_KEY = "jenkins-instance";
 
     private final OSClient client;
 
@@ -256,61 +257,42 @@ public class Openstack {
     }
 
     /**
-     * Destroy the server.
+     * Delete server eagerly.
      *
-     * @throws ActionFailed Openstack was not able to destroy the server.
+     * The deletion tends to fail a couple of time before it succeeds. This method throws on any such failure. Use
+     * {@link DestroyMachine} to destroy the server reliably.
      */
     public void destroyServer(@Nonnull Server server) throws ActionFailed {
-        debug("Destroying machine " + server.getName());
+        ComputeFloatingIPService fipsService = client.compute().floatingIps();
+        ServerService servers = client.compute().servers();
+        String nodeId = server.getId();
 
-        final ComputeFloatingIPService fipsService = client.compute().floatingIps();
-        final List<String> fips = new ArrayList<>();
         for (FloatingIP ip: fipsService.list()) {
-            if (server.getId().equals(ip.getInstanceId())) {
-                fips.add(ip.getId());
+            if (nodeId.equals(ip.getInstanceId())) {
+                ActionResponse res = fipsService.deallocateIP(ip.getId());
+                if (res.isSuccess()) {
+                    debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
+                } else {
+                    throw new ActionFailed(
+                            "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault()
+                    );
+                }
             }
         }
 
-        // Retry deletion a couple of times: https://github.com/jenkinsci/openstack-cloud-plugin/issues/55
-        // 6 iteration with 1s sleep seems to be minimum for some deployments
-        Server deleted = null;
-        for (int i = 0; i < 10; i++) {
-
-            // Not checking fingerprint here presuming all Servers provided by this implementation are ours.
-            deleted = client.compute().servers().get(server.getId());
-            if (deleted == null || deleted.getStatus() == Server.Status.DELETED) { // Deleted
-                deleted = null;
-                break;
-            }
-
-            ActionResponse res = client.compute().servers().delete(server.getId());
-            if (res.getCode() == 404) { // Deleted
-                deleted = null;
-                break;
-            }
-            throwIfFailed(res);
-
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                break;
-            }
-
-            debug("Machine deletion retry " + i + ": " + deleted);
+        server = servers.get(nodeId);
+        if (server == null || server.getStatus() == Server.Status.DELETED) {
+            debug("Machine destroyed: " + nodeId);
+            return; // Deleted
         }
 
-        for (String ip: fips) {
-            ActionResponse res = fipsService.deallocateIP(ip);
-            if (logIfFailed(res)) {
-                debug("Floating IP deallocated: " + ip);
-            }
+        ActionResponse res = servers.delete(nodeId);
+        if (res.getCode() == 404) {
+            debug("Machine destroyed: " + nodeId);
+            return; // Deleted
         }
 
-        if (deleted == null) {
-            debug("Machine destroyed: " + server.getName());
-        } else {
-            throw new ActionFailed(String.format("Server deletion attempt failed:%n%s", deleted));
-        }
+        throwIfFailed(res);
     }
 
     /**
@@ -374,13 +356,13 @@ public class Openstack {
     /**
      * @return true if succeeded.
      */
-    private boolean logIfFailed(@Nonnull ActionResponse res) {
+    private static boolean logIfFailed(@Nonnull ActionResponse res) {
         if (res.isSuccess()) return true;
         LOGGER.log(Level.INFO, res.toString());
         return false;
     }
 
-    private void throwIfFailed(@Nonnull ActionResponse res) {
+    private static void throwIfFailed(@Nonnull ActionResponse res) {
         if (res.isSuccess()) return;
         throw new ActionFailed(res.toString());
     }
@@ -409,6 +391,7 @@ public class Openstack {
         // Destroy the server
         ActionFailed ex = new ActionFailed(sb.toString());
         try {
+            // TODO async disposer
             destroyServer(server);
         } catch (ActionFailed suppressed) {
             ex.addSuppressed(suppressed);

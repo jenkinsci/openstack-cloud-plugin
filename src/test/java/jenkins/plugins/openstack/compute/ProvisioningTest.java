@@ -30,6 +30,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -37,6 +38,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -60,18 +62,38 @@ public class ProvisioningTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    @Test @SuppressWarnings("deprecation")
+    @Test
     public void manuallyProvisionAndKill() throws Exception {
-        JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
-        assertTrue("Slave should be connected", computer.isOnline());
+        CloudStatistics cs = CloudStatistics.get();
+        assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(0));
+
+        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.waitUntilOnline();
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
         assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
 
+        assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(1));
+        ProvisioningActivity activity = cs.getActivities().get(0);
+
+        try {
+            assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+        } catch (AssertionError e) {
+            Thread.sleep(1000); // Computer#WaitUntilOnline completes before listeners are called so cloud stats needs a bit of time to notice
+            assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+        }
+
+        Server server = cloud.getOpenstack().getServerById(computer.getNode().getServerId());
+        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+
         computer.doDoDelete();
+        //noinspection deprecation
         assertTrue("Slave is temporarily offline", computer.isTemporarilyOffline());
 
         j.triggerOpenstackSlaveCleanup();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
+        assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
     }
 
     @Test
@@ -87,9 +109,11 @@ public class ProvisioningTest {
         p.setAssignedLabel(Label.get("label"));
         Node node = j.buildAndAssertSuccess(p).getBuiltOn();
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
+
+        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) node).getServerId());
+        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+
         node.toComputer().doDoDelete();
-        assertTrue(((JCloudsComputer) node.toComputer()).isPendingDelete());
-        j.triggerOpenstackSlaveCleanup();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer(node.getNodeName()));
 
         // Provision without label
@@ -286,6 +310,9 @@ public class ProvisioningTest {
         String slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
+        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) j.jenkins.getNode(slaveName)).getServerId());
+        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+
         assertThat(
                 wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
                 containsString("Instance cap for this template (openstack/template0) is now reached: 1")
@@ -354,5 +381,19 @@ public class ProvisioningTest {
         }
 
         verify(os).destroyServer(any(Server.class));
+    }
+
+    @Test
+    public void correctMetadataSet() throws Exception {
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+
+        Server server = template.provision(cloud);
+        Map<String, String> m = server.getMetadata();
+
+        assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
+        assertEquals(cloud.name, m.get(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY));
+        assertEquals(template.name, m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
+        assertEquals(new ServerScope.Node(server.getName()).getValue(), m.get(ServerScope.METADATA_KEY));
     }
 }

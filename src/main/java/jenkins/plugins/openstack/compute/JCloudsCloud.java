@@ -116,10 +116,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             @Override
             public boolean isReady(@Nonnull JCloudsSlave slave) {
+                String publicAddress = slave.getPublicAddress();
                 // Wait until ssh is exposed not to timeout for too long in ssh-slaves launcher
                 try {
                     Socket socket = new Socket();
-                    socket.connect(new InetSocketAddress(slave.getPublicAddress(), 22), 200);
+                    socket.connect(new InetSocketAddress(publicAddress, 22), 200);
                     socket.close();
                     return true;
                 } catch (ConnectException|SocketTimeoutException ex) {
@@ -520,4 +521,5 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             super(msg);
         }
     }
+
 }

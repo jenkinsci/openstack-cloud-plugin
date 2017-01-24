@@ -1,24 +1,20 @@
 package jenkins.plugins.openstack.compute;
 
-import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
 import hudson.model.Computer;
-import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.slaves.ComputerListener;
-import hudson.slaves.NodeProvisioner;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
 import jenkins.plugins.openstack.PluginTestRule;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestExtension;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.concurrent.ExecutionException;
 
 public class JCloudsRetentionStrategyTest {
 
@@ -68,23 +64,36 @@ public class JCloudsRetentionStrategyTest {
                         .build(),
                 "label"
         )));
-        Collection<NodeProvisioner.PlannedNode> slaves = cloud.provision(Label.get("label"), 1);
-        JCloudsSlave node = (JCloudsSlave) slaves.iterator().next().future.get();
-        j.jenkins.addNode(node);
-
-        JCloudsComputer computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
+        JCloudsSlave node = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) node.toComputer();
+        assertSame(computer, j.jenkins.getComputer(node.getNodeName()));
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
 
         computer.getRetentionStrategy().check(computer);
 
         // Still connecting after retention strategy run
-        computer = (JCloudsComputer) j.jenkins.getComputer("provisioned0");
+        computer = getNodeFor(node.getId());
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
 
         LaunchBlocker.unlock.signal();
     }
+
+    // Wait for the future to create computer
+    private JCloudsComputer getNodeFor(ProvisioningActivity.Id id) throws InterruptedException {
+        while (true) {
+            for (Computer c: j.jenkins.getComputers()) {
+                if (c instanceof JCloudsComputer) {
+                    if (((JCloudsComputer) c).getId().equals(id)) {
+                        return (JCloudsComputer) c;
+                    }
+                }
+            }
+            Thread.sleep(100);
+        }
+    }
+
     @TestExtension("doNotDeleteTheSlaveWhileLaunching")
     public static class LaunchBlocker extends ComputerListener {
         private static OneShotEvent unlock = new OneShotEvent();
@@ -103,6 +112,7 @@ public class JCloudsRetentionStrategyTest {
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.waitUntilOnline();
         computer.setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Offline"));
 
         computer.getRetentionStrategy().check(computer);

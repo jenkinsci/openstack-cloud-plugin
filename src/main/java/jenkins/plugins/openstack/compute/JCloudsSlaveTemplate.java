@@ -15,9 +15,11 @@ import java.util.regex.Pattern;
 
 import com.google.common.base.Charsets;
 import hudson.remoting.Base64;
+import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -49,6 +51,9 @@ import javax.annotation.Nonnull;
  */
 public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, SlaveOptions.Holder {
 
+    // To be attached on all servers provisioned from configured templates
+    public static final String OPENSTACK_CLOUD_NAME_KEY = "jenkins-cloud-name";
+    // To be attached on all servers provisioned from configured templates
     public static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
@@ -202,15 +207,25 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      * @throws Openstack.ActionFailed In case the provisioning failed.
      * @see #provisionSlave(JCloudsCloud, ProvisioningActivity.Id, TaskListener)
      */
-    public @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
+    /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
+        return provision(cloud, null);
+    }
+
+    /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud, @CheckForNull ServerScope scope) throws Openstack.ActionFailed {
+        final String serverName = name + "-" + new Random().nextInt(10000);
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
-        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
 
-        final String nodeName = name + "-" + new Random().nextInt(10000);
-        LOGGER.info("Provisioning new openstack node " + nodeName + " with options " + opts);
-        // Ensure predictable node name so we can inject it into user data
-        builder.name(nodeName);
+        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
+        builder.addMetadataItem(OPENSTACK_CLOUD_NAME_KEY, cloud.name);
+        if (scope == null) {
+            scope = new ServerScope.Node(serverName);
+        }
+        builder.addMetadataItem(ServerScope.METADATA_KEY, scope.getValue());
+
+        LOGGER.info("Provisioning new openstack server " + serverName + " with options " + opts);
+        // Ensure predictable server name so we can inject it into user data
+        builder.name(serverName);
 
         if (!Strings.isNullOrEmpty(opts.getImageId())) {
             String imageId = cloud.getOpenstack().getImageIdFor(opts.getImageId());
@@ -255,7 +270,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             String rootUrl = Jenkins.getActiveInstance().getRootUrl();
             vars.put("JENKINS_URL", rootUrl);
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
-            vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
+            vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + serverName + "/slave-agent.jnlp");
             vars.put("SLAVE_LABELS", labelString);
             String content = Util.replaceMacro(userDataText, vars);
             LOGGER.fine("Sending user-data:\n" + content);
@@ -268,18 +283,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         String poolName = opts.getFloatingIpPool();
         if (poolName != null) {
-            LOGGER.fine("Assigning floating IP from " + poolName + " to " + nodeName);
+            LOGGER.fine("Assigning floating IP from " + poolName + " to " + serverName);
             try {
                 openstack.assignFloatingIp(server, poolName);
                 // Make sure address information is reflected in metadata
                 return openstack.updateInfo(server);
             } catch (Throwable ex) {
                 // Do not leak the server as we are aborting the provisioning
-                try {
-                    openstack.destroyServer(server);
-                } catch (Throwable e) {
-                    ex.addSuppressed(e);
-                }
+                AsyncResourceDisposer.get().dispose(new DestroyMachine(cloud.name, server.getId()));
                 throw ex;
             }
         }
@@ -334,7 +345,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         @Restricted(DoNotUse.class)
         public FormValidation doCheckName(@QueryParameter String value) {
-            // org.jclouds.predicates.validators.DnsNameValidator
             if (NAME_PATTERN.matcher(value).find()) return FormValidation.ok();
 
             return FormValidation.error(
@@ -342,4 +352,5 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             );
         }
     }
+
 }
