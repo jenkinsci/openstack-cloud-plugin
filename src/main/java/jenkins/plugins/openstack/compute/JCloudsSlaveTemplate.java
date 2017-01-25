@@ -2,7 +2,6 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +41,7 @@ import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.slaves.JnlpSlaveAgentProtocol;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -272,6 +272,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + serverName + "/slave-agent.jnlp");
             vars.put("SLAVE_LABELS", labelString);
+            String slaveSecret = JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(serverName);
+            if (slaveSecret != null) {
+                vars.put("SLAVE_JNLP_SECRET", slaveSecret);
+            }
+            vars.put("SLAVE_JENKINS_HOME", Util.fixNull(opts.getFsRoot()));
+            vars.put("SLAVE_JVM_OPTIONS", Util.fixNull(opts.getJvmOptions()));
             String content = Util.replaceMacro(userDataText, vars);
             LOGGER.fine("Sending user-data:\n" + content);
             builder.userData(Base64.encode(content.getBytes(Charsets.UTF_8)));
