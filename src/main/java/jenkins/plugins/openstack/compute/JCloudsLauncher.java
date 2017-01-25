@@ -4,6 +4,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
 import hudson.slaves.ComputerLauncher;
+import hudson.slaves.DelegatingComputerLauncher;
+import hudson.slaves.JNLPLauncher;
 import hudson.slaves.SlaveComputer;
 
 import javax.annotation.Nonnull;
@@ -14,14 +16,12 @@ import java.util.logging.Logger;
 /*
  * This class as designed, is not supposed to be shared among multiple computers.
  */
-public class JCloudsLauncher extends ComputerLauncher {
+public class JCloudsLauncher extends DelegatingComputerLauncher {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsLauncher.class.getName());
 
-    /*package for testing*/ /*almost final*/ @Nonnull ComputerLauncher launcher;
-
     public JCloudsLauncher(@Nonnull ComputerLauncher launcher) {
-        this.launcher = launcher;
+        super(launcher);
     }
 
     @Override
@@ -61,6 +61,7 @@ public class JCloudsLauncher extends ComputerLauncher {
         //return null;
 
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
+        if ( slave==null ) return launcher = new JNLPLauncher();
         return launcher = slave.getSlaveType().createLauncher(slave);
     }
 }

@@ -254,7 +254,7 @@ public class ProvisioningTest {
 
         JCloudsSlave slave = j.provision(cloud, "label");
 
-        SSHLauncher launcher = (SSHLauncher) ((JCloudsLauncher) slave.getLauncher()).launcher;
+        SSHLauncher launcher = (SSHLauncher) ((JCloudsLauncher) slave.getLauncher()).getLauncher();
         assertEquals(slave.getPublicAddress(), launcher.getHost());
         assertEquals(expected.getCredentialsId(), launcher.getCredentialsId());
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
