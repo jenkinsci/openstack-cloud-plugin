@@ -41,7 +41,7 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
     @Override
     public void beforeDisconnect(SlaveComputer computer, TaskListener listener) {
         try {
-            launcher(computer).afterDisconnect(computer, listener);
+            launcher(computer).beforeDisconnect(computer, listener);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Unable to create launcher", e);
         }
@@ -61,7 +61,8 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
         //return null;
 
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
-        if ( slave==null ) return launcher = new JNLPLauncher();
+        // Return something harmless to prevent NPE
+        if (slave==null) return launcher = new JNLPLauncher();
         return launcher = slave.getSlaveType().createLauncher(slave);
     }
 }

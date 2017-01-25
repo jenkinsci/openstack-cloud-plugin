@@ -1,44 +1,6 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core">
   <div>
-    Selects which (if any) user data is sent to the cloud-init process when the instance first boots up.
-    The cloud-init process typically auto-detects the format/syntax of the script from the first line.
-    <p>
-    You can define userdata via <a target="_blank" href="${app.rootUrl}configfiles/">Jenkins -> Manage Jenkins -> Managed Files -> Add New Config (OpenStack User Data)</a>.
-    </p>
-    <p>
-    Before the userdata is sent to the OpenStack instance, the following values are injected and can be referenced within the userdata using $${VARIABLE_NAME} syntax:
-    <ul>
-      <li><tt>JENKINS_URL</tt>: The URL of the Jenkins instance.</li>
-      <li><tt>SLAVE_JAR_URL</tt>: The URL of the JNLP executable slave.jar.</li>
-      <li><tt>SLAVE_JENKINS_HOME</tt>: The &quot;Remote FS Root&quot;.</li>
-      <li><tt>SLAVE_JNLP_SECRET</tt>: The JNLP &quot;secret&quot; key.</li>
-      <li><tt>SLAVE_JNLP_URL</tt>: The endpoint URL for the JNLP connection.</li>
-      <li><tt>SLAVE_JVM_OPTIONS</tt>: The &quot;Custom JVM Options&quot;.</li>
-      <li><tt>SLAVE_LABELS</tt>: Labels of this Jenkins slave node.</li>
-    </ul>
-    </p>
-    <p>
-    For example, a unix-based JNLP slave could use a script such as
-    <blockquote>
-      <tt>
-      #!/bin/sh<br/>
-      mkdir -p &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
-      wget &quot;$${SLAVE_JAR_URL}&quot; -O &quot;$${SLAVE_JENKINS_HOME}/slave.jar&quot;<br/>
-      cd &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
-      java $${SLAVE_JVM_OPTIONS} -jar &quot;$${SLAVE_JENKINS_HOME}/slave.jar&quot; -jnlpUrl &quot;$${SLAVE_JNLP_URL}&quot; -secret &quot;$${SLAVE_JNLP_SECRET}&quot;
-      </tt>
-    </blockquote>
-    whereas a Windows-based JNLP slave could use a script such as
-    <blockquote>
-      <tt>
-        #ps1<br/>
-        mkdir -Force &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
-        (new-object System.Net.WebClient).DownloadFile(&apos;$${SLAVE_JAR_URL}&apos;,&apos;$${SLAVE_JENKINS_HOME}\slave.jar&apos;)<br/>
-        cd &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
-        java $${SLAVE_JVM_OPTIONS} -jar &quot;slave.jar&quot; -jnlpUrl &quot;$${SLAVE_JNLP_URL}&quot; -secret &quot;$${SLAVE_JNLP_SECRET}&quot;
-      </tt>
-    </blockquote>
-    </p>
+    You can specify userdata via <a target="_blank" href="${app.rootUrl}configfiles/">Jenkins -> Manage Jenkins -> Managed Files -> Add New Config (OpenStack User Data)</a>.
   </div>
 </j:jelly>
