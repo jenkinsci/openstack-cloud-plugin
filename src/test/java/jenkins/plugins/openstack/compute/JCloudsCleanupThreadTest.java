@@ -15,6 +15,7 @@ import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.util.OneShotEvent;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,7 +44,7 @@ public class JCloudsCleanupThreadTest {
         computer.setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/fake", 42));
 
         j.triggerOpenstackSlaveCleanup();
-        assertNull(j.jenkins.getComputer(computer.getDisplayName()));
+        assertNull(AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
     }
 
     @Test
