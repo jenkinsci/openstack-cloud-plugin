@@ -30,6 +30,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.Nonnull;
+import java.util.NoSuchElementException;
 
 @Restricted(NoExternalUse.class)
 public final class DestroyMachine implements Disposable {
@@ -47,7 +48,12 @@ public final class DestroyMachine implements Disposable {
     public @Nonnull State dispose() {
         // Cannot be cached as it is scoped to thread
         Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
-        Server server = os.getServerById(nodeId);
+        Server server;
+        try {
+            server = os.getServerById(nodeId);
+        } catch (NoSuchElementException ex) {
+            return State.PURGED; // Disappeared in the meantime.
+        }
         os.destroyServer(server);
         return State.PURGED; // If not thrown
     }
