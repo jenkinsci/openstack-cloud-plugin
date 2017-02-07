@@ -250,6 +250,9 @@ public class Openstack {
         debug("Booting machine");
         try {
             Server server = _bootAndWaitActive(request, timeout);
+            if (server == null) {
+                throw new ActionFailed("Failed to provision the server in time (" + timeout + "ms)");
+            }
             debug("Machine started: " + server.getName());
             throwIfFailed(server);
             return server;
