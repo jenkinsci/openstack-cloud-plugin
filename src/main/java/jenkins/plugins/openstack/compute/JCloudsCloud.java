@@ -142,14 +142,15 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         },
         JNLP {
             @Override
-            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
+            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+                Jenkins.getActiveInstance().addNode(slave);
                 return new JNLPLauncher();
             }
 
             @Override
             public boolean isReady(@Nonnull JCloudsSlave slave) {
                 // The address might not be visible at all so let's just wait for connection.
-                return true;
+                return slave.getChannel() != null;
             }
         };
 
