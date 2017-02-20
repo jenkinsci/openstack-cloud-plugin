@@ -252,9 +252,24 @@ public class Openstack {
             Server server = _bootAndWaitActive(request, timeout);
             if (server == null) {
                 // Server failed to become ACTIVE in time. Find in what state it is, then.
-                List<? extends Server> servers = client.compute().servers().list(Collections.singletonMap("name", request.build().getName()));
+                String name = request.build().getName();
+                List<? extends Server> servers = client.compute().servers().list(Collections.singletonMap("name", name));
                 String msg = "Failed to provision the server in time (" + timeout + "ms): " + servers.toString();
-                throw new ActionFailed(msg);
+
+                ActionFailed err = new ActionFailed(msg);
+                try {
+                    // We do not have the id so can not be sure which one is our
+                    int size = servers.size();
+                    if (size == 1) {
+                        // TODO async disposer
+                        destroyServer(servers.get(0));
+                    } else if (size > 1) {
+                        LOGGER.warning("Unable to destroy server " + name + " as there is " + size + " of them");
+                    }
+                } catch (Throwable ex) {
+                    err.addSuppressed(ex);
+                }
+                throw err;
             }
             debug("Machine started: " + server.getName());
             throwIfFailed(server);
