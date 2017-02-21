@@ -29,6 +29,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +53,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -406,14 +408,17 @@ public class ProvisioningTest {
         Openstack os = c.getOpenstack();
         when(os._bootAndWaitActive(any(ServerCreateBuilder.class), anyInt())).thenReturn(null); // Timeout
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), anyInt())).thenCallRealMethod();
+        Server server = mock(Server.class);
+        when(os.getServersByName(any(String.class))).thenReturn(Collections.singletonList(server));
 
         for (NodeProvisioner.PlannedNode pn : c.provision(Label.get("label"), 1)) {
             try {
                 pn.future.get();
                 fail();
             } catch (ExecutionException ex) {
-                assertThat(ex.getCause(), instanceOf(Openstack.ActionFailed.class));
-                assertThat(ex.getMessage(), containsString("Failed to provision the server in time"));
+                Throwable e = ex.getCause();
+                assertThat(e, instanceOf(Openstack.ActionFailed.class));
+                assertThat(e.getMessage(), containsString("Failed to provision the server in time"));
             }
         }
 

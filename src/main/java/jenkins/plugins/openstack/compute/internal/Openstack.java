@@ -241,6 +241,16 @@ public class Openstack {
         return server;
     }
 
+    public @Nonnull List<Server> getServersByName(@Nonnull String name) {
+        List<Server> ret = new ArrayList<>();
+        for (Server server : client.compute().servers().list(Collections.singletonMap("name", name))) {
+            if (isOurs(server)) {
+                ret.add(server);
+            }
+        }
+        return ret;
+    }
+
     /**
      * Provision machine and wait until ready.
      *
@@ -253,7 +263,8 @@ public class Openstack {
             if (server == null) {
                 // Server failed to become ACTIVE in time. Find in what state it is, then.
                 String name = request.build().getName();
-                List<? extends Server> servers = client.compute().servers().list(Collections.singletonMap("name", name));
+                List<? extends Server> servers = getServersByName(name);
+
                 String msg = "Failed to provision the server in time (" + timeout + "ms): " + servers.toString();
 
                 ActionFailed err = new ActionFailed(msg);
