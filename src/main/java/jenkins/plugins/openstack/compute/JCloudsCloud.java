@@ -5,6 +5,7 @@ import java.io.StringWriter;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
@@ -123,7 +124,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     socket.connect(new InetSocketAddress(publicAddress, 22), 200);
                     socket.close();
                     return true;
-                } catch (ConnectException|SocketTimeoutException ex) {
+                } catch (ConnectException|NoRouteToHostException|SocketTimeoutException ex) {
                     // Exactly what we are looking for
                     LOGGER.log(Level.FINEST, "SSH port not open (yet)", ex);
                     return false;
