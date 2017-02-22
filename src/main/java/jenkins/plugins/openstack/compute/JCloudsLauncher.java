@@ -10,6 +10,10 @@ import hudson.slaves.SlaveComputer;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,6 +31,34 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
     @Override
     public void launch(SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
         launcher(computer).launch(computer, listener);
+
+        JCloudsComputer jcloudsComputer = (JCloudsComputer) computer;
+        JCloudsSlave jcloudsSlave = jcloudsComputer.getNode();
+        Integer launchTimeout = jcloudsSlave.getSlaveOptions().getStartTimeout();
+        long startMoment = System.currentTimeMillis();
+        String timeoutMessage = String.format("Failed to connect to node %s within timeout (%d ms).", computer.getName(), launchTimeout);
+
+        while (computer.isOffline()) {
+            LOGGER.fine(String.format("Waiting for node %s to launch", computer.getDisplayName()));
+            Thread.sleep(10000);  // wait 10 seconds before retrying connection
+            Throwable lastError = null;
+            Future<?> connectionActivity = computer.connect(true);
+            try {
+                connectionActivity.get(launchTimeout, TimeUnit.MILLISECONDS);
+            } catch (ExecutionException | IllegalStateException e) {
+                lastError = e.getCause() == null ? e : e.getCause();
+                LOGGER.log(Level.FINE, "Error while launching node, retrying: " + computer.getName(), lastError);
+                // Retry
+            } catch (TimeoutException e) {
+                LOGGER.log(Level.WARNING, timeoutMessage, e);
+                break;  // Stop trying to connect to node
+            }
+
+            if ((System.currentTimeMillis() - startMoment) > launchTimeout) {
+                LOGGER.warning(timeoutMessage);
+                break;  // Stop trying to connect to node
+            }
+        }
     }
 
     @Override
