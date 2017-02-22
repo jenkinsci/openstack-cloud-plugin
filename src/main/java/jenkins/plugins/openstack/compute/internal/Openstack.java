@@ -69,6 +69,7 @@ import org.openstack4j.model.compute.Keypair;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.image.Image;
+import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.OSFactory;
 
@@ -178,6 +179,16 @@ public class Openstack {
         }
 
         return running;
+    }
+
+    public List<String> getFreeFipIds() {
+        ArrayList<String> free = new ArrayList<>();
+        for (NetFloatingIP ip : client.networking().floatingip().list()) {
+            if (ip.getFixedIpAddress() == null) {
+                free.add(ip.getId());
+            }
+        }
+        return free;
     }
 
     public @Nonnull List<String> getSortedKeyPairNames() {
@@ -357,7 +368,8 @@ public class Openstack {
         try {
             ip = fips.allocateIP(poolName);
         } catch (ResponseException ex) {
-            throw new ActionFailed("Failed to allocate IP for " + server.getName(), ex);
+            // TODO Grab some still IPs from JCloudsCleanupThread
+            throw new ActionFailed(ex.getMessage() + " Allocating for " + server.getName(), ex);
         }
         debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
@@ -377,6 +389,11 @@ public class Openstack {
         }
 
         return ip;
+    }
+
+    public void destroyFip(String fip) {
+        ActionResponse delete = client.networking().floatingip().delete(fip);
+        throwIfFailed(delete);
     }
 
     /**

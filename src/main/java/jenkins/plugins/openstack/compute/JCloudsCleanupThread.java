@@ -1,11 +1,14 @@
 package jenkins.plugins.openstack.compute;
 
+import java.io.ObjectStreamException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.Cloud;
 import hudson.slaves.OfflineCause;
@@ -19,7 +22,11 @@ import hudson.model.AsyncPeriodicWork;
 import hudson.model.Computer;
 import hudson.model.TaskListener;
 import jenkins.model.Jenkins;
+import org.openstack4j.api.exceptions.ClientResponseException;
+import org.openstack4j.api.exceptions.StatusCode;
 import org.openstack4j.model.compute.Server;
+
+import javax.annotation.Nonnull;
 
 /**
  * Periodically ensure Jenkins and resources it manages in OpenStacks are not leaked.
@@ -33,6 +40,13 @@ import org.openstack4j.model.compute.Server;
 @Extension @Restricted(NoExternalUse.class)
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(JCloudsCleanupThread.class.getName());
+
+    private transient @Nonnull ListMultimap<String, String> stillFips = ArrayListMultimap.create();
+
+    private Object readResolve() throws ObjectStreamException {
+        stillFips = ArrayListMultimap.create();
+        return this;
+    }
 
     public JCloudsCleanupThread() {
         super("OpenStack slave cleanup");
@@ -50,6 +64,45 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         HashMap<String, List<Server>> runningServers = destroyServersOutOfScope();
 
         terminatesNodesWithoutServers(running, runningServers);
+
+        cleanOrphanedFips();
+    }
+
+    private void cleanOrphanedFips() {
+        for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+            List<String> cloudStillFips = getStillFipsForCloud(cloud);
+
+            List<String> leaked = new ArrayList<>(cloud.getOpenstack().getFreeFipIds());
+            List<String> freed = new ArrayList<>(leaked);
+            leaked.retainAll(cloudStillFips); // Free on 2 checks
+            freed.removeAll(leaked); // Just freed
+
+            synchronized (stillFips) {
+                cloudStillFips.clear();
+                cloudStillFips.addAll(freed);
+            }
+
+            for (String fip : leaked) {
+                try {
+                    cloud.getOpenstack().destroyFip(fip);
+                } catch (ClientResponseException ex) {
+                    // The tenant is probably reusing pre-allocated FIPs without permission to (de)allocate new.
+                    // https://github.com/jenkinsci/openstack-cloud-plugin/issues/66#issuecomment-207296059
+                    if (ex.getStatusCode() == StatusCode.FORBIDDEN) {
+                        continue;
+                    }
+                    LOGGER.log(Level.WARNING, "Unable to release leaked floating IP", ex);
+                } catch (Exception ex) {
+                    LOGGER.log(Level.WARNING, "Unable to release leaked floating IP", ex);
+                }
+            }
+        }
+    }
+
+    private List<String> getStillFipsForCloud(JCloudsCloud cloud) {
+        synchronized (stillFips) {
+            return stillFips.get(cloud.name);
+        }
     }
 
     private List<JCloudsComputer> terminateNodesPendingDeletion() {

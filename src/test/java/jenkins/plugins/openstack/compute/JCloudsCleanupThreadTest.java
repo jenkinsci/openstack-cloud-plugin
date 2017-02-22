@@ -3,6 +3,7 @@ package jenkins.plugins.openstack.compute;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,6 +25,7 @@ import org.jvnet.hudson.test.TestBuilder;
 import org.openstack4j.model.compute.Server;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 
 /**
@@ -102,5 +104,19 @@ public class JCloudsCleanupThreadTest {
         j.triggerOpenstackSlaveCleanup();
 
         verify(os).destroyServer(server);
+    }
+
+    @Test
+    public void deleteLeakedFip() throws Exception {
+        JCloudsCloud cloud = j.dummyCloud();
+        Openstack os = cloud.getOpenstack();
+        when(os.getFreeFipIds()).thenReturn(Arrays.asList("busy1", "leaked")).thenReturn(Arrays.asList("leaked", "busy2"));
+
+        j.triggerOpenstackSlaveCleanup();
+        j.triggerOpenstackSlaveCleanup();
+
+        verify(os).destroyFip("leaked");
+        verify(os, never()).destroyFip("busy1");
+        verify(os, never()).destroyFip("busy2");
     }
 }

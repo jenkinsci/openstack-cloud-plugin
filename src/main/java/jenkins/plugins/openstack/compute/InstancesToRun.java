@@ -47,8 +47,8 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
     public static class DescriptorImpl extends Descriptor<InstancesToRun> {
         public ListBoxModel doFillCloudNameItems() {
             ListBoxModel m = new ListBoxModel();
-            for (String cloudName : JCloudsCloud.getCloudNames()) {
-                m.add(cloudName, cloudName);
+            for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+                m.add(cloud.name, cloud.name);
             }
 
             return m;

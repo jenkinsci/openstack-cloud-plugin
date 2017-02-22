@@ -165,15 +165,15 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         public abstract boolean isReady(@Nonnull JCloudsSlave slave);
     }
 
-    public static @Nonnull List<String> getCloudNames() {
-        List<String> cloudNames = new ArrayList<>();
+    public static @Nonnull List<JCloudsCloud> getClouds() {
+        List<JCloudsCloud> clouds = new ArrayList<>();
         for (Cloud c : Jenkins.getActiveInstance().clouds) {
             if (JCloudsCloud.class.isInstance(c)) {
-                cloudNames.add(c.name);
+                clouds.add((JCloudsCloud) c);
             }
         }
 
-        return cloudNames;
+        return clouds;
     }
 
     public static @Nonnull JCloudsCloud getByName(@Nonnull String name) throws IllegalArgumentException {
