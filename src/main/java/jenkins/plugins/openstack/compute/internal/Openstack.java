@@ -58,9 +58,9 @@ import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.compute.ServerService;
 import org.openstack4j.api.exceptions.ResponseException;
+import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.common.BasicResource;
 import org.openstack4j.model.common.Identifier;
-import org.openstack4j.model.compute.ActionResponse;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
@@ -102,10 +102,10 @@ public class Openstack {
         String tenant = id.length > 0 ? id[0] : "";
         String username = id.length > 1 ? id[1] : "";
         String domain = id.length > 2 ? id[2] : "";
-        final IOSClientBuilder<OSClient, ?> builder;
+        final IOSClientBuilder<? extends OSClient, ?> builder;
         if (domain.equals("")) {
             //If domain is empty it is assumed that is being used API V2
-            builder = OSFactory.builder().endpoint(endPointUrl)
+            builder = OSFactory.builderV2().endpoint(endPointUrl)
                      .credentials(username, credential.getPlainText())
                      .tenantName(tenant);
         } else {
