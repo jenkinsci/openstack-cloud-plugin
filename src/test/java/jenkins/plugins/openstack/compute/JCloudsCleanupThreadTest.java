@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -86,11 +87,16 @@ public class JCloudsCleanupThreadTest {
         assertNull(j.jenkins.getNode(slave.getDisplayName()));
     }
 
-    @Test @Ignore // WIP
+    @Test
     public void deleteMachinesNotConnectedToAnySlave() {
         JCloudsCloud cloud = j.dummyCloud();
         Server server = mock(Server.class);
+        when(server.getId()).thenReturn("424242");
+        when(server.getMetadata()).thenReturn(Collections.singletonMap(
+                ServerScope.METADATA_KEY, new ServerScope.Build("deleted:42").toString()
+        ));
         Openstack os = cloud.getOpenstack();
+        when(os.getServerById(eq("424242"))).thenReturn(server);
         when(os.getRunningNodes()).thenReturn(Collections.singletonList(server));
 
         j.triggerOpenstackSlaveCleanup();
