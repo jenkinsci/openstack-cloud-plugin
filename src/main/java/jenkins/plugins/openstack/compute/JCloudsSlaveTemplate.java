@@ -61,6 +61,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     public final String name;
     public final String labelString;
+
+    // Difference compared to cloud
     private /*final*/ SlaveOptions slaveOptions;
 
     private transient Set<LabelAtom> labelSet;

@@ -79,6 +79,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
+    // Make sure only diff of defaults is saved so when plugin defaults will change users are not stuck with outdated config
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
 
     // Backward compatibility
@@ -229,7 +230,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     public @Nonnull SlaveOptions getEffectiveSlaveOptions() {
-        // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated config
         return DescriptorImpl.DEFAULTS.override(slaveOptions);
     }
 
@@ -472,7 +472,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return "Cloud (OpenStack)";
         }
 
-        public SlaveOptions getDefaultOptions() {
+        public static SlaveOptions getDefaultOptions() {
             return DEFAULTS;
         }
 

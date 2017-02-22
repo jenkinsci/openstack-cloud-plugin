@@ -350,6 +350,9 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return EMPTY;
     }
 
+    /**
+     * Get empty builder.
+     */
     public static @Nonnull Builder builder() {
         return new Builder();
     }
