@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
 import hudson.slaves.ComputerLauncher;
@@ -26,7 +27,18 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
 
     @Override
     public void launch(SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
-        launcher(computer).launch(computer, listener);
+        JCloudsSlave node = (JCloudsSlave) computer.getNode();
+        long timeout = node.getCreatedTime() + node.getSlaveOptions().getStartTimeout();
+        do {
+            launcher(computer).launch(computer, listener);
+            if (computer.isOnline()) return;
+
+            listener.getLogger().println("Launcher failed to bring the node online. Retrying ...");
+
+            Thread.sleep(2000);
+        } while (System.currentTimeMillis() < timeout);
+
+        listener.getLogger().println("Launcher failed to bring the node online within timeout.");
     }
 
     @Override

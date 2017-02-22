@@ -36,6 +36,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     private /*final*/ @Nonnull String nodeId;
 
+    private final long created = System.currentTimeMillis();
+
     // Backward compatibility
     private transient @Deprecated int overrideRetentionTime;
     private transient @Deprecated String jvmOptions;
@@ -127,6 +129,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     @Override
     public @Nonnull ProvisioningActivity.Id getId() {
         return this.provisioningId;
+    }
+
+    public long getCreatedTime() {
+        return created;
     }
 
     @Extension
