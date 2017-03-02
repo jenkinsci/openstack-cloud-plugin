@@ -26,6 +26,8 @@ package jenkins.plugins.openstack.compute;
 import hudson.model.Job;
 import hudson.model.Run;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -103,7 +105,7 @@ public abstract class ServerScope {
     /**
      * Contribute additional criteria for equality.
      *
-     * This is mostly useful for testing as the implementation are not expected
+     * This is mostly useful for testing as the implementations are not expected
      * to have mutable state or any state not represented by specifier.
      */
     protected boolean _equals(ServerScope o) {
@@ -132,8 +134,16 @@ public abstract class ServerScope {
 
         @Override
         public boolean isOutOfScope() {
-            // TODO it might not exist yet
-            return Jenkins.getActiveInstance().getNode(specifier) == null;
+            if (Jenkins.getActiveInstance().getNode(specifier) != null) return false;
+
+            // The node may be provisioning at the moment
+            for (ProvisioningActivity pa : CloudStatistics.get().getNotCompletedActivities()) {
+                if (specifier.equals(pa.getName())) {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
