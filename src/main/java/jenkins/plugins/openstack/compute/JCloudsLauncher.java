@@ -26,7 +26,7 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
     }
 
     @Override
-    public void launch(SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
+    public void launch(@Nonnull SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
         JCloudsSlave node = (JCloudsSlave) computer.getNode();
         long timeout = node.getCreatedTime() + node.getSlaveOptions().getStartTimeout();
         do {
