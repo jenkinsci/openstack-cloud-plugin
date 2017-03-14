@@ -7,15 +7,13 @@
     </p>
     <p>
     Before the userdata is sent to the OpenStack instance, the following values are injected and can be referenced within the userdata using $${VARIABLE_NAME} syntax:
-    <ul>
-      <li><tt>JENKINS_URL</tt>: The URL of the Jenkins instance.</li>
-      <li><tt>SLAVE_JAR_URL</tt>: The URL of the JNLP executable slave.jar.</li>
-      <li><tt>SLAVE_JENKINS_HOME</tt>: The &quot;Remote FS Root&quot;.</li>
-      <li><tt>SLAVE_JNLP_SECRET</tt>: The JNLP &quot;secret&quot; key.</li>
-      <li><tt>SLAVE_JNLP_URL</tt>: The endpoint URL for the JNLP connection.</li>
-      <li><tt>SLAVE_JVM_OPTIONS</tt>: The &quot;Custom JVM Options&quot;.</li>
-      <li><tt>SLAVE_LABELS</tt>: Labels of this Jenkins slave node.</li>
-    </ul>
+    <dl>
+      <!-- Descriptor not exposed for help files? -->
+      <j:forEach var="entry" items="${app.getDescriptor('jenkins.plugins.openstack.compute.UserDataConfig').variables}">
+        <dt><tt>${entry.name}</tt></dt>
+        <dd>${entry.description}</dd>
+      </j:forEach>
+    </dl>
     </p>
     <p>
     For example, a unix-based JNLP slave could use a script such as

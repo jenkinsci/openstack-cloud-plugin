@@ -7,7 +7,11 @@ import org.jenkinsci.lib.configprovider.AbstractConfigProviderImpl;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.lib.configprovider.model.ContentType;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+
+import java.util.Collection;
 
 public class UserDataConfig extends Config {
 
@@ -48,6 +52,11 @@ public class UserDataConfig extends Config {
         // @Override c-f-p 2.15+
         public Config convert(Config config) {
             return new UserDataConfig(config.id, config.name, config.comment, config.content);
+        }
+
+        @Restricted(DoNotUse.class) // Jelly
+        public Collection<UserDataVariableResolver.Entry> getVariables() {
+            return UserDataVariableResolver.STUB.values();
         }
     }
 }

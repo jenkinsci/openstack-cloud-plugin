@@ -267,19 +267,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         @CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
-            HashMap<String, String> vars = new HashMap<>();
             String rootUrl = Jenkins.getActiveInstance().getRootUrl();
-            vars.put("JENKINS_URL", rootUrl);
-            vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
-            vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + serverName + "/slave-agent.jnlp");
-            vars.put("SLAVE_LABELS", labelString);
-            String slaveSecret = JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(serverName);
-            if (slaveSecret != null) {
-                vars.put("SLAVE_JNLP_SECRET", slaveSecret);
-            }
-            vars.put("SLAVE_JENKINS_HOME", Util.fixNull(opts.getFsRoot()));
-            vars.put("SLAVE_JVM_OPTIONS", Util.fixNull(opts.getJvmOptions()));
-            String content = Util.replaceMacro(userDataText, vars);
+            UserDataVariableResolver resolver = new UserDataVariableResolver(rootUrl, serverName, labelString, opts);
+            String content = Util.replaceMacro(userDataText, resolver);
             LOGGER.fine("Sending user-data:\n" + content);
             builder.userData(Base64.encode(content.getBytes(Charsets.UTF_8)));
         }
