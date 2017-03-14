@@ -1,0 +1,55 @@
+<!--
+The MIT License
+
+Copyright (c) 2017, Red Hat, inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<!--
+  Custom replacement for sidepanel and sidepanel2 from core as there is no easy way to add/remove items.
+  + Schedule Termination
+  - configure
+  - Delete Agent
+-->
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout" xmlns:t="/lib/hudson">
+    <l:header />
+    <l:side-panel>
+        <l:tasks>
+            <l:task contextMenu="false" href="${rootURL}/${it.url}" icon="icon-search icon-md" title="${%Status}"/>
+            <l:task href="${rootURL}/${it.url}scheduleTermination" icon="icon-edit-delete icon-md" permission="${it.DISCONNECT}" title="${%Schedule Termination}"/>
+            <l:task href="${rootURL}/${it.url}builds" icon="icon-notepad icon-md" title="${%Build History}"/>
+            <l:task href="${rootURL}/${it.url}load-statistics" icon="icon-monitor icon-md" title="${%Load Statistics}"/>
+            <l:task icon="icon-clipboard icon-md" href="${rootURL}/${it.url}log" title="${%Log}" permission="${it.CONNECT}" />
+            <j:if test="${it.channel!=null}">
+                <l:task href="${rootURL}/${it.url}script" icon="icon-terminal icon-md" permission="${app.RUN_SCRIPTS}" title="${%Script Console}"/>
+            </j:if>
+            <j:if test="${it.channel!=null}">
+                <l:task icon="icon-computer icon-md" href="${rootURL}/${it.url}systemInfo" title="${%System Information}" permission="${it.CONNECT}"/>
+                <l:task icon="icon-edit-delete icon-md" href="${rootURL}/${it.url}disconnect" title="${%Disconnect}" permission="${it.DISCONNECT}"/>
+            </j:if>
+            <t:actions />
+        </l:tasks>
+        <j:forEach var="box" items="${it.computerPanelBoxs}">
+            <st:include it="${box}" page="box.jelly" />
+        </j:forEach>
+        <t:executors computers="${h.singletonList(it)}" />
+    </l:side-panel>
+</j:jelly>
