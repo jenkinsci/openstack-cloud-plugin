@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
 import hudson.slaves.ComputerLauncher;
@@ -26,7 +27,13 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
 
     @Override
     public void launch(@Nonnull SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
-        JCloudsSlave node = (JCloudsSlave) computer.getNode();
+        Slave n = computer.getNode();
+        if (!(n instanceof JCloudsSlave)) {
+            LOGGER.warning(getClass().getSimpleName() + " used to launch incompatible computer type " + computer.getClass());
+            return;
+        }
+
+        JCloudsSlave node = (JCloudsSlave) n;
         Integer configuredTimeout = node.getSlaveOptions().getStartTimeout();
         if (configuredTimeout == null) throw new NullPointerException();
         long timeout = node.getCreatedTime() + configuredTimeout;
