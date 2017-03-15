@@ -19,6 +19,7 @@
         <java.level>7</java.level>
         <concurrency>2</concurrency>
         <surefire.useFile>false</surefire.useFile>
+        <findbugs.failOnError>false</findbugs.failOnError>
         <findbugs.excludeFilterFile>src/findbugs-exclude.xml</findbugs.excludeFilterFile>
 
         <guava.version>17.0</guava.version> <!-- version compatible with openstack4j -->
