@@ -7,7 +7,7 @@
     </parent>
 
     <artifactId>openstack-cloud</artifactId>
-    <version>2.20-SNAPSHOT</version>
+    <version>2.20</version>
     <packaging>hpi</packaging>
     <name>Openstack Cloud Plugin</name>
     <description>Allows Jenkins to build Openstack Slaves</description>
@@ -138,7 +138,7 @@
         <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openstack-cloud-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
-        <tag>HEAD</tag>
+        <tag>openstack-cloud-2.20</tag>
     </scm>
 
     <!-- Can be removed once moved to 2.6 parent pom -->
