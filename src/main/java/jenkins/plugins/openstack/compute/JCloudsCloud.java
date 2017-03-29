@@ -440,6 +440,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             req.setAttribute("exception", ex);
             rsp.forward(this,"error",req);
             return;
+        } catch (Throwable ex) {
+            provisioningListener.onFailure(id, ex);
+            throw ex;
         }
         Jenkins.getActiveInstance().addNode(node);
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
