@@ -86,9 +86,22 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public SlaveOptions dummySlaveOptions() {
-        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(new Config("dummyUserDataId", "Fake", "It is a fake", "Fake content"));
+        String userData = "SLAVE_JENKINS_HOME: ${SLAVE_JENKINS_HOME}\n" +
+                "SLAVE_JVM_OPTIONS: ${SLAVE_JVM_OPTIONS}\n" +
+                "JENKINS_URL: ${JENKINS_URL}\n" +
+                "SLAVE_JAR_URL: ${SLAVE_JAR_URL}\n" +
+                "SLAVE_JNLP_URL: ${SLAVE_JNLP_URL}\n" +
+                "SLAVE_JNLP_SECRET: ${SLAVE_JNLP_SECRET}\n" +
+                "SLAVE_LABELS: ${SLAVE_LABELS}\n" +
+                "DO_NOT_REPLACE_THIS: ${unknown} ${VARIABLE}"
+        ;
+        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(
+                new Config("dummyUserDataId", "Fake", "It is a fake", userData)
+        );
         SystemCredentialsProvider.getInstance().getCredentials().add(
-                new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "dummyCredentialId", "john", null, null, "Description")
+                new BasicSSHUserPrivateKey(
+                        CredentialsScope.SYSTEM, "dummyCredentialId", "john", null, null, "Description"
+                )
         );
         // Use some real-looking values preserving defaults to make sure plugin works with them
         return getCloudDescriptor().getDefaultOptions().getBuilder()

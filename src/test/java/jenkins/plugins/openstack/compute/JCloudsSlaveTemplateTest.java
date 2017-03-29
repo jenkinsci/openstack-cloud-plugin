@@ -1,18 +1,24 @@
 package jenkins.plugins.openstack.compute;
 
+import java.io.ByteArrayInputStream;
 import java.util.Collections;
+import java.util.Properties;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import hudson.remoting.Base64;
 import jenkins.plugins.openstack.PluginTestRule;
 
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.verify;
 
 public class JCloudsSlaveTemplateTest {
 
@@ -68,5 +74,26 @@ public class JCloudsSlaveTemplateTest {
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());
         assertEquals(SlaveOptions.builder().imageId("42").availabilityZone("other").build(), template.getRawSlaveOptions());
+    }
+
+    @Test
+    public void replaceUserData() throws Exception {
+        SlaveOptions opts = j.dummySlaveOptions();
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        Openstack os = cloud.getOpenstack();
+
+        template.provision(cloud);
+
+        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
+        verify(os).bootAndWaitActive(captor.capture(), anyInt());
+
+        Properties actual = new Properties();
+        actual.load(new ByteArrayInputStream(Base64.decode(captor.getValue().build().getUserData())));
+        assertEquals(opts.getFsRoot(), actual.getProperty("SLAVE_JENKINS_HOME"));
+        assertEquals(opts.getJvmOptions(), actual.getProperty("SLAVE_JVM_OPTIONS"));
+        assertEquals(j.getURL().toExternalForm(), actual.getProperty("JENKINS_URL"));
+        assertEquals("a", actual.getProperty("SLAVE_LABELS"));
+        assertEquals("${unknown} ${VARIABLE}", actual.getProperty("DO_NOT_REPLACE_THIS"));
     }
 }
