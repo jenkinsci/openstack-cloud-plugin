@@ -12,12 +12,15 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 public class JCloudsSlaveTemplateTest {
@@ -95,5 +98,18 @@ public class JCloudsSlaveTemplateTest {
         assertEquals(j.getURL().toExternalForm(), actual.getProperty("JENKINS_URL"));
         assertEquals("a", actual.getProperty("SLAVE_LABELS"));
         assertEquals("${unknown} ${VARIABLE}", actual.getProperty("DO_NOT_REPLACE_THIS"));
+    }
+
+    @Test
+    public void noFloatingPoolId() throws Exception {
+        SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool(null).build();
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        Openstack os = cloud.getOpenstack();
+
+        template.provision(cloud);
+
+        verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
+        verify(os, never()).assignFloatingIp(any(Server.class), any(String.class));
     }
 }
