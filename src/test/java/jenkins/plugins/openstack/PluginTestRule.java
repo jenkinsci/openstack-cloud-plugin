@@ -104,7 +104,7 @@ public final class PluginTestRule extends JenkinsRule {
                 )
         );
         // Use some real-looking values preserving defaults to make sure plugin works with them
-        return getCloudDescriptor().getDefaultOptions().getBuilder()
+        return JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
                 .imageId("dummyImageId")
                 .hardwareId("dummyHardwareId")
                 .networkId("dummyNetworkId")
@@ -114,6 +114,7 @@ public final class PluginTestRule extends JenkinsRule {
                 .keyPairName("dummyKeyPairName")
                 .jvmOptions("dummyJvmOptions")
                 .credentialsId("dummyCredentialId")
+                .fsRoot("/tmp/jenkins")
                 .slaveType(JCloudsCloud.SlaveType.JNLP)
                 .build()
         ;

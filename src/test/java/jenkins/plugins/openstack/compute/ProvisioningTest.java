@@ -107,7 +107,8 @@ public class ProvisioningTest {
         Computer[] originalComputers = j.jenkins.getComputers();
         assertThat(originalComputers, arrayWithSize(1)); // Only master expected
 
-        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
+        SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool("custom").build();
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts,"label")));
 
         FreeStyleProject p = j.createFreeStyleProject();
         // Provision with label
@@ -132,6 +133,7 @@ public class ProvisioningTest {
         verify(os, times(2)).updateInfo(any(Server.class));
         verify(os, atLeastOnce()).destroyServer(any(Server.class));
         verify(os, atLeastOnce()).getServerById(any(String.class));
+        verify(os, atLeastOnce()).getImageIdFor(any(String.class));
 
         verifyNoMoreInteractions(os);
 
@@ -373,7 +375,8 @@ public class ProvisioningTest {
 
     @Test
     public void destroyTheServerWhenFipAllocationFails() {
-        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool("my_pool").build();
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
         final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
         when(os.assignFloatingIp(any(Server.class), any(String.class))).thenThrow(new Openstack.ActionFailed("Unable to assign"));
