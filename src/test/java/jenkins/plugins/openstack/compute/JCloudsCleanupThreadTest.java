@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -12,13 +13,14 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.Label;
 import hudson.model.Result;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.util.OneShotEvent;
+import jenkins.model.InterruptedBuildAction;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestBuilder;
@@ -56,20 +58,14 @@ public class JCloudsCleanupThreadTest {
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.getComputer();
 
-        final OneShotEvent block = new OneShotEvent();
+        final BuildBlocker blocker = new BuildBlocker();
 
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
-        p.getBuildersList().add(new TestBuilder() {
-            @Override
-            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-                block.block();
-                return true;
-            }
-        });
+        p.getBuildersList().add(blocker);
         FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        blocker.enter.block();
         assertTrue(build.isBuilding());
-        Thread.sleep(500); // Wait for correct computer to be assigned - master until that
         assertEquals(build.getBuiltOn(), slave);
 
         computer.doScheduleTermination();
@@ -78,7 +74,7 @@ public class JCloudsCleanupThreadTest {
         assertTrue(build.isBuilding());
         assertEquals(slave, j.jenkins.getNode(slave.getDisplayName()));
 
-        block.signal();
+        blocker.exit.signal();
         j.waitUntilNoActivity();
 
         assertFalse(build.isBuilding());
@@ -118,5 +114,41 @@ public class JCloudsCleanupThreadTest {
         verify(os).destroyFip("leaked");
         verify(os, never()).destroyFip("busy1");
         verify(os, never()).destroyFip("busy2");
+    }
+
+    @Test
+    public void terminateNodeWithoutServer() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        Openstack os = cloud.getOpenstack();
+
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedLabel(Label.get("label"));
+        BuildBlocker blocker = new BuildBlocker();
+        p.getBuildersList().add(blocker);
+
+        FreeStyleBuild build = p.scheduleBuild2(0).getStartCondition().get();
+        blocker.enter.block();
+        assertTrue(build.isBuilding());
+
+        when(os.getRunningNodes()).thenReturn(Collections.<Server>emptyList());
+        j.triggerOpenstackSlaveCleanup();
+
+        j.assertBuildStatus(Result.ABORTED, build);
+        assertThat(
+                build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
+                startsWith("No server running for computer")
+        );
+    }
+
+    private static class BuildBlocker extends TestBuilder {
+        private final OneShotEvent enter = new OneShotEvent();
+        private final OneShotEvent exit = new OneShotEvent();
+
+        @Override
+        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+            enter.signal();
+            exit.block();
+            return true;
+        }
     }
 }

@@ -9,9 +9,12 @@ import java.util.logging.Logger;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import hudson.model.Executor;
+import hudson.model.Result;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.Cloud;
 import hudson.slaves.OfflineCause;
+import jenkins.model.CauseOfInterruption;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
@@ -137,6 +140,17 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
     }
 
+    private void deleteComputer(JCloudsComputer comp, CauseOfInterruption coi) {
+        try {
+            for (Executor e : comp.getExecutors()) {
+                e.interrupt(Result.ABORTED, coi);
+            }
+            comp.deleteSlave();
+        } catch (Throwable e) {
+            LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + comp.getName(), e);
+        }
+    }
+
     private HashMap<String, List<Server>> destroyServersOutOfScope() {
         HashMap<String, List<Server>> runningServers = new HashMap<>();
         for (Cloud cloud : Jenkins.getActiveInstance().clouds) {
@@ -178,8 +192,21 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                 if (server.getName().equals(computer.getName())) continue next_node;
             }
 
-            LOGGER.warning("No server running for computer " + computer.getName() + ". Terminating.");
-            deleteComputer(computer);
+            String msg = "No server running for computer " + computer.getName() + ". Terminating.";
+            LOGGER.warning(msg);
+            deleteComputer(computer, new MessageInterruption(msg));
+        }
+    }
+
+    private static class MessageInterruption extends CauseOfInterruption {
+        private final String msg;
+
+        private MessageInterruption(String msg) {
+            this.msg = msg;
+        }
+
+        @Override public String getShortDescription() {
+            return msg;
         }
     }
 }
