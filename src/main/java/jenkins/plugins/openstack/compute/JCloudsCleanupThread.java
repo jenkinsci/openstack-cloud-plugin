@@ -161,7 +161,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                 for (Server server : servers) {
                     ServerScope scope = extractScope(server);
                     if (scope != null && scope.isOutOfScope()) {
-                        LOGGER.info("Server " + server.getName() + " run out of its scope " + scope + ". Terminating.");
+                        LOGGER.info("Server " + server.getName() + " run out of its scope " + scope + ". Terminating: " + server);
                         AsyncResourceDisposer.get().dispose(new DestroyMachine(cloud.name, server.getId()));
                     } else {
                         runningServers.get(jc.name).add(server);

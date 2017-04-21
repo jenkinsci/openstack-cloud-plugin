@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.*;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Matchers.eq;
@@ -14,15 +15,18 @@ import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.Result;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.util.OneShotEvent;
 import jenkins.model.InterruptedBuildAction;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.TestBuilder;
 import org.openstack4j.model.compute.Server;
 
@@ -138,6 +142,25 @@ public class JCloudsCleanupThreadTest {
                 build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
                 startsWith("No server running for computer")
         );
+    }
+
+    @Test @Issue("jenkinsci/openstack-cloud-plugin#149")
+    public void doNotTerminateNodeThatIsBeingProvisioned() throws Exception {
+        // Simulate node stuck launching
+        SlaveOptions options = j.dummySlaveOptions().getBuilder().slaveType(JCloudsCloud.SlaveType.JNLP).instanceCap(1).build();
+        j.configureSlaveProvisioning(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedLabel(Label.get("label"));
+        p.scheduleBuild2(0);
+
+        Thread.sleep(2000); // For cloud to kick the machine while build is enqueued
+
+        assertThat(j.jenkins.getNodes(), Matchers.<Node>iterableWithSize(1));
+
+        j.triggerOpenstackSlaveCleanup();
+
+        assertThat(j.jenkins.getNodes(), Matchers.<Node>iterableWithSize(1));
     }
 
     private static class BuildBlocker extends TestBuilder {

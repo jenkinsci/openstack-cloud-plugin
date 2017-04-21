@@ -36,6 +36,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 /**
  * Server can be scoped to certain Jenkins entities to constrain its lifetime.
@@ -44,6 +45,8 @@ import java.util.concurrent.TimeUnit;
  */
 @Restricted(NoExternalUse.class)
 public abstract class ServerScope {
+
+    private static final Logger LOGGER = Logger.getLogger(ServerScope.class.getName());
 
     /**
      * Name of the openstack metadata key
@@ -136,13 +139,24 @@ public abstract class ServerScope {
         public boolean isOutOfScope() {
             if (Jenkins.getActiveInstance().getNode(specifier) != null) return false;
 
-            // The node may be provisioning at the moment
-            for (ProvisioningActivity pa : CloudStatistics.get().getNotCompletedActivities()) {
+            // The node may be provisioned or deleted at the moment
+            for (ProvisioningActivity pa : CloudStatistics.get().getActivities()) {
                 if (specifier.equals(pa.getName())) {
-                    return false;
+                    switch (pa.getCurrentPhase()) {
+                        case PROVISIONING:
+                            return false; // Node not yet created
+                        case LAUNCHING:
+                        case OPERATING:
+                            LOGGER.warning("Node does not exist for " + pa.getCurrentPhase() + " " + specifier);
+                            return false;
+                        case COMPLETED:
+                            return true;
+                    }
+                    return pa.getCurrentPhase() != ProvisioningActivity.Phase.PROVISIONING;
                 }
             }
 
+            LOGGER.warning("No cloud-stats activity tracked for " + specifier);
             return true;
         }
     }
