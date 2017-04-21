@@ -18,6 +18,7 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -387,6 +388,8 @@ public class ProvisioningTest {
         } catch (Openstack.ActionFailed ex) {
             assertThat(ex.getMessage(), containsString("Unable to assign"));
         }
+
+        AsyncResourceDisposer.get().reschedule();
 
         verify(os).destroyServer(any(Server.class));
     }
