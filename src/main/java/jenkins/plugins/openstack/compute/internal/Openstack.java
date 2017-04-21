@@ -201,7 +201,7 @@ public class Openstack {
 
     public @CheckForNull String getImageIdFor(String name) {
         Map<String, String> query = new HashMap<>(2);
-        query.put("name", name);
+        query.put("name", "eq:" + name); // prefix with eq: to prevent issues with names containing colons
         query.put("status", "active");
 
         List<? extends Image> images = client.images().listAll(query);
