@@ -57,6 +57,7 @@ import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.compute.ServerService;
+import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.common.BasicResource;
@@ -162,9 +163,25 @@ public class Openstack {
     };
 
     public @Nonnull List<String> getSortedIpPools() {
-        List<String> names = new ArrayList<>(client.compute().floatingIps().getPoolNames());
+        ComputeFloatingIPService ipService = getComputeFloatingIPService();
+        if (ipService == null) return Collections.emptyList();
+
+        List<String> names = new ArrayList<>(ipService.getPoolNames());
         Collections.sort(names);
         return names;
+    }
+
+    /**
+     * @return null when user is not authorized to use the endpoint which is a valid use-case.
+     */
+    private @CheckForNull ComputeFloatingIPService getComputeFloatingIPService() {
+        try {
+            return client.compute().floatingIps();
+        } catch (ClientResponseException ex) {
+            // https://github.com/jenkinsci/openstack-cloud-plugin/issues/128
+            if (ex.getStatus() == 403) return null;
+            throw ex;
+        }
     }
 
     public @Nonnull List<Server> getRunningNodes() {
@@ -321,23 +338,25 @@ public class Openstack {
      * {@link DestroyMachine} to destroy the server reliably.
      */
     public void destroyServer(@Nonnull Server server) throws ActionFailed {
-        ComputeFloatingIPService fipsService = client.compute().floatingIps();
-        ServerService servers = client.compute().servers();
         String nodeId = server.getId();
 
-        for (FloatingIP ip: fipsService.list()) {
-            if (nodeId.equals(ip.getInstanceId())) {
-                ActionResponse res = fipsService.deallocateIP(ip.getId());
-                if (res.isSuccess()) {
-                    debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
-                } else {
-                    throw new ActionFailed(
-                            "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault()
-                    );
+        ComputeFloatingIPService fipsService = getComputeFloatingIPService();
+        if (fipsService != null) {
+            for (FloatingIP ip : fipsService.list()) {
+                if (nodeId.equals(ip.getInstanceId())) {
+                    ActionResponse res = fipsService.deallocateIP(ip.getId());
+                    if (res.isSuccess()) {
+                        debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
+                    } else {
+                        throw new ActionFailed(
+                                "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault()
+                        );
+                    }
                 }
             }
         }
 
+        ServerService servers = client.compute().servers();
         server = servers.get(nodeId);
         if (server == null || server.getStatus() == Server.Status.DELETED) {
             debug("Machine destroyed: " + nodeId);
@@ -363,7 +382,7 @@ public class Openstack {
      */
     public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) throws ActionFailed {
         debug("Allocating floating IP for " + server.getName());
-        ComputeFloatingIPService fips = client.compute().floatingIps();
+        ComputeFloatingIPService fips = client.compute().floatingIps(); // This throws when user is not authorized to manipulate FIPs
         FloatingIP ip;
         try {
             ip = fips.allocateIP(poolName);

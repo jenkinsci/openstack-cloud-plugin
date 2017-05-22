@@ -2,14 +2,18 @@ package jenkins.plugins.openstack.compute.internal;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
+import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.FloatingIP;
@@ -23,6 +27,11 @@ import java.util.Iterator;
 import java.util.List;
 
 public class OpenstackTest {
+
+    public static final ClientResponseException CLIENT_RESPONSE_FIP_DISALLOWED = new ClientResponseException(
+            "Policy doesn't allow compute_extension:floating_ip_pools to be performed",
+            403
+    );
 
     @Test
     public void deleteAfterFailedBoot() {
@@ -74,6 +83,32 @@ public class OpenstackTest {
         verify(client.compute().servers()).delete(server.getId());
         verify(fips).deallocateIP("release-me");
         verify(fips, never()).deallocateIP("keep-me");
+    }
+
+    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/128")
+    public void doNotFailPopulatingFipPools() throws Exception {
+        OSClient client = mock(OSClient.class, RETURNS_DEEP_STUBS);
+        when(client.compute().floatingIps()).thenThrow(CLIENT_RESPONSE_FIP_DISALLOWED);
+
+        Openstack os = new Openstack(client);
+        assertThat(os.getSortedIpPools(), Matchers.emptyIterable());
+    }
+
+    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/128")
+    public void allocatingFipShouldFailIfFipsDisallowed() throws Exception {
+        OSClient client = mock(OSClient.class, RETURNS_DEEP_STUBS);
+        when(client.compute().floatingIps()).thenThrow(CLIENT_RESPONSE_FIP_DISALLOWED);
+
+        Server server = mock(Server.class);
+        when(server.getId()).thenReturn("instance-id");
+
+        Openstack os = new Openstack(client);
+        try {
+            os.assignFloatingIp(server, "A1");
+            fail();
+        } catch (ClientResponseException ex) {
+            assertThat(ex.getStatus(), equalTo(403));
+        }
     }
 
     /**
