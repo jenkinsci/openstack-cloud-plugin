@@ -306,7 +306,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {
-        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(getEffectiveSlaveOptions().getUserDataId());
+        UserDataConfig.UserDataConfigProvider userDataConfigProvider = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class);
+        if (userDataConfigProvider == null) throw new AssertionError("Openstack Config File Provider is not registered");
+        Config userData = userDataConfigProvider.getConfigById(getEffectiveSlaveOptions().getUserDataId());
 
         return (userData == null || userData.content.isEmpty())
                 ? null
@@ -337,7 +339,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         @Override
         public String getDisplayName() {
-            return null;
+            return clazz.getSimpleName();
         }
 
         @Restricted(DoNotUse.class)
