@@ -16,6 +16,7 @@ import hudson.slaves.Cloud;
 import hudson.slaves.OfflineCause;
 import jenkins.model.CauseOfInterruption;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -62,9 +63,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public void execute(TaskListener listener) {
-        List<JCloudsComputer> running = terminateNodesPendingDeletion();
+        @Nonnull List<JCloudsComputer> running = terminateNodesPendingDeletion();
 
-        HashMap<String, List<Server>> runningServers = destroyServersOutOfScope();
+        @Nonnull HashMap<String, List<Server>> runningServers = destroyServersOutOfScope();
 
         terminatesNodesWithoutServers(running, runningServers);
 
@@ -108,7 +109,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
     }
 
-    private List<JCloudsComputer> terminateNodesPendingDeletion() {
+    private @Nonnull List<JCloudsComputer> terminateNodesPendingDeletion() {
         ArrayList<JCloudsComputer> runningNodes = new ArrayList<>();
         for (final Computer c : Jenkins.getActiveInstance().getComputers()) {
             if (c instanceof JCloudsComputer) {
@@ -151,7 +152,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
     }
 
-    private HashMap<String, List<Server>> destroyServersOutOfScope() {
+    private @Nonnull HashMap<String, List<Server>> destroyServersOutOfScope() {
         HashMap<String, List<Server>> runningServers = new HashMap<>();
         for (Cloud cloud : Jenkins.getActiveInstance().clouds) {
             if (cloud instanceof JCloudsCloud) {
@@ -186,9 +187,15 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         return null;
     }
 
-    private void terminatesNodesWithoutServers(List<JCloudsComputer> running, HashMap<String, List<Server>> runningServers) {
+    private void terminatesNodesWithoutServers(
+            @Nonnull List<JCloudsComputer> running,
+            @Nonnull HashMap<String, List<Server>> runningServers
+    ) {
         next_node: for (JCloudsComputer computer: running) {
-            for (Server server : runningServers.get(computer.getId().getCloudName())) {
+            ProvisioningActivity.Id id = computer.getId();
+            if (id == null) continue;
+
+            for (Server server : runningServers.get(id.getCloudName())) {
                 if (server.getName().equals(computer.getName())) continue next_node;
             }
 

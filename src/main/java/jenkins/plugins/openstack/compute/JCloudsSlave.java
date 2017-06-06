@@ -34,7 +34,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private final @Nonnull String cloudName;
     // Full/effective options
     private /*final*/ @Nonnull SlaveOptions options;
-    private final ProvisioningActivity.Id provisioningId;
+    private final @Nonnull ProvisioningActivity.Id provisioningId;
 
     private /*final*/ @Nonnull String nodeId;
 
