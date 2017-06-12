@@ -13,7 +13,7 @@ public class SlaveOptionsTest {
      * Reusable options instance guaranteed not to collide with defaults
      */
     public static final SlaveOptions CUSTOM = new SlaveOptions(
-            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
+            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1, "t=1"
     );
 
     @Test // instanceCap is a subject of different overriding rules
@@ -36,6 +36,7 @@ public class SlaveOptionsTest {
         assertEquals("cid", unmodified.getCredentialsId());
         assertEquals(JCloudsCloud.SlaveType.JNLP, unmodified.getSlaveType());
         assertEquals(1, (int) unmodified.getRetentionTime());
+        assertEquals("t=1", unmodified.getMetadata());
 
         SlaveOptions override = SlaveOptions.builder()
                 .imageId("IMG")
@@ -92,7 +93,7 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                "", "", "", "", null, "", "", "", null, "", null, "", "", "", null, null
+                "", "", "", "", null, "", "", "", null, "", null, "", "", "", null, null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .imageId("")
