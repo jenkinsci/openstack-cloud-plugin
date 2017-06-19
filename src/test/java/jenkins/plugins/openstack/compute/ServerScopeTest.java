@@ -2,6 +2,8 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -11,7 +13,9 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.WithoutJenkins;
+import org.openstack4j.model.compute.Server;
 
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -19,6 +23,12 @@ import java.util.concurrent.TimeUnit;
  */
 public class ServerScopeTest {
     @Rule public JenkinsRule j = new JenkinsRule();
+
+    private static final Server mockServer = mock(Server.class);
+    {
+        // Old enough so node scope consider it applicable
+        when(mockServer.getCreated()).thenReturn(new Date(System.currentTimeMillis() - 1000 * 60 * 61));
+    }
 
     @Test @WithoutJenkins
     public void parse() throws Exception {
@@ -45,8 +55,8 @@ public class ServerScopeTest {
         ServerScope.Node alive = new ServerScope.Node(slave.getNodeName());
         ServerScope.Node dead = new ServerScope.Node(slave.getNodeName() + "nonono");
 
-        assertFalse(alive.isOutOfScope());
-        assertTrue(dead.isOutOfScope());
+        assertFalse(alive.isOutOfScope(mockServer));
+        assertTrue(dead.isOutOfScope(mockServer));
     }
 
     @Test
@@ -56,27 +66,27 @@ public class ServerScopeTest {
         FreeStyleBuild build = asdf.scheduleBuild2(0).waitForStart();
 
         ServerScope.Build alive = new ServerScope.Build(build);
-        assertFalse(alive.isOutOfScope());
+        assertFalse(alive.isOutOfScope(mockServer));
         assertEquals("run:asdf:1", alive.getValue());
 
         ServerScope.Build rotated = new ServerScope.Build("asdf:42");
-        assertTrue(rotated.isOutOfScope());
+        assertTrue(rotated.isOutOfScope(mockServer));
         assertEquals("run:asdf:42", rotated.getValue());
 
         ServerScope.Build jobGone = new ServerScope.Build("nonono:1");
-        assertTrue(jobGone.isOutOfScope());
+        assertTrue(jobGone.isOutOfScope(mockServer));
         assertEquals("run:nonono:1", jobGone.getValue());
     }
 
     @Test
     public void timeScope() throws Exception {
         ServerScope.Time alive = new ServerScope.Time(1, TimeUnit.DAYS);
-        assertFalse(alive.isOutOfScope());
+        assertFalse(alive.isOutOfScope(mockServer));
         assertThat(alive.getValue(), startsWith("time:20"));
 
         ServerScope.Time timedOut = new ServerScope.Time(0, TimeUnit.MILLISECONDS);
         Thread.sleep(100);
-        assertTrue(timedOut.isOutOfScope());
+        assertTrue(timedOut.isOutOfScope(mockServer));
         assertThat(timedOut.getValue(), startsWith("time:20"));
     }
 }

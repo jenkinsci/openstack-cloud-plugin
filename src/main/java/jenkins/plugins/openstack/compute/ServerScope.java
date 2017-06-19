@@ -30,12 +30,14 @@ import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.openstack4j.model.compute.Server;
 
 import javax.annotation.Nonnull;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -118,7 +120,7 @@ public abstract class ServerScope {
     /**
      * Determine whether the server is out of scope or not.
      */
-    abstract public boolean isOutOfScope();
+    abstract public boolean isOutOfScope(@Nonnull Server server);
 
     /**
      * Server is scoped to Jenkins node of the name equal to the specifier.
@@ -136,10 +138,10 @@ public abstract class ServerScope {
         }
 
         @Override
-        public boolean isOutOfScope() {
+        public boolean isOutOfScope(@Nonnull Server server) {
             if (Jenkins.getActiveInstance().getNode(specifier) != null) return false;
 
-            // The node may be provisioned or deleted at the moment
+            // The node may be provisioned or deleted at the moment - do not interfere
             for (ProvisioningActivity pa : CloudStatistics.get().getActivities()) {
                 if (specifier.equals(pa.getName())) {
                     switch (pa.getCurrentPhase()) {
@@ -152,11 +154,21 @@ public abstract class ServerScope {
                         case COMPLETED:
                             return true;
                     }
-                    return pa.getCurrentPhase() != ProvisioningActivity.Phase.PROVISIONING;
+                    assert false: "Unreachable";
                 }
             }
 
-            LOGGER.warning("No cloud-stats activity tracked for " + specifier);
+            Date created = server.getCreated();
+            if (created != null) {
+                long now = System.currentTimeMillis();
+                long ageHours = (now - created.getTime()) / (1000 * 60 * 60);
+
+                if (ageHours < 1) return false; // Make sure not to throw it away during launching
+            }
+
+            // Resolving activity by name is not reliable as they may be created without the name that is assigned at the
+            // time of launch.
+            LOGGER.log(Level.INFO, "No cloud-stats activity tracked for " + specifier, new Error());
             return true;
         }
     }
@@ -191,7 +203,7 @@ public abstract class ServerScope {
         }
 
         @Override
-        public boolean isOutOfScope() {
+        public boolean isOutOfScope(@Nonnull Server server) {
             Job job = Jenkins.getActiveInstance().getItemByFullName(project, Job.class);
             if (job == null) return true; // Presuming it was deleted/renamed, either way the build do not need the server anymore
             hudson.model.Run run = job.getBuildByNumber(this.run);
@@ -236,7 +248,7 @@ public abstract class ServerScope {
         }
 
         @Override
-        public boolean isOutOfScope() {
+        public boolean isOutOfScope(@Nonnull Server server) {
             return System.currentTimeMillis() > aliveUntil;
         }
 
