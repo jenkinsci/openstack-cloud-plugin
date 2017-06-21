@@ -28,7 +28,6 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.acegisecurity.AccessDeniedException;
 import org.acegisecurity.acls.sid.Sid;
 import org.apache.commons.io.IOUtils;
-import org.apache.tools.ant.taskdefs.Javadoc;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,7 +48,6 @@ import org.kohsuke.stapler.Stapler;
 import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -127,7 +125,7 @@ public class JCloudsCloudTest {
 
     @Test @Ignore("HtmlUnit is not able to trigger form validation")
     public void presentUIDefaults() throws Exception {
-        SlaveOptions DEF = ((JCloudsCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
+        SlaveOptions DEF = DescriptorImpl.getDefaultOptions();
 
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
@@ -135,7 +133,7 @@ public class JCloudsCloudTest {
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "zone", new SlaveOptions(
                 "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
-        ), Arrays.asList(template));
+        ), Collections.singletonList(template));
         j.jenkins.clouds.add(cloud);
 
         JenkinsRule.WebClient wc = j.createWebClient();
@@ -178,10 +176,10 @@ public class JCloudsCloudTest {
 
     @Test
     public void eraseDefaults() {
-        int biggerInstanceCap = j.getCloudDescriptor().getDefaultOptions().getInstanceCap() * 2;
+        int biggerInstanceCap = DescriptorImpl.getDefaultOptions().getInstanceCap() * 2;
 
         // Base tests on cloud defaults as that is the baseline for erasure
-        SlaveOptions opts = j.getCloudDescriptor().getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(JCloudsCloud.SlaveType.SSH).build();
+        SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(JCloudsCloud.SlaveType.SSH).build();
         JCloudsCloud cloud = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
         );
