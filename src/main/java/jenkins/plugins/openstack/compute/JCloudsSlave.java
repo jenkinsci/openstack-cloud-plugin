@@ -16,6 +16,8 @@ import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.CheckForNull;
@@ -118,7 +120,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     /**
      * Get public IP address of the server.
      */
-    public @CheckForNull String getPublicAddressIpv4() {
+    @Restricted(NoExternalUse.class)
+    /*package*/ @CheckForNull String getPublicAddressIpv4() {
     	
         return Openstack.getPublicAddressIpv4(getOpenstack(cloudName).getServerById(nodeId));
     }
