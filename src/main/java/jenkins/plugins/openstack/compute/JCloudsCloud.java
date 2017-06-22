@@ -102,7 +102,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     throw new ProvisioningFailedException("No ssh credentials selected");
                 }
 
-                String publicAddress = slave.getPublicAddress();
+                String publicAddress = slave.getPublicAddressIpv4();
                 if (publicAddress == null) {
                     throw new IOException("The slave is likely deleted");
                 }
@@ -118,20 +118,28 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             @Override
             public boolean isReady(@Nonnull JCloudsSlave slave) {
-                String publicAddress = slave.getPublicAddress();
+            	
+            	// richnou: 
+            	//	Use Ipv4 Method to make sure IPV4 is the default here
+            	//	OVH cloud provider returns IPV6 as last address, and getPublicAddress returns the last address
+            	//  The Socket connection test then does not work.
+            	//	This method could return the address object and work on it, but for now stick to IPV4
+            	//  for the sake of simplicity
+            	//
+                String publicAddress = slave.getPublicAddressIpv4();
                 // Wait until ssh is exposed not to timeout for too long in ssh-slaves launcher
                 try {
                     Socket socket = new Socket();
-                    socket.connect(new InetSocketAddress(publicAddress, 22), 200);
+                    socket.connect(new InetSocketAddress(publicAddress, 22), 500);
                     socket.close();
                     return true;
                 } catch (ConnectException|NoRouteToHostException|SocketTimeoutException ex) {
                     // Exactly what we are looking for
-                    LOGGER.log(Level.FINEST, "SSH port not open (yet)", ex);
+                    LOGGER.log(Level.FINEST, "SSH port at "+publicAddress+" not open (yet)", ex);
                     return false;
                 } catch (IOException ex) {
                     // TODO: General IOException to be understood and handled explicitly
-                    LOGGER.log(Level.INFO, "SSH port not (yet) open?", ex);
+                    LOGGER.log(Level.INFO, "SSH port  at "+publicAddress+" not (yet) open?", ex);
                     return false;
                 } catch (Exception ex) {
                     LOGGER.log(Level.WARNING, "SSH probe failed", ex);
