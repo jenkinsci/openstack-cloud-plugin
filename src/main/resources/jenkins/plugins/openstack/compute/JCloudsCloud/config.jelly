@@ -17,7 +17,7 @@
     </f:entry>
     <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="zone,endPointUrl,identity,credential"/>
 
-    <f:advanced>
+    <f:advanced title="Default slave options">
         <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>
         <j:set var="instance" value="${instance.rawSlaveOptions}"/>
         <st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>
