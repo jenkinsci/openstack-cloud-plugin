@@ -160,8 +160,8 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                 runningServers.put(jc.name, new ArrayList<Server>());
                 List<Server> servers = jc.getOpenstack().getRunningNodes();
                 for (Server server : servers) {
-                    ServerScope scope = extractScope(server);
-                    if (scope != null && scope.isOutOfScope(server)) {
+                    ServerScope scope = ServerScope.extract(server);
+                    if (scope.isOutOfScope(server)) {
                         LOGGER.info("Server " + server.getName() + " run out of its scope " + scope + ". Terminating: " + server);
                         AsyncResourceDisposer.get().dispose(new DestroyMachine(cloud.name, server.getId()));
                     } else {
@@ -172,19 +172,6 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
 
         return runningServers;
-    }
-
-    private ServerScope extractScope(Server server) {
-        String scope = server.getMetadata().get(ServerScope.METADATA_KEY);
-        // Provisioned in a way that do not support scoping or before scoping was introduced
-        if (scope == null) return null;
-
-        try {
-            return ServerScope.parse(scope);
-        } catch (IllegalArgumentException ex) {
-            LOGGER.warning("Unable to parse scope '" + scope + "' of " + server.getName());
-        }
-        return null;
     }
 
     private void terminatesNodesWithoutServers(

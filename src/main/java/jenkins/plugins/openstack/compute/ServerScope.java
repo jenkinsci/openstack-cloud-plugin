@@ -80,6 +80,24 @@ public abstract class ServerScope {
         this.specifier = specifier;
     }
 
+    /**
+     * Get the scope of a server.
+     *
+     * @return The scope or null if there is none declared.
+     * @throws IllegalStateException In case the scope can not be parsed.
+     */
+    public static @Nonnull ServerScope extract(Server server) throws IllegalStateException {
+        String scope = server.getMetadata().get(METADATA_KEY);
+        // Provisioned in a way that do not support scoping or before scoping was introduced
+        if (scope == null) return Unlimited.getInstance();
+
+        try {
+            return parse(scope);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("Unable to parse scope '" + scope + "' of " + server.getName());
+        }
+    }
+
     @Override
     public String toString() {
         return getValue();
@@ -267,12 +285,15 @@ public abstract class ServerScope {
         }
     }
 
+    /**
+     * Opt-out of any cleanup performed by the plugin.
+     */
     public static final class Unlimited extends ServerScope {
 
         private static Unlimited INSTANCE = new Unlimited();
 
         private Unlimited() {
-            super("unlimited", "unlimited:run");
+            super("unlimited", "unlimited");
         }
 
         public static Unlimited getInstance() {
@@ -281,16 +302,6 @@ public abstract class ServerScope {
 
         @Override
         public boolean isOutOfScope(@Nonnull Server server) {
-            return false;
-        }
-
-        @Override
-        public String getValue() {
-            return "unlimited:run";
-        }
-
-        @Override
-        protected boolean _equals(ServerScope o) {
             return false;
         }
     }

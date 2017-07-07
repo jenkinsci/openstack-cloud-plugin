@@ -29,6 +29,7 @@ import java.util.Set;
  * <pre>
  * node {
  *     def x = openstackMachine cloud: 'mitaka', template: 'CentOS-7'
+ *     def y = openstackMachine cloud: 'mitaka', template: 'CentOS-7', scope: 'unlimited'
  * }
  * </pre>
  */

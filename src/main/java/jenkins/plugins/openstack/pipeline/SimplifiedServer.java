@@ -5,6 +5,7 @@ import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import jenkins.plugins.openstack.compute.ServerScope;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -45,7 +46,7 @@ public class SimplifiedServer implements Serializable {
         if (srv == null) return; // Already terminated.
 
         DestroyMachine dm = new DestroyMachine(this.cloud, srv.getId());
-        dm.dispose();
+        AsyncResourceDisposer.get().dispose(dm);
         srv = null;
     }
 

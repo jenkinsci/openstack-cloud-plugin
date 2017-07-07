@@ -49,10 +49,9 @@ public class ServerScopeTest {
         assertEquals("time:2017-01-11 14:09:25", time.getValue());
         assertEquals(time, time2);
 
-        ServerScope.Unlimited unlimited = (ServerScope.Unlimited) ServerScope.parse("unlimited:run");
-        assertEquals("unlimited:run", unlimited.getValue());
+        ServerScope.Unlimited unlimited = (ServerScope.Unlimited) ServerScope.parse("unlimited:Custom reason specified here if needed");
+        assertEquals("unlimited:unlimited", unlimited.getValue());
         assertEquals(unlimited, ServerScope.parse(unlimited.getValue()));
-
     }
 
     @Test
@@ -84,7 +83,7 @@ public class ServerScopeTest {
         assertEquals("run:nonono:1", jobGone.getValue());
     }
 
-    @Test
+    @Test @WithoutJenkins
     public void timeScope() throws Exception {
         ServerScope.Time alive = new ServerScope.Time(1, TimeUnit.DAYS);
         assertFalse(alive.isOutOfScope(mockServer));
@@ -96,10 +95,10 @@ public class ServerScopeTest {
         assertThat(timedOut.getValue(), startsWith("time:20"));
     }
 
-    @Test
+    @Test @WithoutJenkins
     public void unlimitedScope() throws Exception {
         ServerScope.Unlimited alive = ServerScope.Unlimited.getInstance();
         assertFalse(alive.isOutOfScope(mockServer));
-        assertThat(alive.getValue(), equalTo("unlimited:run"));
+        assertThat(alive.getValue(), equalTo("unlimited:unlimited"));
     }
 }
