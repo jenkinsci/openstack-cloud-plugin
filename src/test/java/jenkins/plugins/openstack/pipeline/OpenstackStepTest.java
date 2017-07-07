@@ -1,4 +1,4 @@
-package jenkins.plugins.openstack.jenkins.plugins.openstack.pipeline;
+package jenkins.plugins.openstack.pipeline;
 
 import hudson.model.Result;
 import jenkins.plugins.openstack.PluginTestRule;
