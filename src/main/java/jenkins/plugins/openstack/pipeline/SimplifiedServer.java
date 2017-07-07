@@ -10,6 +10,8 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.Serializable;
 
 /**
@@ -17,13 +19,15 @@ import java.io.Serializable;
  */
 @Restricted(NoExternalUse.class)
 public class SimplifiedServer implements Serializable {
+    private static final long serialVersionUID = 860084023141474202L;
 
-    private Server srv = null;
-    private String cloud = "";
-    private String template = "";
-    private String scope = "";
+    // Null after destroyed
+    private @CheckForNull Server srv;
+    private @Nonnull String cloud;
+    private @Nonnull String template;
+    private @Nonnull String scope;
 
-    public SimplifiedServer(String cloud, String template, String scope) {
+    public SimplifiedServer(@Nonnull String cloud, @Nonnull String template, @Nonnull String scope) {
         this.template = template;
         this.cloud = cloud;
         this.scope = scope;
@@ -31,54 +35,40 @@ public class SimplifiedServer implements Serializable {
         ServerScope serverscope = ServerScope.parse(scope);
         JCloudsCloud jcl = JCloudsCloud.getByName(cloud);
         JCloudsSlaveTemplate t = jcl.getTemplate(template);
-        if (t != null) {
-            this.srv = t.provision(jcl, serverscope);
-        } else {
-            throw new IllegalArgumentException("Invalid template: " + template);
-        }
+        if (t == null) throw new IllegalArgumentException("Invalid template: " + template);
+
+        this.srv = t.provision(jcl, serverscope);
     }
 
     @Whitelisted
     public void destroy() {
-        if (srv != null) {
-            DestroyMachine dm = new DestroyMachine(this.cloud, srv.getId());
-            dm.dispose();
-            srv = null;
-        } else {
-            //Cant destroy what isn't created
-        }
+        if (srv == null) return; // Already terminated.
+
+        DestroyMachine dm = new DestroyMachine(this.cloud, srv.getId());
+        dm.dispose();
+        srv = null;
     }
 
     @Whitelisted
     public String getAddress() {
-        String addr = "";
-        if (srv != null) {
-            try {
-                addr = Openstack.getPublicAddress(srv);
-            } catch (NullPointerException npe) {
-                //Seems the machine doesnt have any address (related to boot-up?)
-            }
-        } else {
-            //No IPs from unprovisioned servers
-        }
-        return addr;
+        if (srv == null) return null;
+
+        return Openstack.getPublicAddress(srv);
     }
 
     @Whitelisted
     public String getStatus() {
-        if (srv != null) {
-            return srv.getStatus().name();
-        } else {
-            return null;
-        }
+        return srv != null
+            ? srv.getStatus().name()
+            : null
+        ;
     }
 
     @Whitelisted
     public String getId() {
-        if (srv != null) {
-           return srv.getId();
-        } else {
-            return null;
-        }
+        return srv != null
+                ? srv.getId()
+                : null
+        ;
     }
 }

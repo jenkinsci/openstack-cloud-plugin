@@ -16,6 +16,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.util.Collections;
 import java.util.Set;
@@ -44,29 +45,31 @@ public class OpenStackMachineStep extends Step {
     }
 
     @DataBoundSetter
-    public void setCloud(String cloud) {
+    public void setCloud(@Nonnull String cloud) {
         this.cloud = cloud;
     }
 
     @DataBoundSetter
-    public void setTemplate(String template) {
+    public void setTemplate(@Nonnull String template) {
         this.template = template;
     }
 
     @DataBoundSetter
-    public void setScope(String scope) {
-        this.scope = scope;
+    public void setScope(@CheckForNull String scope) {
+        if (scope != null) {
+            this.scope = scope;
+        }
     }
 
-    public String getCloud() {
+    @Nonnull public String getCloud() {
         return cloud;
     }
 
-    public String getTemplate() {
+    @Nonnull public String getTemplate() {
         return template;
     }
 
-    public String getScope() {
+    @Nonnull public String getScope() {
         return scope;
     }
 
@@ -121,9 +124,11 @@ public class OpenStackMachineStep extends Step {
     }
 
     public static class Execution extends SynchronousNonBlockingStepExecution<SimplifiedServer> {
-        private final String cloud;
-        private final String template;
-        private final String scope;
+        private static final long serialVersionUID = -1471755378664792632L;
+
+        private final @Nonnull String cloud;
+        private final @Nonnull String template;
+        private final @Nonnull String scope;
 
         Execution(OpenStackMachineStep step, StepContext context) {
             super(context);
