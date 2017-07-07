@@ -80,7 +80,7 @@ public class OpenStackMachineStep extends Step {
         return new OpenStackMachineStep.Execution( this, context);
     }
 
-    @Extension
+    @Extension(optional = true)
     public static final class DescriptorImpl extends StepDescriptor {
 
         @Override

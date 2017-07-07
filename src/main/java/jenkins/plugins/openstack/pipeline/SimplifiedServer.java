@@ -60,8 +60,8 @@ public class SimplifiedServer implements Serializable {
     @Whitelisted
     public String getStatus() {
         return srv != null
-            ? srv.getStatus().name()
-            : null
+                ? srv.getStatus().name()
+                : null
         ;
     }
 
