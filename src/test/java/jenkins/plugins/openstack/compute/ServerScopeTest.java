@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.*;
 
@@ -37,6 +38,11 @@ public class ServerScopeTest {
         ServerScope.Time time2 = (ServerScope.Time) ServerScope.parse(time.getValue());
         assertEquals("time:2017-01-11 14:09:25", time.getValue());
         assertEquals(time, time2);
+
+        ServerScope.Unlimited unlimited = (ServerScope.Unlimited) ServerScope.parse("unlimited:run");
+        assertEquals("unlimited:run", unlimited.getValue());
+        assertEquals(unlimited, ServerScope.parse(unlimited.getValue()));
+
     }
 
     @Test
@@ -78,5 +84,12 @@ public class ServerScopeTest {
         Thread.sleep(100);
         assertTrue(timedOut.isOutOfScope());
         assertThat(timedOut.getValue(), startsWith("time:20"));
+    }
+
+    @Test
+    public void unlimitedScope() throws Exception {
+        ServerScope.Unlimited alive = ServerScope.Unlimited.getInstance();
+        assertFalse(alive.isOutOfScope());
+        assertThat(alive.getValue(), equalTo("unlimited:run"));
     }
 }

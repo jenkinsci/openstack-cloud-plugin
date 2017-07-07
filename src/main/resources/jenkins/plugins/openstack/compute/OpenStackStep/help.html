@@ -1,0 +1,18 @@
+<div>
+    Creates an Openstack <code>Instance</code> object, from an already globally defined cloud name and label without registering it as a Jenkins agent. </br>
+    This step has a third optional String parameter, named scope, reflecting the booted Server scope, with possible values from:</br>
+    <dl>
+        <dt><code>run</code></dt>
+        <dd>The booted Instance will be kept alive whilst the current run is kicking. This is the default mode if no scope is defined.
+        </dd>
+        <dt><code>run:JOB_NAME:BUILD_NUMBER</code></dt>
+        <dd>The booted Instance will be kept alive whilst the run defined with JOB_NAME:RUN_ID is kicking.
+        </dd>
+        <!-- <dt><code>time:DATE</code></dt>
+        <dd>The booted Instance will be kept alive until DATE (formatted as yyyy-MM-dd HH:mm:ss).
+        </dd> -->
+        <dt><code>unlimited</code></dt>
+        <dd>The booted Instance will be kept alive forever. Mind the possible resources extarvation at the Openstack provider!
+        </dd>
+    </dl>
+</div>
