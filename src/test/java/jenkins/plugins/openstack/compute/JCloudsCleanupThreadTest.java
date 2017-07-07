@@ -140,7 +140,7 @@ public class JCloudsCleanupThreadTest {
         j.assertBuildStatus(Result.ABORTED, build);
         assertThat(
                 build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
-                startsWith("No server running for computer")
+                startsWith("No OpenStack server running for computer")
         );
     }
 
