@@ -59,6 +59,9 @@ public abstract class ServerScope {
     protected final @Nonnull String specifier;
 
     public static ServerScope parse(String scope) throws IllegalArgumentException {
+        if (scope.startsWith("unlimited")) {
+            return Unlimited.getInstance();
+        }
         String[] chunks = scope.trim().split(":", 2);
         if (chunks.length != 2) throw new IllegalArgumentException("Invalid scope: " + scope);
         if ("node".equals(chunks[0])) {
@@ -261,6 +264,34 @@ public abstract class ServerScope {
         protected boolean _equals(ServerScope o) {
             Time that = (Time) o;
             return aliveUntil == that.aliveUntil;
+        }
+    }
+
+    public static final class Unlimited extends ServerScope {
+
+        private static Unlimited INSTANCE = new Unlimited();
+
+        private Unlimited() {
+            super("unlimited", "unlimited:run");
+        }
+
+        public static Unlimited getInstance() {
+            return INSTANCE;
+        }
+
+        @Override
+        public boolean isOutOfScope() {
+            return false;
+        }
+
+        @Override
+        public String getValue() {
+            return "unlimited:run";
+        }
+
+        @Override
+        protected boolean _equals(ServerScope o) {
+            return false;
         }
     }
 }

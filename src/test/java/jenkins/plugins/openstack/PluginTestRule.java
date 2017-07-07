@@ -1,10 +1,7 @@
 package jenkins.plugins.openstack;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.RETURNS_SMART_NULLS;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.io.File;
 import java.io.FilterOutputStream;
@@ -312,7 +309,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public Openstack fakeOpenstackFactory() {
-        return fakeOpenstackFactory(mock(Openstack.class, RETURNS_SMART_NULLS));
+        return fakeOpenstackFactory(mock(Openstack.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS).serializable()));
     }
 
     @SuppressWarnings("deprecation")
@@ -330,7 +327,7 @@ public final class PluginTestRule extends JenkinsRule {
 
     @SuppressWarnings("deprecation")
     public Openstack.FactoryEP mockOpenstackFactory() {
-        Openstack.FactoryEP factory = mock(Openstack.FactoryEP.class);
+        Openstack.FactoryEP factory = mock(Openstack.FactoryEP.class, withSettings().serializable());
         ExtensionList<Openstack.FactoryEP> lookup = ExtensionList.lookup(Openstack.FactoryEP.class);
         lookup.clear();
         lookup.add(factory);
@@ -351,9 +348,10 @@ public final class PluginTestRule extends JenkinsRule {
         private final Map<String, String> metadata = new HashMap<>();
 
         public MockServerBuilder() {
-            server = mock(Server.class);
+            server = mock(Server.class, withSettings().serializable());
             when(server.getId()).thenReturn(UUID.randomUUID().toString());
             when(server.getAddresses()).thenReturn(new NovaAddresses());
+            when(server.getStatus()).thenReturn(Server.Status.ACTIVE);
             when(server.getMetadata()).thenReturn(metadata);
             metadata.put("jenkins-instance", jenkins.getRootUrl()); // Mark the slave as ours
         }
@@ -364,7 +362,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockServerBuilder floatingIp(String ip) {
-            NovaAddress addr = mock(NovaAddress.class);
+            NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
             when(addr.getType()).thenReturn("floating");
             when(addr.getAddr()).thenReturn(ip);
 
@@ -444,7 +442,7 @@ public final class PluginTestRule extends JenkinsRule {
                 .build()
         ;
 
-        private final transient Openstack os = mock(Openstack.class, RETURNS_SMART_NULLS);
+        private final transient Openstack os = mock(Openstack.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS).serializable());
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
             this(DEFAULTS, templates);
