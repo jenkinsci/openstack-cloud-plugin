@@ -99,7 +99,7 @@ public class ServerScopeTest {
     @Test
     public void unlimitedScope() throws Exception {
         ServerScope.Unlimited alive = ServerScope.Unlimited.getInstance();
-        assertFalse(alive.isOutOfScope());
+        assertFalse(alive.isOutOfScope(mockServer));
         assertThat(alive.getValue(), equalTo("unlimited:run"));
     }
 }

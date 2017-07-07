@@ -1,4 +1,4 @@
-package jenkins.plugins.openstack.compute;
+package jenkins.plugins.openstack.pipeline;
 
 import hudson.Extension;
 import hudson.Util;
@@ -7,29 +7,32 @@ import hudson.model.TaskListener;
 import hudson.slaves.Cloud;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.JCloudsCloud;
+import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import org.jenkinsci.plugins.workflow.steps.*;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.annotation.Nonnull;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.Set;
 
 /**
- * Returns the a POJO, Wrapping a org.openstack4j.model.compute.Server object.
+ * Provision auxiliary server not to be connected to Jenkins.
  *
  * Usage is as:
  *
  * <pre>
  * node {
- *     def x = openstack cloud: 'mitaka', template: 'CentOS-7'
+ *     def x = openstackMachine cloud: 'mitaka', template: 'CentOS-7'
  * }
  * </pre>
- *
  */
-public class OpenStackStep extends Step {
+@Restricted(NoExternalUse.class)
+public class OpenStackMachineStep extends Step {
 
     private @Nonnull String cloud = "";
     private @Nonnull String template = "";
@@ -37,7 +40,7 @@ public class OpenStackStep extends Step {
     private @Nonnull String run = "";
 
     @DataBoundConstructor
-    public OpenStackStep() {
+    public OpenStackMachineStep() {
     }
 
     @DataBoundSetter
@@ -46,7 +49,7 @@ public class OpenStackStep extends Step {
     }
 
     @DataBoundSetter
-    public void settemplate(String template) {
+    public void setTemplate(String template) {
         this.template = template;
     }
 
@@ -70,7 +73,7 @@ public class OpenStackStep extends Step {
     @Override
     public StepExecution start(StepContext context) throws Exception {
         this.run = context.get(Run.class).getFullDisplayName().replace(" #", ":");
-        return new OpenStackStep.Execution( this, context);
+        return new OpenStackMachineStep.Execution( this, context);
     }
 
     @Extension
@@ -115,7 +118,6 @@ public class OpenStackStep extends Step {
         public Set<? extends Class<?>> getRequiredContext() {
             return Collections.singleton(TaskListener.class);
         }
-
     }
 
     public static class Execution extends SynchronousNonBlockingStepExecution<SimplifiedServer> {
@@ -123,8 +125,7 @@ public class OpenStackStep extends Step {
         private final String template;
         private final String scope;
 
-
-        Execution(OpenStackStep step, StepContext context) {
+        Execution(OpenStackMachineStep step, StepContext context) {
             super(context);
             this.cloud = step.cloud;
             this.template = step.template;

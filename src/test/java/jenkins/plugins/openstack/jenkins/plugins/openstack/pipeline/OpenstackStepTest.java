@@ -1,7 +1,8 @@
-package jenkins.plugins.openstack.compute;
+package jenkins.plugins.openstack.jenkins.plugins.openstack.pipeline;
 
 import hudson.model.Result;
 import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.compute.JCloudsCloud;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;

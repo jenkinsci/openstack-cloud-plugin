@@ -280,7 +280,7 @@ public abstract class ServerScope {
         }
 
         @Override
-        public boolean isOutOfScope() {
+        public boolean isOutOfScope(@Nonnull Server server) {
             return false;
         }
 

@@ -1,13 +1,22 @@
-package jenkins.plugins.openstack.compute;
+package jenkins.plugins.openstack.pipeline;
 
+import jenkins.plugins.openstack.compute.JCloudsCloud;
+import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
+import jenkins.plugins.openstack.compute.ServerScope;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
 
 import java.io.Serializable;
 
-public class SimplifiedServer implements Serializable{
+/**
+ * Server wrapper for pipeline use.
+ */
+@Restricted(NoExternalUse.class)
+public class SimplifiedServer implements Serializable {
 
     private Server srv = null;
     private String cloud = "";

@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.*;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Matchers.eq;
