@@ -18,7 +18,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.instanceOf;
 
-public class OpenstackStepTest {
+public class OpenstackMachineStepTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
@@ -56,7 +56,7 @@ public class OpenstackStepTest {
 
         WorkflowJob bootUnmanaged = j.jenkins.createProject(WorkflowJob.class, "boot Unmanaged");
         bootUnmanaged.setDefinition(new CpsFlowDefinition(
-                "def srv = openstackMachine cloud: 'openstack', template: 'template0', scope: 'unlimited' \n" +
+                "def srv = openstackMachine cloud: 'openstack', template: 'template0', scope: 'unlimited:I will take care of it' \n" +
                         "echo srv.address \n" , true));
         WorkflowRun b = j.assertBuildStatusSuccess(bootUnmanaged.scheduleBuild2(0));
         j.assertLogContains("42.42.42", b);
@@ -99,7 +99,7 @@ public class OpenstackStepTest {
 
         WorkflowJob bootSerializableCheck = j.jenkins.createProject(WorkflowJob.class, "bootSerializableCheck");
         bootSerializableCheck.setDefinition(new CpsFlowDefinition(
-                " def srv = openstackMachine cloud: 'openstack', template: 'template0', scope: 'time:1970-01-01 00:00:00' \n" +
+                " def srv = openstackMachine cloud: 'openstack', template: 'template0'\n" +
                         "node ('master') { \n" +
                         "  sh \"echo Instance IP: ${srv.address}\" \n" +
                         "} \n" +

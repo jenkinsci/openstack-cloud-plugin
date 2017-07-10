@@ -9,6 +9,7 @@ import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
+import jenkins.plugins.openstack.compute.ServerScope;
 import org.jenkinsci.plugins.workflow.steps.*;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -39,7 +40,6 @@ public class OpenStackMachineStep extends Step {
     private @Nonnull String cloud = "";
     private @Nonnull String template = "";
     private @Nonnull String scope = "run";
-    private @Nonnull String run = "";
 
     @DataBoundConstructor
     public OpenStackMachineStep() {
@@ -58,7 +58,11 @@ public class OpenStackMachineStep extends Step {
     @DataBoundSetter
     public void setScope(@CheckForNull String scope) {
         if (scope != null) {
-            this.scope = scope;
+            if ("run".equals(scope) || scope.startsWith("unlimited:")) {
+                this.scope = scope;
+            } else {
+                throw new IllegalArgumentException("Invalid scope: " + scope);
+            }
         }
     }
 
@@ -76,7 +80,10 @@ public class OpenStackMachineStep extends Step {
 
     @Override
     public StepExecution start(StepContext context) throws Exception {
-        this.run = context.get(Run.class).getFullDisplayName().replace(" #", ":");
+        if (scope.equals("run")) {
+            scope = new ServerScope.Build(context.get(Run.class)).getValue();
+        }
+        ServerScope.parse(scope);
         return new OpenStackMachineStep.Execution( this, context);
     }
 
@@ -135,13 +142,7 @@ public class OpenStackMachineStep extends Step {
             super(context);
             this.cloud = step.cloud;
             this.template = step.template;
-            if ("run".equals(step.scope)) {
-                this.scope = "run:" + step.run;
-            } else if ("unlimited".equals(step.scope)) {
-                this.scope = "unlimited:run";
-            } else {
-                this.scope = step.scope;
-            }
+            this.scope = step.scope;
         }
 
         @Override
