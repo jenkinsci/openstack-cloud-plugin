@@ -11,6 +11,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 public class UserDataConfig extends Config {
@@ -57,6 +58,19 @@ public class UserDataConfig extends Config {
         @Restricted(DoNotUse.class) // Jelly
         public Collection<UserDataVariableResolver.Entry> getVariables() {
             return UserDataVariableResolver.STUB.values();
+        }
+
+        @Restricted(DoNotUse.class) // Jelly
+        public Collection<String> usages(@NonNull String id) {
+            ArrayList<String> usages = new ArrayList<String>();
+            for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+                for (JCloudsSlaveTemplate template : cloud.getTemplates()) {
+                    if (id.equals(template.getEffectiveSlaveOptions().getUserDataId())) {
+                        usages.add(cloud.name + " / " + template.name);
+                    }
+                }
+            }
+            return usages;
         }
     }
 }
