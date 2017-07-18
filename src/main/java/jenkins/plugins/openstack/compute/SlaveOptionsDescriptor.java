@@ -405,12 +405,18 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getUserDataId());
             if (d != null) {
-                d = getConfigProvider().getConfigById(d).name;
-                return FormValidation.ok(def(d));
+                String name = getConfigProvider().getConfigById(d).name;
+                return getUserDataLink(d, def(name));
             }
             return OK;
         }
-        return OK;
+        return getUserDataLink(value, "View file");
+    }
+
+    private FormValidation getUserDataLink(String id, String name) {
+        return FormValidation.okWithMarkup(
+                "<a target='_blank' href='" + Jenkins.getActiveInstance().getRootUrl() + "configfiles/editConfig?id=" + Util.escape(id) + "'>" + Util.escape(name) + "</a>"
+        );
     }
 
     private ConfigProvider getConfigProvider() {
