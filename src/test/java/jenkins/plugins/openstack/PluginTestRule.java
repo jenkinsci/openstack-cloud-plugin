@@ -314,7 +314,7 @@ public final class PluginTestRule extends JenkinsRule {
 
     @SuppressWarnings("deprecation")
     public Openstack fakeOpenstackFactory(final Openstack os) {
-        ExtensionList.lookup(Openstack.FactoryEP.class).add(new Openstack.FactoryEP() {
+        Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
             @Override
             public @Nonnull Openstack getOpenstack(
                     @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
@@ -327,10 +327,18 @@ public final class PluginTestRule extends JenkinsRule {
 
     @SuppressWarnings("deprecation")
     public Openstack.FactoryEP mockOpenstackFactory() {
-        Openstack.FactoryEP factory = mock(Openstack.FactoryEP.class, withSettings().serializable());
-        ExtensionList<Openstack.FactoryEP> lookup = ExtensionList.lookup(Openstack.FactoryEP.class);
-        lookup.clear();
-        lookup.add(factory);
+        // Yes. We are wrapping mock into a real instance on purpose. We need an not-mocked instance so the 'cache' instance
+        // field is initialized properly as we are referring to it form the factory method. But, as we need to mock/verify
+        // the calls to getOpenstack() calls, the implementation delegates to the mock inside to do so. The inner mock is
+        // what users will configure/verify and that is what is returned from this method.
+        final Openstack.FactoryEP factory = mock(Openstack.FactoryEP.class, withSettings().serializable());
+        Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
+
+            @Nonnull @Override
+            public Openstack getOpenstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, String region) throws FormValidation {
+                return factory.getOpenstack(endPointUrl, identity, credential, region);
+            }
+        });
         return factory;
     }
 

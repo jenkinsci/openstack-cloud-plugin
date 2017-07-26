@@ -88,6 +88,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private transient @Deprecated Integer startTimeout;
     private transient @Deprecated Boolean floatingIps;
 
+    // Cache the instance between uses
+    private volatile transient @CheckForNull Openstack openstack;
+
     // TODO: refactor to interface/extension point
     public enum SlaveType {
         SSH {
@@ -461,7 +464,17 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      */
     @Restricted(DoNotUse.class)
     public @Nonnull Openstack getOpenstack() {
-        return new Openstack(endPointUrl, identity, credential, zone);
+        Openstack os = openstack;
+        if (os == null) {
+            try {
+                os = openstack = Openstack.Factory.get(endPointUrl, identity, credential.getPlainText(), zone);
+            } catch (FormValidation ex) {
+                openstack = null;
+                LOGGER.log(Level.SEVERE, "Openstack credentials invalid", ex);
+                throw new RuntimeException("Openstack credentials invalid", ex);
+            }
+        }
+        return os;
     }
 
     @Extension

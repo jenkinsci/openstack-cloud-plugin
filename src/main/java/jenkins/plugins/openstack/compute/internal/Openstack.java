@@ -25,6 +25,7 @@ package jenkins.plugins.openstack.compute.internal;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -41,9 +42,11 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 
 import com.google.common.base.Objects;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
@@ -69,6 +72,8 @@ import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Keypair;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.model.identity.v2.Access;
+import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
@@ -90,14 +95,16 @@ import jenkins.model.Jenkins;
  * @author ogondza
  */
 @Restricted(NoExternalUse.class)
+@ThreadSafe
 public class Openstack {
 
     private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
     public static final String FINGERPRINT_KEY = "jenkins-instance";
 
-    private final OSClient client;
+    // Store the OS session token so clients can be created from it per all threads using this.
+    private final ClientProvider clientProvider;
 
-    public Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull Secret credential, @CheckForNull String region) {
+    private Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull Secret credential, @CheckForNull String region) {
         // TODO refactor to split tenant:username everywhere including UI
         String[] id = identity.split(":", 3);
         String tenant = id.length > 0 ? id[0] : "";
@@ -117,26 +124,32 @@ public class Openstack {
                      .credentials(username, credential.getPlainText(), iDomain)
                      .scopeToProject(project, iDomain);
         }
-        client = builder
+        OSClient client = builder
                 .authenticate()
                 .useRegion(region)
         ;
+
+        clientProvider = new SessionClientProvider(client);
         debug("Openstack client created for " + endPointUrl);
     }
 
     /*exposed for testing*/
-    public Openstack(@Nonnull OSClient client) {
-        this.client = client;
+    public Openstack(@Nonnull final OSClient client) {
+        this.clientProvider = new ClientProvider() {
+            @Override public OSClient get() {
+                return client;
+            }
+        };
     }
 
     public @Nonnull Collection<? extends Network> getSortedNetworks() {
-        List<? extends Network> nets = client.networking().network().list();
+        List<? extends Network> nets = clientProvider.get().networking().network().list();
         Collections.sort(nets, RESOURCE_COMPARATOR);
         return nets;
     }
 
     public @Nonnull Collection<Image> getSortedImages() {
-        List<? extends Image> images = client.images().listAll();
+        List<? extends Image> images = clientProvider.get().images().listAll();
         TreeSet<Image> set = new TreeSet<>(RESOURCE_COMPARATOR); // Eliminate duplicate names
         set.addAll(images);
         return set;
@@ -150,7 +163,7 @@ public class Openstack {
     };
 
     public @Nonnull Collection<? extends Flavor> getSortedFlavors() {
-        List<? extends Flavor> flavors = client.compute().flavors().list();
+        List<? extends Flavor> flavors = clientProvider.get().compute().flavors().list();
         Collections.sort(flavors, FLAVOR_COMPARATOR);
         return flavors;
     }
@@ -176,7 +189,7 @@ public class Openstack {
      */
     private @CheckForNull ComputeFloatingIPService getComputeFloatingIPService() {
         try {
-            return client.compute().floatingIps();
+            return clientProvider.get().compute().floatingIps();
         } catch (ClientResponseException ex) {
             // https://github.com/jenkinsci/openstack-cloud-plugin/issues/128
             if (ex.getStatus() == 403) return null;
@@ -189,7 +202,7 @@ public class Openstack {
 
         // We need details to inspect state and metadata
         final boolean detailed = true;
-        for (Server n: client.compute().servers().list(detailed)) {
+        for (Server n: clientProvider.get().compute().servers().list(detailed)) {
             if (isOccupied(n) && isOurs(n)) {
                 running.add(n);
             }
@@ -200,7 +213,7 @@ public class Openstack {
 
     public List<String> getFreeFipIds() {
         ArrayList<String> free = new ArrayList<>();
-        for (NetFloatingIP ip : client.networking().floatingip().list()) {
+        for (NetFloatingIP ip : clientProvider.get().networking().floatingip().list()) {
             if (ip.getFixedIpAddress() == null) {
                 free.add(ip.getId());
             }
@@ -210,7 +223,7 @@ public class Openstack {
 
     public @Nonnull List<String> getSortedKeyPairNames() {
         List<String> keyPairs = new ArrayList<>();
-        for (Keypair kp : client.compute().keypairs().list()) {
+        for (Keypair kp : clientProvider.get().compute().keypairs().list()) {
             keyPairs.add(kp.getName());
         }
         return keyPairs;
@@ -221,7 +234,7 @@ public class Openstack {
         query.put("name", name);
         query.put("status", "active");
 
-        List<? extends Image> images = client.images().listAll(query);
+        List<? extends Image> images = clientProvider.get().images().listAll(query);
         if (images.size() > 0) {
             // Pick one at random to point out failures ASAP
             return images.get(new Random().nextInt(images.size())).getId();
@@ -264,14 +277,14 @@ public class Openstack {
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
-        Server server = client.compute().servers().get(id);
+        Server server = clientProvider.get().compute().servers().get(id);
         if (server == null) throw new NoSuchElementException("No such server running: " + id);
         return server;
     }
 
     public @Nonnull List<Server> getServersByName(@Nonnull String name) {
         List<Server> ret = new ArrayList<>();
-        for (Server server : client.compute().servers().list(Collections.singletonMap("name", name))) {
+        for (Server server : clientProvider.get().compute().servers().list(Collections.singletonMap("name", name))) {
             if (isOurs(server)) {
                 ret.add(server);
             }
@@ -321,7 +334,7 @@ public class Openstack {
     @Restricted(NoExternalUse.class) // Test hook
     public Server _bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
         request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
-        return client.compute().servers().bootAndWaitActive(request.build(), timeout);
+        return clientProvider.get().compute().servers().bootAndWaitActive(request.build(), timeout);
     }
 
     /**
@@ -356,7 +369,7 @@ public class Openstack {
             }
         }
 
-        ServerService servers = client.compute().servers();
+        ServerService servers = clientProvider.get().compute().servers();
         server = servers.get(nodeId);
         if (server == null || server.getStatus() == Server.Status.DELETED) {
             debug("Machine destroyed: " + nodeId);
@@ -382,7 +395,7 @@ public class Openstack {
      */
     public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) throws ActionFailed {
         debug("Allocating floating IP for " + server.getName());
-        ComputeFloatingIPService fips = client.compute().floatingIps(); // This throws when user is not authorized to manipulate FIPs
+        ComputeFloatingIPService fips = clientProvider.get().compute().floatingIps(); // This throws when user is not authorized to manipulate FIPs
         FloatingIP ip;
         try {
             ip = fips.allocateIP(poolName);
@@ -411,7 +424,11 @@ public class Openstack {
     }
 
     public void destroyFip(String fip) {
-        ActionResponse delete = client.networking().floatingip().delete(fip);
+        ActionResponse delete = clientProvider.get().networking().floatingip().delete(fip);
+
+        // Deleted by some other action. Being idempotent here and reporting success.
+        if (delete.getCode() == 404) return;
+
         throwIfFailed(delete);
     }
 
@@ -472,9 +489,6 @@ public class Openstack {
                 } else if (addr.getVersion()==4) {
                 	fixed = addr.getAddr();
                 }
-                
-
-                
             }
         }
 
@@ -482,7 +496,6 @@ public class Openstack {
         return fixed;
     }
 
-    
     /**
      * @return true if succeeded.
      */
@@ -538,6 +551,7 @@ public class Openstack {
         // Try to talk to all endpoints the plugin rely on so we know they exist, are enabled, user have permission to
         // access them and JVM trusts their SSL cert.
         try {
+            OSClient client = clientProvider.get();
             client.networking().network().get("");
             client.images().listMembers("");
             client.compute().listExtensions().size();
@@ -563,6 +577,15 @@ public class Openstack {
 
     @Restricted(NoExternalUse.class) // Extension point just for testing
     public static abstract class FactoryEP implements ExtensionPoint {
+        // Cache the last openstack instance created - we do not need anything more sophisticated for now
+        @CopyOnWrite
+        private volatile @Nonnull Map<String, Openstack> cache = Collections.emptyMap();
+
+        private Object readResolve() throws ObjectStreamException {
+
+            return this;
+        }
+
         public abstract @Nonnull Openstack getOpenstack(
                 @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
         ) throws FormValidation;
@@ -573,7 +596,21 @@ public class Openstack {
         public static @Nonnull Openstack get(
                 @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
         ) throws FormValidation {
-            return ExtensionList.lookup(FactoryEP.class).get(0).getOpenstack(endPointUrl, identity, credential, region);
+            String fingerprint = Util.getDigestOf(endPointUrl + '\n' + identity + '\n' + credential + '\n' + region);
+            FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
+            Openstack cachedInstance = ep.cache.get(fingerprint);
+            if (cachedInstance == null) {
+                cachedInstance = ep.getOpenstack(endPointUrl, identity, credential, region);
+                ep.cache = Collections.singletonMap(fingerprint, cachedInstance);
+            }
+            return cachedInstance;
+        }
+
+        public static @Nonnull FactoryEP replace(@Nonnull FactoryEP factory) {
+            ExtensionList<Openstack.FactoryEP> lookup = ExtensionList.lookup(Openstack.FactoryEP.class);
+            lookup.clear();
+            lookup.add(factory);
+            return factory;
         }
     }
 
@@ -590,6 +627,47 @@ public class Openstack {
             if (credential == null) throw FormValidation.error("No credential specified");
 
             return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
+        }
+    }
+
+    /**
+     * Abstract away the fact client can not be shared between threads and the implementation details for different
+     * versions of keystone.
+     */
+    private interface ClientProvider {
+        OSClient get();
+    }
+
+    /**
+     * Reuse auth session between different threads creating separate client for every use.
+     */
+    private static class SessionClientProvider implements ClientProvider {
+
+        private final Object storage;
+
+        private SessionClientProvider(OSClient toStore) {
+            if (toStore instanceof OSClient.OSClientV2) {
+                storage = ((OSClient.OSClientV2) toStore).getAccess();
+            } else if (toStore instanceof OSClient.OSClientV3) {
+                storage = ((OSClient.OSClientV3) toStore).getToken();
+            } else {
+                throw new AssertionError(
+                        "Unsupported openstack4j client " + toStore.getClass().getName()
+                );
+            }
+        }
+
+        public OSClient get() {
+            if (storage instanceof Access) {
+                return OSFactory.clientFromAccess(((Access) storage));
+            }
+
+            if (storage instanceof Token) {
+                return OSFactory.clientFromToken(((Token) storage));
+            }
+            throw new AssertionError(
+                    "Unsupported openstack4j auth storage " + storage.getClass().getName()
+            );
         }
     }
 
