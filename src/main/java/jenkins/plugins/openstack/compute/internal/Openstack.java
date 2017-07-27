@@ -362,7 +362,7 @@ public class Openstack {
                         debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
                     } else {
                         throw new ActionFailed(
-                                "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault()
+                                "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault() + "(" + res.getCode()  + ")"
                         );
                     }
                 }
