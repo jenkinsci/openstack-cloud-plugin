@@ -29,7 +29,6 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
 import com.trilead.ssh2.Connection;
 import hudson.Extension;
 import hudson.ExtensionList;
