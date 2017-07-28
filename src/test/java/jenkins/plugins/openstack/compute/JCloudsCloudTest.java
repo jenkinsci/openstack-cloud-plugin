@@ -6,8 +6,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
@@ -45,10 +49,12 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.kohsuke.stapler.Stapler;
+import org.openstack4j.api.OSClient;
 import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -303,6 +309,38 @@ public class JCloudsCloudTest {
         } catch (AccessDeniedException ex) {
             // Expected
         }
+    }
+
+    @Test
+    public void expireOpenstackInstanceWhenTokenExpires() throws Exception {
+        Openstack.FactoryEP factory = j.mockOpenstackFactory();
+        Date justExpired = new Date();
+        OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
+        when(client.getAccess().getToken().getExpires()).thenReturn(justExpired);
+        System.out.println(client.getAccess().getToken().getExpires());
+        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenReturn(new Openstack(client));
+
+        Openstack.Factory.get("", "", "", "");
+        Openstack.Factory.get("", "", "", "");
+        Openstack.Factory.get("", "", "", "");
+
+        verify(factory, times(3)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
+    }
+
+    @Test
+    public void doNotExpireOpenstackInstanceWhenTokenValid() throws Exception {
+        Openstack.FactoryEP factory = j.mockOpenstackFactory();
+        Date validForAWhile = new Date(System.currentTimeMillis() + 1000 * 60 * 15);
+        OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
+
+        when(client.getAccess().getToken().getExpires()).thenReturn(validForAWhile);
+        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenReturn(new Openstack(client));
+
+        Openstack.Factory.get("", "", "", "");
+        Openstack.Factory.get("", "", "", "");
+        Openstack.Factory.get("", "", "", "");
+
+        verify(factory, times(1)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {

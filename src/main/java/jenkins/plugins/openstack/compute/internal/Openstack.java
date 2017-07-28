@@ -25,17 +25,18 @@ package jenkins.plugins.openstack.compute.internal;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,8 +46,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 import com.google.common.base.Objects;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
@@ -129,17 +131,28 @@ public class Openstack {
                 .useRegion(region)
         ;
 
-        clientProvider = new SessionClientProvider(client);
+        clientProvider = ClientProvider.get(client);
         debug("Openstack client created for " + endPointUrl);
     }
 
     /*exposed for testing*/
     public Openstack(@Nonnull final OSClient client) {
-        this.clientProvider = new ClientProvider() {
-            @Override public OSClient get() {
+        this.clientProvider = new ClientProvider<Void>(null) {
+            @Override public @Nonnull OSClient get() {
                 return client;
             }
+
+            @Override public Date _getExpires() {
+                return ClientProvider.get(client).getExpires();
+            }
         };
+    }
+
+    /**
+     * Date representing time until this instance is valid to be used.
+     */
+    public @Nonnull Date getExpires() {
+        return clientProvider.getExpires();
     }
 
     public @Nonnull Collection<? extends Network> getSortedNetworks() {
@@ -577,14 +590,14 @@ public class Openstack {
 
     @Restricted(NoExternalUse.class) // Extension point just for testing
     public static abstract class FactoryEP implements ExtensionPoint {
-        // Cache the last openstack instance created - we do not need anything more sophisticated for now
-        @CopyOnWrite
-        private volatile @Nonnull Map<String, Openstack> cache = Collections.emptyMap();
-
-        private Object readResolve() throws ObjectStreamException {
-
-            return this;
-        }
+        private final transient @Nonnull Cache<String, Openstack> cache = CacheBuilder.newBuilder()
+                // There is no clear reasoning behind particular expiration policy except that individual instances can
+                // have different token expiration time, which is something guava does not support. This expiration needs
+                // to be implemented separately.
+                // According to OpenStack documentation, default token lifetime is one hour so let's use that as a baseline.
+                .expireAfterWrite(1, TimeUnit.HOURS)
+                .build()
+        ;
 
         public abstract @Nonnull Openstack getOpenstack(
                 @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
@@ -598,11 +611,13 @@ public class Openstack {
         ) throws FormValidation {
             String fingerprint = Util.getDigestOf(endPointUrl + '\n' + identity + '\n' + credential + '\n' + region);
             FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
-            Openstack cachedInstance = ep.cache.get(fingerprint);
-            if (cachedInstance == null) {
+
+            Openstack cachedInstance = ep.cache.getIfPresent(fingerprint);
+            if (cachedInstance == null || isExpired(cachedInstance)) {
                 cachedInstance = ep.getOpenstack(endPointUrl, identity, credential, region);
-                ep.cache = Collections.singletonMap(fingerprint, cachedInstance);
+                ep.cache.put(fingerprint, cachedInstance);
             }
+
             return cachedInstance;
         }
 
@@ -612,6 +627,10 @@ public class Openstack {
             lookup.add(factory);
             return factory;
         }
+    }
+
+    private static boolean isExpired(Openstack cachedInstance) {
+        return cachedInstance.getExpires().compareTo(new Date()) < 1;
     }
 
     @Extension
@@ -634,40 +653,65 @@ public class Openstack {
      * Abstract away the fact client can not be shared between threads and the implementation details for different
      * versions of keystone.
      */
-    private interface ClientProvider {
-        OSClient get();
-    }
+    private static abstract class ClientProvider<T> {
+        protected final T storage;
 
-    /**
-     * Reuse auth session between different threads creating separate client for every use.
-     */
-    private static class SessionClientProvider implements ClientProvider {
+        private ClientProvider(T token) {
+            storage = token;
+        }
 
-        private final Object storage;
+        /**
+         * Reuse auth session between different threads creating separate client for every use.
+         */
+        public abstract @Nonnull OSClient get();
 
-        private SessionClientProvider(OSClient toStore) {
-            if (toStore instanceof OSClient.OSClientV2) {
-                storage = ((OSClient.OSClientV2) toStore).getAccess();
-            } else if (toStore instanceof OSClient.OSClientV3) {
-                storage = ((OSClient.OSClientV3) toStore).getToken();
-            } else {
-                throw new AssertionError(
-                        "Unsupported openstack4j client " + toStore.getClass().getName()
-                );
+        protected abstract Date _getExpires();
+
+        @Nonnull Date getExpires() {
+            Date ex = _getExpires();
+            if (ex == null) {
+                throw new AssertionError("No expiration specified in " + storage);
+            }
+            return ex;
+        }
+
+        private static ClientProvider get(OSClient client) {
+            if (client instanceof OSClient.OSClientV2) return new SessionClientV2Provider((OSClient.OSClientV2) client);
+            if (client instanceof OSClient.OSClientV3) return new SessionClientV3Provider((OSClient.OSClientV3) client);
+
+            throw new AssertionError(
+                    "Unsupported openstack4j client " + client.getClass().getName()
+            );
+        }
+
+        private static class SessionClientV2Provider extends ClientProvider<Access> {
+
+            private SessionClientV2Provider(OSClient.OSClientV2 toStore) {
+                super(toStore.getAccess());
+            }
+
+            public @Nonnull OSClient get() {
+                return OSFactory.clientFromAccess(storage);
+            }
+
+            public Date _getExpires() {
+                return storage.getToken().getExpires();
             }
         }
 
-        public OSClient get() {
-            if (storage instanceof Access) {
-                return OSFactory.clientFromAccess(((Access) storage));
+        private static class SessionClientV3Provider extends ClientProvider<Token> {
+
+            private SessionClientV3Provider(OSClient.OSClientV3 toStore) {
+                super(toStore.getToken());
             }
 
-            if (storage instanceof Token) {
-                return OSFactory.clientFromToken(((Token) storage));
+            public @Nonnull OSClient get() {
+                return OSFactory.clientFromToken(storage);
             }
-            throw new AssertionError(
-                    "Unsupported openstack4j auth storage " + storage.getClass().getName()
-            );
+
+            public Date _getExpires() {
+                return storage.getExpires();
+            }
         }
     }
 
