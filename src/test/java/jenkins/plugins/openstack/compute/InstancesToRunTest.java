@@ -2,7 +2,6 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.*;
 
 import hudson.util.FormValidation;
