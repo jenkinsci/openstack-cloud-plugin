@@ -1,3 +1,23 @@
 <div>
   API endpoint URL for Keystone (also known as Identity service).
+  <ul>
+    <li>
+    The administrator for your OpenStack deployment should be able to provide this.
+    </li>
+    <li>
+      If you have an &quot;<tt>openrc</tt>&quot; file then this is the value of <tt>OS_AUTH_URL</tt>.
+    </li>
+    <li>
+      If you have a user-friendly web front end, you may find
+      this information under an "API" sub-heading.
+    <br/>
+      e.g. The &quot;Horizon&quot; Openstack Dashboard has this information
+      under Compute -&gt; Access &amp; Security -&gt; API Access -&gt; Identity.
+    </li>
+  </ul>
+  For example, an Openstack deployment using &quot;v2 authentication&quot; might have an endpoint of
+  <tt>https://some.host.name:5000/v2.0</tt>
+  <br/>
+  Similarly, an Openstack deployment using &quot;v3 authentication&quot; might have an endpoint of
+  <tt>https://some.other.host:5000/v3</tt><br/>
 </div>

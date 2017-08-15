@@ -2,10 +2,6 @@
 <j:jelly xmlns:j="jelly:core">
   <div>
     <p>
-    Selects which (if any) user data is sent to the cloud-init process when the instance first boots up.
-    The cloud-init process typically auto-detects the format/syntax of the script from the first line.
-    </p>
-    <p>
     Before the userdata is sent to the OpenStack instance, the following values are injected and can be referenced within the userdata using $${VARIABLE_NAME} syntax:
     <dl>
       <!-- Descriptor not exposed for help files? -->
