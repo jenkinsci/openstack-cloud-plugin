@@ -1,6 +1,20 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core">
   <div>
-    You can specify userdata via <a target="_blank" href="${app.rootUrl}configfiles/">Jenkins -> Manage Jenkins -> Managed Files -> Add New Config (OpenStack User Data)</a>.
+    <p>
+    Selects which (if any) user data is sent to the cloud-init process when the instance first boots up.
+    The cloud-init process typically auto-detects the format/syntax of the script from the first line.
+    <br/>
+    Hint: This is an effective (and recommended) method of passing JNLP connection information to the
+    newly-created instance.
+    </p>
+    <p>
+    Note: Before you can select a user data script, you will first need to define one.
+    You can add, remove and edit your user data scripts via
+    <a target="_blank" href="${app.rootUrl}configfiles/">
+    Jenkins -> Manage Jenkins -> Managed Files -> Add New Config (OpenStack User Data)
+    </a>.
+    See the help on that page for further details (including examples for JNLP).
+    </p>
   </div>
 </j:jelly>
