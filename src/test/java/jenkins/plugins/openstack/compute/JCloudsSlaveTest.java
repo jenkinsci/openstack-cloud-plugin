@@ -2,11 +2,9 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.model.TaskListener;
 import jenkins.plugins.openstack.PluginTestRule;
-import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.recipes.LocalData;
-import org.mockito.Mockito;
 import org.openstack4j.api.exceptions.ConnectionException;
 
 import static org.junit.Assert.assertEquals;
