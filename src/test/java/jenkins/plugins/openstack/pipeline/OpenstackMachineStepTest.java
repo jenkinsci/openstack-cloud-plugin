@@ -101,7 +101,7 @@ public class OpenstackMachineStepTest {
         bootSerializableCheck.setDefinition(new CpsFlowDefinition(
                 " def srv = openstackMachine cloud: 'openstack', template: 'template0'\n" +
                         "node ('master') { \n" +
-                        "  sh \"echo Instance IP: ${srv.address}\" \n" +
+                        "  echo \"Instance IP: ${srv.address}\" \n" +
                         "} \n" +
                         "srv.destroy()", true));
         WorkflowRun b = j.assertBuildStatusSuccess(bootSerializableCheck.scheduleBuild2(0));

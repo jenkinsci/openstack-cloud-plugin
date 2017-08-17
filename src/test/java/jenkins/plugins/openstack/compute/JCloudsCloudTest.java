@@ -251,11 +251,15 @@ public class JCloudsCloudTest {
         assertEquals("zone", to.getAvailabilityZone());
         assertEquals("jenkins.plugins.openstack.compute.UserDataConfig.1455188317989", to.getUserDataId());
 
-        assertEquals(fileAsString("globalConfigMigrationFromV1/expected-userData"), template.getUserData());
+        final String expectedUserData = toUnixEols(fileAsString("globalConfigMigrationFromV1/expected-userData"));
+        final String actualUserData = toUnixEols(template.getUserData());
+        assertEquals(expectedUserData, actualUserData);
 
         BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(to.getCredentialsId());
         assertEquals("jenkins", creds.getUsername());
-        assertEquals(fileAsString("globalConfigMigrationFromV1/expected-private-key"), creds.getPrivateKey());
+        final String expectedPrivateKey = toUnixEols(fileAsString("globalConfigMigrationFromV1/expected-private-key"));
+        final String actualPrivateKey = toUnixEols(creds.getPrivateKey());
+        assertEquals(expectedPrivateKey, actualPrivateKey);
 
         JenkinsRule.WebClient wc = j.createWebClient();
         // Submit works
@@ -345,6 +349,17 @@ public class JCloudsCloudTest {
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {
         return j.configureSlaveLaunching(new AclControllingJCloudsCloud(template, authorized));
+    }
+
+    /**
+     * Turns a multi-line string with CR/LF EOLs into one with LF EOLs. Windows
+     * and Unix use different end-of-line character sequences, which causes
+     * problems when we're comparing strings from difference places, some of
+     * which are "native" to the test platform and some are 100% Windows or 100%
+     * Unix regardless of the test platform OS.
+     */
+    private static String toUnixEols(String multiLineString) {
+        return multiLineString.replaceAll("\r\n", "\n");
     }
 
     private static class DoProvision implements Callable<Object> {
