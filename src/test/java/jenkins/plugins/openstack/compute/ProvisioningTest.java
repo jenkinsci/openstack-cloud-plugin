@@ -43,6 +43,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -82,12 +83,8 @@ public class ProvisioningTest {
         assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(1));
         ProvisioningActivity activity = cs.getActivities().get(0);
 
-        try {
-            assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
-        } catch (AssertionError e) {
-            Thread.sleep(1000); // Computer#WaitUntilOnline completes before listeners are called so cloud stats needs a bit of time to notice
-            assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
-        }
+        waitForCloudStatistics(activity, ProvisioningActivity.Phase.OPERATING);
+        assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
 
         Server server = cloud.getOpenstack().getServerById(computer.getNode().getServerId());
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
@@ -98,6 +95,7 @@ public class ProvisioningTest {
 
         j.triggerOpenstackSlaveCleanup();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
+        waitForCloudStatistics(activity, ProvisioningActivity.Phase.COMPLETED);
         assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
     }
 
@@ -339,6 +337,7 @@ public class ProvisioningTest {
         List<ProvisioningActivity> all = CloudStatistics.get().getActivities();
         assertThat(all, Matchers.<ProvisioningActivity>iterableWithSize(2));
         for (ProvisioningActivity pa : all) {
+            waitForCloudStatistics(pa, ProvisioningActivity.Phase.OPERATING);
             assertNotNull(pa.getPhaseExecution(ProvisioningActivity.Phase.OPERATING));
             assertNull(pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED));
             assertNotNull(j.jenkins.getComputer(pa.getName()));
@@ -374,7 +373,7 @@ public class ProvisioningTest {
     }
 
     @Test
-    public void destroyTheServerWhenFipAllocationFails() {
+    public void destroyTheServerWhenFipAllocationFails() throws Exception {
         SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool("my_pool").build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
         final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
@@ -388,7 +387,7 @@ public class ProvisioningTest {
             assertThat(ex.getMessage(), containsString("Unable to assign"));
         }
 
-        AsyncResourceDisposer.get().reschedule();
+        waitForAsyncResourceDisposer();
 
         verify(os).destroyServer(any(Server.class));
     }
@@ -429,5 +428,65 @@ public class ProvisioningTest {
 
         verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
         verify(os)._bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
+    }
+
+    /**
+     * Waits for CloudStatistics to catch up with the test thread.
+     * CloudStatistics runs asynchronously, so we have to wait for it to catch
+     * up so that the tests run reliably.
+     */
+    private static void waitForCloudStatistics(ProvisioningActivity activityToWaitFor,
+            ProvisioningActivity.Phase expectedPhase) throws InterruptedException {
+        final int millisecondsToWaitBetweenPolls = 100;
+        final int maxTimeToWaitInMilliseconds = 5000;
+        final long timestampBeforeWaiting = System.nanoTime();
+        while (true) {
+            final Object actual = activityToWaitFor.getPhaseExecution(expectedPhase);
+            if (actual != null) {
+                return; // cloud statistics have updated
+            }
+            final long timestampNow = System.nanoTime();
+            final long timeSpentWaitingInNanoseconds = timestampNow - timestampBeforeWaiting;
+            final long timeSpentWaitingInMilliseconds = timeSpentWaitingInNanoseconds / 1000000L;
+            final long timeToWaitRemainingInMilliseconds = maxTimeToWaitInMilliseconds - timeSpentWaitingInMilliseconds;
+            if (timeToWaitRemainingInMilliseconds <= 0L) {
+                assertNotNull("After waiting " + timeSpentWaitingInMilliseconds + " milliseconds, calling "
+                        + ProvisioningActivity.class.getSimpleName() + ".getPhaseExecution(" + expectedPhase + ") on "
+                        + activityToWaitFor + " still returned null", actual);
+            }
+            final long timeToWaitNowInMilliseconds = Math.min(millisecondsToWaitBetweenPolls,
+                    timeToWaitRemainingInMilliseconds);
+            Thread.sleep(timeToWaitNowInMilliseconds);
+        }
+    }
+
+    /**
+     * Waits for AsyncResourceDisposer to catch up with the test thread.
+     * AsyncResourceDisposer runs asynchronously, so we have to wait for it to
+     * catch up so that the tests run reliably.
+     */
+    private static void waitForAsyncResourceDisposer() throws InterruptedException {
+        final int millisecondsToWaitBetweenPolls = 100;
+        final int maxTimeToWaitInMilliseconds = 5000;
+        final AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        disposer.reschedule();
+        final long timestampBeforeWaiting = System.nanoTime();
+        while (true) {
+            final Set<?> actual = disposer.getBacklog();
+            if (actual.isEmpty()) {
+                return; // all resources disposed of
+            }
+            final long timestampNow = System.nanoTime();
+            final long timeSpentWaitingInNanoseconds = timestampNow - timestampBeforeWaiting;
+            final long timeSpentWaitingInMilliseconds = timeSpentWaitingInNanoseconds / 1000000L;
+            final long timeToWaitRemainingInMilliseconds = maxTimeToWaitInMilliseconds - timeSpentWaitingInMilliseconds;
+            if (timeToWaitRemainingInMilliseconds <= 0L) {
+                assertThat("After waiting " + timeSpentWaitingInMilliseconds + " milliseconds, "
+                        + AsyncResourceDisposer.class.getSimpleName() + ".getBacklog()", actual, empty());
+            }
+            final long timeToWaitNowInMilliseconds = Math.min(millisecondsToWaitBetweenPolls,
+                    timeToWaitRemainingInMilliseconds);
+            Thread.sleep(timeToWaitNowInMilliseconds);
+        }
     }
 }
