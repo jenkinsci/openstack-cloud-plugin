@@ -1,15 +1,27 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.model.Slave;
 import hudson.model.TaskListener;
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.slaves.Cloud;
+import hudson.slaves.ComputerLauncher;
+import hudson.slaves.JNLPLauncher;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.openstack4j.api.exceptions.ConnectionException;
 
+import java.io.IOException;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * @author ogondza.
@@ -52,5 +64,30 @@ public class JCloudsSlaveTest {
         assertNotNull(so);
         assertEquals("2040d591-062a-4ccf-8f36-0a3340a1c51b", so.getCredentialsId());
         assertEquals(JCloudsCloud.SlaveType.SSH, so.getSlaveType());
+    }
+
+    @Test @LocalData
+    public void loadConfigFromV24() throws Exception {
+        JCloudsCloud jnlpCloud = JCloudsCloud.getByName("JNLP");
+        JCloudsCloud sshCloud = JCloudsCloud.getByName("SSH");
+
+        assertThat(producesLauncher(jnlpCloud), instanceOf(JNLPLauncher.class));
+        assertThat(producesLauncher(jnlpCloud.getTemplate("jnlp")), instanceOf(JNLPLauncher.class));
+        assertThat(producesLauncher(jnlpCloud.getTemplate("ssh")), instanceOf(SSHLauncher.class));
+
+        assertThat(producesLauncher(sshCloud), instanceOf(SSHLauncher.class));
+        assertThat(producesLauncher(sshCloud.getTemplate("jnlp")), instanceOf(JNLPLauncher.class));
+        assertThat(producesLauncher(sshCloud.getTemplate("ssh")), instanceOf(SSHLauncher.class));
+    }
+
+    private static ComputerLauncher producesLauncher(SlaveOptions.Holder holder) throws IOException {
+        SlaveOptions options = holder.getEffectiveSlaveOptions();
+
+        JCloudsSlave slave = mock(JCloudsSlave.class);
+        when(slave.getNodeName()).thenReturn("fake");
+        when(slave.getSlaveOptions()).thenReturn(options);
+        when(slave.getPublicAddressIpv4()).thenReturn("42.42.42.42");
+
+        return options.getSlaveType().createLauncher(slave);
     }
 }
