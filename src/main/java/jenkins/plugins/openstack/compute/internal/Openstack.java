@@ -73,6 +73,7 @@ import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Keypair;
 import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.ServerCreate;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.identity.v2.Access;
 import org.openstack4j.model.identity.v3.Token;
@@ -155,17 +156,20 @@ public class Openstack {
         return clientProvider.getExpires();
     }
 
+    /** Cache results of OSClient.networking().network().list() between threads as it doesn't change much. */
+    private final CacheableData<List<? extends Network>> cachedNetworkingNetworkListProvider = new CachedData<List<? extends Network>>(
+            15) {
+        @Override
+        protected List<? extends Network> calculate() {
+            LOGGER.log(Level.FINER, "{0}:{1} calling networking().network().list()", new Object[]{ this, Thread.currentThread() });
+            return Collections.unmodifiableList(clientProvider.get().networking().network().list());
+        }
+    };
+
     public @Nonnull Collection<? extends Network> getSortedNetworks() {
-        List<? extends Network> nets = clientProvider.get().networking().network().list();
+        List<? extends Network> nets = new ArrayList<>(cachedNetworkingNetworkListProvider.get());
         Collections.sort(nets, RESOURCE_COMPARATOR);
         return nets;
-    }
-
-    public @Nonnull Collection<Image> getSortedImages() {
-        List<? extends Image> images = clientProvider.get().images().listAll();
-        TreeSet<Image> set = new TreeSet<>(RESOURCE_COMPARATOR); // Eliminate duplicate names
-        set.addAll(images);
-        return set;
     }
 
     private static final Comparator<BasicResource> RESOURCE_COMPARATOR = new Comparator<BasicResource>() {
@@ -175,8 +179,46 @@ public class Openstack {
         }
     };
 
+    /**
+     * Cache results of OSClient.images().listAll() between threads as it
+     * doesn't change much.
+     */
+    private final CacheableData<List<? extends Image>> cachedImagesListAllProvider = new CachedData<List<? extends Image>>(
+            15) {
+        @Override
+        protected List<? extends Image> calculate() {
+            LOGGER.log(Level.FINER, "{0}:{1} calling images().listAll()", new Object[]{this, Thread.currentThread()});
+            return Collections.unmodifiableList(clientProvider.get().images().listAll());
+        }
+    };
+
+    /**
+     * Finds all {@link Image}s.
+     * 
+     * @return A collection of images in ascending order of name.
+     */
+    public @Nonnull Collection<Image> getSortedImages() {
+        final List<? extends Image> images = cachedImagesListAllProvider.get();
+        TreeSet<Image> set = new TreeSet<>(RESOURCE_COMPARATOR); // Eliminate duplicate names
+        set.addAll(images);
+        return set;
+    }
+
+    /**
+     * Cache results of OSClient.compute().flavors().list() between threads as
+     * it doesn't change much.
+     */
+    private final CacheableData<List<? extends Flavor>> cachedComputeFlavorsListProvider = new CachedData<List<? extends Flavor>>(
+            15) {
+        @Override
+        protected List<? extends Flavor> calculate() {
+            LOGGER.log(Level.FINER, "{0}:{1} calling compute().flavors().list()", new Object[]{this, Thread.currentThread()});
+            return Collections.unmodifiableList(clientProvider.get().compute().flavors().list());
+        }
+    };
+
     public @Nonnull Collection<? extends Flavor> getSortedFlavors() {
-        List<? extends Flavor> flavors = clientProvider.get().compute().flavors().list();
+        List<? extends Flavor> flavors = new ArrayList<>(cachedComputeFlavorsListProvider.get());
         Collections.sort(flavors, FLAVOR_COMPARATOR);
         return flavors;
     }
@@ -188,11 +230,26 @@ public class Openstack {
         }
     };
 
-    public @Nonnull List<String> getSortedIpPools() {
-        ComputeFloatingIPService ipService = getComputeFloatingIPService();
-        if (ipService == null) return Collections.emptyList();
+    /**
+     * Cache results of OSClient.compute().zones().list() between threads as it
+     * doesn't change much.
+     */
+    private final CacheableData<List<String>> cachedFloatingIPPoolNamesProvider = new CachedData<List<String>>(
+            15) {
+        @Override
+        protected List<String> calculate() {
+            ComputeFloatingIPService ipService = getComputeFloatingIPService();
+            if (ipService == null) return null;
+            LOGGER.log(Level.FINER, "{0}:{1} calling compute().floatingIps().getPoolNames()", new Object[]{this, Thread.currentThread()});
+            return Collections.unmodifiableList(ipService.getPoolNames());
+        }
+    };
 
-        List<String> names = new ArrayList<>(ipService.getPoolNames());
+    public @Nonnull List<String> getSortedIpPools() {
+        final List<String> namesOrNull = cachedFloatingIPPoolNamesProvider.get();
+        if (namesOrNull == null) return Collections.emptyList();
+
+        List<String> names = new ArrayList<>(namesOrNull);
         Collections.sort(names);
         return names;
     }
@@ -215,6 +272,8 @@ public class Openstack {
 
         // We need details to inspect state and metadata
         final boolean detailed = true;
+        // do not cache this as it can change every second
+        LOGGER.log(Level.FINER, "{0}:{1} calling compute().servers().list({2})", new Object[]{this, Thread.currentThread(), detailed});
         for (Server n: clientProvider.get().compute().servers().list(detailed)) {
             if (isOccupied(n) && isOurs(n)) {
                 running.add(n);
@@ -226,6 +285,8 @@ public class Openstack {
 
     public List<String> getFreeFipIds() {
         ArrayList<String> free = new ArrayList<>();
+        // do not cache this as it can change every second
+        LOGGER.log(Level.FINER, "{0}:{1} calling networking().floatingip().list()", new Object[]{this, Thread.currentThread()});
         for (NetFloatingIP ip : clientProvider.get().networking().floatingip().list()) {
             if (ip.getFixedIpAddress() == null) {
                 free.add(ip.getId());
@@ -234,20 +295,45 @@ public class Openstack {
         return free;
     }
 
+    /**
+     * Cache results of OSClient.compute().keypairs().list() between threads as it
+     * doesn't change much.
+     */
+    private final CacheableData<List<? extends Keypair>> cachedComputeKeypairsListProvider = new CachedData<List<? extends Keypair>>(
+            15) {
+        @Override
+        protected List<? extends Keypair> calculate() {
+            LOGGER.log(Level.FINER, "{0}:{1} calling compute().keypairs().list()", new Object[]{this, Thread.currentThread()});
+            return Collections.unmodifiableList(clientProvider.get().compute().keypairs().list());
+        }
+    };
+
     public @Nonnull List<String> getSortedKeyPairNames() {
-        List<String> keyPairs = new ArrayList<>();
-        for (Keypair kp : clientProvider.get().compute().keypairs().list()) {
+        final List<String> keyPairs = new ArrayList<>();
+        for (Keypair kp : cachedComputeKeypairsListProvider.get()) {
             keyPairs.add(kp.getName());
         }
+        Collections.sort(keyPairs);
         return keyPairs;
     }
 
+    /**
+     * Cache results of OSClient.images().listAll(query) between threads as it
+     * doesn't change much.
+     */
+    private final CacheableFunction<String, List<? extends Image>> cachedImagesListAllForNameProvider = new CachedFunction<String, List<? extends Image>>(
+            15) {
+        @Override
+        protected List<? extends Image> calculate(String nameOrId) {
+            final Map<String, String> query = new HashMap<>(2);
+            query.put("name", nameOrId);
+            query.put("status", "active");
+            LOGGER.log(Level.FINER, "{0}:{1} calling images().listAll(name={2})", new Object[]{this, Thread.currentThread(), nameOrId});
+            return Collections.unmodifiableList(clientProvider.get().images().listAll(query));
+        }
+    };
     public @CheckForNull String getImageIdFor(String name) {
-        Map<String, String> query = new HashMap<>(2);
-        query.put("name", name);
-        query.put("status", "active");
-
-        List<? extends Image> images = clientProvider.get().images().listAll(query);
+        final List<? extends Image> images = cachedImagesListAllForNameProvider.get(name);
         if (images.size() > 0) {
             // Pick one at random to point out failures ASAP
             return images.get(new Random().nextInt(images.size())).getId();
@@ -290,6 +376,8 @@ public class Openstack {
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
+        // do not cache this as it can change every second
+        LOGGER.log(Level.FINER, "{0}:{1} calling compute().servers().get({2})", new Object[]{this, Thread.currentThread(), id});
         Server server = clientProvider.get().compute().servers().get(id);
         if (server == null) throw new NoSuchElementException("No such server running: " + id);
         return server;
@@ -297,6 +385,8 @@ public class Openstack {
 
     public @Nonnull List<Server> getServersByName(@Nonnull String name) {
         List<Server> ret = new ArrayList<>();
+        // do not cache this as it can change every second
+        LOGGER.log(Level.FINER, "{0}:{1} calling compute().servers().list(name={2})", new Object[]{this, Thread.currentThread(), name});
         for (Server server : clientProvider.get().compute().servers().list(Collections.singletonMap("name", name))) {
             if (isOurs(server)) {
                 ret.add(server);
@@ -347,7 +437,9 @@ public class Openstack {
     @Restricted(NoExternalUse.class) // Test hook
     public Server _bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
         request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
-        return clientProvider.get().compute().servers().bootAndWaitActive(request.build(), timeout);
+        final ServerCreate sc = request.build();
+        LOGGER.log(Level.FINER, "{0}:{1} calling compute().servers().bootAndWaitActive(\"{2}\",{3})", new Object[] {this, Thread.currentThread(), sc.getName(), timeout});
+        return clientProvider.get().compute().servers().bootAndWaitActive(sc, timeout);
     }
 
     /**
@@ -370,6 +462,7 @@ public class Openstack {
         if (fipsService != null) {
             for (FloatingIP ip : fipsService.list()) {
                 if (nodeId.equals(ip.getInstanceId())) {
+                    LOGGER.log(Level.FINER, "{0}:{1} calling compute().floatingIps().deallocateIP({2})", new Object[]{this, Thread.currentThread(), ip.getId()});
                     ActionResponse res = fipsService.deallocateIP(ip.getId());
                     if (res.isSuccess()) {
                         debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
@@ -383,12 +476,15 @@ public class Openstack {
         }
 
         ServerService servers = clientProvider.get().compute().servers();
+        // do not cache this as we want the answer for "right now"
+        LOGGER.log(Level.FINER, "{0}:{1} calling compute().servers().get({2})", new Object[]{this, Thread.currentThread(), nodeId});
         server = servers.get(nodeId);
         if (server == null || server.getStatus() == Server.Status.DELETED) {
             debug("Machine destroyed: " + nodeId);
             return; // Deleted
         }
 
+        LOGGER.log(Level.FINER, "{0}:{1} calling compute().servers().delete({2})", new Object[]{this, Thread.currentThread(), nodeId});
         ActionResponse res = servers.delete(nodeId);
         if (res.getCode() == 404) {
             debug("Machine destroyed: " + nodeId);
@@ -411,6 +507,7 @@ public class Openstack {
         ComputeFloatingIPService fips = clientProvider.get().compute().floatingIps(); // This throws when user is not authorized to manipulate FIPs
         FloatingIP ip;
         try {
+            LOGGER.log(Level.FINER, "{0}:{1} calling compute().floatingIps().allocateIP({2})", new Object[]{this, Thread.currentThread(), poolName});
             ip = fips.allocateIP(poolName);
         } catch (ResponseException ex) {
             // TODO Grab some still IPs from JCloudsCleanupThread
@@ -419,6 +516,7 @@ public class Openstack {
         debug("Floating IP allocated " + ip.getFloatingIpAddress());
         try {
             debug("Assigning floating IP to " + server.getName());
+            LOGGER.log(Level.FINER, "{0}:{1} calling compute().floatingIps().addFloatingIP({2},{3})", new Object[]{this, Thread.currentThread(), server.getId(), ip.getFloatingIpAddress()});
             ActionResponse res = fips.addFloatingIP(server, ip.getFloatingIpAddress());
             throwIfFailed(res);
             debug("Floating IP assigned");
@@ -428,6 +526,7 @@ public class Openstack {
                     : new ActionFailed("Unable to assign floating IP for " + server.getName(), _ex)
             ;
 
+            LOGGER.log(Level.FINER, "{0}:{1} calling compute().floatingIps().deallocateIP({2})", new Object[]{this, Thread.currentThread(), ip.getId()});
             ActionResponse res = fips.deallocateIP(ip.getId());
             logIfFailed(res);
             throw ex;
@@ -437,6 +536,7 @@ public class Openstack {
     }
 
     public void destroyFip(String fip) {
+        LOGGER.log(Level.FINER, "{0}:{1} calling networking().floatingip().delete({2})", new Object[]{this, Thread.currentThread(), fip});
         ActionResponse delete = clientProvider.get().networking().floatingip().delete(fip);
 
         // Deleted by some other action. Being idempotent here and reporting success.
