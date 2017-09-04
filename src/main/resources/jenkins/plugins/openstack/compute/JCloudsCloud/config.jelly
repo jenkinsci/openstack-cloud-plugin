@@ -1,21 +1,18 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler" xmlns:c="lib/credentials">
     <f:entry title="Cloud Name" field="name">
         <f:textbox clazz="required"/>
     </f:entry>
     <f:entry title="End Point URL" field="endPointUrl">
         <f:textbox/>
     </f:entry>
-    <f:entry title="User Identity" field="identity">
-        <f:textbox clazz="required"/>
-    </f:entry>
-    <f:entry title="Password" field="credential">
-        <f:password clazz="required"/>
-    </f:entry>
+    <f:entry title="Credential" field="credentialId">
+        <c:select/>
+     </f:entry>
     <f:entry title="Region" field="zone">
         <f:textbox/>
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="zone,endPointUrl,identity,credential"/>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,credentialId,zone"/>
 
     <f:advanced title="Default slave options">
         <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>

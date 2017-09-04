@@ -32,6 +32,8 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.OsAuthDescriptor;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import net.sf.json.JSONObject;
 import org.kohsuke.accmod.Restricted;
@@ -125,14 +127,14 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return Arrays.asList("../..", "../../..");
         }
 
-        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, String identity,
-                String credential, String zone) {
+        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl,String credentialId, String zone) {
             ListBoxModel m = new ListBoxModel();
             final String valueOrEmpty = Util.fixNull(existingValue);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
             m.add(new ListBoxModel.Option("None specified", "", valueOrEmpty.isEmpty()));
             try {
-                if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                    final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
+                    final Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                     final List<String> values = listAllNames(openstack);
                     for (String value : values) {
                         final String displayText = value;
@@ -150,22 +152,19 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return m;
         }
 
-        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2,
-                String identity1, String identity2, String credential1, String credential2,
-                String zone1, String zone2) {
+        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, String credentialId1, String credentialId2, String zone1, String zone2) {
             if (Util.fixEmpty(value) == null)
                 return REQUIRED;
-
             final String endPointUrl = getDefault(endPointUrl1, endPointUrl2);
-            final String identity = getDefault(identity1, identity2);
-            final String credential = getDefault(credential1, credential2);
+            final String credentialId = getDefault(credentialId1,credentialId2);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
             final String zone = getDefault(zone1, zone2);
-            if (!haveAuthDetails(endPointUrl, identity, credential, zone))
+            if (!haveAuthDetails(endPointUrl, openstackCredential, zone))
                 return FormValidation.ok();
 
             final List<String> matches;
             try {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                 matches = findMatchingIds(openstack, value);
             } catch (AuthenticationException | FormValidation | ConnectionException ex) {
                 LOGGER.log(Level.FINEST, "Openstack call failed", ex);
@@ -271,24 +270,23 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
             @Restricted(DoNotUse.class)
             @InjectOsAuth
-            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl,
-                    @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, identity, credential, zone);
+            public ListBoxModel doFillNameItems(@QueryParameter String name,
+                                                @QueryParameter String endPointUrl,
+                                                @QueryParameter String credentialId,
+                                                @QueryParameter String zone) {
+                return makeListBoxModelOfAllNames(name, endPointUrl,credentialId, zone);
             }
 
             @Restricted(DoNotUse.class)
             public FormValidation doCheckName(@QueryParameter String value,
                     // authentication fields can be in two places relative to us.
-                    @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
-                    @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
-                    @RelativePath("../..") @QueryParameter("identity") String identityCloud,
-                    @RelativePath("../../..") @QueryParameter("identity") String identityTemplate,
-                    @RelativePath("../..") @QueryParameter("credential") String credentialCloud,
-                    @RelativePath("../../..") @QueryParameter("credential") String credentialTemplate,
-                    @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
-                    @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, identityCloud, identityTemplate,
-                        credentialCloud, credentialTemplate, zoneCloud, zoneTemplate);
+                                              @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
+                                              @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
+                                              @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
+                                              @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
+                                              @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
+                                              @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate,credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }
@@ -383,25 +381,21 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
             @Restricted(DoNotUse.class)
             @OsAuthDescriptor.InjectOsAuth
-            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl,
-                    @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, identity, credential, zone);
+            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter String credentialId, @QueryParameter String zone) {
+                return makeListBoxModelOfAllNames(name, endPointUrl, credentialId, zone);
             }
 
             @Restricted(DoNotUse.class)
             public FormValidation doCheckName(@QueryParameter String value,
                     // authentication fields can be in two places relative to
                     // us.
-                    @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
-                    @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
-                    @RelativePath("../..") @QueryParameter("identity") String identityCloud,
-                    @RelativePath("../../..") @QueryParameter("identity") String identityTemplate,
-                    @RelativePath("../..") @QueryParameter("credential") String credentialCloud,
-                    @RelativePath("../../..") @QueryParameter("credential") String credentialTemplate,
+                                              @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
+                                              @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
+                                              @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
+                    @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
                     @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                     @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, identityCloud, identityTemplate,
-                        credentialCloud, credentialTemplate, zoneCloud, zoneTemplate);
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }

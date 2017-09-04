@@ -1,0 +1,13 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
+  <f:entry title="Tenant Name" field="tenant">
+     <f:textbox clazz="required"/>
+  </f:entry>
+  <f:entry title="${%Username}" field="username">
+    <f:textbox  clazz="required"/>
+  </f:entry>
+  <f:entry title="${%Password}" field="password">
+    <f:password  clazz="required"/>
+  </f:entry>
+  <st:include page="id-and-description" class="${descriptor.clazz}"/>
+</j:jelly>

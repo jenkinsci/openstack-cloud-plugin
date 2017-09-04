@@ -57,6 +57,7 @@ import hudson.ExtensionPoint;
 import hudson.Util;
 import hudson.remoting.Which;
 import hudson.util.FormValidation;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -68,7 +69,6 @@ import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.common.BasicResource;
-import org.openstack4j.model.common.Identifier;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
@@ -87,7 +87,6 @@ import org.openstack4j.model.storage.block.Volume.Status;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
 import org.openstack4j.openstack.OSFactory;
 
-import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
 /**
@@ -112,32 +111,16 @@ public class Openstack {
     // Store the OS session token so clients can be created from it per all threads using this.
     private final ClientProvider clientProvider;
 
-    private Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull Secret credential, @CheckForNull String region) {
-        // TODO refactor to split tenant:username everywhere including UI
-        String[] id = identity.split(":", 3);
-        String tenant = id.length > 0 ? id[0] : "";
-        String username = id.length > 1 ? id[1] : "";
-        String domain = id.length > 2 ? id[2] : "";
-        final IOSClientBuilder<? extends OSClient<?>, ?> builder;
-        if (domain.equals("")) {
-            //If domain is empty it is assumed that is being used API V2
-            builder = OSFactory.builderV2().endpoint(endPointUrl)
-                     .credentials(username, credential.getPlainText())
-                     .tenantName(tenant);
-        } else {
-            //If not it is assumed that it is being used API V3
-            Identifier iDomain = Identifier.byName(domain);
-            Identifier project = Identifier.byName(tenant);
-            builder = OSFactory.builderV3().endpoint(endPointUrl)
-                     .credentials(username, credential.getPlainText(), iDomain)
-                     .scopeToProject(project, iDomain);
-        }
+    private Openstack(@Nonnull String endPointUrl, @Nonnull OpenstackCredential auth, @CheckForNull String region) {
+
+        final IOSClientBuilder<? extends OSClient, ?> builder = auth.getBuilder(endPointUrl);
         OSClient<?> client = builder
                 .authenticate()
-        ;
+                .useRegion(region);
 
-        clientProvider = ClientProvider.get(client, region);
-        debug("{0} client created for \"{1}\", \"{2}\", ..., \"{3}\".", Openstack.class.getSimpleName(), endPointUrl, identity, region);
+        clientProvider = ClientProvider.get(client,region);
+        debug("{0} client created for \"{1}\", \"{2}\".", Openstack.class.getSimpleName(), auth.toString(), region);
+
     }
 
     /*exposed for testing*/
@@ -738,21 +721,21 @@ public class Openstack {
         ;
 
         public abstract @Nonnull Openstack getOpenstack(
-                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+                @Nonnull String endPointUrl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
         ) throws FormValidation;
 
         /**
          * Instantiate Openstack client.
          */
         public static @Nonnull Openstack get(
-                @Nonnull final String endPointUrl, @Nonnull final String identity, @Nonnull final String credential, @CheckForNull final String region
+                @Nonnull final String endPointUrl, @Nonnull final OpenstackCredential auth, @Nonnull final String region
         ) throws FormValidation {
-            final String fingerprint = Util.getDigestOf(endPointUrl + '\n' + identity + '\n' + credential + '\n' + region);
+            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n' + auth.toString() + '\n' + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
             final Callable<Openstack> cacheMissFunction = new Callable<Openstack>() {
                 @Override
                 public Openstack call() throws FormValidation {
-                    return ep.getOpenstack(endPointUrl, identity, credential, region);
+                    return ep.getOpenstack(endPointUrl,auth, region);
                 }
             };
             // Get an instance, creating a new one if necessary.
@@ -788,17 +771,14 @@ public class Openstack {
 
     @Extension
     public static final class Factory extends FactoryEP {
-        public @Nonnull Openstack getOpenstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region) throws FormValidation {
+        public @Nonnull Openstack getOpenstack(@Nonnull String endPointUrl, @Nonnull OpenstackCredential auth, @CheckForNull String region) throws FormValidation {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
-            identity = Util.fixEmptyAndTrim(identity);
-            credential = Util.fixEmptyAndTrim(credential);
             region = Util.fixEmptyAndTrim(region);
 
             if (endPointUrl == null) throw FormValidation.error("No endPoint specified");
-            if (identity == null) throw FormValidation.error("No identity specified");
-            if (credential == null) throw FormValidation.error("No credential specified");
+            if (auth == null) throw FormValidation.error("No credential specified");
 
-            return new Openstack(endPointUrl, identity, Secret.fromString(credential), region);
+            return new Openstack(endPointUrl, auth, region);
         }
     }
 

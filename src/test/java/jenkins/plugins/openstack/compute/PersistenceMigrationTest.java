@@ -1,10 +1,15 @@
 package jenkins.plugins.openstack.compute;
 
+import com.cloudbees.plugins.credentials.CredentialsNameProvider;
 import hudson.model.TaskListener;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv3;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Rule;
 import org.junit.Test;
@@ -91,6 +96,25 @@ public class PersistenceMigrationTest {
         assertThat(launcherOf(inheritedCloud), instanceOf(SSHLauncher.class));
         assertThat(launcherOf(inheritedCloud.getTemplate("jnlp")), instanceOf(JNLPLauncher.class));
         assertThat(launcherOf(inheritedCloud.getTemplate("ssh")), instanceOf(SSHLauncher.class));
+    }
+
+
+    @Test @LocalData
+    public void loadConfigFromV29() throws Exception {
+        JCloudsCloud v2Cloud = JCloudsCloud.getByName("v2");
+        JCloudsCloud v3Cloud = JCloudsCloud.getByName("v3");
+
+        String cId = v2Cloud.getCredentialId();
+
+        OpenstackCredentialv2 v2 = (OpenstackCredentialv2) OpenstackCredentials.getCredential(v2Cloud.getCredentialId());
+        assertEquals("tenant:user/******",CredentialsNameProvider.name(v2));
+        assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v2.getPassword().getPlainText());
+
+        OpenstackCredentialv3 v3 = (OpenstackCredentialv3) OpenstackCredentials.getCredential(v3Cloud.getCredentialId());
+        assertEquals( "domain:project:domain:user/******",CredentialsNameProvider.name(v3));
+        assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v3.getPassword().getPlainText());
+
+
     }
 
     private static ComputerLauncher launcherOf(SlaveOptions.Holder holder) throws IOException {
