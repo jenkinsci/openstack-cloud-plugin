@@ -26,6 +26,7 @@ package jenkins.plugins.openstack.compute;
 import hudson.Util;
 import hudson.model.Describable;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -33,6 +34,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 
 /**
@@ -63,8 +65,9 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final Integer numExecutors;
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
+    private final SlaveType slaveType;
+    // TODO move to SlaveType.SSH
     private final @CheckForNull String credentialsId;
-    private final JCloudsCloud.SlaveType slaveType;
 
     // Slave attributes
     private final Integer retentionTime;
@@ -125,7 +128,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return credentialsId;
     }
 
-    public JCloudsCloud.SlaveType getSlaveType() {
+    public SlaveType getSlaveType() {
         return slaveType;
     }
 
@@ -170,7 +173,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             String jvmOptions,
             String fsRoot,
             String credentialsId,
-            JCloudsCloud.SlaveType slaveType,
+            SlaveType slaveType,
             Integer retentionTime
     ) {
         this.imageId = Util.fixEmpty(imageId);
@@ -373,7 +376,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         private @CheckForNull String fsRoot;
         private @CheckForNull String credentialsId;
 
-        private @CheckForNull JCloudsCloud.SlaveType slaveType;
+        private @CheckForNull SlaveType slaveType;
         private @CheckForNull Integer retentionTime;
 
         public Builder() {}
@@ -452,7 +455,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             return this;
         }
 
-        public @Nonnull Builder slaveType(JCloudsCloud.SlaveType slaveType) {
+        public @Nonnull Builder slaveType(SlaveType slaveType) {
             this.slaveType = slaveType;
             return this;
         }

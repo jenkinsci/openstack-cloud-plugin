@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 import com.google.common.base.Charsets;
 import hudson.remoting.Base64;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
+import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -78,7 +79,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private transient @Deprecated String networkId;
     private transient @Deprecated String securityGroups;
     private transient @Deprecated String credentialsId;
-    private transient @Deprecated JCloudsCloud.SlaveType slaveType;
+    private transient @Deprecated String slaveType; // Converted to string long after deprecated while converting enum to describable
     private transient @Deprecated String availabilityZone;
 
     @DataBoundConstructor
@@ -113,9 +114,16 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         // Migrate from 2.0 to 2.1
         if (slaveOptions == null) {
+            SlaveType st = SlaveType.SSH.SSH;
+            if ("SSH".equals(slaveType) || credentialsId != null) {
+                st = SlaveType.SSH.SSH; // TODO inject credentialsId
+            } else if("JNLP".equals(slaveType)) {
+                st = SlaveType.JNLP.JNLP;
+            }
+
             slaveOptions = SlaveOptions.builder().imageId(imageId).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
                     .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
-                    .credentialsId(credentialsId).slaveType(slaveType).availabilityZone(availabilityZone).build()
+                    .credentialsId(credentialsId).slaveType(st).availabilityZone(availabilityZone).build()
             ;
 
             this.hardwareId = null;
@@ -130,6 +138,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             this.credentialsId = null;
             this.slaveType = null;
             this.availabilityZone = null;
+        }
+
+        // In case the configuration depends on SSH slave type to be inherited - configure it explicitly
+        if (slaveOptions.getSlaveType() == null && slaveOptions.getCredentialsId() != null) {
+            slaveOptions = slaveOptions.getBuilder().slaveType(SlaveType.SSH.SSH).build(); // TODO inject credentialsId
         }
 
         return this;

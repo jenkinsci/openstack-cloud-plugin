@@ -20,14 +20,15 @@
   <clouds>
     <jenkins.plugins.openstack.compute.JCloudsCloud plugin="openstack-cloud@2.24-SNAPSHOT">
       <name>JNLP</name>
-      <endPointUrl></endPointUrl>
-      <identity></identity>
-      <credential></credential>
+      <profile>JNLP</profile>
+      <endPointUrl>http://my.openstack:5000/v2.0</endPointUrl>
+      <identity>a</identity>
+      <credential/>
       <templates class="java.util.Collections$UnmodifiableRandomAccessList" resolves-to="java.util.Collections$UnmodifiableList">
         <c class="list">
           <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
             <name>jnlp</name>
-            <labelString></labelString>
+            <labelString>label</labelString>
             <slaveOptions>
               <imageId>image-name</imageId>
               <hardwareId>431ac1fb-1463-4527-b3d1-79245dd698e1</hardwareId>
@@ -36,7 +37,7 @@
           </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
           <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
             <name>ssh</name>
-            <labelString></labelString>
+            <labelString>label</labelString>
             <slaveOptions>
               <imageId>image-name</imageId>
               <slaveType>SSH</slaveType>
@@ -52,14 +53,15 @@
     </jenkins.plugins.openstack.compute.JCloudsCloud>
     <jenkins.plugins.openstack.compute.JCloudsCloud plugin="openstack-cloud@2.24-SNAPSHOT">
       <name>SSH</name>
-      <endPointUrl></endPointUrl>
-      <identity></identity>
-      <credential></credential>
+      <profile>SSH</profile>
+      <endPointUrl>http://my.openstack:5000/v2.0</endPointUrl>
+      <identity>b</identity>
+      <credential/>
       <templates class="java.util.Collections$UnmodifiableRandomAccessList" resolves-to="java.util.Collections$UnmodifiableList">
         <c class="list">
           <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
             <name>ssh</name>
-            <labelString></labelString>
+            <labelString>label</labelString>
             <slaveOptions>
               <imageId>image-name</imageId>
               <!-- SSH slave type inherited -->
@@ -67,7 +69,7 @@
           </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
           <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
             <name>jnlp</name>
-            <labelString></labelString>
+            <labelString>label</labelString>
             <slaveOptions>
               <imageId>image-name</imageId>
               <slaveType>JNLP</slaveType>
@@ -81,7 +83,40 @@
         <credentialsId>8f3da277-c60e-444c-ab86-517e96ffe508</credentialsId>
       </slaveOptions>
     </jenkins.plugins.openstack.compute.JCloudsCloud>
+    <jenkins.plugins.openstack.compute.JCloudsCloud plugin="openstack-cloud@2.24-SNAPSHOT">
+      <name>INHERITED</name>
+      <profile>INHERITED</profile>
+      <endPointUrl>http://my.openstack:5000/v2.0</endPointUrl>
+      <identity>b</identity>
+      <credential/>
+      <templates class="java.util.Collections$UnmodifiableRandomAccessList" resolves-to="java.util.Collections$UnmodifiableList">
+        <c class="list">
+          <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+            <name>ssh</name>
+            <labelString>label</labelString>
+            <slaveOptions>
+              <imageId>image-name</imageId>
+              <!-- SSH slave type inherited -->
+            </slaveOptions>
+          </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+          <jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+            <name>jnlp</name>
+            <labelString>label</labelString>
+            <slaveOptions>
+              <imageId>image-name</imageId>
+              <slaveType>JNLP</slaveType>
+            </slaveOptions>
+          </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
+        </c>
+        <list reference="../c"/>
+      </templates>
+      <slaveOptions>
+        <!-- SSH slave type inherited -->
+        <credentialsId>8f3da277-c60e-444c-ab86-517e96ffe508</credentialsId>
+      </slaveOptions>
+    </jenkins.plugins.openstack.compute.JCloudsCloud>
   </clouds>
+  <slaves/>
   <quietPeriod>5</quietPeriod>
   <scmCheckoutRetryCount>0</scmCheckoutRetryCount>
   <views>

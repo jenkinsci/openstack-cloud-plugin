@@ -5,11 +5,13 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
+import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -46,7 +48,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private transient @Deprecated int overrideRetentionTime;
     private transient @Deprecated String jvmOptions;
     private transient @Deprecated String credentialsId;
-    private transient @Deprecated JCloudsCloud.SlaveType slaveType;
+    private transient @Deprecated SlaveType slaveType;
     private transient @Deprecated Server metadata;
 
     public JCloudsSlave(
@@ -88,6 +90,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
             if (slaveType != null) {
                 builder.slaveType(slaveType);
+            } else if (credentialsId != null || getLauncher() instanceof SSHLauncher) {
+                builder.slaveType(new SlaveType.SSH());
+            } else {
+                builder.slaveType(SlaveType.JNLP.JNLP);
             }
 
             if (overrideRetentionTime > 0) {
@@ -121,7 +127,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * Get public IP address of the server.
      */
     @Restricted(NoExternalUse.class)
-    /*package*/ @CheckForNull String getPublicAddressIpv4() {
+    public @CheckForNull String getPublicAddressIpv4() {
     	
         return Openstack.getPublicAddressIpv4(getOpenstack(cloudName).getServerById(nodeId));
     }
@@ -134,7 +140,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return options;
     }
 
-    public JCloudsCloud.SlaveType getSlaveType() {
+    public SlaveType getSlaveType() {
         return options.getSlaveType();
     }
 

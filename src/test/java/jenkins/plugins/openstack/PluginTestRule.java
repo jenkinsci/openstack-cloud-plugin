@@ -27,6 +27,7 @@ import hudson.slaves.NodeProvisioner;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
+import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
@@ -111,7 +112,7 @@ public final class PluginTestRule extends JenkinsRule {
                 .jvmOptions("dummyJvmOptions")
                 .credentialsId("dummyCredentialId")
                 .fsRoot("/tmp/jenkins")
-                .slaveType(JCloudsCloud.SlaveType.JNLP)
+                .slaveType(SlaveType.JNLP.JNLP)
                 .build()
         ;
     }
@@ -445,7 +446,7 @@ public final class PluginTestRule extends JenkinsRule {
         // Should not be more specific than JCloudsCloud.DescriptorImpl#DEFAULTS
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
                 .fsRoot("/tmp/jenkins")
-                .slaveType(SlaveType.JNLP)
+                .slaveType(SlaveType.JNLP.JNLP)
                 .build()
         ;
 

@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import static org.junit.Assert.*;
 
+import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.junit.Test;
 
 /**
@@ -13,7 +14,7 @@ public class SlaveOptionsTest {
      * Reusable options instance guaranteed not to collide with defaults
      */
     public static final SlaveOptions CUSTOM = new SlaveOptions(
-            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 1
+            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", "cid", SlaveType.JNLP.JNLP, 1
     );
 
     @Test // instanceCap is a subject of different overriding rules
@@ -34,7 +35,7 @@ public class SlaveOptionsTest {
         assertEquals("fsRoot", unmodified.getFsRoot());
         assertEquals(null, unmodified.getKeyPairName());
         assertEquals("cid", unmodified.getCredentialsId());
-        assertEquals(JCloudsCloud.SlaveType.JNLP, unmodified.getSlaveType());
+        assertEquals(SlaveType.JNLP.JNLP, unmodified.getSlaveType());
         assertEquals(1, (int) unmodified.getRetentionTime());
 
         SlaveOptions override = SlaveOptions.builder()
@@ -52,7 +53,7 @@ public class SlaveOptionsTest {
                 .fsRoot("FSROOT")
                 .keyPairName("KPN")
                 .credentialsId(null)
-                .slaveType(JCloudsCloud.SlaveType.SSH)
+                .slaveType(SlaveType.SSH.SSH)
                 .retentionTime(3)
                 .build()
         ;
@@ -72,7 +73,7 @@ public class SlaveOptionsTest {
         assertEquals("FSROOT", overridden.getFsRoot());
         assertEquals("KPN", overridden.getKeyPairName());
         assertEquals("cid", overridden.getCredentialsId());
-        assertEquals(JCloudsCloud.SlaveType.SSH, overridden.getSlaveType());
+        assertEquals(SlaveType.SSH.SSH, overridden.getSlaveType());
         assertEquals(3, (int) overridden.getRetentionTime());
     }
 

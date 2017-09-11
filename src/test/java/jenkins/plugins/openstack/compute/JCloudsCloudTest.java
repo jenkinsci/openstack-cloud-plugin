@@ -29,6 +29,7 @@ import hudson.slaves.Cloud;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.GlobalConfig;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.acegisecurity.AccessDeniedException;
 import org.acegisecurity.acls.sid.Sid;
 import org.apache.commons.io.IOUtils;
@@ -135,10 +136,10 @@ public class JCloudsCloudTest {
 
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
-                "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 4
+                "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", "cid", SlaveType.JNLP.JNLP, 4
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "zone", new SlaveOptions(
-                "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
+                "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", SlaveType.SSH.SSH, 9
         ), Collections.singletonList(template));
         j.jenkins.clouds.add(cloud);
 
@@ -185,7 +186,7 @@ public class JCloudsCloudTest {
         int biggerInstanceCap = DescriptorImpl.getDefaultOptions().getInstanceCap() * 2;
 
         // Base tests on cloud defaults as that is the baseline for erasure
-        SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(JCloudsCloud.SlaveType.SSH).build();
+        SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(SlaveType.SSH.SSH).build();
         JCloudsCloud cloud = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
         );
@@ -246,7 +247,7 @@ public class JCloudsCloudTest {
         assertEquals(0, (int) to.getRetentionTime()); // overrideRetentionTime though deprecated, should be honored
         assertEquals("/tmp/jenkins", to.getFsRoot());
         assertEquals("jenkins-testing", to.getKeyPairName());
-        assertEquals(JCloudsCloud.SlaveType.SSH, to.getSlaveType());
+        assertEquals(SlaveType.SSH.SSH, to.getSlaveType());
         assertEquals("default", to.getSecurityGroups());
         assertEquals("zone", to.getAvailabilityZone());
         assertEquals("jenkins.plugins.openstack.compute.UserDataConfig.1455188317989", to.getUserDataId());
