@@ -274,7 +274,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         final Openstack openstack = cloud.getOpenstack();
-        final Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
+        Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
         LOGGER.info("Provisioned: " + server.toString());
 
         String poolName = opts.getFloatingIpPool();
@@ -283,7 +283,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             try {
                 openstack.assignFloatingIp(server, poolName);
                 // Make sure address information is reflected in metadata
-                return openstack.updateInfo(server);
+                server = openstack.updateInfo(server);
+                LOGGER.info("Amended server: " + server.toString());
             } catch (Throwable ex) {
                 // Do not leak the server as we are aborting the provisioning
                 AsyncResourceDisposer.get().dispose(new DestroyMachine(cloud.name, server.getId()));
