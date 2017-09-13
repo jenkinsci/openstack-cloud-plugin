@@ -79,22 +79,18 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     @SuppressWarnings({"unused", "deprecation"})
     @SuppressFBWarnings({"RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", "The fields are non-null after readResolve"})
     protected Object readResolve() {
-        super.readResolve(); // Call parent
+        super.readResolve();
         if (options == null) {
             // Node options are not of override of anything so we need to ensure this fill all mandatory fields
             // We base the outdated config on current plugin defaults to increase the chance it will work.
             SlaveOptions.Builder builder = JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
                     .jvmOptions(Util.fixEmpty(jvmOptions))
-                    .credentialsId(credentialsId)
             ;
 
-            if (slaveType != null) {
-                builder.slaveType(slaveType);
-            } else if (credentialsId != null || getLauncher() instanceof SSHLauncher) {
-                builder.slaveType(new SlaveType.SSH());
-            } else {
-                builder.slaveType(SlaveType.JNLP.JNLP);
+            if (slaveType instanceof SlaveType.SSH) {
+                slaveType = new SlaveType.SSH(credentialsId);
             }
+            builder.slaveType(slaveType);
 
             if (overrideRetentionTime > 0) {
                 builder = builder.retentionTime(overrideRetentionTime);

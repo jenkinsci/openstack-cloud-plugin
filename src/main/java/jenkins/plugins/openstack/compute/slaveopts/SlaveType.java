@@ -23,30 +23,47 @@
  */
 package jenkins.plugins.openstack.compute.slaveopts;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
+import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.converters.reflection.ReflectionConverter;
 import com.thoughtworks.xstream.converters.reflection.ReflectionProvider;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.mapper.Mapper;
+import com.trilead.ssh2.Connection;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.ItemGroup;
 import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.security.ACL;
+import hudson.security.AccessControlled;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
+import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.SlaveOptions;
+import net.sf.json.JSONObject;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -55,7 +72,8 @@ import java.util.logging.Logger;
  *
  * @author ogondza.
  */
-public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
+public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> implements Serializable {
+    private static final long serialVersionUID = -8322868020681278525L;
     private static final Logger LOGGER = Logger.getLogger(SlaveType.class.getName());
 
     /**
@@ -71,14 +89,19 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
     public abstract boolean isReady(@Nonnull JCloudsSlave slave);
 
     /**
-     * Launch nodes wia ssh-slaves plugin.
+     * Launch nodes via ssh-slaves plugin.
      */
     public static final class SSH extends SlaveType {
 
-        public static final SlaveType SSH = new SSH();
+        private final String credentialsId;
+
+        public String getCredentialsId() {
+            return credentialsId;
+        }
 
         @DataBoundConstructor
-        public SSH() {
+        public SSH(String credentialsId) {
+            this.credentialsId = credentialsId;
         }
 
         @Override
@@ -87,7 +110,6 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
             int retryWaitTime = 15;
 
             SlaveOptions opts = slave.getSlaveOptions();
-            String credentialsId = opts.getCredentialsId();
             if (credentialsId == null) {
                 throw new JCloudsCloud.ProvisioningFailedException("No ssh credentials selected");
             }
@@ -104,6 +126,19 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
             timeout = timeout == null ? 0: (timeout / 1000); // Never propagate null - always set some timeout
 
             return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            SSH ssh = (SSH) o;
+
+            return credentialsId != null ? credentialsId.equals(ssh.credentialsId): ssh.credentialsId == null;
+        }
+
+        @Override public int hashCode() {
+            return credentialsId != null ? credentialsId.hashCode(): 0;
         }
 
         /**
@@ -139,10 +174,42 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
                 // We have no idea what happen. Log the cause and proceed with the server so it fail fast.
                 return true;
             }
+
+
         }
 
         @Extension
         public static final class Desc extends Descriptor<SlaveType> {
+            @Restricted(DoNotUse.class)
+            public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
+                if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
+                    return new ListBoxModel();
+                }
+                List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
+                        StandardUsernameCredentials.class, context, ACL.SYSTEM, SSHLauncher.SSH_SCHEME
+                );
+                return new StandardUsernameListBoxModel()
+                        .withMatching(SSHAuthenticator.matcher(Connection.class), credentials)
+                        .withEmptySelection()
+                ;
+            }
+
+            // TODO
+//            @Restricted(DoNotUse.class)
+//            public FormValidation doCheckCredentialsId(
+//                    @QueryParameter String value,
+//                    @RelativePath("../../slaveOptions") @QueryParameter("credentialsId") String def
+//            ) {
+//                if (Util.fixEmpty(value) == null) {
+//                    String d = getDefault(def, opts().getCredentialsId());
+//                    if (d != null) {
+//                        d = CredentialsNameProvider.name(SSHLauncher.lookupSystemCredentials(d)); // ID to name
+//                        return FormValidation.ok(def(d));
+//                    }
+//                    return REQUIRED;
+//                }
+//                return OK;
+//            }
         }
     }
 
@@ -153,9 +220,7 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
 
         public static final SlaveType JNLP = new JNLP();
 
-        @DataBoundConstructor
-        public JNLP() {
-        }
+        private JNLP() {}
 
         @Override
         public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
@@ -169,8 +234,51 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
             return slave.getChannel() != null;
         }
 
+        @Override
+        public int hashCode() {
+            return 31;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj != null && getClass() == obj.getClass();
+        }
+
+        private Object readResolve() {
+            return JNLP; // Let's avoid creating instances where we can
+        }
+
         @Extension
         public static final class Desc extends Descriptor<SlaveType> {
+            @Override
+            public SlaveType newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+                return JNLP; // Let's avoid creating instances where we can
+            }
+        }
+    }
+
+    /**
+     * No slave type specified. This exists only as a field in select to be read as null.
+     */
+    public static final class Unspecified extends SlaveType {
+        private Unspecified() {} // Never instantiate
+
+        @Override public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override public boolean isReady(@Nonnull JCloudsSlave slave) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Extension public static final class Desc extends Descriptor<SlaveType> {
+            @Override public @Nonnull String getDisplayName() {
+                return "Inherit / Override later";
+            }
+
+            @Override public SlaveType newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+                return null; // Make sure this is never instantiated and hence will be treated as absent
+            }
         }
     }
 
@@ -184,20 +292,26 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> {
 
     // Deserialize configuration that was saved when SlaveType was an enum: "<slaveType>JNLP</slaveType>". Do not
     // intercept the serialization in any other way.
-    private static class CompatibilityConverter extends ReflectionConverter {
+    private static final class CompatibilityConverter extends ReflectionConverter {
         private CompatibilityConverter(Mapper mapper, ReflectionProvider reflectionProvider, Class type) {
             super(mapper, reflectionProvider, type);
         }
 
         @Override public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
-            switch (reader.getValue()) {
+            String value = reader.getValue();
+            Object ret;
+            switch (value) {
                 case "SSH":
-                    return SSH.SSH;
+                    ret = new SSH(null); // Just to unmarshal the type - will be replaced by enclosing type with an instance with read credentialsId
+                break;
                 case "JNLP":
-                    return JNLP.JNLP;
+                    ret = JNLP.JNLP;
+                break;
                 default:
-                    return super.unmarshal(reader, context);
+                    ret = super.unmarshal(reader, context);
+                break;
             }
+            return ret;
         }
     }
 }

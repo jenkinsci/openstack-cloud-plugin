@@ -34,7 +34,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.ObjectStreamException;
 import java.io.Serializable;
 
 /**
@@ -47,7 +46,7 @@ import java.io.Serializable;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private final @CheckForNull String imageId;
@@ -65,9 +64,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final Integer numExecutors;
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
-    private final SlaveType slaveType;
-    // TODO move to SlaveType.SSH
-    private final @CheckForNull String credentialsId;
+    private /*final*/ SlaveType slaveType;
+    /*package*/ @Deprecated volatile String credentialsId;
 
     // Slave attributes
     private final Integer retentionTime;
@@ -124,10 +122,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return jvmOptions;
     }
 
-    public @CheckForNull String getCredentialsId() {
-        return credentialsId;
-    }
-
     public SlaveType getSlaveType() {
         return slaveType;
     }
@@ -151,7 +145,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.numExecutors,
                 b.jvmOptions,
                 b.fsRoot,
-                b.credentialsId,
                 b.slaveType,
                 b.retentionTime
         );
@@ -172,7 +165,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             Integer numExecutors,
             String jvmOptions,
             String fsRoot,
-            String credentialsId,
             SlaveType slaveType,
             Integer retentionTime
     ) {
@@ -189,9 +181,15 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.numExecutors = numExecutors;
         this.jvmOptions = Util.fixEmpty(jvmOptions);
         this.fsRoot = Util.fixEmpty(fsRoot);
-        this.credentialsId = Util.fixEmpty(credentialsId);
         this.slaveType = slaveType;
         this.retentionTime = retentionTime;
+    }
+
+    private Object readResolve() {
+        if (credentialsId != null && slaveType instanceof SlaveType.SSH) {
+            slaveType = new SlaveType.SSH(credentialsId);
+        }
+        return this;
     }
 
     /**
@@ -212,7 +210,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .numExecutors(_override(this.numExecutors, o.numExecutors))
                 .jvmOptions(_override(this.jvmOptions, o.jvmOptions))
                 .fsRoot(_override(this.fsRoot, o.fsRoot))
-                .credentialsId(_override(this.credentialsId, o.credentialsId))
                 .slaveType(_override(this.slaveType, o.slaveType))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
                 .build()
@@ -241,7 +238,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .numExecutors(_erase(this.numExecutors, defaults.numExecutors))
                 .jvmOptions(_erase(this.jvmOptions, defaults.jvmOptions))
                 .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
-                .credentialsId(_erase(this.credentialsId, defaults.credentialsId))
                 .slaveType(_erase(this.slaveType, defaults.slaveType))
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
                 .build()
@@ -270,7 +266,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("numExecutors", numExecutors)
                 .append("jvmOptions", jvmOptions)
                 .append("fsRoot", fsRoot)
-                .append("credentialsId", credentialsId)
                 .append("slaveType", slaveType)
                 .append("retentionTime", retentionTime)
                 .toString()
@@ -297,8 +292,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         if (numExecutors != null ? !numExecutors.equals(that.numExecutors) : that.numExecutors != null) return false;
         if (jvmOptions != null ? !jvmOptions.equals(that.jvmOptions) : that.jvmOptions != null) return false;
         if (fsRoot != null ? !fsRoot.equals(that.fsRoot) : that.fsRoot != null) return false;
-        if (credentialsId != null ? !credentialsId.equals(that.credentialsId) : that.credentialsId != null) return false;
-        if (slaveType != that.slaveType) return false;
+        if (slaveType != null ? !slaveType.equals(that.slaveType) : that.slaveType != null) return false;
         return retentionTime != null ? retentionTime.equals(that.retentionTime) : that.retentionTime == null;
 
     }
@@ -318,7 +312,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         result = 31 * result + (numExecutors != null ? numExecutors.hashCode() : 0);
         result = 31 * result + (jvmOptions != null ? jvmOptions.hashCode() : 0);
         result = 31 * result + (fsRoot != null ? fsRoot.hashCode() : 0);
-        result = 31 * result + (credentialsId != null ? credentialsId.hashCode() : 0);
         result = 31 * result + (slaveType != null ? slaveType.hashCode() : 0);
         result = 31 * result + (retentionTime != null ? retentionTime.hashCode() : 0);
         return result;
@@ -342,7 +335,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .numExecutors(numExecutors)
                 .jvmOptions(jvmOptions)
                 .fsRoot(fsRoot)
-                .credentialsId(credentialsId)
                 .slaveType(slaveType)
                 .retentionTime(retentionTime)
         ;
@@ -374,7 +366,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         private @CheckForNull Integer numExecutors;
         private @CheckForNull String jvmOptions;
         private @CheckForNull String fsRoot;
-        private @CheckForNull String credentialsId;
 
         private @CheckForNull SlaveType slaveType;
         private @CheckForNull Integer retentionTime;
@@ -447,11 +438,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         public @Nonnull Builder fsRoot(String fsRoot) {
             this.fsRoot = fsRoot;
-            return this;
-        }
-
-        public @Nonnull Builder credentialsId(String credentialsId) {
-            this.credentialsId = credentialsId;
             return this;
         }
 

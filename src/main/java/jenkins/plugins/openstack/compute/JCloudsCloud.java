@@ -133,10 +133,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             instanceCap = null;
         }
 
-        // SSH used to be a plugin default but it does not have much sense as it require credential to be specified.
-        // Plugin does no longer provide the default so fix the config accordingly
-        if (slaveOptions != null && slaveOptions.getSlaveType() == null && slaveOptions.getCredentialsId() != null) {
-            slaveOptions = slaveOptions.getBuilder().slaveType(SlaveType.SSH.SSH).build(); // TODO inject credentialsId
+        // Migrate to v2.24 - user configured credentials and clearly rely on SSH launcher that used to be the default so bring it back
+        if (slaveOptions.getSlaveType() == null && slaveOptions.credentialsId != null) {
+            slaveOptions = slaveOptions.getBuilder().slaveType(new SlaveType.SSH(slaveOptions.credentialsId)).build();
         }
 
         injectReferenceIntoTemplates();

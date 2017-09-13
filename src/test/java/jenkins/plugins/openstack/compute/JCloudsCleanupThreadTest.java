@@ -147,7 +147,7 @@ public class JCloudsCleanupThreadTest {
     @Test @Issue("jenkinsci/openstack-cloud-plugin#149")
     public void doNotTerminateNodeThatIsBeingProvisioned() throws Exception {
         // Simulate node stuck launching
-        SlaveOptions options = j.dummySlaveOptions().getBuilder().slaveType(SlaveType.JNLP.JNLP).instanceCap(1).build();
+        SlaveOptions options = j.defaultSlaveOptions().getBuilder().slaveType(SlaveType.JNLP.JNLP).instanceCap(1).build();
         j.configureSlaveProvisioning(j.dummyCloud(options, j.dummySlaveTemplate("label")));
 
         FreeStyleProject p = j.createFreeStyleProject();

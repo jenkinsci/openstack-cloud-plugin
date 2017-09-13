@@ -106,7 +106,7 @@ public class ProvisioningTest {
         Computer[] originalComputers = j.jenkins.getComputers();
         assertThat(originalComputers, arrayWithSize(1)); // Only master expected
 
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool("custom").build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("custom").build();
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts,"label")));
 
         FreeStyleProject p = j.createFreeStyleProject();
@@ -142,7 +142,7 @@ public class ProvisioningTest {
 
     @Test
     public void doNotProvisionOnceInstanceCapReached() throws Exception {
-        SlaveOptions init = j.dummySlaveOptions();
+        SlaveOptions init = j.defaultSlaveOptions();
         JCloudsSlaveTemplate restrictedTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
         JCloudsSlaveTemplate openTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
         JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(4).build(), restrictedTmplt, openTmplt);
@@ -251,7 +251,8 @@ public class ProvisioningTest {
 
     @Test
     public void verifyOptionsPropagatedToLauncher() throws Exception {
-        SlaveOptions expected = j.dummySlaveOptions().getBuilder().slaveType(SlaveType.SSH.SSH).retentionTime(10).build();
+        SlaveType.SSH slaveType = new SlaveType.SSH(j.dummySshCredential("credid"));
+        SlaveOptions expected = j.defaultSlaveOptions().getBuilder().slaveType(slaveType).retentionTime(10).build();
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
                 expected,
                 j.dummySlaveTemplate("label"),
@@ -262,7 +263,7 @@ public class ProvisioningTest {
 
         SSHLauncher launcher = (SSHLauncher) ((JCloudsLauncher) slave.getLauncher()).getLauncher();
         assertEquals(slave.getPublicAddress(), launcher.getHost());
-        assertEquals(expected.getCredentialsId(), launcher.getCredentialsId());
+        assertEquals("credid", launcher.getCredentialsId());
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
         assertEquals(10, (int) slave.getSlaveOptions().getRetentionTime());
 
@@ -273,7 +274,7 @@ public class ProvisioningTest {
 
     @Test
     public void allowToUseImageNameAsWellAsId() throws Exception {
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().imageId("image-id").build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().imageId("image-id").build();
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
@@ -293,10 +294,10 @@ public class ProvisioningTest {
 
     @Test
     public void doProvision() throws Exception {
-        JCloudsSlaveTemplate constrained = j.dummySlaveTemplate(j.dummySlaveOptions().getBuilder().instanceCap(1).build(), "label");
+        JCloudsSlaveTemplate constrained = j.dummySlaveTemplate(j.defaultSlaveOptions().getBuilder().instanceCap(1).build(), "label");
         JCloudsSlaveTemplate free = j.dummySlaveTemplate("free");
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
-                j.dummySlaveOptions().getBuilder().instanceCap(2).build(),
+                j.defaultSlaveOptions().getBuilder().instanceCap(2).build(),
                 constrained, free
         ));
 
@@ -352,7 +353,7 @@ public class ProvisioningTest {
 
     @Test
     public void useSeveralTemplatesToProvisionInOneBatchWhenTemplateInstanceCapExceeded() throws Exception {
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().instanceCap(1).build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().instanceCap(1).build();
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
                 j.dummySlaveTemplate(opts, "label 1"),
                 j.dummySlaveTemplate(opts, "label 2"),
@@ -375,7 +376,7 @@ public class ProvisioningTest {
 
     @Test
     public void destroyTheServerWhenFipAllocationFails() throws Exception {
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool("my_pool").build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("my_pool").build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
         final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();

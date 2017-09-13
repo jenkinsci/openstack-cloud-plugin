@@ -41,6 +41,7 @@
             <slaveOptions>
               <imageId>image-name</imageId>
               <slaveType>SSH</slaveType>
+              <credentialsId>8f3da277-c60e-444c-ab86-517e96ffe508</credentialsId>
             </slaveOptions>
           </jenkins.plugins.openstack.compute.JCloudsSlaveTemplate>
         </c>
@@ -111,7 +112,7 @@
         <list reference="../c"/>
       </templates>
       <slaveOptions>
-        <!-- SSH slave type inherited -->
+        <!-- SSH slave type inferred - it used to be the default and user still likely cares as the credentials are specified -->
         <credentialsId>8f3da277-c60e-444c-ab86-517e96ffe508</credentialsId>
       </slaveOptions>
     </jenkins.plugins.openstack.compute.JCloudsCloud>

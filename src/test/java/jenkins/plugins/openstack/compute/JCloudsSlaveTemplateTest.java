@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import java.io.ByteArrayInputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -9,6 +10,7 @@ import hudson.remoting.Base64;
 import jenkins.plugins.openstack.PluginTestRule;
 
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -33,17 +35,23 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void configRoundtrip() throws Exception {
-        JCloudsSlaveTemplate originalTemplate = new JCloudsSlaveTemplate(
-                "test-template", "openstack-slave-type1 openstack-type2", j.dummySlaveOptions()
+        JCloudsSlaveTemplate jnlpTemplate = new JCloudsSlaveTemplate(
+                "jnlp-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().slaveType(SlaveType.JNLP.JNLP).build()
+        );
+
+        SlaveType.SSH slaveType = new SlaveType.SSH(j.dummySshCredential("sshid"));
+        JCloudsSlaveTemplate sshTemplate = new JCloudsSlaveTemplate(
+                "ssh-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().slaveType(slaveType).build()
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(
                 "my-openstack", "identity", "credential", "endPointUrl", "zone",
                 SlaveOptions.empty(),
-                Collections.singletonList(originalTemplate)
+                Arrays.asList(jnlpTemplate, sshTemplate)
         );
 
         j.jenkins.clouds.add(originalCloud);
+
         HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
 
         j.submit(form);
@@ -53,15 +61,20 @@ public class JCloudsSlaveTemplateTest {
         assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 
-        JCloudsSlaveTemplate actualTemplate = actualCloud.getTemplate("test-template");
-        j.assertEqualBeans(originalTemplate, actualTemplate, TEMPLATE_PROPERTIES);
-        assertThat(actualTemplate.getEffectiveSlaveOptions(), equalTo(originalTemplate.getEffectiveSlaveOptions()));
-        assertThat(actualTemplate.getRawSlaveOptions(), equalTo(originalTemplate.getRawSlaveOptions()));
+        JCloudsSlaveTemplate actualJnlp = actualCloud.getTemplate("jnlp-template");
+        j.assertEqualBeans(jnlpTemplate, actualJnlp, TEMPLATE_PROPERTIES);
+        assertThat(actualJnlp.getEffectiveSlaveOptions(), equalTo(jnlpTemplate.getEffectiveSlaveOptions()));
+        assertThat(actualJnlp.getRawSlaveOptions(), equalTo(jnlpTemplate.getRawSlaveOptions()));
+
+        JCloudsSlaveTemplate actualSsh = actualCloud.getTemplate("ssh-template");
+        j.assertEqualBeans(sshTemplate, actualSsh, TEMPLATE_PROPERTIES);
+        assertThat(actualSsh.getEffectiveSlaveOptions(), equalTo(sshTemplate.getEffectiveSlaveOptions()));
+        assertThat(actualSsh.getRawSlaveOptions(), equalTo(sshTemplate.getRawSlaveOptions()));
     }
 
     @Test
     public void eraseDefaults() throws Exception {
-        SlaveOptions cloudOpts = SlaveOptionsTest.CUSTOM; // Make sure nothing collides with defaults
+        SlaveOptions cloudOpts = PluginTestRule.dummySlaveOptions(); // Make sure nothing collides with defaults
         SlaveOptions templateOpts = cloudOpts.getBuilder().imageId("42").availabilityZone("other").build();
         assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
 
@@ -81,7 +94,7 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void replaceUserData() throws Exception {
-        SlaveOptions opts = j.dummySlaveOptions();
+        SlaveOptions opts = j.defaultSlaveOptions();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
@@ -102,7 +115,7 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void noFloatingPoolId() throws Exception {
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool(null).build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool(null).build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();

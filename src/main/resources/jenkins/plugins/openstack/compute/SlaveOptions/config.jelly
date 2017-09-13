@@ -3,14 +3,14 @@
 
  `<st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>`
 
- (Note the `from` attribute is needed as `instance` can be null and jelly will fail to identify the ower class when configured for the first time)
+ (Note the `from` attribute is needed as `instance` can be null and jelly will fail to identify the owner class when configured for the first time)
 
  Params:
  instance - SlaveOptions with current configurations. Can be null if this is configured for the first time.
  defaultOpts - default options, never null.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <j:set var="descriptor" value="${defaultOpts.descriptor}"/>
     <j:set var="d" value="${descriptor}"/>
     <f:nested>
@@ -56,19 +56,14 @@
                     <f:entry title="Custom JVM Options" field="jvmOptions">
                         <f:textbox/>
                     </f:entry>
-                    <f:entry title="VM Slave type" field="slaveType">
-                        <!-- When the select is not populated in time, it defaults to "" and blow on form submission -->
-                        <f:select default="null"/>
-                    </f:entry>
                     <f:entry title="Remote FS Root" field="fsRoot">
                         <f:textbox/>
-                    </f:entry>
-                    <f:entry title="${%SSH Credentials}" field="credentialsId">
-                        <c:select/>
                     </f:entry>
                     <f:entry title="Retention Time" field="retentionTime">
                         <f:number/>
                     </f:entry>
+                    <!-- TODO Attach help -->
+                    <f:dropdownDescriptorSelector field="slaveType" title="Connection type"/>
                 </f:section>
 
                 <f:class-entry descriptor="${descriptor}"/>

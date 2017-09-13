@@ -43,12 +43,13 @@ public class JCloudsSlaveTest {
         assertNotNull(so);
         assertEquals(42, (int) so.getRetentionTime());
         assertEquals("-verbose", so.getJvmOptions());
-        assertEquals("8f3da277-c60e-444c-ab86-517e96ffe508", so.getCredentialsId());
-        assertThat(so.getSlaveType(), instanceOf(SlaveType.SSH.class));
+        SlaveType.SSH slaveType = (SlaveType.SSH) so.getSlaveType();
+        assertEquals("8f3da277-c60e-444c-ab86-517e96ffe508", slaveType.getCredentialsId());
     }
 
     @Test @LocalData
     public void loadConfigFromV18() throws Exception {
+        j.dummySshCredential("2040d591-062a-4ccf-8f36-0a3340a1c51b");
         // Node persisted
         JCloudsSlave s = (JCloudsSlave) j.jenkins.getNode("cloud-slave");
         assertEquals("2235b04d-267c-4487-908f-e55d2e81c0a9", s.getServerId());
@@ -61,8 +62,8 @@ public class JCloudsSlaveTest {
 
         SlaveOptions so = s.getSlaveOptions();
         assertNotNull(so);
-        assertEquals("2040d591-062a-4ccf-8f36-0a3340a1c51b", so.getCredentialsId());
-        assertThat(so.getSlaveType(), instanceOf(SlaveType.SSH.class));
+        SlaveType.SSH slaveType = (SlaveType.SSH) so.getSlaveType();
+        assertEquals("2040d591-062a-4ccf-8f36-0a3340a1c51b", slaveType.getCredentialsId());
 
         // Cloud config persisted
         JCloudsCloud cloud = JCloudsCloud.getByName("OSCloud");
@@ -100,6 +101,7 @@ public class JCloudsSlaveTest {
         when(slave.getPublicAddressIpv4()).thenReturn("42.42.42.42");
 
         SlaveType slaveType = options.getSlaveType();
+        assertNotNull(slaveType);
         return slaveType.createLauncher(slave);
     }
 }

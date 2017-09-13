@@ -353,36 +353,6 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
-    public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-        if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
-            return new ListBoxModel();
-        }
-        List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
-                StandardUsernameCredentials.class, context, ACL.SYSTEM, SSHLauncher.SSH_SCHEME
-        );
-        return new StandardUsernameListBoxModel()
-                .withMatching(SSHAuthenticator.matcher(Connection.class), credentials)
-                .withEmptySelection()
-        ;
-    }
-
-    @Restricted(DoNotUse.class)
-    public FormValidation doCheckCredentialsId(
-            @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("credentialsId") String def
-    ) {
-        if (Util.fixEmpty(value) == null) {
-            String d = getDefault(def, opts().getCredentialsId());
-            if (d != null) {
-                d = CredentialsNameProvider.name(SSHLauncher.lookupSystemCredentials(d)); // ID to name
-                return FormValidation.ok(def(d));
-            }
-            return REQUIRED;
-        }
-        return OK;
-    }
-
-    @Restricted(DoNotUse.class)
     public ListBoxModel doFillUserDataIdItems() {
 
         ListBoxModel m = new ListBoxModel();

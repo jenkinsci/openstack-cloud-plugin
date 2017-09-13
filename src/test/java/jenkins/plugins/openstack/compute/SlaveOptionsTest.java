@@ -1,7 +1,9 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
+import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.junit.Test;
 
@@ -10,21 +12,14 @@ import org.junit.Test;
  */
 public class SlaveOptionsTest {
 
-    /**
-     * Reusable options instance guaranteed not to collide with defaults
-     */
-    public static final SlaveOptions CUSTOM = new SlaveOptions(
-            "img", "hw", "nw", "ud", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", "cid", SlaveType.JNLP.JNLP, 1
-    );
-
     @Test // instanceCap is a subject of different overriding rules
     public void defaultOverrides() {
-        SlaveOptions unmodified = CUSTOM.override(SlaveOptions.empty());
+        SlaveOptions unmodified = PluginTestRule.dummySlaveOptions().override(SlaveOptions.empty());
 
         assertEquals("img", unmodified.getImageId());
         assertEquals("hw", unmodified.getHardwareId());
         assertEquals("nw", unmodified.getNetworkId());
-        assertEquals("ud", unmodified.getUserDataId());
+        assertEquals("dummyUserDataId", unmodified.getUserDataId());
         assertEquals(1, (int) unmodified.getInstanceCap());
         assertEquals("pool", unmodified.getFloatingIpPool());
         assertEquals("sg", unmodified.getSecurityGroups());
@@ -34,7 +29,6 @@ public class SlaveOptionsTest {
         assertEquals("jvmo", unmodified.getJvmOptions());
         assertEquals("fsRoot", unmodified.getFsRoot());
         assertEquals(null, unmodified.getKeyPairName());
-        assertEquals("cid", unmodified.getCredentialsId());
         assertEquals(SlaveType.JNLP.JNLP, unmodified.getSlaveType());
         assertEquals(1, (int) unmodified.getRetentionTime());
 
@@ -52,12 +46,11 @@ public class SlaveOptionsTest {
                 .jvmOptions("JVMO")
                 .fsRoot("FSROOT")
                 .keyPairName("KPN")
-                .credentialsId(null)
-                .slaveType(SlaveType.SSH.SSH)
+                .slaveType(new SlaveType.SSH(""))
                 .retentionTime(3)
                 .build()
         ;
-        SlaveOptions overridden = CUSTOM.override(override);
+        SlaveOptions overridden = PluginTestRule.dummySlaveOptions().override(override);
 
         assertEquals("IMG", overridden.getImageId());
         assertEquals("HW", overridden.getHardwareId());
@@ -72,8 +65,7 @@ public class SlaveOptionsTest {
         assertEquals("JVMO", overridden.getJvmOptions());
         assertEquals("FSROOT", overridden.getFsRoot());
         assertEquals("KPN", overridden.getKeyPairName());
-        assertEquals("cid", overridden.getCredentialsId());
-        assertEquals(SlaveType.SSH.SSH, overridden.getSlaveType());
+        assertThat(overridden.getSlaveType(), instanceOf(SlaveType.SSH.class));
         assertEquals(3, (int) overridden.getRetentionTime());
     }
 
@@ -93,7 +85,7 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                "", "", "", "", null, "", "", "", null, "", null, "", "", "", null, null
+                "", "", "", "", null, "", "", "", null, "", null, "", "", null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .imageId("")
@@ -106,7 +98,6 @@ public class SlaveOptionsTest {
                 .jvmOptions("")
                 .fsRoot("")
                 .keyPairName("")
-                .credentialsId("")
                 .build()
         ;
         assertEquals(nulls, emptyStrings);
@@ -121,11 +112,10 @@ public class SlaveOptionsTest {
         assertEquals(null, emptyStrings.getJvmOptions());
         assertEquals(null, emptyStrings.getFsRoot());
         assertEquals(null, emptyStrings.getKeyPairName());
-        assertEquals(null, emptyStrings.getCredentialsId());
     }
 
     @Test
     public void modifyThroughBuilder() {
-        assertEquals(CUSTOM, CUSTOM.getBuilder().build());
+        assertEquals(PluginTestRule.dummySlaveOptions(), PluginTestRule.dummySlaveOptions().getBuilder().build());
     }
 }

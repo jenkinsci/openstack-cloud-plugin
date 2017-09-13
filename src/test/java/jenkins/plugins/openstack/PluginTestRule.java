@@ -27,6 +27,7 @@ import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
 import hudson.util.FormValidation;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
 import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
@@ -110,24 +111,21 @@ public final class PluginTestRule extends JenkinsRule {
         return wc;
     }
 
-    public SlaveOptions dummySlaveOptions() {
-        String userData = "SLAVE_JENKINS_HOME: ${SLAVE_JENKINS_HOME}\n" +
-                "SLAVE_JVM_OPTIONS: ${SLAVE_JVM_OPTIONS}\n" +
-                "JENKINS_URL: ${JENKINS_URL}\n" +
-                "SLAVE_JAR_URL: ${SLAVE_JAR_URL}\n" +
-                "SLAVE_JNLP_URL: ${SLAVE_JNLP_URL}\n" +
-                "SLAVE_JNLP_SECRET: ${SLAVE_JNLP_SECRET}\n" +
-                "SLAVE_LABELS: ${SLAVE_LABELS}\n" +
-                "DO_NOT_REPLACE_THIS: ${unknown} ${VARIABLE}"
-        ;
-        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(
-                new Config("dummyUserDataId", "Fake", "It is a fake", userData)
+    /**
+     * Reusable options instance guaranteed not to collide with defaults
+     */
+    public static SlaveOptions dummySlaveOptions() {
+        if (Jenkins.getInstance() != null) {
+            dummyUserData("dummyUserDataId");
+        }
+        return new SlaveOptions(
+                "img", "hw", "nw", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", SlaveType.JNLP.JNLP, 1
         );
-        SystemCredentialsProvider.getInstance().getCredentials().add(
-                new BasicSSHUserPrivateKey(
-                        CredentialsScope.SYSTEM, "dummyCredentialId", "john", null, null, "Description"
-                )
-        );
+    }
+
+    public SlaveOptions defaultSlaveOptions() {
+        dummyUserData("dummyUserDataId");
+
         // Use some real-looking values preserving defaults to make sure plugin works with them
         return JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
                 .imageId("dummyImageId")
@@ -138,11 +136,34 @@ public final class PluginTestRule extends JenkinsRule {
                 .availabilityZone("dummyAvailabilityZone")
                 .keyPairName("dummyKeyPairName")
                 .jvmOptions("dummyJvmOptions")
-                .credentialsId("dummyCredentialId")
                 .fsRoot("/tmp/jenkins")
                 .slaveType(SlaveType.JNLP.JNLP)
                 .build()
         ;
+    }
+
+    private static void dummyUserData(String id) {
+        String userData = "SLAVE_JENKINS_HOME: ${SLAVE_JENKINS_HOME}\n" +
+                "SLAVE_JVM_OPTIONS: ${SLAVE_JVM_OPTIONS}\n" +
+                "JENKINS_URL: ${JENKINS_URL}\n" +
+                "SLAVE_JAR_URL: ${SLAVE_JAR_URL}\n" +
+                "SLAVE_JNLP_URL: ${SLAVE_JNLP_URL}\n" +
+                "SLAVE_JNLP_SECRET: ${SLAVE_JNLP_SECRET}\n" +
+                "SLAVE_LABELS: ${SLAVE_LABELS}\n" +
+                "DO_NOT_REPLACE_THIS: ${unknown} ${VARIABLE}"
+        ;
+        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(
+                new Config(id, "Fake", "It is a fake", userData)
+        );
+    }
+
+    public String dummySshCredential(String id) {
+        SystemCredentialsProvider.getInstance().getCredentials().add(
+                new BasicSSHUserPrivateKey(
+                        CredentialsScope.SYSTEM, id, "john " + id, null, null, "Description " + id
+                )
+        );
+        return id;
     }
 
     public void autoconnectJnlpSlaves() {
