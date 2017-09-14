@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
@@ -30,6 +32,7 @@ import jenkins.plugins.openstack.compute.UserDataConfig;
 import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.main.modules.sshd.SSHD;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -74,6 +77,31 @@ public final class PluginTestRule extends JenkinsRule {
     private final AtomicInteger templateCount = new AtomicInteger(0);
 
     private final Map<String, Proc> slavesToKill = new HashMap<>();
+
+    //         Parallel tests starts Jenkins awfully slow as they deplate the entropy pool. There does not seems to be a way
+    //         to disable SSHD so let's speed it up at least:
+    //         "SSHD.init" #193 daemon prio=5 os_prio=0 tid=0x00007fe700004000 nid=0x7edd runnable [0x00007fe711dd9000]
+    //        java.lang.Thread.State: RUNNABLE
+    //        at java.io.FileInputStream.readBytes(Native Method)
+    //        at java.io.FileInputStream.read(FileInputStream.java:255)
+    //        at sun.security.provider.NativePRNG$RandomIO.readFully(NativePRNG.java:424)
+    //        at sun.security.provider.NativePRNG$RandomIO.implGenerateSeed(NativePRNG.java:441)
+    //        - locked <0x00000006cb12e568> (a java.lang.Object)
+    //        at sun.security.provider.NativePRNG$RandomIO.access$500(NativePRNG.java:331)
+    //        at sun.security.provider.NativePRNG.engineGenerateSeed(NativePRNG.java:226)
+    //        at java.security.SecureRandom.generateSeed(SecureRandom.java:533)
+    //        at org.apache.sshd.common.random.BouncyCastleRandom.<init>(BouncyCastleRandom.java:57)
+    //        at org.apache.sshd.common.random.BouncyCastleRandom$Factory.create(BouncyCastleRandom.java:48)
+    //        at org.apache.sshd.common.random.BouncyCastleRandom$Factory.create(BouncyCastleRandom.java:41)
+    //        at org.apache.sshd.common.random.SingletonRandomFactory.<init>(SingletonRandomFactory.java:37)
+    //        at org.apache.sshd.SshServer.setUpDefaultServer(SshServer.java:452)
+    //        at org.jenkinsci.main.modules.sshd.SSHD.start(SSHD.java:83)
+    //        - locked <0x0000000773a7d058> (a org.jenkinsci.main.modules.sshd.SSHD)
+    //        at org.jenkinsci.main.modules.sshd.SSHD.init(SSHD.java:146)
+    @Initializer(after= InitMilestone.JOB_LOADED,fatal=false) // There is no guarantee this will run before SSHD.init, unfortunately
+    public static void jenkinsSetup() {
+        SSHD.get().setPort(-1);
+    }
 
     public WebClient createWebClientAllowingFailures() {
         WebClient wc = createWebClient();
