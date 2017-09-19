@@ -318,29 +318,6 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
-    public ListBoxModel doFillLauncherFactoryItems() {
-        ListBoxModel items = new ListBoxModel();
-        items.add("None specified", null);
-        items.add("SSH", "SSH");
-        items.add("JNLP", "JNLP");
-
-        return items;
-    }
-
-    @Restricted(DoNotUse.class)
-    public FormValidation doCheckLauncherFactory(
-            @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("launcherFactory") String def
-    ) {
-        if (Util.fixEmpty(value) == null) {
-            String d = getDefault(def, opts().getLauncherFactory());
-            if (d != null) return FormValidation.ok(def(d));
-            return OK;
-        }
-        return OK;
-    }
-
-    @Restricted(DoNotUse.class)
     public ListBoxModel doFillUserDataIdItems() {
 
         ListBoxModel m = new ListBoxModel();

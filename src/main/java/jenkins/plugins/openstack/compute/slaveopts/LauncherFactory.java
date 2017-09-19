@@ -192,23 +192,6 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
                         .withEmptySelection()
                 ;
             }
-
-            // TODO
-//            @Restricted(DoNotUse.class)
-//            public FormValidation doCheckCredentialsId(
-//                    @QueryParameter String value,
-//                    @RelativePath("../../slaveOptions") @QueryParameter("credentialsId") String def
-//            ) {
-//                if (Util.fixEmpty(value) == null) {
-//                    String d = getDefault(def, opts().getCredentialsId());
-//                    if (d != null) {
-//                        d = CredentialsNameProvider.name(SSHLauncher.lookupSystemCredentials(d)); // ID to name
-//                        return FormValidation.ok(def(d));
-//                    }
-//                    return REQUIRED;
-//                }
-//                return OK;
-//            }
         }
     }
 
