@@ -63,7 +63,7 @@
                         <f:number/>
                     </f:entry>
                     <!-- TODO Attach help -->
-                    <f:dropdownDescriptorSelector field="slaveType" title="Connection type"/>
+                    <f:dropdownDescriptorSelector field="launcherFactory" title="Connection type"/>
                 </f:section>
 
                 <f:class-entry descriptor="${descriptor}"/>

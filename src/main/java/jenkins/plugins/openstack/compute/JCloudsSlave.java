@@ -5,13 +5,12 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
-import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -48,7 +47,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private transient @Deprecated int overrideRetentionTime;
     private transient @Deprecated String jvmOptions;
     private transient @Deprecated String credentialsId;
-    private transient @Deprecated SlaveType slaveType;
+    private transient @Deprecated String slaveType; // converted to string for easier conversion
     private transient @Deprecated Server metadata;
 
     public JCloudsSlave(
@@ -71,7 +70,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.provisioningId = id;
         this.options = slaveOptions;
         this.nodeId = metadata.getId();
-        setLauncher(new JCloudsLauncher(getSlaveType().createLauncher(this)));
+        setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
     }
 
     // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.
@@ -87,10 +86,11 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                     .jvmOptions(Util.fixEmpty(jvmOptions))
             ;
 
-            if (slaveType instanceof SlaveType.SSH) {
-                slaveType = new SlaveType.SSH(credentialsId);
-            }
-            builder.slaveType(slaveType);
+            LauncherFactory lf = "SSH".equals(slaveType)
+                    ? new LauncherFactory.SSH(credentialsId)
+                    : LauncherFactory.JNLP.JNLP
+            ;
+            builder.launcherFactory(lf);
 
             if (overrideRetentionTime > 0) {
                 builder = builder.retentionTime(overrideRetentionTime);
@@ -136,8 +136,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return options;
     }
 
-    public SlaveType getSlaveType() {
-        return options.getSlaveType();
+    public @CheckForNull LauncherFactory getLauncherFactory() {
+        return options.getLauncherFactory();
     }
 
     // Exposed for testing

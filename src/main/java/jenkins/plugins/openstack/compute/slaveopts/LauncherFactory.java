@@ -72,9 +72,9 @@ import java.util.logging.Logger;
  *
  * @author ogondza.
  */
-public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> implements Serializable {
+public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFactory> implements Serializable {
     private static final long serialVersionUID = -8322868020681278525L;
-    private static final Logger LOGGER = Logger.getLogger(SlaveType.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(LauncherFactory.class.getName());
 
     /**
      * Create launcher to be used to start the computer.
@@ -91,7 +91,8 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> imple
     /**
      * Launch nodes via ssh-slaves plugin.
      */
-    public static final class SSH extends SlaveType {
+    public static final class SSH extends LauncherFactory {
+        private static final long serialVersionUID = -1108865485314632255L;
 
         private final String credentialsId;
 
@@ -109,19 +110,19 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> imple
             int maxNumRetries = 5;
             int retryWaitTime = 15;
 
-            SlaveOptions opts = slave.getSlaveOptions();
             if (credentialsId == null) {
-                throw new JCloudsCloud.ProvisioningFailedException("No ssh credentials selected");
+                throw new JCloudsCloud.ProvisioningFailedException("No ssh credentials specified for " + slave.getNodeName());
             }
 
             String publicAddress = slave.getPublicAddressIpv4();
-            if (publicAddress == null) {
+            if (publicAddress == null) { // TODO this is likely dead code after abandoning JClouds
                 throw new IOException("The slave is likely deleted");
             }
-            if ("0.0.0.0".equals(publicAddress)) {
+            if ("0.0.0.0".equals(publicAddress)) { // TODO this is likely dead code after abandoning JClouds
                 throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
             }
 
+            final SlaveOptions opts = slave.getSlaveOptions();
             Integer timeout = opts.getStartTimeout();
             timeout = timeout == null ? 0: (timeout / 1000); // Never propagate null - always set some timeout
 
@@ -174,12 +175,10 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> imple
                 // We have no idea what happen. Log the cause and proceed with the server so it fail fast.
                 return true;
             }
-
-
         }
 
         @Extension
-        public static final class Desc extends Descriptor<SlaveType> {
+        public static final class Desc extends Descriptor<LauncherFactory> {
             @Restricted(DoNotUse.class)
             public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
                 if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
@@ -216,9 +215,10 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> imple
     /**
      * Wait for JNLP connection to be made.
      */
-    public static final class JNLP extends SlaveType {
+    public static final class JNLP extends LauncherFactory {
+        private static final long serialVersionUID = -1112849796889317240L;
 
-        public static final SlaveType JNLP = new JNLP();
+        public static final LauncherFactory JNLP = new JNLP();
 
         private JNLP() {}
 
@@ -249,18 +249,20 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> imple
         }
 
         @Extension
-        public static final class Desc extends Descriptor<SlaveType> {
+        public static final class Desc extends Descriptor<LauncherFactory> {
             @Override
-            public SlaveType newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+            public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
                 return JNLP; // Let's avoid creating instances where we can
             }
         }
     }
 
     /**
-     * No slave type specified. This exists only as a field in select to be read as null.
+     * No slave type specified. This exists only as a field in UI dropdown to be read by stapler and converted to plain old null.
      */
-    public static final class Unspecified extends SlaveType {
+    // Therefore, noone refers to this as a symbol or tries to serialize it, ever.
+    @SuppressWarnings({"unused", "serial"})
+    public static final class Unspecified extends LauncherFactory {
         private Unspecified() {} // Never instantiate
 
         @Override public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
@@ -271,47 +273,14 @@ public abstract class SlaveType extends AbstractDescribableImpl<SlaveType> imple
             throw new UnsupportedOperationException();
         }
 
-        @Extension public static final class Desc extends Descriptor<SlaveType> {
+        @Extension public static final class Desc extends Descriptor<LauncherFactory> {
             @Override public @Nonnull String getDisplayName() {
                 return "Inherit / Override later";
             }
 
-            @Override public SlaveType newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+            @Override public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
                 return null; // Make sure this is never instantiated and hence will be treated as absent
             }
-        }
-    }
-
-    static {
-        Jenkins.XSTREAM2.registerConverter(new CompatibilityConverter(
-                Jenkins.XSTREAM2.getMapper(),
-                Jenkins.XSTREAM2.getReflectionProvider(),
-                SlaveType.class
-        ));
-    }
-
-    // Deserialize configuration that was saved when SlaveType was an enum: "<slaveType>JNLP</slaveType>". Do not
-    // intercept the serialization in any other way.
-    private static final class CompatibilityConverter extends ReflectionConverter {
-        private CompatibilityConverter(Mapper mapper, ReflectionProvider reflectionProvider, Class type) {
-            super(mapper, reflectionProvider, type);
-        }
-
-        @Override public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
-            String value = reader.getValue();
-            Object ret;
-            switch (value) {
-                case "SSH":
-                    ret = new SSH(null); // Just to unmarshal the type - will be replaced by enclosing type with an instance with read credentialsId
-                break;
-                case "JNLP":
-                    ret = JNLP.JNLP;
-                break;
-                default:
-                    ret = super.unmarshal(reader, context);
-                break;
-            }
-            return ret;
         }
     }
 }

@@ -5,7 +5,7 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import jenkins.plugins.openstack.PluginTestRule;
-import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.recipes.LocalData;
@@ -18,13 +18,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
  * @author ogondza.
  */
-public class JCloudsSlaveTest {
+public class PersistenceMigrationTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
@@ -43,7 +44,7 @@ public class JCloudsSlaveTest {
         assertNotNull(so);
         assertEquals(42, (int) so.getRetentionTime());
         assertEquals("-verbose", so.getJvmOptions());
-        SlaveType.SSH slaveType = (SlaveType.SSH) so.getSlaveType();
+        LauncherFactory.SSH slaveType = (LauncherFactory.SSH) so.getLauncherFactory();
         assertEquals("8f3da277-c60e-444c-ab86-517e96ffe508", slaveType.getCredentialsId());
     }
 
@@ -62,7 +63,7 @@ public class JCloudsSlaveTest {
 
         SlaveOptions so = s.getSlaveOptions();
         assertNotNull(so);
-        SlaveType.SSH slaveType = (SlaveType.SSH) so.getSlaveType();
+        LauncherFactory.SSH slaveType = (LauncherFactory.SSH) so.getLauncherFactory();
         assertEquals("2040d591-062a-4ccf-8f36-0a3340a1c51b", slaveType.getCredentialsId());
 
         // Cloud config persisted
@@ -100,8 +101,8 @@ public class JCloudsSlaveTest {
         when(slave.getSlaveOptions()).thenReturn(options);
         when(slave.getPublicAddressIpv4()).thenReturn("42.42.42.42");
 
-        SlaveType slaveType = options.getSlaveType();
-        assertNotNull(slaveType);
-        return slaveType.createLauncher(slave);
+        LauncherFactory launcherFactory = options.getLauncherFactory();
+        assertNotNull(launcherFactory);
+        return launcherFactory.createLauncher(slave);
     }
 }

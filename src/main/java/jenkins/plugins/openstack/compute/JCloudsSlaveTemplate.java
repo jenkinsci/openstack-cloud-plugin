@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 import com.google.common.base.Charsets;
 import hudson.remoting.Base64;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
-import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -94,7 +94,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     @SuppressWarnings("deprecation")
-    protected Object readResolve() {
+    private Object readResolve() {
         // Initializes data structure that we don't persist.
         labelSet = Label.parse(labelString);
 
@@ -114,17 +114,16 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         // Migrate from 2.0 to 2.1
         if (slaveOptions == null) {
-            // Migrate from 2.24 to 2.25
-            SlaveType st = null;
+            LauncherFactory lf = null;
             if ("SSH".equals(slaveType) || credentialsId != null) {
-                st = new SlaveType.SSH(credentialsId);
+                lf = new LauncherFactory.SSH(credentialsId);
             } else if("JNLP".equals(slaveType)) {
-                st = SlaveType.JNLP.JNLP;
+                lf = LauncherFactory.JNLP.JNLP;
             }
 
             slaveOptions = SlaveOptions.builder().imageId(imageId).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
                     .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
-                    .slaveType(st).availabilityZone(availabilityZone).build()
+                    .launcherFactory(lf).availabilityZone(availabilityZone).build()
             ;
 
             this.hardwareId = null;
@@ -139,6 +138,21 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             this.credentialsId = null;
             this.slaveType = null;
             this.availabilityZone = null;
+        }
+
+        // Migrate from 2.24 to 2.25
+        if (slaveOptions.slaveType != null) {
+            LauncherFactory lf = null;
+            if ("JNLP".equals(slaveOptions.slaveType)) {
+                lf = LauncherFactory.JNLP.JNLP;
+                slaveOptions.slaveType = null;
+            } else if ("SSH".equals(slaveOptions.slaveType)) {
+                lf = new LauncherFactory.SSH(slaveOptions.credentialsId);
+                slaveOptions.slaveType = slaveOptions.credentialsId = null;
+            }
+            if (lf != null) {
+                slaveOptions = slaveOptions.getBuilder().launcherFactory(lf).build();
+            }
         }
 
         return this;

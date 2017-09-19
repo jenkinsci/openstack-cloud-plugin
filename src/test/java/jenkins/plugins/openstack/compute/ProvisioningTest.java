@@ -15,7 +15,7 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -251,8 +251,8 @@ public class ProvisioningTest {
 
     @Test
     public void verifyOptionsPropagatedToLauncher() throws Exception {
-        SlaveType.SSH slaveType = new SlaveType.SSH(j.dummySshCredential("credid"));
-        SlaveOptions expected = j.defaultSlaveOptions().getBuilder().slaveType(slaveType).retentionTime(10).build();
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("credid"));
+        SlaveOptions expected = j.defaultSlaveOptions().getBuilder().launcherFactory(slaveType).retentionTime(10).build();
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
                 expected,
                 j.dummySlaveTemplate("label"),

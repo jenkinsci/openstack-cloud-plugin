@@ -4,7 +4,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
 import jenkins.plugins.openstack.PluginTestRule;
-import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Test;
 
 /**
@@ -29,7 +29,7 @@ public class SlaveOptionsTest {
         assertEquals("jvmo", unmodified.getJvmOptions());
         assertEquals("fsRoot", unmodified.getFsRoot());
         assertEquals(null, unmodified.getKeyPairName());
-        assertEquals(SlaveType.JNLP.JNLP, unmodified.getSlaveType());
+        assertEquals(LauncherFactory.JNLP.JNLP, unmodified.getLauncherFactory());
         assertEquals(1, (int) unmodified.getRetentionTime());
 
         SlaveOptions override = SlaveOptions.builder()
@@ -46,7 +46,7 @@ public class SlaveOptionsTest {
                 .jvmOptions("JVMO")
                 .fsRoot("FSROOT")
                 .keyPairName("KPN")
-                .slaveType(new SlaveType.SSH(""))
+                .launcherFactory(new LauncherFactory.SSH(""))
                 .retentionTime(3)
                 .build()
         ;
@@ -65,7 +65,7 @@ public class SlaveOptionsTest {
         assertEquals("JVMO", overridden.getJvmOptions());
         assertEquals("FSROOT", overridden.getFsRoot());
         assertEquals("KPN", overridden.getKeyPairName());
-        assertThat(overridden.getSlaveType(), instanceOf(SlaveType.SSH.class));
+        assertThat(overridden.getLauncherFactory(), instanceOf(LauncherFactory.SSH.class));
         assertEquals(3, (int) overridden.getRetentionTime());
     }
 

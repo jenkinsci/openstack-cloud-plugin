@@ -23,22 +23,11 @@
  */
 package jenkins.plugins.openstack.compute;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-import com.cloudbees.plugins.credentials.CredentialsNameProvider;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
-import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.google.common.base.Joiner;
-import com.trilead.ssh2.Connection;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
 import hudson.Util;
-import hudson.model.Computer;
-import hudson.model.ItemGroup;
-import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.security.ACL;
-import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.ReflectionUtils;
@@ -49,7 +38,6 @@ import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
@@ -330,7 +318,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
-    public ListBoxModel doFillSlaveTypeItems() {
+    public ListBoxModel doFillLauncherFactoryItems() {
         ListBoxModel items = new ListBoxModel();
         items.add("None specified", null);
         items.add("SSH", "SSH");
@@ -340,12 +328,12 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
-    public FormValidation doCheckSlaveType(
+    public FormValidation doCheckLauncherFactory(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("slaveType") String def
+            @RelativePath("../../slaveOptions") @QueryParameter("launcherFactory") String def
     ) {
         if (Util.fixEmpty(value) == null) {
-            String d = getDefault(def, opts().getSlaveType());
+            String d = getDefault(def, opts().getLauncherFactory());
             if (d != null) return FormValidation.ok(def(d));
             return OK;
         }

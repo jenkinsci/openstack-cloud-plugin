@@ -10,7 +10,7 @@ import hudson.remoting.Base64;
 import jenkins.plugins.openstack.PluginTestRule;
 
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -36,12 +36,12 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void configRoundtrip() throws Exception {
         JCloudsSlaveTemplate jnlpTemplate = new JCloudsSlaveTemplate(
-                "jnlp-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().slaveType(SlaveType.JNLP.JNLP).build()
+                "jnlp-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).build()
         );
 
-        SlaveType.SSH slaveType = new SlaveType.SSH(j.dummySshCredential("sshid"));
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("sshid"));
         JCloudsSlaveTemplate sshTemplate = new JCloudsSlaveTemplate(
-                "ssh-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().slaveType(slaveType).build()
+                "ssh-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().launcherFactory(slaveType).build()
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(

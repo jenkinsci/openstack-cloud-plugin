@@ -22,7 +22,7 @@ import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
 import hudson.model.Item;
-import jenkins.plugins.openstack.compute.slaveopts.SlaveType;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -133,9 +133,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             instanceCap = null;
         }
 
-        // Migrate to v2.24 - user configured credentials and clearly rely on SSH launcher that used to be the default so bring it back
-        if (slaveOptions.getSlaveType() == null && slaveOptions.credentialsId != null) {
-            slaveOptions = slaveOptions.getBuilder().slaveType(new SlaveType.SSH(slaveOptions.credentialsId)).build();
+        // Migrate to v2.24
+        LauncherFactory lf = null;
+        if ("JNLP".equals(slaveOptions.slaveType)) {
+            lf = LauncherFactory.JNLP.JNLP;
+        } else if (!"JNLP".equals(slaveOptions.slaveType) && slaveOptions.credentialsId != null) {
+            // user configured credentials and clearly rely on SSH launcher that used to be the default so bring it back
+            lf = new LauncherFactory.SSH(slaveOptions.credentialsId);
+        }
+        if (lf != null) {
+            slaveOptions = slaveOptions.getBuilder().launcherFactory(lf).build();
         }
 
         injectReferenceIntoTemplates();
@@ -254,7 +261,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         private final JCloudsSlaveTemplate template;
         private final ProvisioningActivity.Id id;
 
-        public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template, ProvisioningActivity.Id id) {
+        NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template, ProvisioningActivity.Id id) {
             this.cloud = cloud;
             this.template = template;
             this.id = id;
@@ -272,7 +279,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @Restricted(NoExternalUse.class)
     public /*for mocking*/ boolean isSlaveReadyToLaunch(@Nonnull JCloudsSlave slave) {
-        return slave.getSlaveOptions().getSlaveType().isReady(slave);
+        return slave.getSlaveOptions().getLauncherFactory().isReady(slave);
     }
 
     @Override
@@ -400,7 +407,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         ;
 
         @Override
-        public String getDisplayName() {
+        public @Nonnull String getDisplayName() {
             return "Cloud (OpenStack)";
         }
 
@@ -435,7 +442,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             try {
                 new URL(value);
             } catch (MalformedURLException ex) {
-                FormValidation.error(ex, "The endpoint must be an URL"  );
+                return FormValidation.error(ex, "The endpoint must be URL");
             }
             return FormValidation.ok();
         }
@@ -445,6 +452,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * The request to provision was not fulfilled.
      */
     public static final class ProvisioningFailedException extends RuntimeException {
+        private static final long serialVersionUID = -8524954909721965323L;
 
         public ProvisioningFailedException(String msg, Throwable cause) {
             super(msg, cause);
