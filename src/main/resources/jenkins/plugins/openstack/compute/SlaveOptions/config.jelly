@@ -62,7 +62,6 @@
                     <f:entry title="Retention Time" field="retentionTime">
                         <f:number/>
                     </f:entry>
-                    <!-- TODO Attach help -->
                     <f:dropdownDescriptorSelector field="launcherFactory" title="Connection type"/>
                 </f:section>
 
