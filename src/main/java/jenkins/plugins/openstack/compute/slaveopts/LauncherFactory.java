@@ -256,7 +256,8 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             throw new UnsupportedOperationException();
         }
 
-        @Extension public static final class Desc extends Descriptor<LauncherFactory> {
+        @Extension(ordinal = Double.MAX_VALUE)
+        public static final class Desc extends Descriptor<LauncherFactory> {
             @Override public @Nonnull String getDisplayName() {
                 return "Inherit / Override later";
             }
