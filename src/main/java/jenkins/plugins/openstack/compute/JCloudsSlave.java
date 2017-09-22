@@ -195,10 +195,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     private final static class RecordDisposal implements Disposable {
-        private final Disposable inner;
-        private final ProvisioningActivity.Id provisioningId;
+        private final @Nonnull Disposable inner;
+        private final @Nonnull ProvisioningActivity.Id provisioningId;
 
-        private RecordDisposal(Disposable inner, ProvisioningActivity.Id provisioningId) {
+        private RecordDisposal(@Nonnull Disposable inner, @Nonnull ProvisioningActivity.Id provisioningId) {
             this.inner = inner;
             this.provisioningId = provisioningId;
         }
@@ -223,6 +223,24 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         @Override
         public @Nonnull String getDisplayName() {
             return inner.getDisplayName();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            RecordDisposal that = (RecordDisposal) o;
+
+            if (!inner.equals(that.inner)) return false;
+            return provisioningId.equals(that.provisioningId);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = inner.hashCode();
+            result = 31 * result + provisioningId.hashCode();
+            return result;
         }
     }
 }

@@ -62,4 +62,22 @@ public final class DestroyMachine implements Disposable {
     public @Nonnull String getDisplayName() {
         return "Openstack " + cloudName + " machine " + nodeId;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        DestroyMachine that = (DestroyMachine) o;
+
+        if (!cloudName.equals(that.cloudName)) return false;
+        return nodeId.equals(that.nodeId);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = cloudName.hashCode();
+        result = 31 * result + nodeId.hashCode();
+        return result;
+    }
 }

@@ -79,8 +79,7 @@ public final class PluginTestRule extends JenkinsRule {
 
     private final Map<String, Proc> slavesToKill = new HashMap<>();
 
-    //         Parallel tests starts Jenkins awfully slow as they deplate the entropy pool. There does not seems to be a way
-    //         to disable SSHD so let's speed it up at least:
+    // Parallel tests starts Jenkins awfully slow as they deplete the entropy pool. There does not seems to be a way to disable SSHD so let's speed it up at least:
     //         "SSHD.init" #193 daemon prio=5 os_prio=0 tid=0x00007fe700004000 nid=0x7edd runnable [0x00007fe711dd9000]
     //        java.lang.Thread.State: RUNNABLE
     //        at java.io.FileInputStream.readBytes(Native Method)
