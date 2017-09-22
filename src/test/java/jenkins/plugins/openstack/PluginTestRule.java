@@ -518,8 +518,11 @@ public final class PluginTestRule extends JenkinsRule {
             return new Descriptor();
         }
 
-        @Override public boolean isSlaveReadyToLaunch(@Nonnull JCloudsSlave slave) {
-            return true;
+        @Override public @CheckForNull String slaveIsWaitingFor(@Nonnull JCloudsSlave slave) {
+            if (slave.getSlaveOptions().getLauncherFactory() instanceof LauncherFactory.SSH) {
+                return null; // Pretend success as we fake the connection by JNLP and waiting for IP:PORT is doomed to fail
+            }
+            return super.slaveIsWaitingFor(slave);
         }
 
         public static final class Descriptor extends hudson.model.Descriptor<Cloud> {

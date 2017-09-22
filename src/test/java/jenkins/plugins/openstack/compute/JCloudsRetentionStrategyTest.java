@@ -3,11 +3,13 @@ package jenkins.plugins.openstack.compute;
 import static org.junit.Assert.*;
 
 import hudson.model.Computer;
+import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.slaves.ComputerListener;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Rule;
@@ -53,18 +55,22 @@ public class JCloudsRetentionStrategyTest {
      *
      * This tests simulates prolonged agent launch inserting delay in one of the listeners (in slave connection activity)
      * as we can not replace agent launch impl easily.
-     *
-     * @throws Exception
      */
     @Test
     public void doNotDeleteTheSlaveWhileLaunching() throws Exception {
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(0) // disposable immediately
-                        .startTimeout(3000) // give up soon enough to speed the test up
+                        //.startTimeout(3000) // give up soon enough to speed the test up
                         .build(),
                 "label"
         )));
-        JCloudsSlave node = j.provision(cloud, "label");
+        cloud.provision(Label.get("label"), 1);
+
+        do {
+            Thread.sleep(500);
+        } while(Jenkins.getInstance().getNodes().isEmpty());
+
+        JCloudsSlave node = (JCloudsSlave) Jenkins.getInstance().getNodes().get(0);
         JCloudsComputer computer = (JCloudsComputer) node.toComputer();
         assertSame(computer, j.jenkins.getComputer(node.getNodeName()));
         assertFalse(computer.isPendingDelete());

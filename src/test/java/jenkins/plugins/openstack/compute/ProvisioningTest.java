@@ -43,6 +43,7 @@ import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
@@ -430,6 +431,24 @@ public class ProvisioningTest {
 
         verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
         verify(os)._bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
+    }
+
+    @Test
+    public void timeoutLaunching() throws Exception {
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
+        Collection<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
+        assertThat(pns, iterableWithSize(1));
+
+        try {
+            pns.iterator().next().future.get();
+            fail();
+        } catch (ExecutionException ex) {
+            assertThat(ex.getCause(), instanceOf(JCloudsCloud.ProvisioningFailedException.class));
+            String msg = ex.getCause().getMessage();
+            assertThat(msg, containsString("Failed to connect agent"));
+            assertThat(msg, containsString("JNLP connection was not established yet"));
+        }
     }
 
     /**

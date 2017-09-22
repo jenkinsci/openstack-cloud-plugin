@@ -27,11 +27,6 @@ import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
-import com.thoughtworks.xstream.converters.UnmarshallingContext;
-import com.thoughtworks.xstream.converters.reflection.ReflectionConverter;
-import com.thoughtworks.xstream.converters.reflection.ReflectionProvider;
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-import com.thoughtworks.xstream.mapper.Mapper;
 import com.trilead.ssh2.Connection;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
@@ -56,6 +51,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
@@ -85,10 +81,14 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
     /**
      * Detect the machine is provisioned and can be added to Jenkins for launching.
-     * <p>
+     *
      * This is guaranteed to be called after server is/was ACTIVE.
+     *
+     * @param slave Slave we are waiting to be ready.
+     * @return null if it is ready or string cause if it is not. The cause will be reported alongside the timeout exception
+     *      if this will not become ready in time.
      */
-    public abstract boolean isReady(@Nonnull JCloudsSlave slave);
+    public abstract @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave);
 
     /**
      * Launch nodes via ssh-slaves plugin.
@@ -148,7 +148,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
          * The node is considered ready when ssh port is open.
          */
         @Override
-        public boolean isReady(@Nonnull JCloudsSlave slave) {
+        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
 
             // richnou:
             //	Use Ipv4 Method to make sure IPV4 is the default here
@@ -163,19 +163,21 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
                 Socket socket = new Socket();
                 socket.connect(new InetSocketAddress(publicAddress, 22), 500);
                 socket.close();
-                return true;
+                return null;
             } catch (ConnectException | NoRouteToHostException | SocketTimeoutException ex) {
                 // Exactly what we are looking for
-                LOGGER.log(Level.FINEST, "SSH port at " + publicAddress + " not open (yet)", ex);
-                return false;
+                String msg = "SSH port at " + publicAddress + " not open (yet)";
+                LOGGER.log(Level.FINEST, msg, ex);
+                return msg;
             } catch (IOException ex) {
                 // TODO: General IOException to be understood and handled explicitly
-                LOGGER.log(Level.INFO, "SSH port  at " + publicAddress + " not (yet) open?", ex);
-                return false;
+                String msg = "SSH port at " + publicAddress + " does not seem to respond correctly: " + ex.getMessage();
+                LOGGER.log(Level.INFO, msg, ex);
+                return msg;
             } catch (Exception ex) {
                 LOGGER.log(Level.WARNING, "SSH probe failed", ex);
                 // We have no idea what happen. Log the cause and proceed with the server so it fail fast.
-                return true;
+                return null;
             }
         }
 
@@ -214,9 +216,9 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         }
 
         @Override
-        public boolean isReady(@Nonnull JCloudsSlave slave) {
+        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
             // The address might not be visible at all so let's just wait for connection.
-            return slave.getChannel() != null;
+            return slave.getChannel() != null ? null : "JNLP connection was not established yet";
         }
 
         @Override
@@ -254,7 +256,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             throw new UnsupportedOperationException();
         }
 
-        @Override public boolean isReady(@Nonnull JCloudsSlave slave) {
+        @Override public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
             throw new UnsupportedOperationException();
         }
 

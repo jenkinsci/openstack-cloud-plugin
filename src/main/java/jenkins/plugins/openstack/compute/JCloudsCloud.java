@@ -278,8 +278,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     @Restricted(NoExternalUse.class)
-    public /*for mocking*/ boolean isSlaveReadyToLaunch(@Nonnull JCloudsSlave slave) {
-        return slave.getSlaveOptions().getLauncherFactory().isReady(slave);
+    public /*for mocking*/ @CheckForNull String slaveIsWaitingFor(@Nonnull JCloudsSlave slave) {
+        return slave.getSlaveOptions().getLauncherFactory().isWaitingFor(slave);
     }
 
     @Override
