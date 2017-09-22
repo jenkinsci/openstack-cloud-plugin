@@ -51,6 +51,7 @@ import jenkins.plugins.openstack.compute.SlaveOptions;
 import net.sf.json.JSONObject;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
@@ -72,6 +73,7 @@ import java.util.logging.Logger;
  *
  * @author ogondza.
  */
+@Restricted(NoExternalUse.class)
 public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFactory> implements Serializable {
     private static final long serialVersionUID = -8322868020681278525L;
     private static final Logger LOGGER = Logger.getLogger(LauncherFactory.class.getName());
