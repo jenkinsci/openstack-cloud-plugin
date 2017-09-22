@@ -2,12 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
-import java.net.NoRouteToHostException;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,9 +22,7 @@ import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
 import hudson.model.Item;
-import hudson.plugins.sshslaves.SSHLauncher;
-import hudson.slaves.ComputerLauncher;
-import hudson.slaves.JNLPLauncher;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -88,93 +81,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     // Cache the instance between uses
     private volatile transient @CheckForNull Openstack openstack;
 
-    // TODO: refactor to interface/extension point
-    public enum SlaveType {
-        SSH {
-            @Override
-            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
-                int maxNumRetries = 5;
-                int retryWaitTime = 15;
-
-                SlaveOptions opts = slave.getSlaveOptions();
-                String credentialsId = opts.getCredentialsId();
-                if (credentialsId == null) {
-                    throw new ProvisioningFailedException("No ssh credentials selected");
-                }
-
-                String publicAddress = slave.getPublicAddressIpv4();
-                if (publicAddress == null) {
-                    throw new IOException("The slave is likely deleted");
-                }
-                if ("0.0.0.0".equals(publicAddress)) {
-                    throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
-                }
-
-                Integer timeout = opts.getStartTimeout();
-                timeout = timeout == null ? 0 : (timeout / 1000); // Never propagate null - always set some timeout
-
-                return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
-            }
-
-            @Override
-            public boolean isReady(@Nonnull JCloudsSlave slave) {
-            	
-            	// richnou: 
-            	//	Use Ipv4 Method to make sure IPV4 is the default here
-            	//	OVH cloud provider returns IPV6 as last address, and getPublicAddress returns the last address
-            	//  The Socket connection test then does not work.
-            	//	This method could return the address object and work on it, but for now stick to IPV4
-            	//  for the sake of simplicity
-            	//
-                String publicAddress = slave.getPublicAddressIpv4();
-                // Wait until ssh is exposed not to timeout for too long in ssh-slaves launcher
-                try {
-                    Socket socket = new Socket();
-                    socket.connect(new InetSocketAddress(publicAddress, 22), 500);
-                    socket.close();
-                    return true;
-                } catch (ConnectException|NoRouteToHostException|SocketTimeoutException ex) {
-                    // Exactly what we are looking for
-                    LOGGER.log(Level.FINEST, "SSH port at "+publicAddress+" not open (yet)", ex);
-                    return false;
-                } catch (IOException ex) {
-                    // TODO: General IOException to be understood and handled explicitly
-                    LOGGER.log(Level.INFO, "SSH port  at "+publicAddress+" not (yet) open?", ex);
-                    return false;
-                } catch (Exception ex) {
-                    LOGGER.log(Level.WARNING, "SSH probe failed", ex);
-                    // We have no idea what happen. Log the cause and proceed with the server so it fail fast.
-                    return true;
-                }
-            }
-        },
-        JNLP {
-            @Override
-            public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
-                Jenkins.getActiveInstance().addNode(slave);
-                return new JNLPLauncher();
-            }
-
-            @Override
-            public boolean isReady(@Nonnull JCloudsSlave slave) {
-                // The address might not be visible at all so let's just wait for connection.
-                return slave.getChannel() != null;
-            }
-        };
-
-        /**
-         * Create launcher to be used to start the computer.
-         */
-        public abstract ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException;
-
-        /**
-         * Detect the machine is provisioned and can be added to Jenkins for launching.
-         *
-         * This is guaranteed to be called after server is/was ACTIVE.
-         */
-        public abstract boolean isReady(@Nonnull JCloudsSlave slave);
-    }
-
     public static @Nonnull List<JCloudsCloud> getClouds() {
         List<JCloudsCloud> clouds = new ArrayList<>();
         for (Cloud c : Jenkins.getActiveInstance().clouds) {
@@ -189,7 +95,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public static @Nonnull JCloudsCloud getByName(@Nonnull String name) throws IllegalArgumentException {
         Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
         if (cloud instanceof JCloudsCloud) return (JCloudsCloud) cloud;
-        throw new IllegalArgumentException(name + " is not an OpenStack cloud: " + cloud);
+        throw new IllegalArgumentException("'" + name + "' is not an OpenStack cloud but " + cloud);
     }
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
@@ -225,6 +131,18 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             startTimeout = null;
             floatingIps = null;
             instanceCap = null;
+        }
+
+        // Migrate to v2.24
+        LauncherFactory lf = null;
+        if ("JNLP".equals(slaveOptions.slaveType)) {
+            lf = LauncherFactory.JNLP.JNLP;
+        } else if (!"JNLP".equals(slaveOptions.slaveType) && slaveOptions.credentialsId != null) {
+            // user configured credentials and clearly rely on SSH launcher that used to be the default so bring it back
+            lf = new LauncherFactory.SSH(slaveOptions.credentialsId);
+        }
+        if (lf != null) {
+            slaveOptions = slaveOptions.getBuilder().launcherFactory(lf).build();
         }
 
         injectReferenceIntoTemplates();
@@ -343,7 +261,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         private final JCloudsSlaveTemplate template;
         private final ProvisioningActivity.Id id;
 
-        public NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template, ProvisioningActivity.Id id) {
+        NodeCallable(JCloudsCloud cloud, JCloudsSlaveTemplate template, ProvisioningActivity.Id id) {
             this.cloud = cloud;
             this.template = template;
             this.id = id;
@@ -361,7 +279,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @Restricted(NoExternalUse.class)
     public /*for mocking*/ boolean isSlaveReadyToLaunch(@Nonnull JCloudsSlave slave) {
-        return slave.getSlaveOptions().getSlaveType().isReady(slave);
+        return slave.getSlaveOptions().getLauncherFactory().isReady(slave);
     }
 
     @Override
@@ -485,12 +403,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 .numExecutors(1)
                 .fsRoot("/jenkins")
                 .securityGroups("default")
-                .slaveType(SlaveType.SSH)
                 .build()
         ;
 
         @Override
-        public String getDisplayName() {
+        public @Nonnull String getDisplayName() {
             return "Cloud (OpenStack)";
         }
 
@@ -525,7 +442,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             try {
                 new URL(value);
             } catch (MalformedURLException ex) {
-                FormValidation.error(ex, "The endpoint must be an URL"  );
+                return FormValidation.error(ex, "The endpoint must be URL");
             }
             return FormValidation.ok();
         }
@@ -535,6 +452,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * The request to provision was not fulfilled.
      */
     public static final class ProvisioningFailedException extends RuntimeException {
+        private static final long serialVersionUID = -8524954909721965323L;
 
         public ProvisioningFailedException(String msg, Throwable cause) {
             super(msg, cause);

@@ -10,6 +10,7 @@ import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -46,7 +47,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private transient @Deprecated int overrideRetentionTime;
     private transient @Deprecated String jvmOptions;
     private transient @Deprecated String credentialsId;
-    private transient @Deprecated JCloudsCloud.SlaveType slaveType;
+    private transient @Deprecated String slaveType; // converted to string for easier conversion
     private transient @Deprecated Server metadata;
 
     public JCloudsSlave(
@@ -69,7 +70,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.provisioningId = id;
         this.options = slaveOptions;
         this.nodeId = metadata.getId();
-        setLauncher(new JCloudsLauncher(getSlaveType().createLauncher(this)));
+        setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
     }
 
     // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.
@@ -77,18 +78,19 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     @SuppressWarnings({"unused", "deprecation"})
     @SuppressFBWarnings({"RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", "The fields are non-null after readResolve"})
     protected Object readResolve() {
-        super.readResolve(); // Call parent
+        super.readResolve();
         if (options == null) {
             // Node options are not of override of anything so we need to ensure this fill all mandatory fields
             // We base the outdated config on current plugin defaults to increase the chance it will work.
             SlaveOptions.Builder builder = JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
                     .jvmOptions(Util.fixEmpty(jvmOptions))
-                    .credentialsId(credentialsId)
             ;
 
-            if (slaveType != null) {
-                builder.slaveType(slaveType);
-            }
+            LauncherFactory lf = "SSH".equals(slaveType)
+                    ? new LauncherFactory.SSH(credentialsId)
+                    : LauncherFactory.JNLP.JNLP
+            ;
+            builder.launcherFactory(lf);
 
             if (overrideRetentionTime > 0) {
                 builder = builder.retentionTime(overrideRetentionTime);
@@ -121,7 +123,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * Get public IP address of the server.
      */
     @Restricted(NoExternalUse.class)
-    /*package*/ @CheckForNull String getPublicAddressIpv4() {
+    public @CheckForNull String getPublicAddressIpv4() {
     	
         return Openstack.getPublicAddressIpv4(getOpenstack(cloudName).getServerById(nodeId));
     }
@@ -134,8 +136,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return options;
     }
 
-    public JCloudsCloud.SlaveType getSlaveType() {
-        return options.getSlaveType();
+    public @CheckForNull LauncherFactory getLauncherFactory() {
+        return options.getLauncherFactory();
     }
 
     // Exposed for testing

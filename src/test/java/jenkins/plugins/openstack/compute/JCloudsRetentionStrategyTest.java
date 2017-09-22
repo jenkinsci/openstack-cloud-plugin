@@ -59,7 +59,7 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void doNotDeleteTheSlaveWhileLaunching() throws Exception {
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate(
-                j.dummySlaveOptions().getBuilder().retentionTime(0) // disposable immediately
+                j.defaultSlaveOptions().getBuilder().retentionTime(0) // disposable immediately
                         .startTimeout(3000) // give up soon enough to speed the test up
                         .build(),
                 "label"
@@ -107,7 +107,7 @@ public class JCloudsRetentionStrategyTest {
     public void doNotDeleteSlavePutOfflineByUser() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
                 // no retention to make the slave disposable w.r.t retention time
-                j.dummySlaveOptions().getBuilder().retentionTime(0).build(),
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).build(),
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");

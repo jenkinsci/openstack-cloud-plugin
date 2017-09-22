@@ -69,7 +69,7 @@ public class JCloudsBuildWrapperTest {
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
     public void failToProvisionWhenOpenstackFails() throws Exception {
-        SlaveOptions opts = j.dummySlaveOptions().getBuilder().floatingIpPool("custom").build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("custom").build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"label");
         JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();

@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -29,6 +30,7 @@ import hudson.slaves.Cloud;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.GlobalConfig;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.acegisecurity.AccessDeniedException;
 import org.acegisecurity.acls.sid.Sid;
 import org.apache.commons.io.IOUtils;
@@ -135,10 +137,10 @@ public class JCloudsCloudTest {
 
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
-                "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", "cid", JCloudsCloud.SlaveType.JNLP, 4
+                "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "zone", new SlaveOptions(
-                "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", "CID", JCloudsCloud.SlaveType.SSH, 9
+                "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), 9
         ), Collections.singletonList(template));
         j.jenkins.clouds.add(cloud);
 
@@ -185,13 +187,15 @@ public class JCloudsCloudTest {
         int biggerInstanceCap = DescriptorImpl.getDefaultOptions().getInstanceCap() * 2;
 
         // Base tests on cloud defaults as that is the baseline for erasure
-        SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).slaveType(JCloudsCloud.SlaveType.SSH).build();
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("cid"));
+        SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).launcherFactory(slaveType).build();
         JCloudsCloud cloud = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
         );
 
         assertEquals(opts, cloud.getEffectiveSlaveOptions());
-        assertEquals(SlaveOptions.builder().instanceCap(biggerInstanceCap).build(), cloud.getRawSlaveOptions());
+        SlaveOptions expected = SlaveOptions.builder().instanceCap(biggerInstanceCap).launcherFactory(slaveType).build();
+        assertEquals(expected, cloud.getRawSlaveOptions());
     }
 
     @Test
@@ -199,7 +203,7 @@ public class JCloudsCloudTest {
         String beans = "identity,credential,endPointUrl,zone";
         JCloudsCloud original = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", "zone",
-                j.dummySlaveOptions(),
+                j.defaultSlaveOptions(),
                 Collections.<JCloudsSlaveTemplate>emptyList()
         );
         j.jenkins.clouds.add(original);
@@ -216,7 +220,7 @@ public class JCloudsCloudTest {
     public void configRoundtripNullZone() throws Exception {
         JCloudsCloud original = new JCloudsCloud(
                 "openstack", "identity", "credential", "endPointUrl", null,
-                j.dummySlaveOptions(),
+                j.defaultSlaveOptions(),
                 Collections.<JCloudsSlaveTemplate>emptyList()
         );
         j.jenkins.clouds.add(original);
@@ -246,7 +250,7 @@ public class JCloudsCloudTest {
         assertEquals(0, (int) to.getRetentionTime()); // overrideRetentionTime though deprecated, should be honored
         assertEquals("/tmp/jenkins", to.getFsRoot());
         assertEquals("jenkins-testing", to.getKeyPairName());
-        assertEquals(JCloudsCloud.SlaveType.SSH, to.getSlaveType());
+        assertThat(to.getLauncherFactory(), instanceOf(LauncherFactory.SSH.class));
         assertEquals("default", to.getSecurityGroups());
         assertEquals("zone", to.getAvailabilityZone());
         assertEquals("jenkins.plugins.openstack.compute.UserDataConfig.1455188317989", to.getUserDataId());
@@ -255,7 +259,7 @@ public class JCloudsCloudTest {
         final String actualUserData = toUnixEols(template.getUserData());
         assertEquals(expectedUserData, actualUserData);
 
-        BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(to.getCredentialsId());
+        BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(((LauncherFactory.SSH) to.getLauncherFactory()).getCredentialsId());
         assertEquals("jenkins", creds.getUsername());
         final String expectedPrivateKey = toUnixEols(fileAsString("globalConfigMigrationFromV1/expected-private-key"));
         final String actualPrivateKey = toUnixEols(creds.getPrivateKey());

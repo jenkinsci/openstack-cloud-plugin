@@ -21,6 +21,7 @@ import hudson.util.OneShotEvent;
 import jenkins.model.InterruptedBuildAction;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.Rule;
@@ -146,7 +147,7 @@ public class JCloudsCleanupThreadTest {
     @Test @Issue("jenkinsci/openstack-cloud-plugin#149")
     public void doNotTerminateNodeThatIsBeingProvisioned() throws Exception {
         // Simulate node stuck launching
-        SlaveOptions options = j.dummySlaveOptions().getBuilder().slaveType(JCloudsCloud.SlaveType.JNLP).instanceCap(1).build();
+        SlaveOptions options = j.defaultSlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).instanceCap(1).build();
         j.configureSlaveProvisioning(j.dummyCloud(options, j.dummySlaveTemplate("label")));
 
         FreeStyleProject p = j.createFreeStyleProject();
