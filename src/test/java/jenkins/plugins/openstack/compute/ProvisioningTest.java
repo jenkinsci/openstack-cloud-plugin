@@ -438,7 +438,7 @@ public class ProvisioningTest {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
         Collection<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
-        assertThat(pns, iterableWithSize(1));
+        assertThat(pns, Matchers.<NodeProvisioner.PlannedNode>iterableWithSize(1));
 
         try {
             pns.iterator().next().future.get();
