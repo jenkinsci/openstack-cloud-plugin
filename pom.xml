@@ -43,14 +43,8 @@
         </dependency>
         <dependency>
             <groupId>org.pacesys.openstack4j.connectors</groupId>
-            <artifactId>openstack4j-httpclient</artifactId>
+            <artifactId>openstack4j-okhttp</artifactId>
             <version>${openstack4j.version}</version>
-        </dependency>
-        <!-- http://stackoverflow.com/a/29642453/2091470 -->
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>4.5.2</version>
         </dependency>
 
         <dependency>
