@@ -8,7 +8,6 @@ import hudson.slaves.ComputerLauncher;
 import hudson.slaves.DelegatingComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import hudson.slaves.SlaveComputer;
-import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -81,16 +80,10 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
         if (launcher != null) return launcher;
 
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
-        // Return something harmless to prevent NPE
-        if (slave == null) {
-            launcher = new JNLPLauncher();
-        } else {
-            LauncherFactory launcherFactory = slave.getLauncherFactory();
-            launcher = launcherFactory == null
-                    ? new JNLPLauncher()
-                    : launcherFactory.createLauncher(slave)
-            ;
-        }
-        return launcher;
+
+        return launcher = slave == null
+                ? new JNLPLauncher() // Return something harmless to prevent NPE
+                : slave.getLauncherFactory().createLauncher(slave)
+        ;
     }
 }

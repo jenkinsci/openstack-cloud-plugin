@@ -136,8 +136,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return options;
     }
 
-    public @CheckForNull LauncherFactory getLauncherFactory() {
-        return options.getLauncherFactory();
+    public @Nonnull LauncherFactory getLauncherFactory() {
+        LauncherFactory lf = options.getLauncherFactory();
+        return lf == null ? LauncherFactory.JNLP.JNLP : lf;
     }
 
     // Exposed for testing
