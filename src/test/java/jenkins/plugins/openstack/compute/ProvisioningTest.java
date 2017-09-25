@@ -252,7 +252,7 @@ public class ProvisioningTest {
 
     @Test
     public void verifyOptionsPropagatedToLauncher() throws Exception {
-        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("credid"));
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("credid"), "java");
         SlaveOptions expected = j.defaultSlaveOptions().getBuilder().launcherFactory(slaveType).retentionTime(10).build();
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
                 expected,
@@ -265,6 +265,7 @@ public class ProvisioningTest {
         SSHLauncher launcher = (SSHLauncher) ((JCloudsLauncher) slave.getLauncher()).getLauncher();
         assertEquals(slave.getPublicAddress(), launcher.getHost());
         assertEquals("credid", launcher.getCredentialsId());
+        assertEquals("java", launcher.getJavaPath());
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
         assertEquals(10, (int) slave.getSlaveOptions().getRetentionTime());
 
