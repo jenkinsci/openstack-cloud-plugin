@@ -187,9 +187,8 @@ public abstract class ServerScope {
                 if (ageHours < 1) return false; // Make sure not to throw it away during launching
             }
 
-            // Resolving activity by name is not reliable as they may be created without the name that is assigned at the
-            // time of launch.
-            LOGGER.log(Level.INFO, "No cloud-stats activity tracked for " + specifier, new Error());
+            // Resolving activity by name is not reliable as they may not be assigned yet or the activity might already
+            // be rotated when in completed state. In the latter case it should be treated as out of scope.
             return true;
         }
     }
