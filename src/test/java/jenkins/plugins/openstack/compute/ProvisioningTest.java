@@ -425,7 +425,8 @@ public class ProvisioningTest {
             } catch (ExecutionException ex) {
                 Throwable e = ex.getCause();
                 assertThat(e, instanceOf(Openstack.ActionFailed.class));
-                assertThat(e.getMessage(), containsString("Failed to provision the server in time"));
+                assertThat(e.getMessage(), containsString("Failed to provision the"));
+                assertThat(e.getMessage(), containsString("in time"));
             }
         }
 

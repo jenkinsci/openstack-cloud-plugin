@@ -87,7 +87,7 @@ import jenkins.model.Jenkins;
 /**
  * Encapsulate {@link OSClient}.
  *
- * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting
+ * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting.
  *
  * For server manipulation, this implementation provides metadata fingerprinting
  * to identify machines started via this plugin from given instance so it will not
@@ -319,11 +319,11 @@ public class Openstack {
                 String name = request.build().getName();
                 List<? extends Server> servers = getServersByName(name);
 
-                String msg = "Failed to provision the server in time (" + timeout + "ms): " + servers.toString();
+                String msg = "Failed to provision the " + name + " in time (" + timeout + "ms). Existing server(s): " + servers.toString();
 
                 ActionFailed err = new ActionFailed(msg);
                 try {
-                    // We do not have the id so can not be sure which one is our
+                    // We do not have the id so can not be sure which one is ours
                     int size = servers.size();
                     if (size == 1) {
                         // TODO async disposer
