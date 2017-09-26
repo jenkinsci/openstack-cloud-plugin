@@ -25,6 +25,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 /**
@@ -114,8 +115,11 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     /**
      * Get public IP address of the server.
+     *
+     * @throws NoSuchElementException The server does not exist anymore. Plugin should not get slave to this state ever
+     * but there is no way to prevent external machine deletion.
      */
-    public @CheckForNull String getPublicAddress() {
+    public @CheckForNull String getPublicAddress() throws NoSuchElementException {
     	
         return Openstack.getPublicAddress(getOpenstack(cloudName).getServerById(nodeId));
     }
@@ -123,7 +127,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * Get public IP address of the server.
      */
     @Restricted(NoExternalUse.class)
-    public @CheckForNull String getPublicAddressIpv4() {
+    public @CheckForNull String getPublicAddressIpv4() throws NoSuchElementException {
     	
         return Openstack.getPublicAddressIpv4(getOpenstack(cloudName).getServerById(nodeId));
     }
@@ -176,7 +180,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     @Override
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+    protected void _terminate(TaskListener listener) {
         ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);

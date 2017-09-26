@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -193,23 +192,25 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      * The node is to be added to Jenkins by the caller. At the time the method completes, the node is ready to be launched.
      *
      * @throws Openstack.ActionFailed Provisioning failed.
+     * @throws JCloudsCloud.ProvisioningFailedException Provisioning failed.
      */
     public @Nonnull JCloudsSlave provisionSlave(
             @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id, @Nonnull TaskListener listener
     ) throws JCloudsCloud.ProvisioningFailedException, InterruptedException {
-        Server nodeMetadata = provision(cloud);
         SlaveOptions opts = getEffectiveSlaveOptions();
+        int timeout = opts.getStartTimeout();
+        Server nodeMetadata = provision(cloud);
 
+        JCloudsSlave node = null;
+        // Terminate node unless provisioned successfully
         try {
-            JCloudsSlave node = new JCloudsSlave(id, nodeMetadata, labelString, opts);
+            node = new JCloudsSlave(id, nodeMetadata, labelString, opts);
 
-            int timeout = node.getSlaveOptions().getStartTimeout();
             String cause;
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
                 if ((System.currentTimeMillis() - node.getCreatedTime()) > timeout) {
                     String timeoutMessage = String.format("Failed to connect agent %s within timeout (%d ms): %s", node.getNodeName(), timeout, cause);
                     LOGGER.warning(timeoutMessage);
-                    node.terminate();
                     throw new JCloudsCloud.ProvisioningFailedException(timeoutMessage);
                 }
 
@@ -217,10 +218,17 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
 
             return node;
-        } catch (Descriptor.FormException e) {
-            throw new JCloudsCloud.ProvisioningFailedException("Invalid configuration " + e.getMessage(), e);
-        } catch (IOException e) {
-            throw new JCloudsCloud.ProvisioningFailedException("Unable to provision node", e);
+        } catch (Throwable ex) {
+            JCloudsCloud.ProvisioningFailedException cause = ex instanceof JCloudsCloud.ProvisioningFailedException
+                    ? (JCloudsCloud.ProvisioningFailedException) ex
+                    : new JCloudsCloud.ProvisioningFailedException("Unable to provision node: " + ex.getMessage(), ex)
+            ;
+
+            if (node != null) {
+                // No need to call AbstractCloudSlave#terminate() as this was never added to Jenkins
+                node._terminate(TaskListener.NULL);
+            }
+            throw cause;
         }
     }
 

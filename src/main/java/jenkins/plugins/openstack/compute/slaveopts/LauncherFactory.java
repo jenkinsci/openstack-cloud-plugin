@@ -61,6 +61,7 @@ import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -87,8 +88,10 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
      * @param slave Slave we are waiting to be ready.
      * @return null if it is ready or string cause if it is not. The cause will be reported alongside the timeout exception
      *      if this will not become ready in time.
+     * @throws jenkins.plugins.openstack.compute.JCloudsCloud.ProvisioningFailedException If the provisioning needs to
+     *      be aborted right away without waiting for the timeout.
      */
-    public abstract @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave);
+    public abstract @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException;
 
     /**
      * Launch nodes via ssh-slaves plugin.
@@ -156,8 +159,14 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             //  The Socket connection test then does not work.
             //	This method could return the address object and work on it, but for now stick to IPV4
             //  for the sake of simplicity
-            //
-            String publicAddress = slave.getPublicAddressIpv4();
+
+            String publicAddress;
+            try {
+                publicAddress = slave.getPublicAddressIpv4();
+            } catch (NoSuchElementException ex) {
+                throw new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex);
+            }
+
             // Wait until ssh is exposed not to timeout for too long in ssh-slaves launcher
             try {
                 Socket socket = new Socket();
