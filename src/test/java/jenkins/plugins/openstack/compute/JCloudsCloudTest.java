@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -338,7 +339,7 @@ public class JCloudsCloudTest {
     @Test
     public void doNotExpireOpenstackInstanceWhenTokenValid() throws Exception {
         Openstack.FactoryEP factory = j.mockOpenstackFactory();
-        Date validForAWhile = new Date(System.currentTimeMillis() + 1000 * 60 * 15);
+        Date validForAWhile = new Date(System.currentTimeMillis() + 1000 * 60 * 55);
         OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
 
         when(client.getAccess().getToken().getExpires()).thenReturn(validForAWhile);
@@ -349,6 +350,67 @@ public class JCloudsCloudTest {
         Openstack.Factory.get("", "", "", "");
 
         verify(factory, times(1)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
+    }
+
+    @Test
+    public void doNotExpireOpenstackInstanceUntilAuthV3TokenExpires() throws Exception {
+        // Given
+        // Workaround bug JENKINS-46541.
+        // See corresponding comment in Openstack.java
+        final long openstack4jDateParsingBugWorkaround = 999000L;
+        Openstack.FactoryEP factory = j.mockOpenstackFactory();
+        final OSClient.OSClientV3 client = mock(OSClient.OSClientV3.class, RETURNS_DEEP_STUBS);
+        final Openstack expected123 = new Openstack(client) { public String toString() { return "expected123"; } };
+        final Openstack expected4 = new Openstack(client) { public String toString() { return "expected4"; } };
+        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class)))
+                .thenReturn(expected123, expected4).thenThrow(new RuntimeException("Unwanted call to getOpenstack(...)"));
+        // for v3, we compensate for server timestamp being different to ours.
+        // So, for this test, we use a fake time that's one year out.
+        final long serverTimeDifferenceComparedWithOurTime = 365L * 24L * 60L * 60L * 1000L;
+        final long instanceTime = expected123.getLoginTimeMillis();
+        final long serverIssuedAtTime = instanceTime - serverTimeDifferenceComparedWithOurTime;
+        final long tokenValidityTime = 60L * 60L * 1000L; // 60 minutes
+        final long serverExpiresAtTime = serverIssuedAtTime + tokenValidityTime;
+        final Date serverExpiresAt = new Date(serverExpiresAtTime);
+        final Date serverIssuedAt = new Date(serverIssuedAtTime);
+        // Our token should last 60 minutes, but we stop using it 10 minutes
+        // early (to allow for long running operations) plus a 10 second margin
+        // of error.
+        // plus the openstack4jDateParsingBugWorkaround fudge-factor.
+        // If we change the issued-at time we can effectively "fast forward"
+        // time, so we fast-forward until we only have 5 seconds left...
+        final long expectedTokenValidityMargin = 10L * 60L * 1000L + 10L * 1000L + openstack4jDateParsingBugWorkaround;
+        final long fiveSecondsRemaining = 5000L;
+        final Date issuedAtTimeThatShouldResultInFiveSecondsRemaining = new Date(
+                serverExpiresAtTime - expectedTokenValidityMargin - fiveSecondsRemaining);
+        // Then we fast-forward so we have no time left, which should trigger an expiry
+        final Date issuedAtTimeThatShouldResultInExpiry = new Date(
+                serverExpiresAtTime - expectedTokenValidityMargin + 1);
+        // We expect to get called for "actual2", "actual3" and "actual4".
+        // We return data that should result in isExpired == false, false, true.
+        when(client.getToken().getExpires()).thenReturn(serverExpiresAt);
+        when(client.getToken().getIssuedAt())
+                .thenReturn(serverIssuedAt, issuedAtTimeThatShouldResultInFiveSecondsRemaining,
+                        issuedAtTimeThatShouldResultInExpiry)
+                .thenThrow(new RuntimeException("Unexpected call to getIssuedAt"));
+
+        // When
+        // initial call should populate cache and not check expiry
+        final Openstack actual1 = Openstack.Factory.get("", "", "", "");
+        // Next call, cache should be valid as time has largely stood still
+        final Openstack actual2 = Openstack.Factory.get("", "", "", "");
+        // Now time has fast-forwarded so we have about 5 seconds left.
+        final Openstack actual3 = Openstack.Factory.get("", "", "", "");
+        // Now time has gone on 5 seconds more, causing token expiry and we
+        // expect a new instance to be created.
+        final Openstack actual4 = Openstack.Factory.get("", "", "", "");
+
+        // Then
+        assertThat(actual1, sameInstance(expected123));
+        assertThat(actual2, sameInstance(expected123));
+        assertThat(actual3, sameInstance(expected123));
+        assertThat(actual4, sameInstance(expected4));
+        verify(factory, times(2)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {

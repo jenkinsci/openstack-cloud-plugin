@@ -9,11 +9,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.PluginTestRule;
@@ -34,6 +36,7 @@ import org.openstack4j.openstack.image.domain.GlanceImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -150,7 +153,10 @@ public class SlaveOptionsDescriptorTest {
         image.setId("image-id");
         image.setName(null);
 
-        OSClient osClient = mock(OSClient.class);
+        OSClient.OSClientV2 osClient = mock(OSClient.OSClientV2.class, withSettings().defaultAnswer(RETURNS_DEEP_STUBS));
+        final Date issued = new Date();
+        final Date expires = new Date(issued.getTime()+24*60*60*1000);
+        when(osClient.getAccess().getToken().getExpires()).thenReturn(expires);
         ImageService imageService = mock(ImageService.class);
         when(osClient.images()).thenReturn(imageService);
         doReturn(Collections.singletonList(image)).when(imageService).listAll();
