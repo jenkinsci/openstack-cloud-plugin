@@ -120,12 +120,6 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             }
 
             String publicAddress = slave.getPublicAddressIpv4();
-            if (publicAddress == null) { // TODO this is likely dead code after abandoning JClouds
-                throw new IOException("The slave is likely deleted");
-            }
-            if ("0.0.0.0".equals(publicAddress)) { // TODO this is likely dead code after abandoning JClouds
-                throw new IOException("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
-            }
 
             final SlaveOptions opts = slave.getSlaveOptions();
             Integer timeout = opts.getStartTimeout();
