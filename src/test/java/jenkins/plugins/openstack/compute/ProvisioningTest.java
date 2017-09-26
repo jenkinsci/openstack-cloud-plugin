@@ -432,6 +432,7 @@ public class ProvisioningTest {
 
         verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
         verify(os)._bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
+        verify(os).destroyServer(eq(server));
     }
 
     @Test
@@ -450,6 +451,8 @@ public class ProvisioningTest {
             assertThat(msg, containsString("Failed to connect agent"));
             assertThat(msg, containsString("JNLP connection was not established yet"));
         }
+
+        verify(cloud.getOpenstack()).destroyServer(any(Server.class));
     }
 
     /**
