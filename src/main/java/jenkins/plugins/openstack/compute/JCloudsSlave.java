@@ -214,7 +214,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 return inner.dispose();
             } catch (Throwable ex) {
                 CloudStatistics statistics = CloudStatistics.get();
-                ProvisioningActivity activity = statistics.getActivityFor(provisioningId);
+                ProvisioningActivity activity = statistics.getPotentiallyCompletedActivityFor(provisioningId);
                 if (activity != null) {
                     PhaseExecutionAttachment.ExceptionAttachment attachment = new PhaseExecutionAttachment.ExceptionAttachment(
                             ProvisioningActivity.Status.WARN, ex
