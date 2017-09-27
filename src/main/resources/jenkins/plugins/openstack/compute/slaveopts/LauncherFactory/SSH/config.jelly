@@ -4,5 +4,8 @@
         <f:entry title="${%SSH Credentials}" field="credentialsId">
             <c:select/>
         </f:entry>
+        <f:entry title="${%Path to java}" field="javaPath">
+            <f:textbox/>
+        </f:entry>
     </f:section>
 </j:jelly>

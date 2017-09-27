@@ -29,6 +29,7 @@ import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.trilead.ssh2.Connection;
 import hudson.Extension;
+import hudson.Util;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -62,6 +63,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -100,14 +102,24 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         private static final long serialVersionUID = -1108865485314632255L;
 
         private final String credentialsId;
+        private final String javaPath;
 
         public String getCredentialsId() {
             return credentialsId;
         }
 
+        public String getJavaPath() {
+            return javaPath;
+        }
+
         @DataBoundConstructor
-        public SSH(String credentialsId) {
+        public SSH(String credentialsId, String javaPath) {
             this.credentialsId = credentialsId;
+            this.javaPath = Util.fixEmptyAndTrim(javaPath);
+        }
+
+        public SSH(String credentialsId) {
+            this(credentialsId, null);
         }
 
         @Override
@@ -125,7 +137,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             Integer timeout = opts.getStartTimeout();
             timeout = timeout == null ? 0: (timeout / 1000); // Never propagate null - always set some timeout
 
-            return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), null, "", "", timeout, maxNumRetries, retryWaitTime);
+            return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), javaPath, "", "", timeout, maxNumRetries, retryWaitTime);
         }
 
         @Override public boolean equals(Object o) {
@@ -134,11 +146,15 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
             SSH ssh = (SSH) o;
 
-            return credentialsId != null ? credentialsId.equals(ssh.credentialsId): ssh.credentialsId == null;
+            return Objects.equals(credentialsId, ssh.credentialsId) && Objects.equals(javaPath, ssh.javaPath);
         }
 
         @Override public int hashCode() {
-            return credentialsId != null ? credentialsId.hashCode(): 0;
+            return Objects.hash(credentialsId, javaPath);
+        }
+
+        @Override public String toString() {
+            return "LauncherFactory.SSH: credId:" + credentialsId + ", javaPath:" + javaPath;
         }
 
         /**

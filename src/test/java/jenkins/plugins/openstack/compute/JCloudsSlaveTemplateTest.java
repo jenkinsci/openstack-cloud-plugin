@@ -39,7 +39,7 @@ public class JCloudsSlaveTemplateTest {
                 "jnlp-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).build()
         );
 
-        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("sshid"));
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("sshid"), "mypath");
         JCloudsSlaveTemplate sshTemplate = new JCloudsSlaveTemplate(
                 "ssh-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().launcherFactory(slaveType).build()
         );
