@@ -17,9 +17,7 @@
         <div name="slaveOptions" descriptorid="${descriptor.id}">
             <table style="width:100%">
                 <f:section title="Cloud Server Options">
-                    <f:entry title="Image" field="imageId">
-                        <f:select/>
-                    </f:entry>
+                    <f:dropdownDescriptorSelector field="bootSource" title="Boot Source"/>
                     <f:entry title="Hardware" field="hardwareId">
                         <f:select/>
                     </f:entry>
@@ -39,7 +37,7 @@
                         <f:textbox/>
                     </f:entry>
                     <f:entry title="Availability Zone" field="availabilityZone">
-                        <f:textbox/>
+                        <f:combobox/>
                     </f:entry>
                     <f:entry title="Startup Timeout" field="startTimeout">
                         <f:textbox/>
