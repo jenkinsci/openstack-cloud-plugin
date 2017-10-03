@@ -23,14 +23,14 @@
  */
 package jenkins.plugins.openstack.compute;
 
-import com.google.common.base.Joiner;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
 import hudson.Util;
+
+import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.ReflectionUtils;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
@@ -42,32 +42,23 @@ import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
 import org.openstack4j.model.compute.Flavor;
-import org.openstack4j.model.image.Image;
-import org.springframework.util.StringUtils;
+import org.openstack4j.model.compute.ext.AvailabilityZone;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * @author ogondza.
  */
 @Extension @Restricted(NoExternalUse.class)
-public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveOptions> {
+public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions> {
     private static final Logger LOGGER = Logger.getLogger(SlaveOptionsDescriptor.class.getName());
-    private static final FormValidation OK = FormValidation.ok();
-    private static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
+    public static final FormValidation OK = FormValidation.ok();
+    public static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
 
     public SlaveOptionsDescriptor() {
         super(SlaveOptions.class);
@@ -80,13 +71,6 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
 
     private SlaveOptions opts() {
         return ((JCloudsCloud.DescriptorImpl) Jenkins.getActiveInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
-    }
-
-    private String getDefault(String d1, Object d2) {
-        d1 = Util.fixEmpty(d1);
-        if (d1 != null) return d1;
-        if (d2 != null) return Util.fixEmpty(String.valueOf(d2));
-        return null;
     }
 
     @Restricted(DoNotUse.class)
@@ -154,23 +138,22 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
-
+        final String valueOrEmpty = Util.fixNull(floatingIpPool);
         try {
-            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
-            for (String p : openstack.getSortedIpPools()) {
-                m.add(p);
+            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                for (String p : openstack.getSortedIpPools()) {
+                    m.add(p);
+                }
             }
-            return m;
         } catch (AuthenticationException | FormValidation | ConnectionException ex) {
             LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
-
-        if (Util.fixEmpty(floatingIpPool) != null) {
-            m.add(floatingIpPool);
+        if (!hasValue(m, valueOrEmpty)) {
+            m.add(valueOrEmpty);
         }
-
         return m;
     }
 
@@ -193,26 +176,26 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             @QueryParameter String hardwareId,
             @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
-
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
-
+        final String valueOrEmpty = Util.fixNull(hardwareId);
         try {
-            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
-            for (Flavor flavor : openstack.getSortedFlavors()) {
-                m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
+            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                for (Flavor flavor : openstack.getSortedFlavors()) {
+                    final String value = flavor.getId();
+                    final String displayText = String.format("%s (%s)", flavor.getName(), value);
+                    m.add(displayText, value);
+                }
             }
-            return m;
         } catch (AuthenticationException | FormValidation | ConnectionException ex) {
             LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
-
-        if (Util.fixEmpty(hardwareId) != null) {
+        if (!hasValue(m, valueOrEmpty)) {
             m.add(hardwareId);
         }
-
         return m;
     }
 
@@ -231,76 +214,30 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
 
     @Restricted(DoNotUse.class)
     @InjectOsAuth
-    public ListBoxModel doFillImageIdItems(
-            @QueryParameter String imageId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
-    ) {
-
-        ListBoxModel m = new ListBoxModel();
-        m.add("None specified", "");
-
-        try {
-            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
-            for (Image image : openstack.getSortedImages()) {
-                String name = image.getName();
-                  if (Util.fixEmpty(name) == null) {
-                    name = image.getId();
-                }
-                m.add(name);
-            }
-            return m;
-        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
-            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
-        } catch (Exception ex) {
-            LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-        }
-
-        if (Util.fixEmpty(imageId) != null) {
-            m.add(imageId);
-        }
-
-        return m;
-    }
-
-    @Restricted(DoNotUse.class)
-    public FormValidation doCheckImageId(
-            @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("imageId") String def
-    ) {
-        if (Util.fixEmpty(value) == null) {
-            String d = getDefault(def, opts().getImageId());
-            if (d != null) return FormValidation.ok(def(d));
-            return REQUIRED;
-        }
-        return OK;
-    }
-
-    @Restricted(DoNotUse.class)
-    @InjectOsAuth
     public ListBoxModel doFillNetworkIdItems(
             @QueryParameter String networkId,
             @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
-
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
-
+        final String valueOrEmpty = Util.fixNull(networkId);
         try {
-            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
-            for (org.openstack4j.model.network.Network network : openstack.getSortedNetworks()) {
-                m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
+            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                for (org.openstack4j.model.network.Network network : openstack.getSortedNetworks()) {
+                    final String value = network.getId();
+                    final String displayText = String.format("%s (%s)", network.getName(), value);
+                    m.add(displayText, value);
+                }
             }
-            return m;
         } catch (AuthenticationException | FormValidation | ConnectionException ex) {
             LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
-
-        if (Util.fixEmpty(networkId) != null) {
+        if (!hasValue(m, valueOrEmpty)) {
             m.add(networkId);
         }
-
         return m;
     }
 
@@ -319,15 +256,12 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
 
     @Restricted(DoNotUse.class)
     public ListBoxModel doFillUserDataIdItems() {
-
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
-
         ConfigProvider provider = getConfigProvider();
         for (Config config : provider.getAllConfigs()) {
             m.add(config.name, config.id);
         }
-
         return m;
     }
 
@@ -372,14 +306,68 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     @Restricted(DoNotUse.class)
+    @InjectOsAuth
+    public ComboBoxModel doFillAvailabilityZoneItems(
+            @QueryParameter String availabilityZone,
+            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+    ) {
+        // Support for availabilityZones is optional in OpenStack, so this is a f:combobox not f:select field.
+        // Therefore we suggest some options if we can, but if we can't then we assume it's because they're not needed.
+        final ComboBoxModel m = new ComboBoxModel();
+        try {
+            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                for (final AvailabilityZone az : openstack.getAvailabilityZones()) {
+                    final String value = az.getZoneName();
+                    m.add(value);
+                }
+            }
+        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+        }
+        return m;
+    }
+
+    @Restricted(DoNotUse.class)
     public FormValidation doCheckAvailabilityZone(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("availabilityZone") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("availabilityZone") String def,
+            // authentication fields can be in two places relative to us.
+            @RelativePath("..") @QueryParameter("endPointUrl") String endPointUrlCloud,
+            @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
+            @RelativePath("..") @QueryParameter("identity") String identityCloud,
+            @RelativePath("../..") @QueryParameter("identity") String identityTemplate,
+            @RelativePath("..") @QueryParameter("credential") String credentialCloud,
+            @RelativePath("../..") @QueryParameter("credential") String credentialTemplate,
+            @RelativePath("..") @QueryParameter("zone") String zoneCloud,
+            @RelativePath("../..") @QueryParameter("zone") String zoneTemplate
+    ) throws FormValidation {
+        // Warn user if they've not selected anything AND there's multiple availability zones
+        // as this can lead to non-deterministic behavior.
+        // But if we can't find any availability zones then we assume that all is OK
+        // because not all OpenStack deployments support them.
         if (Util.fixEmpty(value) == null) {
-            String d = getDefault(def, opts().getAvailabilityZone());
+            final String d = getDefault(def, opts().getAvailabilityZone());
             if (d != null) return FormValidation.ok(def(d));
-            return OK;
+            final String endPointUrl = getDefault(endPointUrlCloud, endPointUrlTemplate);
+            final String identity = getDefault(identityCloud, identityTemplate);
+            final String credential = getDefault(credentialCloud, credentialTemplate);
+            final String zone = getDefault(zoneCloud, zoneTemplate);
+            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+                try {
+                    final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                    final int numberOfAZs = openstack.getAvailabilityZones().size();
+                    if (numberOfAZs > 1) {
+                        return FormValidation.warning("Ambiguity warning: Multiple zones found.");
+                    }
+                } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+                    LOGGER.log(Level.FINEST, "Openstack call failed", ex);
+                } catch (Exception ex) {
+                    LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+                }
+            }
         }
         return OK;
     }
@@ -390,26 +378,24 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
             @QueryParameter String keyPairName,
             @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
-
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
-
+        final String valueOrEmpty = Util.fixNull(keyPairName);
         try {
-            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
-            for (String keyPair: openstack.getSortedKeyPairNames()) {
-                m.add(keyPair);
+            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                for (String value : openstack.getSortedKeyPairNames()) {
+                    m.add(value);
+                }
             }
-            return m;
         } catch (AuthenticationException | FormValidation | ConnectionException ex) {
             LOGGER.log(Level.FINEST, "Openstack call failed", ex);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
         }
-
-        if (Util.fixEmpty(keyPairName) != null) {
+        if (!hasValue(m, valueOrEmpty)) {
             m.add(keyPairName);
         }
-
         return m;
     }
 
@@ -452,6 +438,11 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         return OK;
     }
 
+    @Override
+    public List<String> getAuthFieldsOffsets() {
+        return Arrays.asList("..", "../..");
+    }
+
     /**
      * Get Default value label.
      */
@@ -459,37 +450,4 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     public @Nonnull String def(@CheckForNull Object val) {
         return val == null ? "" : ("Inherited value: " + val);
     }
-
-    /**
-     * Add dependencies on credentials
-     */
-    @Override
-    public void calcFillSettings(String field, Map<String, Object> attributes) {
-        super.calcFillSettings(field, attributes);
-
-        List<String> deps = new ArrayList<>();
-        String fillDependsOn = (String) attributes.get("fillDependsOn");
-        if (fillDependsOn != null) {
-            deps.addAll(Arrays.asList(fillDependsOn.split(" ")));
-        }
-
-        String capitalizedFieldName = StringUtils.capitalize(field);
-        String methodName = "doFill" + capitalizedFieldName + "Items";
-        Method method = ReflectionUtils.getPublicMethodNamed(getClass(), methodName);
-
-        // Replace direct reference to references to possible relative paths
-        if (method.getAnnotation(InjectOsAuth.class) != null) {
-            for (String attr: Arrays.asList("endPointUrl", "identity", "credential", "zone")) {
-                deps.remove(attr);
-                deps.add("../" + attr);
-                deps.add("../../" + attr);
-            }
-        }
-
-        attributes.put("fillDependsOn", Joiner.on(' ').join(deps));
-    }
-
-    @Retention(RUNTIME)
-    @Target({METHOD})
-    private @interface InjectOsAuth {}
 }

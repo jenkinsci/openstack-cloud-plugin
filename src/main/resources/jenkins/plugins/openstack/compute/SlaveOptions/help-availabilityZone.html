@@ -1,3 +1,9 @@
 <div>
-    OpenStack region to use. Can be left blank if the default endpoint region should be used.
+    OpenStack Availability Zone to use.
+    <p/>
+    Can be left blank if the OpenStack deployment is free to put the instance on an availability zone of its choice.
+    e.g. if your OpenStack deployment has only one availability zone, or if all zones are equivalent.
+    <br/>
+    Should not be left blank if there are multiple availability zones that are not equivalent as this can result in non-deterministic behavior.
+    e.g. if you have different zones for different processor architectures then you should choose a zone appropriate for the selected image.
 </div>
