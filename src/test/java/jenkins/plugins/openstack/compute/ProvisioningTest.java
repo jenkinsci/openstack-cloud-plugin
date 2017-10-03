@@ -13,13 +13,9 @@ import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
-import hudson.slaves.NodeProvisioner.PlannedNode;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-
-import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -29,13 +25,8 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.ArgumentCaptor;
-import org.mockito.internal.util.reflection.Whitebox;
-import org.openstack4j.model.compute.BDMDestType;
-import org.openstack4j.model.compute.BDMSourceType;
-import org.openstack4j.model.compute.BlockDeviceMappingCreate;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -142,7 +133,7 @@ public class ProvisioningTest {
         verify(os, times(2)).updateInfo(any(Server.class));
         verify(os, atLeastOnce()).destroyServer(any(Server.class));
         verify(os, atLeastOnce()).getServerById(any(String.class));
-        verify(os, atLeastOnce()).getImageIdsFor(any(String.class));
+        verify(os, atLeastOnce()).getImageIdFor(any(String.class));
 
         verifyNoMoreInteractions(os);
 
@@ -285,12 +276,12 @@ public class ProvisioningTest {
 
     @Test
     public void allowToUseImageNameAsWellAsId() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.Image("image-id")).build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().imageId("image-id").build();
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
         // simulate same image resolved to different ids
-        when(os.getImageIdsFor(eq("image-id"))).thenReturn(Collections.singletonList("image-id")).thenReturn(Collections.singletonList("something-else"));
+        when(os.getImageIdFor(eq("image-id"))).thenReturn("image-id", "something-else");
 
         j.provision(cloud, "label"); j.provision(cloud, "label");
 
@@ -301,40 +292,6 @@ public class ProvisioningTest {
         assertEquals(2, builders.size());
         assertEquals("image-id", builders.get(0).build().getImageRef());
         assertEquals("something-else", builders.get(1).build().getImageRef());
-    }
-
-    @Test
-    public void allowToUseVolumeSnapshotNameAsWellAsId() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.VolumeSnapshot("vs-id")).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
-
-        Openstack os = cloud.getOpenstack();
-        // simulate same snapshot resolved to different ids
-        when(os.getVolumeSnapshotIdsFor(eq("vs-id"))).thenReturn(Collections.singletonList("vs-id")).thenReturn(Collections.singletonList("something-else"));
-
-        j.provision(cloud, "label"); j.provision(cloud, "label");
-
-        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
-        verify(os, times(2)).bootAndWaitActive(captor.capture(), any(Integer.class));
-
-        List<ServerCreateBuilder> builders = captor.getAllValues();
-        assertEquals(2, builders.size());
-        assertEquals("vs-id", getVolumeSnapshotId(builders.get(0)));
-        assertEquals("something-else", getVolumeSnapshotId(builders.get(1)));
-    }
-
-    @SuppressWarnings("unchecked")
-    private String getVolumeSnapshotId(ServerCreateBuilder builder) {
-        List<BlockDeviceMappingCreate> mapping = (List<BlockDeviceMappingCreate>) Whitebox.getInternalState(
-                builder.build(),
-                "blockDeviceMapping"
-        );
-
-        assertEquals(1, mapping.size());
-        NovaBlockDeviceMappingCreate device = (NovaBlockDeviceMappingCreate) mapping.get(0);
-        assertEquals(BDMSourceType.SNAPSHOT, device.source_type);
-        assertEquals(BDMDestType.VOLUME, device.destination_type);
-        return device.uuid;
     }
 
     @Test
@@ -481,16 +438,13 @@ public class ProvisioningTest {
 
     @Test
     public void timeoutLaunching() throws Exception {
-        final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
-        final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
-        final Matcher<Iterable<NodeProvisioner.PlannedNode>> hasOnlyOneElement = iterableWithSize(1);
-        assertThat(pns, hasOnlyOneElement);
-        final PlannedNode pn = pns.iterator().next();
-        final Future<Node> pnf = pn.future;
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
+        Collection<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
+        assertThat(pns, Matchers.<NodeProvisioner.PlannedNode>iterableWithSize(1));
 
         try {
-            pnf.get();
+            pns.iterator().next().future.get();
             fail();
         } catch (ExecutionException ex) {
             assertThat(ex.getCause(), instanceOf(JCloudsCloud.ProvisioningFailedException.class));

@@ -10,7 +10,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +21,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
@@ -29,10 +30,10 @@ import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.main.modules.sshd.SSHD;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -93,8 +94,7 @@ public final class PluginTestRule extends JenkinsRule {
             dummyUserData("dummyUserDataId");
         }
         return new SlaveOptions(
-                new BootSource.VolumeSnapshot("id"), "hw", "nw", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10,
-                "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 1
+                "img", "hw", "nw", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 1
         );
     }
 
@@ -103,7 +103,7 @@ public final class PluginTestRule extends JenkinsRule {
 
         // Use some real-looking values preserving defaults to make sure plugin works with them
         return JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
-                .bootSource(new BootSource.Image("dummyImageId"))
+                .imageId("dummyImageId")
                 .hardwareId("dummyHardwareId")
                 .networkId("dummyNetworkId")
                 .userDataId("dummyUserDataId")
@@ -287,8 +287,8 @@ public final class PluginTestRule extends JenkinsRule {
                 return null;
             }
         });
-        doAnswer(new Answer<Void>() {
-            @Override public Void answer(InvocationOnMock invocation) throws Throwable {
+        doAnswer(new Answer() {
+            @Override public Object answer(InvocationOnMock invocation) throws Throwable {
                 Server server = (Server) invocation.getArguments()[0];
                 running.remove(server);
                 return null;
@@ -385,7 +385,6 @@ public final class PluginTestRule extends JenkinsRule {
             when(server.getAddresses()).thenReturn(new NovaAddresses());
             when(server.getStatus()).thenReturn(Server.Status.ACTIVE);
             when(server.getMetadata()).thenReturn(metadata);
-            when(server.getOsExtendedVolumesAttached()).thenReturn(Collections.singletonList(UUID.randomUUID().toString()));
             metadata.put("jenkins-instance", jenkins.getRootUrl()); // Mark the slave as ours
         }
 

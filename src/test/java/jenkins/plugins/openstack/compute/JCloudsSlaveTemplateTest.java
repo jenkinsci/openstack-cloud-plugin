@@ -1,10 +1,8 @@
 package jenkins.plugins.openstack.compute;
 
 import java.io.ByteArrayInputStream;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
@@ -12,25 +10,20 @@ import hudson.remoting.Base64;
 import jenkins.plugins.openstack.PluginTestRule;
 
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.openstack4j.model.compute.BDMDestType;
-import org.openstack4j.model.compute.BDMSourceType;
-import org.openstack4j.model.compute.BlockDeviceMappingCreate;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 public class JCloudsSlaveTemplateTest {
 
@@ -82,7 +75,7 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void eraseDefaults() throws Exception {
         SlaveOptions cloudOpts = PluginTestRule.dummySlaveOptions(); // Make sure nothing collides with defaults
-        SlaveOptions templateOpts = cloudOpts.getBuilder().bootSource(new BootSource.Image("id")).availabilityZone("other").build();
+        SlaveOptions templateOpts = cloudOpts.getBuilder().imageId("42").availabilityZone("other").build();
         assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
@@ -96,7 +89,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());
-        assertEquals(SlaveOptions.builder().bootSource(new BootSource.Image("id")).availabilityZone("other").build(), template.getRawSlaveOptions());
+        assertEquals(SlaveOptions.builder().imageId("42").availabilityZone("other").build(), template.getRawSlaveOptions());
     }
 
     @Test
@@ -131,62 +124,5 @@ public class JCloudsSlaveTemplateTest {
 
         verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
         verify(os, never()).assignFloatingIp(any(Server.class), any(String.class));
-    }
-
-    @Test
-    public void bootFromVolumeSnapshot() throws Exception {
-        final String volumeSnapshotName = "MyVolumeSnapshot";
-        final String volumeSnapshotId = "vs-123-id";
-        final SlaveOptions opts = PluginTestRule.dummySlaveOptions().getBuilder().bootSource(new BootSource.VolumeSnapshot(volumeSnapshotName)).build();
-        final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(instance));
-        final Openstack mockOs = cloud.getOpenstack();
-        when(mockOs.getVolumeSnapshotIdsFor(volumeSnapshotName)).thenReturn(Collections.singletonList(volumeSnapshotId));
-        final ArgumentCaptor<ServerCreateBuilder> scbCaptor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
-        final ArgumentCaptor<String> vnCaptor = ArgumentCaptor.forClass(String.class);
-        final ArgumentCaptor<String> vdCaptor = ArgumentCaptor.forClass(String.class);
-
-        final Server actual = instance.provision(cloud);
-
-        final String actualServerName = actual.getName();
-        final String actualServerId = actual.getId();
-        verify(mockOs, times(1)).bootAndWaitActive(scbCaptor.capture(), anyInt());
-        verify(mockOs, times(1)).setVolumeNameAndDescription(anyString(), vnCaptor.capture(), vdCaptor.capture());
-        final ServerCreateBuilder scbActual = scbCaptor.getValue();
-        final List<BlockDeviceMappingCreate> blockDeviceMappingActual = (List<BlockDeviceMappingCreate>)readPrivateField(readPrivateField(scbActual, "m"), "blockDeviceMapping");
-        assertThat(blockDeviceMappingActual, hasSize(1));
-        final NovaBlockDeviceMappingCreate bdmcActual = (NovaBlockDeviceMappingCreate)blockDeviceMappingActual.get(0);
-        assertThat(bdmcActual.boot_index, equalTo(0));
-        assertThat(bdmcActual.delete_on_termination, equalTo(true));
-        assertThat(bdmcActual.uuid, equalTo(volumeSnapshotId));
-        assertThat(bdmcActual.source_type, equalTo(BDMSourceType.SNAPSHOT));
-        assertThat(bdmcActual.destination_type, equalTo(BDMDestType.VOLUME));
-        final String actualVolumeName = vnCaptor.getValue();
-        assertThat(actualVolumeName, equalTo(actualServerName+"[0]"));
-        final String actualVolumeDescription = vdCaptor.getValue();
-        assertThat(actualVolumeDescription, containsString(actualServerName));
-        assertThat(actualVolumeDescription, containsString(actualServerId));
-        assertThat(actualVolumeDescription, containsString(volumeSnapshotName));
-    }
-
-    private static Object readPrivateField(Object object, String fieldName) {
-        final StringBuilder msg = new StringBuilder();
-        final Class<?> clazz = object.getClass();
-        try {
-            msg.append("Unable to read field '").append(fieldName).append("' from ").append(object)
-                    .append(".  Known fields are:");
-            for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {
-                msg.append("\n").append(c).append(":");
-                for (Field f : c.getDeclaredFields()) {
-                    msg.append("\n  ").append(f);
-                }
-            }
-            final Field field = clazz.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            Object value = field.get(object);
-            return value;
-        } catch (Exception e) {
-            throw new AssertionError(msg.toString(), e);
-        }
     }
 }

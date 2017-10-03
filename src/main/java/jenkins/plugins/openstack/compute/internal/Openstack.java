@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -47,7 +48,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.TreeMultimap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -74,15 +74,11 @@ import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Keypair;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.identity.v2.Access;
 import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
-import org.openstack4j.model.storage.block.Volume;
-import org.openstack4j.model.storage.block.Volume.Status;
-import org.openstack4j.model.storage.block.VolumeSnapshot;
 import org.openstack4j.openstack.OSFactory;
 
 import hudson.util.Secret;
@@ -165,75 +161,17 @@ public class Openstack {
         return nets;
     }
 
+    public @Nonnull Collection<Image> getSortedImages() {
+        List<? extends Image> images = clientProvider.get().images().listAll();
+        TreeSet<Image> set = new TreeSet<>(RESOURCE_COMPARATOR); // Eliminate duplicate names
+        set.addAll(images);
+        return set;
+    }
+
     private static final Comparator<BasicResource> RESOURCE_COMPARATOR = new Comparator<BasicResource>() {
         @Override
         public int compare(BasicResource o1, BasicResource o2) {
             return ObjectUtils.compare(o1.getName(), o2.getName());
-        }
-    };
-
-    /**
-     * Finds all {@link Image}s.
-     * 
-     * @return A Map of collections of images, indexed by name (or id if the
-     *         image has no name) in ascending order and, in the event of
-     *         name-collisions, the images for a given name are sorted by
-     *         creation date.
-     */
-    public @Nonnull Map<String, Collection<Image>> getImages() {
-        final List<? extends Image> list = clientProvider.get().images().listAll();
-        final TreeMultimap<String, Image> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, IMAGE_DATE_COMPARATOR);
-        for (Image o : list) {
-            final String name = Util.fixNull(o.getName());
-            final String nameOrId = name.isEmpty() ? o.getId() : name;
-            set.put(nameOrId, o);
-        }
-        return set.asMap();
-    }
-
-    private static final Comparator<Image> IMAGE_DATE_COMPARATOR = new Comparator<Image>() {
-        @Override
-        public int compare(Image o1, Image o2) {
-            int result;
-            result = ObjectUtils.compare(o1.getUpdatedAt(), o2.getUpdatedAt());
-            if (result != 0) return result;
-            result = ObjectUtils.compare(o1.getCreatedAt(), o2.getCreatedAt());
-            if (result != 0) return result;
-            result = ObjectUtils.compare(o1.getId(), o1.getId());
-            return result;
-        }
-    };
-
-    /**
-     * Finds all {@link VolumeSnapshot}s that are {@link Status#AVAILABLE}.
-     * 
-     * @return A Map of collections of {@link VolumeSnapshot}s, indexed by name
-     *         (or id if the volume snapshot has no name) in ascending order
-     *         and, in the event of name-collisions, the volume snapshots for a
-     *         given name are sorted by creation date.
-     */
-    public @Nonnull Map<String, Collection<VolumeSnapshot>> getVolumeSnapshots() {
-        final List<? extends VolumeSnapshot> list = clientProvider.get().blockStorage().snapshots().list();
-        final TreeMultimap<String, VolumeSnapshot> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, VOLUMESNAPSHOT_DATE_COMPARATOR);
-        for (VolumeSnapshot o : list) {
-            if (o.getStatus() != Status.AVAILABLE) {
-                continue;
-            }
-            final String name = Util.fixNull(o.getName());
-            final String nameOrId = name.isEmpty() ? o.getId() : name;
-            set.put(nameOrId, o);
-        }
-        return set.asMap();
-    }
-
-    private static final Comparator<VolumeSnapshot> VOLUMESNAPSHOT_DATE_COMPARATOR = new Comparator<VolumeSnapshot>() {
-        @Override
-        public int compare(VolumeSnapshot o1, VolumeSnapshot o2) {
-            int result;
-            result = ObjectUtils.compare(o1.getCreated(), o2.getCreated());
-            if( result!=0 ) return result;
-            result = ObjectUtils.compare(o1.getId(), o1.getId());
-            return result;
         }
     };
 
@@ -258,20 +196,6 @@ public class Openstack {
         Collections.sort(names);
         return names;
     }
-
-    public @Nonnull
-    List<? extends AvailabilityZone> getAvailabilityZones(){
-        final List<? extends AvailabilityZone> zones = clientProvider.get().compute().zones().list();
-        Collections.sort(zones, AVAILABILITY_ZONES_COMPARATOR);
-        return zones;
-    }
-
-    private static final Comparator<AvailabilityZone> AVAILABILITY_ZONES_COMPARATOR = new Comparator<AvailabilityZone>() {
-        @Override
-        public int compare(AvailabilityZone o1, AvailabilityZone o2) {
-            return ObjectUtils.compare(o1.getZoneName(), o2.getZoneName());
-        }
-    };
 
     /**
      * @return null when user is not authorized to use the endpoint which is a valid use-case.
@@ -318,78 +242,20 @@ public class Openstack {
         return keyPairs;
     }
 
-    /**
-     * Finds the Id(s) of all active {@link Image}s with the given name or ID.
-     * If we have found multiple {@link Image}s then they will be listed in
-     * ascending date order (oldest first).
-     * 
-     * @param nameOrId The {@link Image} name or ID.
-     * @return Zero, one or multiple IDs.
-     */
-    public @Nonnull List<String> getImageIdsFor(String nameOrId) {
-        final Collection<Image> sortedObjects = new TreeSet<>(IMAGE_DATE_COMPARATOR);
-        final Map<String, String> query = new HashMap<>(2);
-        query.put("name", nameOrId);
+    public @CheckForNull String getImageIdFor(String name) {
+        Map<String, String> query = new HashMap<>(2);
+        query.put("name", name);
         query.put("status", "active");
-        final List<? extends Image> findByName = clientProvider.get().images().listAll(query);
-        sortedObjects.addAll(findByName);
-        if (nameOrId.matches("[0-9a-f-]{36}")) {
-            final Image findById = clientProvider.get().images().get(nameOrId);
-            if (findById != null && findById.getStatus() == Image.Status.ACTIVE) {
-                sortedObjects.add(findById);
-            }
-        }
-        final List<String> ids = new ArrayList<>();
-        for (Image i : sortedObjects) {
-            ids.add(i.getId());
-        }
-        return ids;
-    }
 
-    /**
-     * Finds the Id(s) of all available {@link VolumeSnapshot}s with the given name
-     * or ID. If we have found multiple {@link VolumeSnapshot}s then they will
-     * be listed in ascending date order (oldest first).
-     * 
-     * @param nameOrId The {@link VolumeSnapshot} name or ID.
-     * @return Zero, one or multiple IDs.
-     */
-    public @Nonnull List<String> getVolumeSnapshotIdsFor(String nameOrId) {
-        final Collection<VolumeSnapshot> sortedObjects = new TreeSet<>(VOLUMESNAPSHOT_DATE_COMPARATOR);
-        // OpenStack block-storage/v3 API doesn't allow us to filter by name, so fetch all and search.
-        final Map<String, Collection<VolumeSnapshot>> allVolumeSnapshots = getVolumeSnapshots();
-        final Collection<VolumeSnapshot> findByName = allVolumeSnapshots.get(nameOrId);
-        if (findByName != null) {
-            sortedObjects.addAll(findByName);
+        List<? extends Image> images = clientProvider.get().images().listAll(query);
+        if (images.size() > 0) {
+            // Pick one at random to point out failures ASAP
+            return images.get(new Random().nextInt(images.size())).getId();
         }
-        if (nameOrId.matches("[0-9a-f-]{36}")) {
-            final VolumeSnapshot findById = clientProvider.get().blockStorage().snapshots().get(nameOrId);
-            if (findById != null && findById.getStatus() == Status.AVAILABLE) {
-                sortedObjects.add(findById);
-            }
-        }
-        final List<String> ids = new ArrayList<>();
-        for (VolumeSnapshot i : sortedObjects) {
-            ids.add(i.getId());
-        }
-        return ids;
-    }
 
-    /**
-     * Sets the name and description of a {@link Volume}. These will be visible
-     * if a user looks at volumes using the OpenStack command-line or WebUI.
-     * 
-     * @param volumeId
-     *            The ID of the volume whose name and description are to be set.
-     * @param newVolumeName
-     *            The new name for the volume.
-     * @param newVolumeDescription
-     *            The new description for the volume.
-     */
-    public void setVolumeNameAndDescription(String volumeId, String newVolumeName, String newVolumeDescription) {
-        final ActionResponse res = clientProvider.get().blockStorage().volumes().update(volumeId, newVolumeName,
-                newVolumeDescription);
-        throwIfFailed(res);
+        if (name.matches("[0-1a-f-]{36}")) return name;
+
+        return null;
     }
 
     /**
