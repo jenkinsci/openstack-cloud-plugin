@@ -1,8 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -43,6 +46,7 @@ import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.google.common.cache.Cache;
 
 import hudson.model.Label;
 import hudson.util.FormValidation;
@@ -52,12 +56,13 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.kohsuke.stapler.Stapler;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -319,36 +324,87 @@ public class JCloudsCloudTest {
         }
     }
 
-    @Test
-    public void expireOpenstackInstanceWhenTokenExpires() throws Exception {
-        Openstack.FactoryEP factory = j.mockOpenstackFactory();
-        Date justExpired = new Date();
-        OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
-        when(client.getAccess().getToken().getExpires()).thenReturn(justExpired);
-        System.out.println(client.getAccess().getToken().getExpires());
-        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenReturn(new Openstack(client));
+    @Test @Issue("JENKINS-46541")
+    public void createsNewOpenstackInstanceAfterCacheExpires() throws Exception {
+        // Given
+        final Openstack.FactoryEP factory = j.mockOpenstackFactory();
+        final OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
+        final Cache<String, Openstack> cache = Openstack.FactoryEP.getCache();
+        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
+            @Override
+            public Openstack answer(InvocationOnMock invocation) throws Throwable {
+                // create new instance every time we are called
+                return new Openstack(client);
+            }
+        });
+        final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
+        final JCloudsCloud instance = new JCloudsCloud("name", "identity", "credential", "endPointUrl", "zone", defOpts, null);
 
-        Openstack.Factory.get("", "", "", "");
-        Openstack.Factory.get("", "", "", "");
-        Openstack.Factory.get("", "", "", "");
+        // When
+        final Openstack actual1 = instance.getOpenstack();
+        final Openstack actual2 = instance.getOpenstack();
+        cache.invalidateAll();
+        final Openstack actual3 = instance.getOpenstack();
+        final Openstack actual4 = instance.getOpenstack();
 
-        verify(factory, times(3)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
+        assertThat(actual1, sameInstance(actual2));
+        assertThat(actual3, sameInstance(actual4));
+        assertThat(actual1, not(sameInstance(actual3)));
+        verify(factory, times(2)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
     }
 
     @Test
-    public void doNotExpireOpenstackInstanceWhenTokenValid() throws Exception {
-        Openstack.FactoryEP factory = j.mockOpenstackFactory();
-        Date validForAWhile = new Date(System.currentTimeMillis() + 1000 * 60 * 15);
-        OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
+    public void cachesOpenstackInstancesToSameEndpoint() throws Exception {
+        // Given
+        final String ep1 = "http://foo";
+        final String ep2 = "http://bar";
+        final String id1 = "Username";
+        final String id2 = "username";
+        final String cred1 = "Password";
+        final String cred2 = "passworD";
+        final String zone1 = "region";
+        final String zone2 = "differentRegion";
+        final Openstack.FactoryEP factory = j.mockOpenstackFactory();
+        final OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
+        final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
+        final JCloudsCloud i1111 = new JCloudsCloud("1111", id1, cred1, ep1, zone1, defOpts, null);
+        final JCloudsCloud i2111 = new JCloudsCloud("2111", id2, cred1, ep1, zone1, defOpts, null);
+        final JCloudsCloud i1211 = new JCloudsCloud("1211", id1, cred2, ep1, zone1, defOpts, null);
+        final JCloudsCloud i1121 = new JCloudsCloud("1121", id1, cred1, ep2, zone1, defOpts, null);
+        final JCloudsCloud i1112 = new JCloudsCloud("1112", id1, cred1, ep1, zone2, defOpts, null);
+        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
+            @Override
+            public Openstack answer(InvocationOnMock invocation) throws Throwable {
+                // create new instance every time we are called
+                return new Openstack(client);
+            }
+        });
+        final Openstack e1111 = i1111.getOpenstack();
+        final Openstack e2111 = i2111.getOpenstack();
+        final Openstack e1211 = i1211.getOpenstack();
+        final Openstack e1121 = i1121.getOpenstack();
+        final Openstack e1112 = i1112.getOpenstack();
 
-        when(client.getAccess().getToken().getExpires()).thenReturn(validForAWhile);
-        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenReturn(new Openstack(client));
+        // When
+        final Openstack actual1111 = i1111.getOpenstack();
+        final Openstack actual2111 = i2111.getOpenstack();
+        final Openstack actual1211 = i1211.getOpenstack();
+        final Openstack actual1121 = i1121.getOpenstack();
+        final Openstack actual1112 = i1112.getOpenstack();
 
-        Openstack.Factory.get("", "", "", "");
-        Openstack.Factory.get("", "", "", "");
-        Openstack.Factory.get("", "", "", "");
-
-        verify(factory, times(1)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
+        // Then
+        // Cache is returning same data when it should:
+        assertThat(actual1111, sameInstance(e1111));
+        assertThat(actual2111, sameInstance(e2111));
+        assertThat(actual1211, sameInstance(e1211));
+        assertThat(actual1121, sameInstance(e1121));
+        assertThat(actual1112, sameInstance(e1112));
+        // Cache is returning different data when it must:
+        assertThat(actual2111, not(anyOf( sameInstance(e1111), sameInstance(null),  sameInstance(e1211), sameInstance(e1121), sameInstance(e1112) )));
+        assertThat(actual1211, not(anyOf( sameInstance(e1111), sameInstance(e2111), sameInstance(null),  sameInstance(e1121), sameInstance(e1112) )));
+        assertThat(actual1121, not(anyOf( sameInstance(e1111), sameInstance(e2111), sameInstance(e1211), sameInstance(null),  sameInstance(e1112) )));
+        assertThat(actual1112, not(anyOf( sameInstance(e1111), sameInstance(e2111), sameInstance(e1211), sameInstance(e1121), sameInstance(null)  )));
+        verify(factory, times(5)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {
