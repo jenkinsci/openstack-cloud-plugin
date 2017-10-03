@@ -4,7 +4,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
 import jenkins.plugins.openstack.PluginTestRule;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Test;
 
@@ -17,7 +16,7 @@ public class SlaveOptionsTest {
     public void defaultOverrides() {
         SlaveOptions unmodified = PluginTestRule.dummySlaveOptions().override(SlaveOptions.empty());
 
-        assertEquals(new BootSource.VolumeSnapshot("id"), unmodified.getBootSource());
+        assertEquals("img", unmodified.getImageId());
         assertEquals("hw", unmodified.getHardwareId());
         assertEquals("nw", unmodified.getNetworkId());
         assertEquals("dummyUserDataId", unmodified.getUserDataId());
@@ -34,7 +33,7 @@ public class SlaveOptionsTest {
         assertEquals(1, (int) unmodified.getRetentionTime());
 
         SlaveOptions override = SlaveOptions.builder()
-                .bootSource(new BootSource.Image("iid"))
+                .imageId("IMG")
                 .hardwareId("HW")
                 .networkId("NW")
                 .userDataId("UD")
@@ -53,7 +52,7 @@ public class SlaveOptionsTest {
         ;
         SlaveOptions overridden = PluginTestRule.dummySlaveOptions().override(override);
 
-        assertEquals(new BootSource.Image("iid"), overridden.getBootSource());
+        assertEquals("IMG", overridden.getImageId());
         assertEquals("HW", overridden.getHardwareId());
         assertEquals("NW", overridden.getNetworkId());
         assertEquals("UD", overridden.getUserDataId());
@@ -72,12 +71,12 @@ public class SlaveOptionsTest {
 
     @Test
     public void eraseDefaults() {
-        SlaveOptions defaults = SlaveOptions.builder().bootSource(new BootSource.Image("ID")).hardwareId("hw").networkId(null).floatingIpPool("a").build();
-        SlaveOptions configured = SlaveOptions.builder().bootSource(new BootSource.Image("ID")).hardwareId("hw").networkId("MW").floatingIpPool("A").build();
+        SlaveOptions defaults = SlaveOptions.builder().imageId("img").hardwareId("hw").networkId(null).floatingIpPool("a").build();
+        SlaveOptions configured = SlaveOptions.builder().imageId("IMG").hardwareId("hw").networkId("MW").floatingIpPool("A").build();
 
         SlaveOptions actual = configured.eraseDefaults(defaults);
 
-        SlaveOptions expected = SlaveOptions.builder().bootSource(null).hardwareId(null).networkId("MW").floatingIpPool("A").build();
+        SlaveOptions expected = SlaveOptions.builder().imageId("IMG").hardwareId(null).networkId("MW").floatingIpPool("A").build();
         assertEquals(expected, actual);
         assertEquals(configured, defaults.override(actual));
     }
@@ -86,9 +85,10 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                null, "", "", "", null, "", "", "", null, "", null, "", "", null, null
+                "", "", "", "", null, "", "", "", null, "", null, "", "", null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
+                .imageId("")
                 .hardwareId("")
                 .networkId("")
                 .userDataId("")
@@ -103,6 +103,7 @@ public class SlaveOptionsTest {
         assertEquals(nulls, emptyStrings);
         assertEquals(nulls, emptyBuilt);
 
+        assertEquals(null, emptyStrings.getImageId());
         assertEquals(null, emptyStrings.getHardwareId());
         assertEquals(null, emptyStrings.getNetworkId());
         assertEquals(null, emptyStrings.getUserDataId());

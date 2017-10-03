@@ -33,7 +33,6 @@ import hudson.slaves.Cloud;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.GlobalConfig;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.acegisecurity.AccessDeniedException;
 import org.acegisecurity.acls.sid.Sid;
@@ -141,11 +140,12 @@ public class JCloudsCloudTest {
     public void presentUIDefaults() throws Exception {
         SlaveOptions DEF = DescriptorImpl.getDefaultOptions();
 
+
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
-                new BootSource.Image("iid"), "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
+                "img", "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "zone", new SlaveOptions(
-                new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), 9
+                "IMG", "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), 9
         ), Collections.singletonList(template));
         j.jenkins.clouds.add(cloud);
 
@@ -249,7 +249,7 @@ public class JCloudsCloudTest {
         assertEquals(Label.parse("label"), template.getLabelSet());
         SlaveOptions to = template.getEffectiveSlaveOptions();
         assertEquals("16", to.getHardwareId());
-        assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", ((BootSource.Image) to.getBootSource()).getName());
+        assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", to.getImageId());
         assertEquals("my-network", to.getNetworkId());
         assertEquals(1, (int) to.getNumExecutors());
         assertEquals(0, (int) to.getRetentionTime()); // overrideRetentionTime though deprecated, should be honored

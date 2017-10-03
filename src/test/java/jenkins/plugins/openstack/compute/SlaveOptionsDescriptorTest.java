@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import static hudson.util.FormValidation.Kind.*;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -11,24 +10,30 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Description;
+import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
+import org.openstack4j.api.OSClient;
 import org.openstack4j.api.exceptions.AuthenticationException;
-import org.openstack4j.model.compute.ext.AvailabilityZone;
+import org.openstack4j.api.image.ImageService;
+import org.openstack4j.model.image.Image;
+import org.openstack4j.openstack.image.domain.GlanceImage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -104,7 +109,7 @@ public class SlaveOptionsDescriptorTest {
         assertThat(d.doCheckRetentionTime("err", "1"), hasState(ERROR, "Not a number"));
     }
 
-    public static TypeSafeMatcher<FormValidation> hasState(final FormValidation.Kind kind, final String msg) {
+    public TypeSafeMatcher<FormValidation> hasState(final FormValidation.Kind kind, final String msg) {
         return new TypeSafeMatcher<FormValidation>() {
             @Override
             public void describeTo(Description description) {
@@ -123,124 +128,44 @@ public class SlaveOptionsDescriptorTest {
         };
     }
 
-    public static TypeSafeMatcher<FormValidation> hasState(final FormValidation expected) {
-        return new TypeSafeMatcher<FormValidation>() {
-            @Override
-            public void describeTo(Description description) {
-                description.appendText(expected.kind.toString() + ": " + expected.getMessage());
-            }
+    @Test
+    public void populateImageNamesNotIds() {
+        Image image = new GlanceImage();
+        image.setId("image-id");
+        image.setName("image-name");
 
-            @Override
-            protected void describeMismatchSafely(FormValidation item, Description mismatchDescription) {
-                mismatchDescription.appendText(item.kind + ": " + item.getMessage());
-            }
+        Openstack os = j.fakeOpenstackFactory();
+        doReturn(Collections.singletonList(image)).when(os).getSortedImages();
 
-            @Override
-            protected boolean matchesSafely(FormValidation item) {
-                return expected.kind.equals(item.kind) && Objects.equals(item.getMessage(), expected.getMessage());
-            }
-        };
+        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "");
+        assertEquals(2, list.size());
+        ListBoxModel.Option item = list.get(1);
+        assertEquals("image-name", item.name);
+        assertEquals("image-name", item.value);
     }
 
-    @Test
-    public void doFillAvailabilityZoneItemsGivenAZsThenPopulatesList() {
-        final AvailabilityZone az1 = mock(AvailabilityZone.class, "az1");
-        final AvailabilityZone az2 = mock(AvailabilityZone.class, "az2");
-        when(az1.getZoneName()).thenReturn("az1Name");
-        when(az2.getZoneName()).thenReturn("az2Name");
-        final List<AvailabilityZone> azs = Arrays.asList(az1, az2);
-        final Openstack os = j.fakeOpenstackFactory();
-        doReturn(azs).when(os).getAvailabilityZones();
+    @Test @Issue("JENKINS-29993")
+    public void acceptNullAsImageName() {
+        Image image = new GlanceImage();
+        image.setId("image-id");
+        image.setName(null);
 
-        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", "OSid", "OSpwd", "OSzone");
+        OSClient osClient = mock(OSClient.class);
+        ImageService imageService = mock(ImageService.class);
+        when(osClient.images()).thenReturn(imageService);
+        doReturn(Collections.singletonList(image)).when(imageService).listAll();
 
-        assertEquals(2, actual.size());
-        final String az1Option = actual.get(0);
-        assertThat(az1Option, equalTo("az1Name"));
-        final String az2Option = actual.get(1);
-        assertThat(az2Option, equalTo("az2Name"));
-    }
+        j.fakeOpenstackFactory(new Openstack(osClient));
 
-    @Test
-    public void doFillAvailabilityZoneItemsGivenNoSupportForAZsThenGivesEmptyList() {
-        final Openstack os = j.fakeOpenstackFactory();
-        doThrow(new RuntimeException("OpenStack said no")).when(os).getAvailabilityZones();
+        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "");
+        assertThat(list.get(0).name, list, Matchers.<ListBoxModel.Option>iterableWithSize(2));
+        assertEquals(2, list.size());
+        ListBoxModel.Option item = list.get(1);
+        assertEquals("image-id", item.name);
+        assertEquals("image-id", item.value);
 
-        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", "OSid", "OSpwd", "OSzone");
-
-        assertEquals(0, actual.size());
-    }
-
-    @Test
-    public void doCheckAvailabilityZoneGivenAZThenReturnsOK() throws Exception {
-        final String value = "chosenAZ";
-        final String def = "";
-        final Openstack os = j.fakeOpenstackFactory();
-        final FormValidation expected = FormValidation.ok();
-
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
-
-        assertThat(actual, hasState(expected));
-        verifyNoMoreInteractions(os);
-    }
-
-    @Test
-    public void doCheckAvailabilityZoneGivenDefaultAZThenReturnsOKWithDefault() throws Exception {
-        final String value = "";
-        final String def = "defaultAZ";
-        final Openstack os = j.fakeOpenstackFactory();
-
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
-
-        assertThat(actual, hasState(OK, "Inherited value: " + def));
-        verifyNoMoreInteractions(os);
-    }
-
-    @Test
-    public void doCheckAvailabilityZoneGivenNoAZAndOnlyOneZoneToChooseFromThenReturnsOK() throws Exception {
-        final AvailabilityZone az1 = mock(AvailabilityZone.class, "az1");
-        when(az1.getZoneName()).thenReturn("az1Name");
-        final List<AvailabilityZone> azs = Arrays.asList(az1);
-        final Openstack os = j.fakeOpenstackFactory();
-        doReturn(azs).when(os).getAvailabilityZones();
-        final String value = "";
-        final String def = "";
-        final FormValidation expected = FormValidation.ok();
-
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
-
-        assertThat(actual, hasState(expected));
-    }
-
-    @Test
-    public void doCheckAvailabilityZoneGivenNoAZAndNoSupportForAZsThenReturnsOK() throws Exception {
-        final Openstack os = j.fakeOpenstackFactory();
-        doThrow(new RuntimeException("OpenStack said no")).when(os).getAvailabilityZones();
-        final String value = "";
-        final String def = "";
-        final FormValidation expected = FormValidation.ok();
-
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
-
-        assertThat(actual, hasState(expected));
-    }
-
-    @Test
-    public void doCheckAvailabilityZoneGivenNoAZAndMultipleZoneToChooseFromThenReturnsWarning() throws Exception {
-        final AvailabilityZone az1 = mock(AvailabilityZone.class, "az1");
-        final AvailabilityZone az2 = mock(AvailabilityZone.class, "az2");
-        when(az1.getZoneName()).thenReturn("az1Name");
-        when(az2.getZoneName()).thenReturn("az2Name");
-        final List<AvailabilityZone> azs = Arrays.asList(az1, az2);
-        final Openstack os = j.fakeOpenstackFactory();
-        doReturn(azs).when(os).getAvailabilityZones();
-        final String value = "";
-        final String def = "";
-        final FormValidation expected = FormValidation.warning("Ambiguity warning: Multiple zones found.");
-
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
-
-        assertThat(actual, hasState(expected));
+        verify(imageService).listAll();
+        verifyNoMoreInteractions(imageService);
     }
 
     @Test
@@ -255,10 +180,12 @@ public class SlaveOptionsDescriptorTest {
         assertThat(getFillDependencies("keyPairName"), equalTo(expected));
         assertThat(getFillDependencies("floatingIpPool"), equalTo(expected));
         assertThat(getFillDependencies("hardwareId"), equalTo(expected));
+        assertThat(getFillDependencies("imageId"), equalTo(expected));
         assertThat(getFillDependencies("networkId"), equalTo(expected));
 
         assertFillWorks("floatingIpPool");
         assertFillWorks("hardwareId");
+        assertFillWorks("imageId");
         assertFillWorks("networkId");
         assertFillWorks("keyPairName");
     }
