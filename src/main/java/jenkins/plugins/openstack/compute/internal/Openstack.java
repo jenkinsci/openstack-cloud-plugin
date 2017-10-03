@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,6 +50,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -104,15 +107,19 @@ public class Openstack {
     public static final String FINGERPRINT_KEY = "jenkins-instance";
 
     // Store the OS session token so clients can be created from it per all threads using this.
-    private final ClientProvider clientProvider;
+    private final ClientProvider<?> clientProvider;
+
+    // Used when calculating differences between our clock and the OpenStack endpoint's clock.
+    private final long instanceCreationTimeMillis;
 
     private Openstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull Secret credential, @CheckForNull String region) {
+        instanceCreationTimeMillis = System.currentTimeMillis();
         // TODO refactor to split tenant:username everywhere including UI
         String[] id = identity.split(":", 3);
         String tenant = id.length > 0 ? id[0] : "";
         String username = id.length > 1 ? id[1] : "";
         String domain = id.length > 2 ? id[2] : "";
-        final IOSClientBuilder<? extends OSClient, ?> builder;
+        final IOSClientBuilder<? extends OSClient<?>, ?> builder;
         if (domain.equals("")) {
             //If domain is empty it is assumed that is being used API V2
             builder = OSFactory.builderV2().endpoint(endPointUrl)
@@ -126,7 +133,7 @@ public class Openstack {
                      .credentials(username, credential.getPlainText(), iDomain)
                      .scopeToProject(project, iDomain);
         }
-        OSClient client = builder
+        OSClient<?> client = builder
                 .authenticate()
                 .useRegion(region)
         ;
@@ -136,23 +143,57 @@ public class Openstack {
     }
 
     /*exposed for testing*/
-    public Openstack(@Nonnull final OSClient client) {
+    public Openstack(@Nonnull final OSClient<?> client) {
+        instanceCreationTimeMillis = System.currentTimeMillis();
         this.clientProvider = new ClientProvider<Void>(null) {
-            @Override public @Nonnull OSClient get() {
+            @Override public @Nonnull OSClient<?> get() {
                 return client;
             }
 
             @Override public Date _getExpires() {
                 return ClientProvider.get(client).getExpires();
             }
+
+            @Override
+            protected Date _getIssued() {
+                return ClientProvider.get(client).getIssued();
+            }
         };
     }
 
     /**
-     * Date representing time until this instance is valid to be used.
+     * Date representing when this instance's login session is no longer valid.
+     * <p>
+     * <b>NOTE:</b> This is supplied by the OpenStack service endpoint so it may
+     * be offset if the OpenStack endpoint's clock differs from our own.
+     * </p>
      */
     public @Nonnull Date getExpires() {
         return clientProvider.getExpires();
+    }
+
+    /**
+     * Date representing when this instance's login session was started, or null
+     * if the authentication method cannot provide that data.
+     * <p>
+     * <b>NOTE:</b> This is supplied by the OpenStack service endpoint so it may
+     * be offset if the OpenStack endpoint's clock differs from our own.
+     */
+    public @CheckForNull Date getIssued() {
+        return clientProvider.getIssued();
+    }
+
+    /**
+     * System clock (from {@link System#currentTimeMillis()}) representing when
+     * this instance's login session was started according to our own clock.
+     * <p>
+     * <b>NOTE:</b> If the OpenStack service endpoint's clock is perfectly in
+     * sync with ours and logging in takes no time at all then this will be
+     * equal to {@link #getIssued()}.
+     * </p>
+     */
+    public long getLoginTimeMillis() {
+        return instanceCreationTimeMillis;
     }
 
     public @Nonnull Collection<? extends Network> getSortedNetworks() {
@@ -563,7 +604,7 @@ public class Openstack {
         // Try to talk to all endpoints the plugin rely on so we know they exist, are enabled, user have permission to
         // access them and JVM trusts their SSL cert.
         try {
-            OSClient client = clientProvider.get();
+            OSClient<?> client = clientProvider.get();
             client.networking().network().get("");
             client.images().listMembers("");
             client.compute().listExtensions().size();
@@ -589,35 +630,72 @@ public class Openstack {
 
     @Restricted(NoExternalUse.class) // Extension point just for testing
     public static abstract class FactoryEP implements ExtensionPoint {
+        /** Holds instances until their login session expires or until they've been unused for an hour. */
         private final transient @Nonnull Cache<String, Openstack> cache = CacheBuilder.newBuilder()
-                // There is no clear reasoning behind particular expiration policy except that individual instances can
-                // have different token expiration time, which is something guava does not support. This expiration needs
-                // to be implemented separately.
-                // According to OpenStack documentation, default token lifetime is one hour so let's use that as a baseline.
-                .expireAfterWrite(1, TimeUnit.HOURS)
+                .expireAfterAccess(1, TimeUnit.HOURS)
                 .build()
         ;
 
+        /** Called to instantiate a new Openstack instance */
         public abstract @Nonnull Openstack getOpenstack(
                 @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
         ) throws FormValidation;
 
         /**
-         * Instantiate Openstack client.
+         * Obtain Openstack client, instantiating a new one (only) if necessary.
+         * This is thread-safe.
          */
         public static @Nonnull Openstack get(
-                @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+                @Nonnull final String endPointUrl, @Nonnull final String identity, @Nonnull final String credential, @CheckForNull final String region
         ) throws FormValidation {
-            String fingerprint = Util.getDigestOf(endPointUrl + '\n' + identity + '\n' + credential + '\n' + region);
-            FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
-
-            Openstack cachedInstance = ep.cache.getIfPresent(fingerprint);
-            if (cachedInstance == null || isExpired(cachedInstance)) {
-                cachedInstance = ep.getOpenstack(endPointUrl, identity, credential, region);
-                ep.cache.put(fingerprint, cachedInstance);
+            final String fingerprint = Util.getDigestOf(endPointUrl + '\n' + identity + '\n' + credential + '\n' + region);
+            final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
+            // Discard existing cached instance if it has expired.
+            final String reason;
+            final Openstack cachedInstance = ep.cache.getIfPresent(fingerprint);
+            if (cachedInstance == null) {
+                reason = "there was no instance in the cache";
+            } else {
+                final long timeNow = System.currentTimeMillis();
+                if (cachedInstance.isExpired(timeNow)) {
+                    LOGGER.log(Level.FINE, "{0} has expired - invalidating {1} entry \"{2}\".", new Object[] {cachedInstance, ep.cache, fingerprint});
+                    ep.cache.invalidate(fingerprint);
+                    reason = "the token had expired in the old instance";
+                } else {
+                    reason = "another thread realised that the token had expired in the old instance";
+                }
             }
-
-            return cachedInstance;
+            final Callable<Openstack> cacheMissFunction = new Callable<Openstack>() {
+                @Override
+                public Openstack call() throws FormValidation {
+                    LOGGER.log(Level.FINER, "Creating new {0}(\"{1}\",\"{2}\",...,\"{3}\") for cache {4} entry \"{5}\" as {6}.",
+                            new Object[] {Openstack.class.getSimpleName(), endPointUrl, identity, region, ep.cache, fingerprint, reason});
+                    final Openstack newInstance = ep.getOpenstack(endPointUrl, identity, credential, region);
+                    final Date expiryDate = newInstance.getExpires();
+                    LOGGER.log(Level.INFO, "Created new {0}(\"{1}\",\"{2}\",...,\"{3}\")={4} (login expires at {5}) for cache {6} entry \"{7}\" as {8}.",
+                            new Object[] {Openstack.class.getSimpleName(), endPointUrl, identity, region, newInstance, expiryDate, ep.cache, fingerprint, reason});
+                    return newInstance;
+                }
+            };
+            // Get an instance, creating a new one if necessary.
+            // If there wasn't one earlier and still isn't, we'll create one.
+            // If there wasn't one earlier but is now, it'll be recent enough that it won't have expired yet.
+            // If there was one earlier but isn't now, it'll be because we decided it'd expired or another thread did.
+            // If there was one earlier and still is, it passed our expiry check a moment ago.
+            try {
+                final Openstack instance = ep.cache.get(fingerprint, cacheMissFunction);
+                return instance;
+            } catch (UncheckedExecutionException | ExecutionException e) {
+                // Exception was thrown when creating a new instance.
+                final Throwable cause = e.getCause();
+                if (cause instanceof FormValidation) {
+                    throw (FormValidation) cause;
+                }
+                if (cause instanceof RuntimeException) {
+                    throw (RuntimeException) cause;
+                }
+                throw new RuntimeException(e);
+            }
         }
 
         public static @Nonnull FactoryEP replace(@Nonnull FactoryEP factory) {
@@ -628,8 +706,52 @@ public class Openstack {
         }
     }
 
-    private static boolean isExpired(Openstack cachedInstance) {
-        return cachedInstance.getExpires().compareTo(new Date()) < 1;
+    /**
+     * Checks that the login session is still valid. This takes into
+     * consideration any potential time difference between our clock and the
+     * remote clock. It also allows for a margin of error.
+     * 
+     * @param rightNowAccordingToUs
+     *            Time "now".
+     * @return true if the login session is now too old to be used OR if it
+     *         might expire too soon, false if it will be valid for some time.
+     */
+    private boolean isExpired(final long rightNowAccordingToUs) {
+        // Workaround bug JENKINS-46541.
+        // Openstack4J will parse "2017-08-30T13:46:51.480655Z" as "Aug 30
+        // 13:54:51 GMT 2017" because it treats ".480655" to be "480655
+        // milliseconds" rather than "480655 microseconds".
+        // This means that the expiry date can be over-stated by up to 999000
+        // milliseconds. We have to ensure we account for that.
+        final long openstack4jDateParsingBugWorkaround = 999000L;
+        // The token needs to stay valid during the operation(s) we're about to
+        // use it for, e.g. waiting for an instance to boot up, so we allow 10
+        // minutes.
+        final long maxExpectedUsageDuration = 10L * 60L * 1000L;
+        final Date tokenIssueDateAccordingToOpenstack = getIssued();
+        final long amountOpenstackTimeIsAheadOfUs;
+        final long marginOfClockError;
+        if (tokenIssueDateAccordingToOpenstack == null) {
+            // OpenStack client didn't tell us a login time, so we can't
+            // compensate for our time being different.
+            amountOpenstackTimeIsAheadOfUs = 0L;
+            // ... but we can allow for OpenStack time and our Time to be up to
+            // 60 seconds adrift
+            marginOfClockError = 60000L;
+        } else {
+            // Our clocks may differ, so we allow for that difference...
+            final long openstackTime = tokenIssueDateAccordingToOpenstack.getTime();
+            final long ourTime = getLoginTimeMillis();
+            amountOpenstackTimeIsAheadOfUs = openstackTime - ourTime;
+            // .. and allow for 10 seconds of drift over the token lifetime.
+            marginOfClockError = 10000L;
+        }
+        final Date tokenExpiryDateAccordingToOpenstack = getExpires();
+        final long tokenExpiryAccordingToOpenstack = tokenExpiryDateAccordingToOpenstack.getTime();
+        final long remaining = tokenExpiryAccordingToOpenstack - amountOpenstackTimeIsAheadOfUs - rightNowAccordingToUs
+                - marginOfClockError - maxExpectedUsageDuration - openstack4jDateParsingBugWorkaround;
+        final boolean tokenIsNotValidEnough = remaining <= 0L;
+        return tokenIsNotValidEnough;
     }
 
     @Extension
@@ -662,9 +784,10 @@ public class Openstack {
         /**
          * Reuse auth session between different threads creating separate client for every use.
          */
-        public abstract @Nonnull OSClient get();
+        public abstract @Nonnull OSClient<?> get();
 
         protected abstract Date _getExpires();
+        protected abstract Date _getIssued();
 
         @Nonnull Date getExpires() {
             Date ex = _getExpires();
@@ -674,7 +797,12 @@ public class Openstack {
             return ex;
         }
 
-        private static ClientProvider get(OSClient client) {
+        @CheckForNull Date getIssued() {
+            Date ex = _getIssued();
+            return ex;
+        }
+
+        private static ClientProvider<?> get(OSClient<?> client) {
             if (client instanceof OSClient.OSClientV2) return new SessionClientV2Provider((OSClient.OSClientV2) client);
             if (client instanceof OSClient.OSClientV3) return new SessionClientV3Provider((OSClient.OSClientV3) client);
 
@@ -689,12 +817,17 @@ public class Openstack {
                 super(toStore.getAccess());
             }
 
-            public @Nonnull OSClient get() {
+            public @Nonnull OSClient<?> get() {
                 return OSFactory.clientFromAccess(storage);
             }
 
             public Date _getExpires() {
                 return storage.getToken().getExpires();
+            }
+
+            @Override
+            protected Date _getIssued() {
+                return null;
             }
         }
 
@@ -704,12 +837,17 @@ public class Openstack {
                 super(toStore.getToken());
             }
 
-            public @Nonnull OSClient get() {
+            public @Nonnull OSClient<?> get() {
                 return OSFactory.clientFromToken(storage);
             }
 
             public Date _getExpires() {
                 return storage.getExpires();
+            }
+
+            @Override
+            protected Date _getIssued() {
+                return storage.getIssuedAt();
             }
         }
     }
