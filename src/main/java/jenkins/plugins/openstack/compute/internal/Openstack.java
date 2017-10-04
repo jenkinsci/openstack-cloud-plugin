@@ -699,6 +699,8 @@ public class Openstack {
     }
 
     public static final class ActionFailed extends RuntimeException {
+        private static final long serialVersionUID = -1657469882396520333L;
+
         public ActionFailed(String msg) {
             super(msg);
         }
@@ -740,14 +742,12 @@ public class Openstack {
             final Callable<Openstack> cacheMissFunction = new Callable<Openstack>() {
                 @Override
                 public Openstack call() throws FormValidation {
-                    final Openstack newInstance = ep.getOpenstack(endPointUrl, identity, credential, region);
-                    return newInstance;
+                    return ep.getOpenstack(endPointUrl, identity, credential, region);
                 }
             };
             // Get an instance, creating a new one if necessary.
             try {
-                final Openstack instance = ep.cache.get(fingerprint, cacheMissFunction);
-                return instance;
+                return ep.cache.get(fingerprint, cacheMissFunction);
             } catch (UncheckedExecutionException | ExecutionException e) {
                 // Exception was thrown when creating a new instance.
                 final Throwable cause = e.getCause();
@@ -764,6 +764,7 @@ public class Openstack {
         public static @Nonnull FactoryEP replace(@Nonnull FactoryEP factory) {
             ExtensionList<Openstack.FactoryEP> lookup = ExtensionList.lookup(Openstack.FactoryEP.class);
             lookup.clear();
+            //noinspection deprecation
             lookup.add(factory);
             return factory;
         }
@@ -777,7 +778,7 @@ public class Openstack {
 
     @Extension
     public static final class Factory extends FactoryEP {
-        public @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, @CheckForNull String region) throws FormValidation {
+        public @Nonnull Openstack getOpenstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region) throws FormValidation {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             identity = Util.fixEmptyAndTrim(identity);
             credential = Util.fixEmptyAndTrim(credential);
