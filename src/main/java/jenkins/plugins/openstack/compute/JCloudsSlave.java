@@ -200,6 +200,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     private final static class RecordDisposal implements Disposable {
+        private static final long serialVersionUID = -3623764445481732365L;
+
         private final @Nonnull Disposable inner;
         private final @Nonnull ProvisioningActivity.Id provisioningId;
 
