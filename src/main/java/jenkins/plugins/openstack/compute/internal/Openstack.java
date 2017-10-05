@@ -78,6 +78,7 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.identity.v2.Access;
+import org.openstack4j.model.identity.v3.Service;
 import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.NetFloatingIP;
@@ -147,7 +148,18 @@ public class Openstack {
             @Override public @Nonnull OSClient<?> get() {
                 return client;
             }
+
+            @Override public @Nonnull String getInfo() {
+                return "";
+            }
         };
+    }
+
+    /**
+     * Get information about OpenStack deployment.
+     */
+    public @Nonnull String getInfo() {
+        return clientProvider.getInfo();
     }
 
     public @Nonnull Collection<? extends Network> getSortedNetworks() {
@@ -802,6 +814,8 @@ public class Openstack {
          */
         public abstract @Nonnull OSClient<?> get();
 
+        public abstract @Nonnull String getInfo();
+
         private static ClientProvider get(OSClient<?> client) {
             if (client instanceof OSClient.OSClientV2) return new SessionClientV2Provider((OSClient.OSClientV2) client);
             if (client instanceof OSClient.OSClientV3) return new SessionClientV3Provider((OSClient.OSClientV3) client);
@@ -820,6 +834,18 @@ public class Openstack {
             public @Nonnull OSClient<?> get() {
                 return OSFactory.clientFromAccess(storage);
             }
+
+            @Override
+            public @Nonnull String getInfo() {
+                StringBuilder sb = new StringBuilder();
+                for (Access.Service service: storage.getServiceCatalog()) {
+                    if (sb.length() != 0) {
+                        sb.append(", ");
+                    }
+                    sb.append(service.getType()).append('/').append(service.getName()).append(':').append(service.getVersion());
+                }
+                return sb.toString();
+            }
         }
 
         private static class SessionClientV3Provider extends ClientProvider {
@@ -830,6 +856,24 @@ public class Openstack {
 
             public @Nonnull OSClient<?> get() {
                 return OSFactory.clientFromToken(storage);
+            }
+
+            @Override
+            public @Nonnull String getInfo() {
+                // TODO version and enabled does not seem to be ever set and printing anything is pointless without it
+                return "";
+//                StringBuilder sb = new StringBuilder();
+//                for (Service service: storage.getCatalog()) {
+//                    if (sb.length() != 0) {
+//                        sb.append(", ");
+//                    }
+//
+//                    sb.append(service.getType()).append('/').append(service.getName()).append(':').append(service.getVersion());
+//                    if (!service.isEnabled()) {
+//                        sb.append(" (disabled)");
+//                    }
+//                }
+//                return sb.toString();
             }
         }
     }

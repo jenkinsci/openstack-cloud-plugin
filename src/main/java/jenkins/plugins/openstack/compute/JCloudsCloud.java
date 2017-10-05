@@ -417,16 +417,17 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 @QueryParameter String credential
         ) {
             try {
-                Throwable ex = Openstack.Factory.get(endPointUrl, identity, credential, zone).sanityCheck();
+                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                Throwable ex = openstack.sanityCheck();
                 if (ex != null) {
                     return FormValidation.warning(ex, "Connection not validated, plugin might not operate correctly: " + ex.getMessage());
                 }
+                return FormValidation.okWithMarkup("Connection succeeded!<br/><small>" + Util.escape(openstack.getInfo()) + "</small>");
             } catch (FormValidation ex) {
                 return ex;
             } catch (Exception ex) {
                 return FormValidation.error(ex, "Cannot connect to specified cloud, please check the identity and credentials: " + ex.getMessage());
             }
-            return FormValidation.ok("Connection succeeded!");
         }
 
         @Restricted(DoNotUse.class)
