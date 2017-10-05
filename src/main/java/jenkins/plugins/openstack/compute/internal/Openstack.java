@@ -496,7 +496,7 @@ public class Openstack {
             for (FloatingIP ip : fipsService.list()) {
                 if (nodeId.equals(ip.getInstanceId())) {
                     ActionResponse res = fipsService.deallocateIP(ip.getId());
-                    if (res.isSuccess()) {
+                    if (res.isSuccess() || res.getCode() == 404) {
                         debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
                     } else {
                         throw new ActionFailed(
