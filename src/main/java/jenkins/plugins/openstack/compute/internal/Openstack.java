@@ -78,7 +78,6 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.identity.v2.Access;
-import org.openstack4j.model.identity.v3.Service;
 import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.Image;
 import org.openstack4j.model.network.NetFloatingIP;
@@ -135,10 +134,9 @@ public class Openstack {
         }
         OSClient<?> client = builder
                 .authenticate()
-                .useRegion(region)
         ;
 
-        clientProvider = ClientProvider.get(client);
+        clientProvider = ClientProvider.get(client, region);
         debug("{0} client created for \"{1}\", \"{2}\", ..., \"{3}\".", Openstack.class.getSimpleName(), endPointUrl, identity, region);
     }
 
@@ -816,9 +814,9 @@ public class Openstack {
 
         public abstract @Nonnull String getInfo();
 
-        private static ClientProvider get(OSClient<?> client) {
-            if (client instanceof OSClient.OSClientV2) return new SessionClientV2Provider((OSClient.OSClientV2) client);
-            if (client instanceof OSClient.OSClientV3) return new SessionClientV3Provider((OSClient.OSClientV3) client);
+        private static ClientProvider get(OSClient<?> client, String region) {
+            if (client instanceof OSClient.OSClientV2) return new SessionClientV2Provider((OSClient.OSClientV2) client, region);
+            if (client instanceof OSClient.OSClientV3) return new SessionClientV3Provider((OSClient.OSClientV3) client, region);
 
             throw new AssertionError(
                     "Unsupported openstack4j client " + client.getClass().getName()
@@ -827,12 +825,14 @@ public class Openstack {
 
         private static class SessionClientV2Provider extends ClientProvider {
             protected final Access storage;
-            private SessionClientV2Provider(OSClient.OSClientV2 toStore) {
+            protected final String region;
+            private SessionClientV2Provider(OSClient.OSClientV2 toStore, String usedRegion) {
                 storage = toStore.getAccess();
+                region = usedRegion;
             }
 
             public @Nonnull OSClient<?> get() {
-                return OSFactory.clientFromAccess(storage);
+                return OSFactory.clientFromAccess(storage).useRegion(region);
             }
 
             @Override
@@ -850,12 +850,14 @@ public class Openstack {
 
         private static class SessionClientV3Provider extends ClientProvider {
             private final Token storage;
-            private SessionClientV3Provider(OSClient.OSClientV3 toStore) {
+            private final String region;
+            private SessionClientV3Provider(OSClient.OSClientV3 toStore, String usedRegion) {
                 storage = toStore.getToken();
+                region = usedRegion;
             }
 
             public @Nonnull OSClient<?> get() {
-                return OSFactory.clientFromToken(storage);
+                return OSFactory.clientFromToken(storage).useRegion(region);
             }
 
             @Override
