@@ -32,6 +32,8 @@ import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
@@ -134,14 +136,16 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String endPointUrl,
+            @QueryParameter String credentialId, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(floatingIpPool);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                 for (String p : openstack.getSortedIpPools()) {
                     m.add(p);
                 }
@@ -173,15 +177,16 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @Restricted(DoNotUse.class)
     @InjectOsAuth
     public ListBoxModel doFillHardwareIdItems(
-            @QueryParameter String hardwareId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String hardwareId, @QueryParameter String endPointUrl,
+            @QueryParameter String credentialId, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(hardwareId);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                 for (Flavor flavor : openstack.getSortedFlavors()) {
                     final String value = flavor.getId();
                     final String displayText = String.format("%s (%s)", flavor.getName(), value);
@@ -215,15 +220,16 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @Restricted(DoNotUse.class)
     @InjectOsAuth
     public ListBoxModel doFillNetworkIdItems(
-            @QueryParameter String networkId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String networkId, @QueryParameter String endPointUrl,
+            @QueryParameter String credentialId, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(networkId);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
+                Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                 for (org.openstack4j.model.network.Network network : openstack.getSortedNetworks()) {
                     final String value = network.getId();
                     final String displayText = String.format("%s (%s)", network.getName(), value);
@@ -308,15 +314,16 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @Restricted(DoNotUse.class)
     @InjectOsAuth
     public ComboBoxModel doFillAvailabilityZoneItems(
-            @QueryParameter String availabilityZone,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String availabilityZone, @QueryParameter String endPointUrl,
+            @QueryParameter String credentialId, @QueryParameter String zone
     ) {
         // Support for availabilityZones is optional in OpenStack, so this is a f:combobox not f:select field.
         // Therefore we suggest some options if we can, but if we can't then we assume it's because they're not needed.
         final ComboBoxModel m = new ComboBoxModel();
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                 for (final AvailabilityZone az : openstack.getAvailabilityZones()) {
                     final String value = az.getZoneName();
                     m.add(value);
@@ -337,10 +344,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             // authentication fields can be in two places relative to us.
             @RelativePath("..") @QueryParameter("endPointUrl") String endPointUrlCloud,
             @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
-            @RelativePath("..") @QueryParameter("identity") String identityCloud,
-            @RelativePath("../..") @QueryParameter("identity") String identityTemplate,
-            @RelativePath("..") @QueryParameter("credential") String credentialCloud,
-            @RelativePath("../..") @QueryParameter("credential") String credentialTemplate,
+            @RelativePath("..") @QueryParameter("credentialId") String credentialIdCloud,
+            @RelativePath("../..") @QueryParameter("credentialId") String credentialIdTemplate,
             @RelativePath("..") @QueryParameter("zone") String zoneCloud,
             @RelativePath("../..") @QueryParameter("zone") String zoneTemplate
     ) throws FormValidation {
@@ -351,13 +356,13 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         if (Util.fixEmpty(value) == null) {
             final String d = getDefault(def, opts().getAvailabilityZone());
             if (d != null) return FormValidation.ok(def(d));
-            final String endPointUrl = getDefault(endPointUrlCloud, endPointUrlTemplate);
-            final String identity = getDefault(identityCloud, identityTemplate);
-            final String credential = getDefault(credentialCloud, credentialTemplate);
+            final String endPointUrl = getDefault(endPointUrlCloud,endPointUrlTemplate);
+            final String credentiaId = getDefault(credentialIdCloud,credentialIdTemplate);
+            final OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentiaId);
             final String zone = getDefault(zoneCloud, zoneTemplate);
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+            if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 try {
-                    final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                    final Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                     final int numberOfAZs = openstack.getAvailabilityZones().size();
                     if (numberOfAZs > 1) {
                         return FormValidation.warning("Ambiguity warning: Multiple zones found.");
@@ -376,14 +381,16 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     public ListBoxModel doFillKeyPairNameItems(
             @QueryParameter String keyPairName,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String endPointUrl,
+            @QueryParameter String credentialId, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(keyPairName);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
+                Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                 for (String value : openstack.getSortedKeyPairNames()) {
                     m.add(value);
                 }

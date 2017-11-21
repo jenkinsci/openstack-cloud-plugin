@@ -21,7 +21,14 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
+import com.cloudbees.plugins.credentials.*;
+import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.model.Item;
+import hudson.security.ACL;
+import hudson.util.ListBoxModel;
+import jenkins.plugins.openstack.compute.auth.*;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -29,10 +36,7 @@ import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.*;
 
 import com.google.common.base.Objects;
 
@@ -61,9 +65,15 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
+    private String credentialId;
+
     public final @Nonnull String endPointUrl;
-    public final @Nonnull String identity;
-    public final @Nonnull Secret credential;
+
+    @Deprecated
+    public /*final*/ transient @Nonnull String identity;
+
+    @Deprecated
+    public transient /*final @Nonnull*/ Secret credential;
     // OpenStack4j requires null when there is no zone configured
     public final @CheckForNull String zone;
 
@@ -97,21 +107,24 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(
-            final String name, final String identity, final String credential, final String endPointUrl, final String zone,
+            final String name, final String endPointUrl, final String zone,
             final SlaveOptions slaveOptions,
-            final List<JCloudsSlaveTemplate> templates
+            final List<JCloudsSlaveTemplate> templates,
+            final String credentialId
     ) {
         super(Util.fixNull(name).trim());
         this.endPointUrl = Util.fixNull(endPointUrl).trim();
-        this.identity = Util.fixNull(identity).trim();
-        this.credential = Secret.fromString(credential);
         this.zone = Util.fixEmptyAndTrim(zone);
-
+        this.credentialId = credentialId;
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
         this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
+
         injectReferenceIntoTemplates();
     }
+
+
+
 
     @SuppressWarnings({"unused", "deprecation"})
     private Object readResolve() {
@@ -143,6 +156,33 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         injectReferenceIntoTemplates();
+
+        if (identity != null) {
+            String[] id = identity.split(":");
+            OpenstackCredential migratedOpenstackCredential = null;
+            if (id.length == 2) {
+                //If id.length == 2, it is assumed that is being used API V2
+                String tenant = id.length > 0 ? id[0] : "";
+                String username = id.length > 1 ? id[1] : "";
+                migratedOpenstackCredential = new OpenstackCredentialv2(CredentialsScope.SYSTEM,null,null,tenant,username,credential);
+            } else if (id.length == 3) {
+                // convert the former identity string PROJECT_NAME:USER_NAME:DOMAIN_NAME
+                // to the new OpenstackV3 credential
+                String project = id[0];
+                String username = id[1];
+                String domain = id[2];
+                migratedOpenstackCredential = new OpenstackCredentialv3(CredentialsScope.SYSTEM,null,null,username,domain,project,domain,credential);
+            }
+            if (migratedOpenstackCredential != null) {
+                credentialId = migratedOpenstackCredential.getId();
+                try {
+                    OpenstackCredentials.add(migratedOpenstackCredential);
+                    OpenstackCredentials.save();
+                } catch (IOException e) {
+                    LOGGER.log(Level.SEVERE, "Unable to migrate the credential to the new version");
+                }
+            }
+        }
 
         return this;
     }
@@ -378,12 +418,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public @Nonnull Openstack getOpenstack() {
         final Openstack os;
         try {
-            os = Openstack.Factory.get(endPointUrl, identity, credential.getPlainText(), zone);
+            os = Openstack.Factory.get(endPointUrl,OpenstackCredentials.getCredential(credentialId), zone);
         } catch (FormValidation ex) {
-            LOGGER.log(Level.SEVERE, "Openstack credentials invalid", ex);
-            throw new RuntimeException("Openstack credentials invalid", ex);
+            LOGGER.log(Level.SEVERE, "Openstack authentication invalid", ex);
+            throw new RuntimeException("Openstack authentication invalid", ex);
         }
         return os;
+    }
+
+    public String getCredentialId() {
+        return credentialId;
     }
 
     @Extension
@@ -411,14 +455,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Restricted(DoNotUse.class)
         public FormValidation doTestConnection(
-                @QueryParameter String zone,
+                @QueryParameter String credentialId,
                 @QueryParameter String endPointUrl,
-                @QueryParameter String identity,
-                @QueryParameter String credential
+                @QueryParameter String zone
         ) {
             try {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                // Get credential defined by user, using credential ID
+                OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+                Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
                 Throwable ex = openstack.sanityCheck();
+
                 if (ex != null) {
                     return FormValidation.warning(ex, "Connection not validated, plugin might not operate correctly: " + ex.getMessage());
                 }
@@ -440,6 +486,24 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 return FormValidation.error(ex, "The endpoint must be URL");
             }
             return FormValidation.ok();
+        }
+
+        public ListBoxModel doFillCredentialIdItems(
+                @AncestorInPath Jenkins context,
+                @QueryParameter String remoteBase) {
+            if (context == null || !context.hasPermission(Item.CONFIGURE)) {
+                return new StandardListBoxModel();
+            }
+
+            List<DomainRequirement> domainRequirements = new ArrayList<DomainRequirement>();
+            return new StandardListBoxModel()
+                    .withEmptySelection()
+                    .withMatching(
+                            CredentialsMatchers
+                                    .anyOf(CredentialsMatchers.instanceOf(OpenstackCredential.class)),
+                            CredentialsProvider.lookupCredentials(
+                                    StandardCredentials.class, context, ACL.SYSTEM,
+                                    domainRequirements));
         }
     }
 

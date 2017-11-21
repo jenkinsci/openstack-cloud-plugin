@@ -19,6 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.gargoylesoftware.htmlunit.ConfirmHandler;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.Page;
@@ -32,6 +33,9 @@ import hudson.security.SidACL;
 import hudson.slaves.Cloud;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.GlobalConfig;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -82,23 +86,19 @@ public class JCloudsCloudTest {
         DescriptorImpl desc = j.getCloudDescriptor();
         FormValidation v;
 
-        v = desc.doTestConnection("REGION", null, "a:b", "passwd");
-        assertEquals("Endpoint URL is required", FormValidation.Kind.ERROR, v.kind);
+        String openstackAuth = j.dummyCredential();
 
-        v = desc.doTestConnection("REGION", "https://example.com", null, "passwd");
-        assertEquals("Identity is required", FormValidation.Kind.ERROR, v.kind);
+        v = desc.doTestConnection(openstackAuth, null,"REGION");
+        assertEquals("OpenstackCredential is required", FormValidation.Kind.ERROR, v.kind);
 
-        v = desc.doTestConnection("REGION", "https://example.com", "a:b", null);
-        assertEquals("Credential is required", FormValidation.Kind.ERROR, v.kind);
-
-        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
+        v = desc.doTestConnection(openstackAuth, "https://example.com",null);
         assertEquals(FormValidation.Kind.ERROR, v.kind);
         assertThat(v.getMessage(), containsString("Cannot connect to specified cloud"));
 
         Openstack os = j.fakeOpenstackFactory();
         when(os.sanityCheck()).thenReturn(new NullPointerException("It is broken, alright?"));
 
-        v = desc.doTestConnection(null, "https://example.com", "a", "a:b");
+        v = desc.doTestConnection(openstackAuth,"https://example.com",null);
         assertEquals(FormValidation.Kind.WARNING, v.kind);
         assertThat(v.getMessage(), containsString("It is broken, alright?"));
     }
@@ -126,10 +126,7 @@ public class JCloudsCloudTest {
                 Thread.sleep(1000);
             }
         }
-
         WebAssert.assertInputPresent(page2, "_.endPointUrl");
-        WebAssert.assertInputPresent(page2, "_.identity");
-        WebAssert.assertInputPresent(page2, "_.credential");
         WebAssert.assertInputPresent(page2, "_.instanceCap");
         WebAssert.assertInputPresent(page2, "_.retentionTime");
 
@@ -141,12 +138,14 @@ public class JCloudsCloudTest {
     public void presentUIDefaults() throws Exception {
         SlaveOptions DEF = DescriptorImpl.getDefaultOptions();
 
+        String openstackAuth = j.dummyCredential();
+
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
                 new BootSource.Image("iid"), "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
         ));
-        JCloudsCloud cloud = new JCloudsCloud("openstack", "identity", "credential", "endPointUrl", "zone", new SlaveOptions(
+        JCloudsCloud cloud = new JCloudsCloud("openstack", "endPointUrl","zone", new SlaveOptions(
                 new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), 9
-        ), Collections.singletonList(template));
+        ), Collections.singletonList(template),openstackAuth);
         j.jenkins.clouds.add(cloud);
 
         JenkinsRule.WebClient wc = j.createWebClient();
@@ -191,11 +190,13 @@ public class JCloudsCloudTest {
     public void eraseDefaults() {
         int biggerInstanceCap = DescriptorImpl.getDefaultOptions().getInstanceCap() * 2;
 
+        String openstackAuth = j.dummyCredential();
+
         // Base tests on cloud defaults as that is the baseline for erasure
         LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("cid"));
         SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).launcherFactory(slaveType).build();
         JCloudsCloud cloud = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", "zone", opts, Collections.<JCloudsSlaveTemplate>emptyList()
+                "openstack", "endPointUrl","zone", opts, Collections.<JCloudsSlaveTemplate>emptyList(),openstackAuth
         );
 
         assertEquals(opts, cloud.getEffectiveSlaveOptions());
@@ -205,11 +206,14 @@ public class JCloudsCloudTest {
 
     @Test
     public void testConfigRoundtrip() throws Exception {
+
+        String openstackAuth = j.dummyCredential();
+
         String beans = "identity,credential,endPointUrl,zone";
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", "zone",
+                "openstack", "endPointUrl","zone",
                 j.defaultSlaveOptions(),
-                Collections.<JCloudsSlaveTemplate>emptyList()
+                Collections.<JCloudsSlaveTemplate>emptyList(),openstackAuth
         );
         j.jenkins.clouds.add(original);
 
@@ -223,10 +227,13 @@ public class JCloudsCloudTest {
 
     @Test
     public void configRoundtripNullZone() throws Exception {
+
+        String openstackAuth = j.dummyCredential();
+
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "identity", "credential", "endPointUrl", null,
+                "openstack", "endPointUrl",null,
                 j.defaultSlaveOptions(),
-                Collections.<JCloudsSlaveTemplate>emptyList()
+                Collections.<JCloudsSlaveTemplate>emptyList(),openstackAuth
         );
         j.jenkins.clouds.add(original);
 
@@ -330,7 +337,7 @@ public class JCloudsCloudTest {
         final Openstack.FactoryEP factory = j.mockOpenstackFactory();
         final OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
         final Cache<String, Openstack> cache = Openstack.FactoryEP.getCache();
-        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
+        when(factory.getOpenstack(any(String.class),any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
             @Override
             public Openstack answer(InvocationOnMock invocation) throws Throwable {
                 // create new instance every time we are called
@@ -338,7 +345,7 @@ public class JCloudsCloudTest {
             }
         });
         final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
-        final JCloudsCloud instance = new JCloudsCloud("name", "identity", "credential", "endPointUrl", "zone", defOpts, null);
+        final JCloudsCloud instance = new JCloudsCloud("name", "endPointUrl","zone", defOpts, null, j.dummyCredential());
 
         // When
         final Openstack actual1 = instance.getOpenstack();
@@ -350,7 +357,7 @@ public class JCloudsCloudTest {
         assertThat(actual1, sameInstance(actual2));
         assertThat(actual3, sameInstance(actual4));
         assertThat(actual1, not(sameInstance(actual3)));
-        verify(factory, times(2)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
+        verify(factory, times(2)).getOpenstack(any(String.class),any(OpenstackCredential.class), any(String.class));
     }
 
     @Test
@@ -358,53 +365,50 @@ public class JCloudsCloudTest {
         // Given
         final String ep1 = "http://foo";
         final String ep2 = "http://bar";
-        final String id1 = "Username";
-        final String id2 = "username";
-        final String cred1 = "Password";
-        final String cred2 = "passworD";
         final String zone1 = "region";
         final String zone2 = "differentRegion";
         final Openstack.FactoryEP factory = j.mockOpenstackFactory();
         final OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
+        final OpenstackCredential openstackCredential1 = new OpenstackCredentialv2(CredentialsScope.SYSTEM,"id1","desc1","tenant1","user1","secret1");
+        OpenstackCredentials.add(openstackCredential1);
+        final OpenstackCredential openstackCredential2 = new OpenstackCredentialv2(CredentialsScope.SYSTEM,"id2","desc2","tenant2","user2","secret2");
+        OpenstackCredentials.add(openstackCredential2);
         final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
-        final JCloudsCloud i1111 = new JCloudsCloud("1111", id1, cred1, ep1, zone1, defOpts, null);
-        final JCloudsCloud i2111 = new JCloudsCloud("2111", id2, cred1, ep1, zone1, defOpts, null);
-        final JCloudsCloud i1211 = new JCloudsCloud("1211", id1, cred2, ep1, zone1, defOpts, null);
-        final JCloudsCloud i1121 = new JCloudsCloud("1121", id1, cred1, ep2, zone1, defOpts, null);
-        final JCloudsCloud i1112 = new JCloudsCloud("1112", id1, cred1, ep1, zone2, defOpts, null);
-        when(factory.getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
+        final JCloudsCloud i111 = new JCloudsCloud("111", ep1,zone1, defOpts, null, openstackCredential1.getId());
+        final JCloudsCloud i211 = new JCloudsCloud("211", ep2, zone1, defOpts, null, openstackCredential1.getId());
+        final JCloudsCloud i121 = new JCloudsCloud("121",ep1, zone2, defOpts, null, openstackCredential1.getId());
+        final JCloudsCloud i112 = new JCloudsCloud("112", ep1, zone1, defOpts, null, openstackCredential2.getId());
+        when(factory.getOpenstack(any(String.class),any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
             @Override
             public Openstack answer(InvocationOnMock invocation) throws Throwable {
                 // create new instance every time we are called
                 return new Openstack(client);
             }
         });
-        final Openstack e1111 = i1111.getOpenstack();
-        final Openstack e2111 = i2111.getOpenstack();
-        final Openstack e1211 = i1211.getOpenstack();
-        final Openstack e1121 = i1121.getOpenstack();
-        final Openstack e1112 = i1112.getOpenstack();
+        final Openstack e111 = i111.getOpenstack();
+        final Openstack e211 = i211.getOpenstack();
+        final Openstack e121 = i121.getOpenstack();
+        final Openstack e112 = i112.getOpenstack();
 
         // When
-        final Openstack actual1111 = i1111.getOpenstack();
-        final Openstack actual2111 = i2111.getOpenstack();
-        final Openstack actual1211 = i1211.getOpenstack();
-        final Openstack actual1121 = i1121.getOpenstack();
-        final Openstack actual1112 = i1112.getOpenstack();
+        final Openstack actual111 = i111.getOpenstack();
+        final Openstack actual211 = i211.getOpenstack();
+        final Openstack actual121 = i121.getOpenstack();
+        final Openstack actual112 = i112.getOpenstack();
+
 
         // Then
         // Cache is returning same data when it should:
-        assertThat(actual1111, sameInstance(e1111));
-        assertThat(actual2111, sameInstance(e2111));
-        assertThat(actual1211, sameInstance(e1211));
-        assertThat(actual1121, sameInstance(e1121));
-        assertThat(actual1112, sameInstance(e1112));
+        assertThat(actual111, sameInstance(e111));
+        assertThat(actual211, sameInstance(e211));
+        assertThat(actual121, sameInstance(e121));
+        assertThat(actual112, sameInstance(e112));
         // Cache is returning different data when it must:
-        assertThat(actual2111, not(anyOf( sameInstance(e1111), sameInstance(null),  sameInstance(e1211), sameInstance(e1121), sameInstance(e1112) )));
-        assertThat(actual1211, not(anyOf( sameInstance(e1111), sameInstance(e2111), sameInstance(null),  sameInstance(e1121), sameInstance(e1112) )));
-        assertThat(actual1121, not(anyOf( sameInstance(e1111), sameInstance(e2111), sameInstance(e1211), sameInstance(null),  sameInstance(e1112) )));
-        assertThat(actual1112, not(anyOf( sameInstance(e1111), sameInstance(e2111), sameInstance(e1211), sameInstance(e1121), sameInstance(null)  )));
-        verify(factory, times(5)).getOpenstack(any(String.class), any(String.class), any(String.class), any(String.class));
+        assertThat(actual211, not(anyOf( sameInstance(e111), sameInstance(null),  sameInstance(e121), sameInstance(e112))));
+        assertThat(actual121, not(anyOf( sameInstance(e111), sameInstance(e211), sameInstance(null),  sameInstance(e112))));
+        assertThat(actual211, not(anyOf( sameInstance(e111), sameInstance(e121), sameInstance(null),  sameInstance(e111) )));
+        assertThat(actual111, not(anyOf( sameInstance(e112), sameInstance(e211), sameInstance(e121), sameInstance(null)  )));
+        verify(factory, times(4)).getOpenstack(any(String.class),any(OpenstackCredential.class), any(String.class));
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {

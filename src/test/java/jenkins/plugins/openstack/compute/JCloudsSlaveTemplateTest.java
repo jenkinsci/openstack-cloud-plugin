@@ -11,6 +11,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import hudson.remoting.Base64;
 import jenkins.plugins.openstack.PluginTestRule;
 
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -38,10 +39,13 @@ public class JCloudsSlaveTemplateTest {
     public PluginTestRule j = new PluginTestRule();
 
     final String TEMPLATE_PROPERTIES = "name,labelString";
-    final String CLOUD_PROPERTIES = "name,identity,credential,endPointUrl,zone";
+    final String CLOUD_PROPERTIES = "name,credentialId,zone";
 
     @Test
     public void configRoundtrip() throws Exception {
+
+        final OpenstackCredential openstackCredential = mock(OpenstackCredential.class);
+
         JCloudsSlaveTemplate jnlpTemplate = new JCloudsSlaveTemplate(
                 "jnlp-template", "openstack-slave-type1 openstack-type2", PluginTestRule.dummySlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).build()
         );
@@ -52,9 +56,10 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(
-                "my-openstack", "identity", "credential", "endPointUrl", "zone",
+                "my-openstack", "endPointUrl","zone",
                 SlaveOptions.empty(),
-                Arrays.asList(jnlpTemplate, sshTemplate)
+                Arrays.asList(jnlpTemplate, sshTemplate),
+                j.dummyCredential()
         );
 
         j.jenkins.clouds.add(originalCloud);
@@ -90,9 +95,10 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud cloud = new JCloudsCloud(
-                "my-openstack", "identity", "credential", "endPointUrl", "zone",
+                "my-openstack", "credential","zone",
                 cloudOpts,
-                Collections.singletonList(template)
+                Collections.singletonList(template),
+                j.dummyCredential()
         );
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());

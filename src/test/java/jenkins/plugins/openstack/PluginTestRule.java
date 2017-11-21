@@ -29,6 +29,9 @@ import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import jenkins.plugins.openstack.compute.UserDataConfig;
+import jenkins.plugins.openstack.compute.auth.AbstractOpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
@@ -39,6 +42,8 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.openstack4j.api.OSClient;
+import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.openstack.compute.domain.NovaAddresses;
@@ -96,6 +101,38 @@ public final class PluginTestRule extends JenkinsRule {
                 new BootSource.VolumeSnapshot("id"), "hw", "nw", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10,
                 "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 1
         );
+    }
+
+    public static class DummyOpenstackCredential extends AbstractOpenstackCredential {
+
+
+        public DummyOpenstackCredential() {
+            super(CredentialsScope.SYSTEM, "my-id", "testCredential");
+        }
+
+        public DummyOpenstackCredential(String id) {
+            super(CredentialsScope.SYSTEM, id, "testCredential");
+        }
+
+
+        @Override
+        public IOSClientBuilder<? extends OSClient, ?> getBuilder(String endPointUrl) {
+            return null;
+        }
+
+    }
+
+    public String dummyCredential() {
+        DummyOpenstackCredential c = new DummyOpenstackCredential();
+        OpenstackCredentials.add(c);
+        return c.getId();
+    }
+
+
+    public String dummyCredential(String id) {
+        DummyOpenstackCredential c = new DummyOpenstackCredential(id);
+        OpenstackCredentials.add(c);
+        return c.getId();
     }
 
     public SlaveOptions defaultSlaveOptions() {
@@ -340,8 +377,8 @@ public final class PluginTestRule extends JenkinsRule {
     public Openstack fakeOpenstackFactory(final Openstack os) {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
             @Override
-            public @Nonnull Openstack getOpenstack(
-                    @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+            public @Nonnull Openstack getOpenstack(String endPointUrl,
+                                                   @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
             ) throws FormValidation {
                 return os;
             }
@@ -359,8 +396,8 @@ public final class PluginTestRule extends JenkinsRule {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
 
             @Nonnull @Override
-            public Openstack getOpenstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, String region) throws FormValidation {
-                return factory.getOpenstack(endPointUrl, identity, credential, region);
+            public Openstack getOpenstack(String endpointUrl, @Nonnull OpenstackCredential openstackCredential, String region) throws FormValidation {
+                return factory.getOpenstack(endpointUrl, openstackCredential, region);
             }
         });
         return factory;
@@ -482,7 +519,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", "zone", opts, Arrays.asList(templates));
+            super("openstack",  "endPointUrl","zone", opts, Arrays.asList(templates), "credentialId");
         }
 
         @Override
