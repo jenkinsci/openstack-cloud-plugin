@@ -30,16 +30,16 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
     @SuppressWarnings("unused")
     public OpenstackCredentialv2(@CheckForNull CredentialsScope scope,
                                  @CheckForNull String id, @CheckForNull String description,
-                                 @CheckForNull  String tenant, @CheckForNull  String username,
-                                 @CheckForNull  String password) {
+                                 @CheckForNull String tenant, @CheckForNull String username,
+                                 @CheckForNull String password) {
         this(scope,id,description,tenant, username,Secret.fromString(password));
     }
 
     @SuppressWarnings("unused")
     public OpenstackCredentialv2(@CheckForNull CredentialsScope scope,
                                  @CheckForNull String id, @CheckForNull String description,
-                                 @CheckForNull  String tenant, @CheckForNull  String username,
-                                 @CheckForNull  Secret password) {
+                                 @CheckForNull String tenant, @CheckForNull String username,
+                                 @CheckForNull Secret password) {
         super(scope,id,description);
         this.tenant =  Util.fixEmptyAndTrim(tenant);
         this.username =  Util.fixEmptyAndTrim(username);

@@ -172,6 +172,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 try {
                     OpenstackCredentials.add(migratedOpenstackCredential);
                     OpenstackCredentials.save();
+                    identity = null;
+                    credential = null;
                 } catch (IOException e) {
                     LOGGER.log(Level.SEVERE, "Unable to migrate " + name + " cloud credential to the new version", e);
                 }
