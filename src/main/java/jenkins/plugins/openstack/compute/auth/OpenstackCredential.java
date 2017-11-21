@@ -9,6 +9,5 @@ import org.openstack4j.api.client.IOSClientBuilder;
  */
 public interface OpenstackCredential extends StandardCredentials {
 
-    IOSClientBuilder<? extends OSClient, ?> getBuilder(String endPointUrl);
-
+    IOSClientBuilder<? extends OSClient<?>, ?> getBuilder(String endPointUrl);
 }

@@ -15,30 +15,16 @@ import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.openstack.OSFactory;
 
+import javax.annotation.Nonnull;
+
 @NameWith(value = OpenstackCredentialv2.NameProvider.class)
-public class OpenstackCredentialv2 extends AbstractOpenstackCredential implements
-        StandardUsernamePasswordCredentials,PasswordCredentials {
+public class OpenstackCredentialv2 extends AbstractOpenstackCredential implements StandardUsernamePasswordCredentials, PasswordCredentials {
 
-    /**
-     * {@inheritDoc}
-     */
-    @Extension(ordinal = 1)
-    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public String getDisplayName() {
-            return "Openstack auth v2";
-        }
-
-    }
+    private static final long serialVersionUID = -2723193057734405814L;
 
     private final String tenant;
     private final String username;
     private final Secret password;
-
 
     @DataBoundConstructor
     @SuppressWarnings("unused")
@@ -67,7 +53,7 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
     }
 
     @Override
-    public IOSClientBuilder<? extends OSClient, ?> getBuilder(String endPointUrl) {
+    public IOSClientBuilder.V2 getBuilder(String endPointUrl) {
         return OSFactory.builderV2().endpoint(endPointUrl)
                 .credentials(username, getPassword().getPlainText())
                 .tenantName(tenant);
@@ -85,7 +71,7 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
         return tenant;
     }
 
-    public String getUsername() {
+    public @Nonnull String getUsername() {
         return username;
     }
 
@@ -101,5 +87,21 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
             String description = Util.fixEmptyAndTrim(c.getDescription());
             return c.getTenant() + ":" + c.getUsername() + "/******" + (description != null ? " (" + description + ")" : "");
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Extension(ordinal = 1)
+    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public @Nonnull String getDisplayName() {
+            return "Openstack auth v2";
+        }
+
     }
 }

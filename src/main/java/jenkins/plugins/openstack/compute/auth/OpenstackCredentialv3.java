@@ -19,24 +19,9 @@ import org.openstack4j.openstack.OSFactory;
 import javax.annotation.Nonnull;
 
 @NameWith(value = OpenstackCredentialv3.NameProvider.class)
-public class OpenstackCredentialv3 extends AbstractOpenstackCredential implements
-        StandardUsernamePasswordCredentials,PasswordCredentials {
+public class OpenstackCredentialv3 extends AbstractOpenstackCredential implements StandardUsernamePasswordCredentials, PasswordCredentials {
 
-    /**
-     * {@inheritDoc}
-     */
-    @Extension(ordinal = 1)
-    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public String getDisplayName() {
-            return "Openstack auth v3";
-        }
-
-    }
+    private static final long serialVersionUID = -1868447356467542586L;
 
     private final String username;
     private final String userDomain;
@@ -74,7 +59,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
     }
 
     @Override
-    public IOSClientBuilder<? extends OSClient, ?> getBuilder(String endPointUrl) {
+    public IOSClientBuilder.V3 getBuilder(String endPointUrl) {
 
         Identifier projectDomainIdentifier = Identifier.byName(projectDomain);
         Identifier projectNameIdentifier = Identifier.byName(projectName);
@@ -95,7 +80,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
                 '}';
     }
 
-    public String getUsername() {
+    public @Nonnull String getUsername() {
         return username;
     }
 
@@ -126,6 +111,21 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
                     + c.getUserDomain() + ":"
                     + c.getUsername() + "/******"
                     + (description != null ? " (" + description + ")" : "");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Extension(ordinal = 1)
+    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public @Nonnull String getDisplayName() {
+            return "Openstack auth v3";
         }
     }
 }

@@ -104,17 +104,13 @@ public class PersistenceMigrationTest {
         JCloudsCloud v2Cloud = JCloudsCloud.getByName("v2");
         JCloudsCloud v3Cloud = JCloudsCloud.getByName("v3");
 
-        String cId = v2Cloud.getCredentialId();
-
         OpenstackCredentialv2 v2 = (OpenstackCredentialv2) OpenstackCredentials.getCredential(v2Cloud.getCredentialId());
         assertEquals("tenant:user/******",CredentialsNameProvider.name(v2));
         assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v2.getPassword().getPlainText());
 
         OpenstackCredentialv3 v3 = (OpenstackCredentialv3) OpenstackCredentials.getCredential(v3Cloud.getCredentialId());
-        assertEquals( "domain:project:domain:user/******",CredentialsNameProvider.name(v3));
+        assertEquals("domain:project:domain:user/******",CredentialsNameProvider.name(v3));
         assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v3.getPassword().getPlainText());
-
-
     }
 
     private static ComputerLauncher launcherOf(SlaveOptions.Holder holder) throws IOException {

@@ -104,7 +104,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public static class DummyOpenstackCredential extends AbstractOpenstackCredential {
-
+        private static final long serialVersionUID = -6458476198187349017L;
 
         public DummyOpenstackCredential() {
             super(CredentialsScope.SYSTEM, "my-id", "testCredential");
@@ -114,23 +114,14 @@ public final class PluginTestRule extends JenkinsRule {
             super(CredentialsScope.SYSTEM, id, "testCredential");
         }
 
-
         @Override
-        public IOSClientBuilder<? extends OSClient, ?> getBuilder(String endPointUrl) {
+        public IOSClientBuilder<? extends OSClient<?>, ?> getBuilder(String endPointUrl) {
             return null;
         }
-
     }
 
     public String dummyCredential() {
         DummyOpenstackCredential c = new DummyOpenstackCredential();
-        OpenstackCredentials.add(c);
-        return c.getId();
-    }
-
-
-    public String dummyCredential(String id) {
-        DummyOpenstackCredential c = new DummyOpenstackCredential(id);
         OpenstackCredentials.add(c);
         return c.getId();
     }
@@ -377,8 +368,8 @@ public final class PluginTestRule extends JenkinsRule {
     public Openstack fakeOpenstackFactory(final Openstack os) {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
             @Override
-            public @Nonnull Openstack getOpenstack(String endPointUrl,
-                                                   @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
+            public @Nonnull Openstack getOpenstack(
+                    @Nonnull String endPointUrl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
             ) throws FormValidation {
                 return os;
             }
@@ -395,8 +386,10 @@ public final class PluginTestRule extends JenkinsRule {
         final Openstack.FactoryEP factory = mock(Openstack.FactoryEP.class, withSettings().serializable());
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
 
-            @Nonnull @Override
-            public Openstack getOpenstack(String endpointUrl, @Nonnull OpenstackCredential openstackCredential, String region) throws FormValidation {
+            @Override
+            public @Nonnull Openstack getOpenstack(
+                    @Nonnull String endpointUrl, @Nonnull OpenstackCredential openstackCredential, String region
+            ) throws FormValidation {
                 return factory.getOpenstack(endpointUrl, openstackCredential, region);
             }
         });
@@ -519,7 +512,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack",  "endPointUrl","zone", opts, Arrays.asList(templates), "credentialId");
+            super("openstack", "endPointUrl","zone", opts, Arrays.asList(templates), "credentialId");
         }
 
         @Override
@@ -541,8 +534,8 @@ public final class PluginTestRule extends JenkinsRule {
 
         public static final class Descriptor extends hudson.model.Descriptor<Cloud> {
             @Override
-            public String getDisplayName() {
-                return null;
+            public @Nonnull String getDisplayName() {
+                return "";
             }
         }
     }

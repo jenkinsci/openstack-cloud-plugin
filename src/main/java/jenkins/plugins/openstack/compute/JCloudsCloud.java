@@ -69,11 +69,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public final @Nonnull String endPointUrl;
 
-    @Deprecated
-    public /*final*/ transient @Nonnull String identity;
-
-    @Deprecated
-    public transient /*final @Nonnull*/ Secret credential;
     // OpenStack4j requires null when there is no zone configured
     public final @CheckForNull String zone;
 
@@ -87,6 +82,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private transient @Deprecated Integer retentionTime;
     private transient @Deprecated Integer startTimeout;
     private transient @Deprecated Boolean floatingIps;
+    public transient @Deprecated String identity;
+    public transient @Deprecated Secret credential;
 
     public static @Nonnull List<JCloudsCloud> getClouds() {
         List<JCloudsCloud> clouds = new ArrayList<>();
@@ -123,10 +120,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         injectReferenceIntoTemplates();
     }
 
-
-
-
-    @SuppressWarnings({"unused", "deprecation"})
+    @SuppressWarnings({"unused", "deprecation", "ConstantConditions"})
     private Object readResolve() {
         if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null) {
             SlaveOptions carry = SlaveOptions.builder()
@@ -179,8 +173,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                     OpenstackCredentials.add(migratedOpenstackCredential);
                     OpenstackCredentials.save();
                 } catch (IOException e) {
-                    LOGGER.log(Level.SEVERE, "Unable to migrate the credential to the new version");
+                    LOGGER.log(Level.SEVERE, "Unable to migrate " + name + " cloud credential to the new version", e);
                 }
+            } else {
+                LOGGER.log(Level.SEVERE, "Unable to migrate " + name + " cloud credential to the new version");
             }
         }
 
@@ -418,7 +414,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public @Nonnull Openstack getOpenstack() {
         final Openstack os;
         try {
-            os = Openstack.Factory.get(endPointUrl,OpenstackCredentials.getCredential(credentialId), zone);
+            os = Openstack.Factory.get(endPointUrl, OpenstackCredentials.getCredential(credentialId), zone);
         } catch (FormValidation ex) {
             LOGGER.log(Level.SEVERE, "Openstack authentication invalid", ex);
             throw new RuntimeException("Openstack authentication invalid", ex);
@@ -488,22 +484,19 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillCredentialIdItems(
-                @AncestorInPath Jenkins context,
-                @QueryParameter String remoteBase) {
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillCredentialIdItems(@AncestorInPath Jenkins context) {
             if (context == null || !context.hasPermission(Item.CONFIGURE)) {
                 return new StandardListBoxModel();
             }
 
-            List<DomainRequirement> domainRequirements = new ArrayList<DomainRequirement>();
+            List<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(
+                    StandardCredentials.class, context, ACL.SYSTEM, Collections.<DomainRequirement>emptyList()
+            );
             return new StandardListBoxModel()
                     .withEmptySelection()
-                    .withMatching(
-                            CredentialsMatchers
-                                    .anyOf(CredentialsMatchers.instanceOf(OpenstackCredential.class)),
-                            CredentialsProvider.lookupCredentials(
-                                    StandardCredentials.class, context, ACL.SYSTEM,
-                                    domainRequirements));
+                    .withMatching(CredentialsMatchers.instanceOf(OpenstackCredential.class), credentials)
+            ;
         }
     }
 

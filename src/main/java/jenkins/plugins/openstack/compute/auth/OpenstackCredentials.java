@@ -14,14 +14,11 @@ import java.util.List;
 public class OpenstackCredentials {
 
     public static OpenstackCredential getCredential(String credentialId) {
-        List<OpenstackCredential> credentials =
-                CredentialsProvider.lookupCredentials(
+        List<OpenstackCredential> credentials = CredentialsProvider.lookupCredentials(
                         OpenstackCredential.class, Jenkins.getInstance(), ACL.SYSTEM,
-                        Collections.<DomainRequirement>emptyList());
-        OpenstackCredential openstackCredential =
-                CredentialsMatchers.firstOrNull(credentials,
-                        CredentialsMatchers.allOf(CredentialsMatchers.withId(credentialId)));
-        return openstackCredential;
+                        Collections.<DomainRequirement>emptyList()
+        );
+        return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialId));
     }
 
     public static void add(OpenstackCredential openstackCredential) {
@@ -29,6 +26,6 @@ public class OpenstackCredentials {
     }
 
     public static void save() throws IOException {
-       SystemCredentialsProvider.getInstance().save();
+        SystemCredentialsProvider.getInstance().save();
     }
 }

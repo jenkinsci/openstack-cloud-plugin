@@ -68,8 +68,8 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
     public abstract List<String> getAuthFieldsOffsets();
 
     protected static boolean hasValue(ListBoxModel m, String value) {
-        for( final ListBoxModel.Option o : m) {
-            if ( Objects.equals(value, o.value)) {
+        for(final ListBoxModel.Option o : m) {
+            if (Objects.equals(value, o.value)) {
                 return true;
             }
         }
@@ -109,7 +109,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
     }
 
     protected static boolean haveAuthDetails(String endPointUrl, OpenstackCredential openstackCredential, String zone) {
-        return  Util.fixEmpty(endPointUrl)!=null && openstackCredential !=null;
+        return Util.fixEmpty(endPointUrl)!=null && openstackCredential !=null;
     }
 
     public static String getDefault(String d1, Object d2) {
