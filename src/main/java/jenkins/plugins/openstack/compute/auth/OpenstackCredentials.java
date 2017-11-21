@@ -7,13 +7,17 @@ import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.security.ACL;
 import jenkins.model.Jenkins;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
 public class OpenstackCredentials {
 
-    public static OpenstackCredential getCredential(String credentialId) {
+    public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialId) {
+        if (credentialId == null) return null;
+
         List<OpenstackCredential> credentials = CredentialsProvider.lookupCredentials(
                         OpenstackCredential.class, Jenkins.getInstance(), ACL.SYSTEM,
                         Collections.<DomainRequirement>emptyList()
@@ -21,7 +25,7 @@ public class OpenstackCredentials {
         return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialId));
     }
 
-    public static void add(OpenstackCredential openstackCredential) {
+    public static void add(@Nonnull OpenstackCredential openstackCredential) {
         SystemCredentialsProvider.getInstance().getCredentials().add(openstackCredential);
     }
 
