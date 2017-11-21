@@ -29,6 +29,7 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.util.ListBoxModel;
 import hudson.util.ReflectionUtils;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.springframework.util.StringUtils;
@@ -67,8 +68,8 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
     public abstract List<String> getAuthFieldsOffsets();
 
     protected static boolean hasValue(ListBoxModel m, String value) {
-        for( final ListBoxModel.Option o : m) {
-            if ( Objects.equals(value, o.value)) {
+        for(final ListBoxModel.Option o : m) {
+            if (Objects.equals(value, o.value)) {
                 return true;
             }
         }
@@ -94,7 +95,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
 
         // Replace direct reference to references to possible relative paths
         if (method.getAnnotation(InjectOsAuth.class) != null) {
-            for (String attr: Arrays.asList("endPointUrl", "identity", "credential", "zone")) {
+            for (String attr: Arrays.asList("endPointUrl","credentialId", "zone")) {
                 deps.remove(attr);
                 for (String offset : getAuthFieldsOffsets()) {
                     deps.add(offset + "/" + attr);
@@ -107,8 +108,8 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
         }
     }
 
-    protected static boolean haveAuthDetails(String endPointUrl, boolean ignoreSsl, String identity, String credential, String zone) {
-        return Util.fixEmpty(endPointUrl)!=null && Util.fixEmpty(identity)!=null && Util.fixEmpty(credential)!=null;
+    protected static boolean haveAuthDetails(String endPointUrl, OpenstackCredential openstackCredential, String zone) {
+        return Util.fixEmpty(endPointUrl)!=null && openstackCredential !=null;
     }
 
     public static String getDefault(String d1, Object d2) {
