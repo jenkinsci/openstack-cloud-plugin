@@ -107,7 +107,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
         }
     }
 
-    protected static boolean haveAuthDetails(String endPointUrl, String identity, String credential, String zone) {
+    protected static boolean haveAuthDetails(String endPointUrl, boolean ignoreSsl, String identity, String credential, String zone) {
         return Util.fixEmpty(endPointUrl)!=null && Util.fixEmpty(identity)!=null && Util.fixEmpty(credential)!=null;
     }
 

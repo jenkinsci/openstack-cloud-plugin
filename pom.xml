@@ -22,9 +22,9 @@
         <findbugs.failOnError>false</findbugs.failOnError>
         <findbugs.excludeFilterFile>src/findbugs-exclude.xml</findbugs.excludeFilterFile>
 
-        <guava.version>17.0</guava.version> <!-- version compatible with openstack4j -->
+        <guava.version>18.0</guava.version> <!-- version compatible with openstack4j -->
         <jsr305.version>1.3.9</jsr305.version>
-        <openstack4j.version>3.0.4</openstack4j.version>
+        <openstack4j.version>3.1.0</openstack4j.version>
     </properties>
 
     <developers>

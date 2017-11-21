@@ -134,14 +134,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(floatingIpPool);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            if (haveAuthDetails(endPointUrl, ignoreSsl, identity, credential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential, zone);
                 for (String p : openstack.getSortedIpPools()) {
                     m.add(p);
                 }
@@ -174,14 +174,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     public ListBoxModel doFillHardwareIdItems(
             @QueryParameter String hardwareId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(hardwareId);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            if (haveAuthDetails(endPointUrl, ignoreSsl, identity, credential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential, zone);
                 for (Flavor flavor : openstack.getSortedFlavors()) {
                     final String value = flavor.getId();
                     final String displayText = String.format("%s (%s)", flavor.getName(), value);
@@ -216,14 +216,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     public ListBoxModel doFillNetworkIdItems(
             @QueryParameter String networkId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(networkId);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            if (haveAuthDetails(endPointUrl, ignoreSsl, identity, credential, zone)) {
+                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential, zone);
                 for (org.openstack4j.model.network.Network network : openstack.getSortedNetworks()) {
                     final String value = network.getId();
                     final String displayText = String.format("%s (%s)", network.getName(), value);
@@ -309,14 +309,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     public ComboBoxModel doFillAvailabilityZoneItems(
             @QueryParameter String availabilityZone,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
         // Support for availabilityZones is optional in OpenStack, so this is a f:combobox not f:select field.
         // Therefore we suggest some options if we can, but if we can't then we assume it's because they're not needed.
         final ComboBoxModel m = new ComboBoxModel();
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            if (haveAuthDetails(endPointUrl, ignoreSsl, identity, credential, zone)) {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential, zone);
                 for (final AvailabilityZone az : openstack.getAvailabilityZones()) {
                     final String value = az.getZoneName();
                     m.add(value);
@@ -336,6 +336,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             @RelativePath("../../slaveOptions") @QueryParameter("availabilityZone") String def,
             // authentication fields can be in two places relative to us.
             @RelativePath("..") @QueryParameter("endPointUrl") String endPointUrlCloud,
+            @RelativePath("..") @QueryParameter("ignoreSsl") boolean ignoreSsl,
             @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
             @RelativePath("..") @QueryParameter("identity") String identityCloud,
             @RelativePath("../..") @QueryParameter("identity") String identityTemplate,
@@ -355,9 +356,9 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             final String identity = getDefault(identityCloud, identityTemplate);
             final String credential = getDefault(credentialCloud, credentialTemplate);
             final String zone = getDefault(zoneCloud, zoneTemplate);
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
+            if (haveAuthDetails(endPointUrl, ignoreSsl, identity, credential, zone)) {
                 try {
-                    final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                    final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential, zone);
                     final int numberOfAZs = openstack.getAvailabilityZones().size();
                     if (numberOfAZs > 1) {
                         return FormValidation.warning("Ambiguity warning: Multiple zones found.");
@@ -376,14 +377,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     public ListBoxModel doFillKeyPairNameItems(
             @QueryParameter String keyPairName,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(keyPairName);
         try {
-            if (haveAuthDetails(endPointUrl, identity, credential, zone)) {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            if (haveAuthDetails(endPointUrl, ignoreSsl, identity, credential, zone)) {
+                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential, zone);
                 for (String value : openstack.getSortedKeyPairNames()) {
                     m.add(value);
                 }

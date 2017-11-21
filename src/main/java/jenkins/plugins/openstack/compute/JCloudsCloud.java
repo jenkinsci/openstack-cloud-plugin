@@ -62,6 +62,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
     public final @Nonnull String endPointUrl;
+    public final boolean ignoreSsl;
     public final @Nonnull String identity;
     public final @Nonnull Secret credential;
     // OpenStack4j requires null when there is no zone configured
@@ -97,12 +98,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(
-            final String name, final String identity, final String credential, final String endPointUrl, final String zone,
+            final String name, final String identity, final String credential, final String endPointUrl, final boolean ignoreSsl, final String zone,
             final SlaveOptions slaveOptions,
             final List<JCloudsSlaveTemplate> templates
     ) {
         super(Util.fixNull(name).trim());
         this.endPointUrl = Util.fixNull(endPointUrl).trim();
+        this.ignoreSsl = ignoreSsl;
         this.identity = Util.fixNull(identity).trim();
         this.credential = Secret.fromString(credential);
         this.zone = Util.fixEmptyAndTrim(zone);
@@ -378,7 +380,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public @Nonnull Openstack getOpenstack() {
         final Openstack os;
         try {
-            os = Openstack.Factory.get(endPointUrl, identity, credential.getPlainText(), zone);
+            os = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential.getPlainText(), zone);
         } catch (FormValidation ex) {
             LOGGER.log(Level.SEVERE, "Openstack credentials invalid", ex);
             throw new RuntimeException("Openstack credentials invalid", ex);
@@ -413,11 +415,12 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         public FormValidation doTestConnection(
                 @QueryParameter String zone,
                 @QueryParameter String endPointUrl,
+                @QueryParameter boolean ignoreSsl,
                 @QueryParameter String identity,
                 @QueryParameter String credential
         ) {
             try {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, identity, credential, zone);
                 Throwable ex = openstack.sanityCheck();
                 if (ex != null) {
                     return FormValidation.warning(ex, "Connection not validated, plugin might not operate correctly: " + ex.getMessage());
