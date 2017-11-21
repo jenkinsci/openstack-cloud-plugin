@@ -256,6 +256,7 @@ public class SlaveOptionsDescriptorTest {
     @Test
     public void fillDependencies() throws Exception {
         List<String> expected = Arrays.asList(
+                "ignoreSsl",
                 "../endPointUrl", "../../endPointUrl",
                 "../credentialId", "../../credentialId",
                 "../zone", "../../zone"
