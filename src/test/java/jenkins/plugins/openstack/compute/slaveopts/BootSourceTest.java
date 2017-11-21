@@ -98,7 +98,7 @@ public class BootSourceTest {
         Openstack os = j.fakeOpenstackFactory();
         when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", justVolumeSnapshot));
 
-        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", credentialId, "OSzone");
+        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialId, "OSzone");
         assertEquals(3, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         assertEquals("Second menu entry is the VS OpenStack can see", "vs-name", list.get(1).name);
