@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -152,7 +153,7 @@ public class SlaveOptionsDescriptorTest {
         final Openstack os = j.fakeOpenstackFactory();
         doReturn(azs).when(os).getAvailabilityZones();
 
-        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", "OSid", "OSpwd", "OSzone");
+        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", false,"OSid", "OSpwd", "OSzone");
 
         assertEquals(2, actual.size());
         final String az1Option = actual.get(0);
@@ -166,7 +167,7 @@ public class SlaveOptionsDescriptorTest {
         final Openstack os = j.fakeOpenstackFactory();
         doThrow(new RuntimeException("OpenStack said no")).when(os).getAvailabilityZones();
 
-        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", "OSid", "OSpwd", "OSzone");
+        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", false,"OSid", "OSpwd", "OSzone");
 
         assertEquals(0, actual.size());
     }
@@ -178,7 +179,7 @@ public class SlaveOptionsDescriptorTest {
         final Openstack os = j.fakeOpenstackFactory();
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
 
         assertThat(actual, hasState(expected));
         verifyNoMoreInteractions(os);
@@ -190,7 +191,7 @@ public class SlaveOptionsDescriptorTest {
         final String def = "defaultAZ";
         final Openstack os = j.fakeOpenstackFactory();
 
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
 
         assertThat(actual, hasState(OK, "Inherited value: " + def));
         verifyNoMoreInteractions(os);
@@ -207,7 +208,7 @@ public class SlaveOptionsDescriptorTest {
         final String def = "";
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
 
         assertThat(actual, hasState(expected));
     }
@@ -220,7 +221,7 @@ public class SlaveOptionsDescriptorTest {
         final String def = "";
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
 
         assertThat(actual, hasState(expected));
     }
@@ -238,7 +239,7 @@ public class SlaveOptionsDescriptorTest {
         final String def = "";
         final FormValidation expected = FormValidation.warning("Ambiguity warning: Multiple zones found.");
 
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", "OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", "OSid", "OSid", "OSpwd", "OSpwd", "OSzone", "OSzone");
 
         assertThat(actual, hasState(expected));
     }
@@ -265,12 +266,13 @@ public class SlaveOptionsDescriptorTest {
 
     private void assertFillWorks(String attribute) throws Exception {
         final String END_POINT = "END_POINT-" + attribute;
+        final Boolean IGNORE_SSL = false;
         final String IDENTITY = "IDENTITY";
         final String CREDENTIAL = "CREDENTIAL";
         final String REGION = "REGION";
         final String QUERY_STRING = String.format(
-                "?endPointUrl=%s&identity=%s&credential=%s&zone=%s",
-                END_POINT, IDENTITY, CREDENTIAL, REGION
+                "?endPointUrl=%s&ignoreSsl=false&identity=%s&credential=%s&zone=%s",
+                END_POINT, IGNORE_SSL, IDENTITY, CREDENTIAL, REGION
         );
 
         String contextPath = j.getURL().getFile();
@@ -280,14 +282,14 @@ public class SlaveOptionsDescriptorTest {
 
         Openstack.FactoryEP factory = j.mockOpenstackFactory();
         when(
-                factory.getOpenstack(anyString(), anyString(), anyString(), anyString())
+                factory.getOpenstack(anyString(), anyBoolean(), anyString(), anyString(), anyString())
         ).thenThrow(
                 new AuthenticationException("Noone cares as we are testing if correct credentials are passed in", 42)
         );
 
         j.createWebClient().goTo(fillUrl + QUERY_STRING, "application/json");
 
-        verify(factory).getOpenstack(eq(END_POINT), eq(IDENTITY), eq(CREDENTIAL), eq(REGION));
+        verify(factory).getOpenstack(eq(END_POINT), eq(IGNORE_SSL), eq(IDENTITY), eq(CREDENTIAL), eq(REGION));
         verifyNoMoreInteractions(factory);
     }
 

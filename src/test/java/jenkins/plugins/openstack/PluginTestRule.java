@@ -341,7 +341,7 @@ public final class PluginTestRule extends JenkinsRule {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
             @Override
             public @Nonnull Openstack getOpenstack(
-                    @Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
+                    @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull String identity, @Nonnull String credential, @CheckForNull String region
             ) throws FormValidation {
                 return os;
             }
@@ -359,8 +359,8 @@ public final class PluginTestRule extends JenkinsRule {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
 
             @Nonnull @Override
-            public Openstack getOpenstack(@Nonnull String endPointUrl, @Nonnull String identity, @Nonnull String credential, String region) throws FormValidation {
-                return factory.getOpenstack(endPointUrl, identity, credential, region);
+            public Openstack getOpenstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull String identity, @Nonnull String credential, String region) throws FormValidation {
+                return factory.getOpenstack(endPointUrl, ignoreSsl, identity, credential, region);
             }
         });
         return factory;
@@ -482,7 +482,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack", "identity", "credential", "endPointUrl", "zone", opts, Arrays.asList(templates));
+            super("openstack", "identity", "credential", "endPointUrl", false,"zone", opts, Arrays.asList(templates));
         }
 
         @Override

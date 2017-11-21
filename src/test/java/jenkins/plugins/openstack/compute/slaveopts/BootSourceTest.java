@@ -76,7 +76,7 @@ public class BootSourceTest {
         Openstack os = j.fakeOpenstackFactory();
         doReturn(Collections.singletonMap(imageName, Collections.singletonList(image))).when(os).getImages();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", "OSid", "OSpwd", "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false,"OSid", "OSpwd", "OSzone");
         assertEquals(2, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         ListBoxModel.Option item = list.get(1);
@@ -95,7 +95,7 @@ public class BootSourceTest {
         Openstack os = j.fakeOpenstackFactory();
         when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", justVolumeSnapshot));
 
-        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", "OSid", "OSpwd", "OSzone");
+        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false,"OSid", "OSpwd", "OSzone");
         assertEquals(3, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         assertEquals("Second menu entry is the VS OpenStack can see", "vs-name", list.get(1).name);
@@ -117,7 +117,7 @@ public class BootSourceTest {
 
         j.fakeOpenstackFactory(new Openstack(osClient));
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", "OSid", "OSpwd", "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false,"OSid", "OSpwd", "OSzone");
         assertThat(list.get(0).name, list, Matchers.<ListBoxModel.Option>iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
@@ -133,7 +133,7 @@ public class BootSourceTest {
         final String urlC, urlT, idC, idT, credC, credT, zoneC, zoneT;
         urlC= urlT= idC= idT= credC= credT= zoneC= zoneT= "dummy";
 
-        final FormValidation actual = id.doCheckName("", urlC, urlT, idC, idT, credC, credT, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("", urlC, urlT, false,idC, idT, credC, credT, zoneC, zoneT);
         assertThat(actual, hasState(VALIDATION_REQUIRED));
     }
 
@@ -147,7 +147,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.error("Not found");
 
-        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, idC, idT, credC, credT, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false,idC, idT, credC, credT, zoneC, zoneT);
         assertThat(actual, hasState(expected));
     }
 
@@ -160,7 +160,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = id.doCheckName("imageFound", urlC, urlT, idC, idT, credC, credT, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageFound", urlC, urlT, false, idC, idT, credC, credT, zoneC, zoneT);
         assertThat(actual, hasState(expected));
     }
 
@@ -173,7 +173,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.warning("Multiple matching results");
 
-        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, idC, idT, credC, credT, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, idC, idT, credC, credT, zoneC, zoneT);
         assertThat("imageAmbiguous", actual, hasState(expected));
     }
 
@@ -186,7 +186,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, idC, idT, credC, credT, zoneC, zoneT);
+        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, idC, idT, credC, credT, zoneC, zoneT);
         assertThat("vsFound", actual, hasState(expected));
     }
 }
