@@ -44,6 +44,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
+import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.openstack.compute.domain.NovaAddresses;
@@ -106,17 +107,13 @@ public final class PluginTestRule extends JenkinsRule {
     public static class DummyOpenstackCredential extends AbstractOpenstackCredential {
         private static final long serialVersionUID = -6458476198187349017L;
 
-        public DummyOpenstackCredential() {
+        private DummyOpenstackCredential() {
             super(CredentialsScope.SYSTEM, "my-id", "testCredential");
         }
 
-        public DummyOpenstackCredential(String id) {
-            super(CredentialsScope.SYSTEM, id, "testCredential");
-        }
-
         @Override
-        public IOSClientBuilder<? extends OSClient<?>, ?> getBuilder(String endPointUrl) {
-            return null;
+        public @Nonnull IOSClientBuilder<? extends OSClient<?>, ?> getBuilder(String endPointUrl) {
+            throw new AuthenticationException(getClass().getSimpleName() + " can not be use to create client", -1);
         }
     }
 

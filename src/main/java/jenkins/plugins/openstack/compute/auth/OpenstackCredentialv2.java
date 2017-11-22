@@ -53,7 +53,7 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
     }
 
     @Override
-    public IOSClientBuilder.V2 getBuilder(String endPointUrl) {
+    public @Nonnull IOSClientBuilder.V2 getBuilder(String endPointUrl) {
         return OSFactory.builderV2().endpoint(endPointUrl)
                 .credentials(username, getPassword().getPlainText())
                 .tenantName(tenant);

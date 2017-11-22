@@ -59,7 +59,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
     }
 
     @Override
-    public IOSClientBuilder.V3 getBuilder(String endPointUrl) {
+    public @Nonnull IOSClientBuilder.V3 getBuilder(String endPointUrl) {
 
         Identifier projectDomainIdentifier = Identifier.byName(projectDomain);
         Identifier projectNameIdentifier = Identifier.byName(projectName);

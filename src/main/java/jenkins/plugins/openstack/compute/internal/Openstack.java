@@ -119,7 +119,7 @@ public class Openstack {
                 .useRegion(region);
 
         clientProvider = ClientProvider.get(client, region);
-        debug("{0} client created for \"{1}\", \"{2}\".", Openstack.class.getSimpleName(), auth.toString(), region);
+        debug("Openstack client created for \"{1}\", \"{2}\".", auth.toString(), region);
 
     }
 
