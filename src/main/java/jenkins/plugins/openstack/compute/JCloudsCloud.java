@@ -83,8 +83,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private transient @Deprecated Integer retentionTime;
     private transient @Deprecated Integer startTimeout;
     private transient @Deprecated Boolean floatingIps;
-    public transient @Deprecated String identity;
-    public transient @Deprecated Secret credential;
+    private transient @Deprecated String identity;
+    private transient @Deprecated Secret credential;
 
     public static @Nonnull List<JCloudsCloud> getClouds() {
         List<JCloudsCloud> clouds = new ArrayList<>();

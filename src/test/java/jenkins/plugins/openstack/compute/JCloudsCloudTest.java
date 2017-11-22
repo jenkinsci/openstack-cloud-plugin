@@ -71,6 +71,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 public class JCloudsCloudTest {
+    public static final List<JCloudsSlaveTemplate> NO_TEMPLATES = Collections.<JCloudsSlaveTemplate>emptyList();
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
@@ -196,7 +197,7 @@ public class JCloudsCloudTest {
         LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("cid"));
         SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).launcherFactory(slaveType).build();
         JCloudsCloud cloud = new JCloudsCloud(
-                "openstack", "endPointUrl", false,"zone", opts, Collections.<JCloudsSlaveTemplate>emptyList(),openstackAuth
+                "openstack", "endPointUrl",  false,"zone", opts, NO_TEMPLATES, openstackAuth
         );
 
         assertEquals(opts, cloud.getEffectiveSlaveOptions());
@@ -209,11 +210,9 @@ public class JCloudsCloudTest {
 
         String openstackAuth = j.dummyCredential();
 
-        String beans = "identity,credential,endPointUrl,zone";
+        String beans = "credentialId,endPointUrl,zone";
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "endPointUrl", false,"zone",
-                j.defaultSlaveOptions(),
-                Collections.<JCloudsSlaveTemplate>emptyList(),openstackAuth
+                "openstack", "endPointUrl", false,"zone", j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
         );
         j.jenkins.clouds.add(original);
 
@@ -231,9 +230,7 @@ public class JCloudsCloudTest {
         String openstackAuth = j.dummyCredential();
 
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "endPointUrl",false, null,
-                j.defaultSlaveOptions(),
-                Collections.<JCloudsSlaveTemplate>emptyList(),openstackAuth
+                "openstack", "endPointUrl", false,null, j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
         );
         j.jenkins.clouds.add(original);
 
@@ -245,7 +242,11 @@ public class JCloudsCloudTest {
     public void globalConfigMigrationFromV1() throws Exception {
         JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
         assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
-        assertEquals("tenant:user", cloud.identity);
+
+        OpenstackCredentialv2 credential = (OpenstackCredentialv2) OpenstackCredentials.getCredential(cloud.getCredentialId());
+        assertEquals("user", credential.getUsername());
+        assertEquals("tenant", credential.getTenant());
+
         SlaveOptions co = cloud.getEffectiveSlaveOptions();
         assertEquals("public", co.getFloatingIpPool());
         assertEquals(31, (int) co.getRetentionTime());
