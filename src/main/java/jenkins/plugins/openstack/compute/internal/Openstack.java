@@ -113,7 +113,7 @@ public class Openstack {
 
     private Openstack(@Nonnull String endPointUrl, @Nonnull OpenstackCredential auth, @CheckForNull String region) {
 
-        final IOSClientBuilder<? extends OSClient, ?> builder = auth.getBuilder(endPointUrl);
+        final IOSClientBuilder<? extends OSClient<?>, ?> builder = auth.getBuilder(endPointUrl);
         OSClient<?> client = builder
                 .authenticate()
                 .useRegion(region);
@@ -227,7 +227,7 @@ public class Openstack {
         return flavors;
     }
 
-    private Comparator<Flavor> FLAVOR_COMPARATOR = new Comparator<Flavor>() {
+    private static final Comparator<Flavor> FLAVOR_COMPARATOR = new Comparator<Flavor>() {
         @Override
         public int compare(Flavor o1, Flavor o2) {
             return ObjectUtils.compare(o1.getName(), o2.getName());
@@ -243,8 +243,7 @@ public class Openstack {
         return names;
     }
 
-    public @Nonnull
-    List<? extends AvailabilityZone> getAvailabilityZones(){
+    public @Nonnull List<? extends AvailabilityZone> getAvailabilityZones() {
         final List<? extends AvailabilityZone> zones = clientProvider.get().compute().zones().list();
         Collections.sort(zones, AVAILABILITY_ZONES_COMPARATOR);
         return zones;
@@ -371,8 +370,7 @@ public class Openstack {
      *            The new description for the volume.
      */
     public void setVolumeNameAndDescription(String volumeId, String newVolumeName, String newVolumeDescription) {
-        final ActionResponse res = clientProvider.get().blockStorage().volumes().update(volumeId, newVolumeName,
-                newVolumeDescription);
+        final ActionResponse res = clientProvider.get().blockStorage().volumes().update(volumeId, newVolumeName, newVolumeDescription);
         throwIfFailed(res);
     }
 
