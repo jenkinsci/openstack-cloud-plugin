@@ -68,7 +68,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private String credentialId;
 
     public final @Nonnull String endPointUrl;
-    public boolean ignoreSsl;
+    private boolean ignoreSsl;
 
     // OpenStack4j requires null when there is no zone configured
     public final @CheckForNull String zone;
@@ -428,6 +428,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public String getCredentialId() {
         return credentialId;
+    }
+
+    public boolean getIgnoreSsl() {
+        return ignoreSsl;
     }
 
     @Extension
