@@ -95,7 +95,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
 
         // Replace direct reference to references to possible relative paths
         if (method.getAnnotation(InjectOsAuth.class) != null) {
-            for (String attr: Arrays.asList("endPointUrl","credentialId", "zone")) {
+            for (String attr: Arrays.asList("endPointUrl", "ignoreSsl", "credentialId", "zone")) {
                 deps.remove(attr);
                 for (String offset : getAuthFieldsOffsets()) {
                     deps.add(offset + "/" + attr);

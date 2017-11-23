@@ -6,13 +6,16 @@
     <f:entry title="End Point URL" field="endPointUrl">
         <f:textbox/>
     </f:entry>
+    <f:entry title="Ignore unverified SSL certificates" field="ignoreSsl">
+        <f:checkbox/>
+    </f:entry>
     <f:entry title="Credential" field="credentialId">
         <c:select/>
      </f:entry>
     <f:entry title="Region" field="zone">
         <f:textbox/>
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,credentialId,zone"/>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,ignoreSsl,credentialId,zone"/>
 
     <f:advanced title="Default slave options">
         <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>
