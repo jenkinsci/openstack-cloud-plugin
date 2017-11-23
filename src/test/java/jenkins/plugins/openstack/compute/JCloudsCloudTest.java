@@ -210,7 +210,7 @@ public class JCloudsCloudTest {
 
         String openstackAuth = j.dummyCredential();
 
-        String beans = "credentialId,endPointUrl,zone";
+        String beans = "credentialId,endPointUrl,ignoreSsl,zone";
         JCloudsCloud original = new JCloudsCloud(
                 "openstack", "endPointUrl", false,"zone", j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
         );

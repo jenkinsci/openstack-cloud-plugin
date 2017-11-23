@@ -152,11 +152,12 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return m;
         }
 
-        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl, String credentialId1, String credentialId2, String zone1, String zone2) {
+        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl1, boolean ignoreSsl2, String credentialId1, String credentialId2, String zone1, String zone2) {
             if (Util.fixEmpty(value) == null)
                 return REQUIRED;
             final String endPointUrl = getDefault(endPointUrl1, endPointUrl2);
             final String credentialId = getDefault(credentialId1,credentialId2);
+            final boolean ignoreSsl = ignoreSsl1 || ignoreSsl2;
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
             final String zone = getDefault(zone1, zone2);
             if (!haveAuthDetails(endPointUrl, openstackCredential, zone))
@@ -283,12 +284,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     // authentication fields can be in two places relative to us.
                                               @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
                                               @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
-                                              @QueryParameter boolean ignoreSsl,
+                                              @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
+                                              @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
                                               @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
                                               @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
                                               @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                                               @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSsl, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }
@@ -393,12 +395,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     // us.
                                               @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
                                               @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
-                                              @QueryParameter boolean ignoreSsl,
+                                              @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
+                                              @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
                                               @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
                     @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
                     @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                     @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSsl, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }

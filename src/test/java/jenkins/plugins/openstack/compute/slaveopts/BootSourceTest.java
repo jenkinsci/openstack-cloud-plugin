@@ -141,7 +141,7 @@ public class BootSourceTest {
         final String credentialIdCloud = j.dummyCredential();
         final String credentialIdTemplate = j.dummyCredential();
 
-        final FormValidation actual = id.doCheckName("",urlC,urlT, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("",urlC,urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat(actual, hasState(VALIDATION_REQUIRED));
     }
 
@@ -157,7 +157,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.error("Not found");
 
-        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat(actual, hasState(expected));
     }
 
@@ -172,7 +172,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = id.doCheckName("imageFound",urlC, urlT, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageFound",urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat(actual, hasState(expected));
     }
 
@@ -187,7 +187,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.warning("Multiple matching results");
 
-        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat("imageAmbiguous", actual, hasState(expected));
     }
 
@@ -202,7 +202,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat("vsFound", actual, hasState(expected));
     }
 }
