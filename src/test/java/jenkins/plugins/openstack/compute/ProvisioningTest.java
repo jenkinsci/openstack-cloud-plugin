@@ -11,17 +11,19 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
+import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.slaves.OfflineCause;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.Rule;
@@ -50,11 +52,11 @@ import java.util.concurrent.Future;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.startsWith;
-import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -500,6 +502,33 @@ public class ProvisioningTest {
         }
 
         verify(cloud.getOpenstack()).destroyServer(any(Server.class));
+    }
+
+    @Test
+    public void reportOfflineCauseInCloudStats() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        slave.toComputer().setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/Fake/it", 42));
+
+        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+
+        ProvisioningActivity pa = CloudStatistics.get().getActivityFor(slave);
+        List<PhaseExecutionAttachment> attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
+        assertThat(attachments, Matchers.<PhaseExecutionAttachment>iterableWithSize(1));
+        PhaseExecutionAttachment att = attachments.get(0);
+        assertEquals("Disk space is too low. Only 0.000GB left on /Fake/it.", att.getTitle());
+
+        slave = j.provision(cloud, "label");
+        OfflineCause.ChannelTermination cause = new OfflineCause.ChannelTermination(new RuntimeException("Broken alright"));
+        slave.toComputer().setTemporarilyOffline(true, cause);
+
+        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+
+        pa = CloudStatistics.get().getActivityFor(slave);
+        attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
+        assertThat(attachments, Matchers.<PhaseExecutionAttachment>iterableWithSize(1));
+        att = attachments.get(0);
+        assertThat(att.getTitle(), startsWith("Connection was broken: java.lang.RuntimeException: Broken alright"));
     }
 
     /**

@@ -8,6 +8,8 @@ import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
+import hudson.slaves.OfflineCause;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -181,9 +183,16 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     @Override
     protected void _terminate(TaskListener listener) {
-        ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
+        CloudStatistics cloudStatistics = CloudStatistics.get();
+        ProvisioningActivity activity = cloudStatistics.getActivityFor(this);
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
+            // Attach what is likely a reason for the termination
+            OfflineCause offlineCause = ((JCloudsComputer) toComputer()).getFatalOfflineCause();
+            if (offlineCause != null) {
+                PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(ProvisioningActivity.Status.WARN, offlineCause.toString());
+                cloudStatistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, attachment);
+            }
         }
 
         // Wrap deletion disposables into statistics tracking disposables

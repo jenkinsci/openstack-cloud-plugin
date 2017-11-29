@@ -120,9 +120,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                     continue;
                 }
 
-                final OfflineCause offlineCause = comp.getOfflineCause();
-                if (comp.isPendingDelete() || offlineCause instanceof DiskSpaceMonitorDescriptor.DiskSpace) {
-                    LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + offlineCause.toString());
+                final OfflineCause offlineCause = comp.getFatalOfflineCause();
+                if (comp.isPendingDelete() || offlineCause != null) {
+                    LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                     deleteComputer(comp);
                 } else {
                     runningNodes.add(comp);

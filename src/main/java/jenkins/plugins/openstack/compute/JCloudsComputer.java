@@ -1,7 +1,9 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.remoting.VirtualChannel;
 import hudson.slaves.AbstractCloudComputer;
+import hudson.slaves.OfflineCause;
 import hudson.slaves.SlaveComputer;
 import hudson.slaves.OfflineCause.SimpleOfflineCause;
 
@@ -66,6 +68,19 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         return offlineCause instanceof PendingTermination;
     }
 
+    /**
+     * Get computer {@link OfflineCause} provided it is severe enough the computer should be discarded.
+     *
+     * @return value if should be discarded, null if online or offline with non-fatal cause.
+     */
+    /*package*/ @CheckForNull OfflineCause getFatalOfflineCause() {
+        OfflineCause oc = getOfflineCause();
+        return oc instanceof DiskSpaceMonitorDescriptor.DiskSpace || oc instanceof OfflineCause.ChannelTermination
+                ? oc
+                : null
+        ;
+    }
+
     // Hide /configure view inherited from Computer
     @Restricted(DoNotUse.class)
     public void doConfigure(StaplerResponse rsp) throws IOException {
@@ -92,8 +107,6 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     /**
      * Delete the slave, terminate the instance. Can be called either by doDoDelete() or from JCloudsRetentionStrategy.
-     *
-     * @throws InterruptedException
      */
     public void deleteSlave() throws IOException, InterruptedException {
         LOGGER.info("Deleting slave " + getName());
