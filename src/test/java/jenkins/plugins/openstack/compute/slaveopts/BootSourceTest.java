@@ -78,7 +78,7 @@ public class BootSourceTest {
 
         doReturn(Collections.singletonMap(imageName, Collections.singletonList(image))).when(os).getImages();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", credentialId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialId, "OSzone");
         assertEquals(2, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         ListBoxModel.Option item = list.get(1);
@@ -98,7 +98,7 @@ public class BootSourceTest {
         Openstack os = j.fakeOpenstackFactory();
         when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", justVolumeSnapshot));
 
-        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl",credentialId, "OSzone");
+        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialId, "OSzone");
         assertEquals(3, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         assertEquals("Second menu entry is the VS OpenStack can see", "vs-name", list.get(1).name);
@@ -122,7 +122,7 @@ public class BootSourceTest {
         final String credentialId = j.dummyCredential();
 
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", credentialId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialId, "OSzone");
         assertThat(list.get(0).name, list, Matchers.<ListBoxModel.Option>iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
@@ -141,7 +141,7 @@ public class BootSourceTest {
         final String credentialIdCloud = j.dummyCredential();
         final String credentialIdTemplate = j.dummyCredential();
 
-        final FormValidation actual = id.doCheckName("",urlC,urlT, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("",urlC,urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat(actual, hasState(VALIDATION_REQUIRED));
     }
 
@@ -157,7 +157,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.error("Not found");
 
-        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT,credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat(actual, hasState(expected));
     }
 
@@ -172,7 +172,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = id.doCheckName("imageFound",urlC, urlT, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageFound",urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat(actual, hasState(expected));
     }
 
@@ -187,7 +187,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.warning("Multiple matching results");
 
-        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT,credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat("imageAmbiguous", actual, hasState(expected));
     }
 
@@ -202,7 +202,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT,credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
         assertThat("vsFound", actual, hasState(expected));
     }
 }

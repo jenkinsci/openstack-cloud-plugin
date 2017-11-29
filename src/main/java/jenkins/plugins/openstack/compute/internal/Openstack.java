@@ -61,6 +61,7 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.openstack4j.core.transport.Config;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
@@ -111,14 +112,21 @@ public class Openstack {
     // Store the OS session token so clients can be created from it per all threads using this.
     private final ClientProvider clientProvider;
 
-    private Openstack(@Nonnull String endPointUrl, @Nonnull OpenstackCredential auth, @CheckForNull String region) {
+    private Openstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region) {
 
         final IOSClientBuilder<? extends OSClient<?>, ?> builder = auth.getBuilder(endPointUrl);
+
+        Config config = Config.newConfig();
+        if (ignoreSsl) {
+            config.withSSLVerificationDisabled();
+        }
+
         OSClient<?> client = builder
+                .withConfig(config)
                 .authenticate()
                 .useRegion(region);
 
-        clientProvider = ClientProvider.get(client, region);
+        clientProvider = ClientProvider.get(client, region, config);
         debug("Openstack client created for \"{1}\", \"{2}\".", auth.toString(), region);
 
     }
@@ -719,21 +727,21 @@ public class Openstack {
         ;
 
         public abstract @Nonnull Openstack getOpenstack(
-                @Nonnull String endPointUrl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
+                @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
         ) throws FormValidation;
 
         /**
          * Instantiate Openstack client.
          */
         public static @Nonnull Openstack get(
-                @Nonnull final String endPointUrl, @Nonnull final OpenstackCredential auth, @Nonnull final String region
+                @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @Nonnull final String region
         ) throws FormValidation {
-            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n' + auth.toString() + '\n' + region);
+            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n' + ignoreSsl + '\n' + auth.toString() + '\n' + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
             final Callable<Openstack> cacheMissFunction = new Callable<Openstack>() {
                 @Override
                 public Openstack call() throws FormValidation {
-                    return ep.getOpenstack(endPointUrl,auth, region);
+                    return ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
                 }
             };
             // Get an instance, creating a new one if necessary.
@@ -769,14 +777,14 @@ public class Openstack {
 
     @Extension
     public static final class Factory extends FactoryEP {
-        public @Nonnull Openstack getOpenstack(@Nonnull String endPointUrl, @Nonnull OpenstackCredential auth, @CheckForNull String region) throws FormValidation {
+        public @Nonnull Openstack getOpenstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region) throws FormValidation {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             region = Util.fixEmptyAndTrim(region);
 
             if (endPointUrl == null) throw FormValidation.error("No endPoint specified");
             if (auth == null) throw FormValidation.error("No credential specified");
 
-            return new Openstack(endPointUrl, auth, region);
+            return new Openstack(endPointUrl, ignoreSsl, auth, region);
         }
     }
 
@@ -792,9 +800,9 @@ public class Openstack {
 
         public abstract @Nonnull String getInfo();
 
-        private static ClientProvider get(OSClient<?> client, String region) {
-            if (client instanceof OSClient.OSClientV2) return new SessionClientV2Provider((OSClient.OSClientV2) client, region);
-            if (client instanceof OSClient.OSClientV3) return new SessionClientV3Provider((OSClient.OSClientV3) client, region);
+        private static ClientProvider get(OSClient<?> client, String region, Config config) {
+            if (client instanceof OSClient.OSClientV2) return new SessionClientV2Provider((OSClient.OSClientV2) client, region, config);
+            if (client instanceof OSClient.OSClientV3) return new SessionClientV3Provider((OSClient.OSClientV3) client, region, config);
 
             throw new AssertionError(
                     "Unsupported openstack4j client " + client.getClass().getName()
@@ -804,13 +812,15 @@ public class Openstack {
         private static class SessionClientV2Provider extends ClientProvider {
             protected final Access storage;
             protected final String region;
-            private SessionClientV2Provider(OSClient.OSClientV2 toStore, String usedRegion) {
+            protected final Config config;
+            private SessionClientV2Provider(OSClient.OSClientV2 toStore, String usedRegion, Config clientConfig) {
                 storage = toStore.getAccess();
                 region = usedRegion;
+                config = clientConfig;
             }
 
             public @Nonnull OSClient<?> get() {
-                return OSFactory.clientFromAccess(storage).useRegion(region);
+                return OSFactory.clientFromAccess(storage, config).useRegion(region);
             }
 
             @Override
@@ -829,13 +839,15 @@ public class Openstack {
         private static class SessionClientV3Provider extends ClientProvider {
             private final Token storage;
             private final String region;
-            private SessionClientV3Provider(OSClient.OSClientV3 toStore, String usedRegion) {
+            protected final Config config;
+            private SessionClientV3Provider(OSClient.OSClientV3 toStore, String usedRegion, Config clientConfig) {
                 storage = toStore.getToken();
                 region = usedRegion;
+                config = clientConfig;
             }
 
             public @Nonnull OSClient<?> get() {
-                return OSFactory.clientFromToken(storage).useRegion(region);
+                return OSFactory.clientFromToken(storage, config).useRegion(region);
             }
 
             @Override

@@ -56,7 +56,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(
-                "my-openstack", "endPointUrl","zone",
+                "my-openstack", "endPointUrl", false,"zone",
                 SlaveOptions.empty(),
                 Arrays.asList(jnlpTemplate, sshTemplate),
                 j.dummyCredential()
@@ -95,7 +95,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud cloud = new JCloudsCloud(
-                "my-openstack", "credential","zone",
+                "my-openstack", "credential", false,"zone",
                 cloudOpts,
                 Collections.singletonList(template),
                 j.dummyCredential()

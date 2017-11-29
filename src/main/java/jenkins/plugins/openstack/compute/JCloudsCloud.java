@@ -68,6 +68,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private String credentialId;
 
     public final @Nonnull String endPointUrl;
+    private boolean ignoreSsl;
 
     // OpenStack4j requires null when there is no zone configured
     public final @CheckForNull String zone;
@@ -104,13 +105,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(
-            final String name, final String endPointUrl, final String zone,
+            final String name, final String endPointUrl, final boolean ignoreSsl, final String zone,
             final SlaveOptions slaveOptions,
             final List<JCloudsSlaveTemplate> templates,
             final String credentialId
     ) {
         super(Util.fixNull(name).trim());
         this.endPointUrl = Util.fixNull(endPointUrl).trim();
+        this.ignoreSsl = ignoreSsl;
         this.zone = Util.fixEmptyAndTrim(zone);
         this.credentialId = credentialId;
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
@@ -416,7 +418,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public @Nonnull Openstack getOpenstack() {
         final Openstack os;
         try {
-            os = Openstack.Factory.get(endPointUrl, OpenstackCredentials.getCredential(credentialId), zone);
+            os = Openstack.Factory.get(endPointUrl, ignoreSsl, OpenstackCredentials.getCredential(credentialId), zone);
         } catch (FormValidation ex) {
             LOGGER.log(Level.SEVERE, "Openstack authentication invalid", ex);
             throw new RuntimeException("Openstack authentication invalid", ex);
@@ -426,6 +428,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public String getCredentialId() {
         return credentialId;
+    }
+
+    public boolean getIgnoreSsl() {
+        return ignoreSsl;
     }
 
     @Extension
@@ -453,6 +459,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Restricted(DoNotUse.class)
         public FormValidation doTestConnection(
+                @QueryParameter boolean ignoreSsl,
                 @QueryParameter String credentialId,
                 @QueryParameter String endPointUrl,
                 @QueryParameter String zone
@@ -460,7 +467,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             try {
                 // Get credential defined by user, using credential ID
                 OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
-                Openstack openstack = Openstack.Factory.get(endPointUrl, openstackCredential, zone);
+                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 Throwable ex = openstack.sanityCheck();
 
                 if (ex != null) {
