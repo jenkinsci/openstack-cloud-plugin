@@ -100,7 +100,7 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
          */
         @Override
         public @Nonnull String getDisplayName() {
-            return "Openstack auth v2";
+            return "OpenStack auth v2";
         }
 
     }
