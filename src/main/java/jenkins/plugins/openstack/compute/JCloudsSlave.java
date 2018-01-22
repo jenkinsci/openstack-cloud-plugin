@@ -3,6 +3,7 @@ package jenkins.plugins.openstack.compute;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
@@ -188,7 +189,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
             // Attach what is likely a reason for the termination
-            OfflineCause offlineCause = ((JCloudsComputer) toComputer()).getFatalOfflineCause();
+            OfflineCause offlineCause = getFatalOfflineCause();
             if (offlineCause != null) {
                 PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(ProvisioningActivity.Status.WARN, offlineCause.toString());
                 cloudStatistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, attachment);
@@ -202,6 +203,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                         provisioningId
                 )
         );
+    }
+
+    private @CheckForNull OfflineCause getFatalOfflineCause() {
+        Computer computer = toComputer();
+        if (computer == null) return null;
+        return ((JCloudsComputer) computer).getFatalOfflineCause();
     }
 
     private static Openstack getOpenstack(String cloudName) {
