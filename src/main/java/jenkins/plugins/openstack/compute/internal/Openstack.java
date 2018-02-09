@@ -166,7 +166,7 @@ public class Openstack {
 
     /**
      * Finds all {@link Image}s.
-     * 
+     *
      * @return A Map of collections of images, indexed by name (or id if the
      *         image has no name) in ascending order and, in the event of
      *         name-collisions, the images for a given name are sorted by
@@ -198,7 +198,7 @@ public class Openstack {
 
     /**
      * Finds all {@link VolumeSnapshot}s that are {@link Status#AVAILABLE}.
-     * 
+     *
      * @return A Map of collections of {@link VolumeSnapshot}s, indexed by name
      *         (or id if the volume snapshot has no name) in ascending order
      *         and, in the event of name-collisions, the volume snapshots for a
@@ -313,7 +313,7 @@ public class Openstack {
      * Finds the Id(s) of all active {@link Image}s with the given name or ID.
      * If we have found multiple {@link Image}s then they will be listed in
      * ascending date order (oldest first).
-     * 
+     *
      * @param nameOrId The {@link Image} name or ID.
      * @return Zero, one or multiple IDs.
      */
@@ -341,7 +341,7 @@ public class Openstack {
      * Finds the Id(s) of all available {@link VolumeSnapshot}s with the given name
      * or ID. If we have found multiple {@link VolumeSnapshot}s then they will
      * be listed in ascending date order (oldest first).
-     * 
+     *
      * @param nameOrId The {@link VolumeSnapshot} name or ID.
      * @return Zero, one or multiple IDs.
      */
@@ -369,7 +369,7 @@ public class Openstack {
     /**
      * Sets the name and description of a {@link Volume}. These will be visible
      * if a user looks at volumes using the OpenStack command-line or WebUI.
-     * 
+     *
      * @param volumeId
      *            The ID of the volume whose name and description are to be set.
      * @param newVolumeName
@@ -589,7 +589,7 @@ public class Openstack {
         // No floating IP found - use fixed
         return fixed;
     }
-    
+
     /**
      * Extract public address from server info.
      *
@@ -688,7 +688,7 @@ public class Openstack {
         // access them and JVM trusts their SSL cert.
         try {
             OSClient<?> client = clientProvider.get();
-            client.networking().network().get("");
+            client.networking().network().list().size();
             client.images().listMembers("");
             client.compute().listExtensions().size();
         } catch (Throwable ex) {
