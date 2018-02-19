@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -17,6 +18,7 @@ import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
@@ -57,6 +59,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
     private static final char SEPARATOR_CHAR = ',';
+
+    private static final AtomicInteger nodeCounter = new AtomicInteger();
 
     public final String name;
     public final String labelString;
@@ -245,7 +249,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Restricted(NoExternalUse.class)
     public @Nonnull Server provision(@Nonnull JCloudsCloud cloud, @CheckForNull ServerScope scope) throws Openstack.ActionFailed {
-        final String serverName = name + "-" + new Random().nextInt(10000);
+        final String serverName = getServerName();
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
 
@@ -330,6 +334,27 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             // Do not leak the server as we are aborting the provisioning
             AsyncResourceDisposer.get().dispose(new DestroyMachine(cloud.name, server.getId()));
             throw ex;
+        }
+    }
+
+    // Try harder to ensure node name is unique
+    private String getServerName() {
+        CloudStatistics cs = CloudStatistics.get();
+        next_number: for (;;) {
+            // Using static counter to ensure colliding template names (between clouds) will not cause a clash
+            String nameCandidate = name + "-" + nodeCounter.getAndIncrement();
+
+            // Collide with existing node - quite likely from this cloud
+            if (Jenkins.getInstance().getNode(nameCandidate) != null) continue;
+
+            // Collide with node being provisioned (at this point this plugin does not assign final name before launch
+            // is completed) or recently used name (just to avoid confusion).
+            for (ProvisioningActivity provisioningActivity : cs.getActivities()) {
+                if (nameCandidate.equals(provisioningActivity.getId().getNodeName())) {
+                    continue next_number;
+                }
+            }
+            return nameCandidate;
         }
     }
 
