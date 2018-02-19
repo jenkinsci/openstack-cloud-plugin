@@ -310,7 +310,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
-        LOGGER.info("Provisioned: " + server.toString());
 
         try {
             if (bootSource != null) {
