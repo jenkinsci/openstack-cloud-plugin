@@ -208,10 +208,12 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         private static final long serialVersionUID = -8309975034351235331L;
 
         private final @Nonnull String name;
+        private final @Nonnull Integer volumeSize;
 
         @DataBoundConstructor
-        public Image(@Nonnull String name) {
+        public Image(@Nonnull String name, @Nonnull OptionalVolumeSize createNewVolume) {
             this.name = name;
+            this.volumeSize = (createNewVolume != null) ? createNewVolume.volumeSize : null;
         }
 
         @Nonnull
@@ -219,12 +221,29 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return name;
         }
 
+        @Nonnull
+        public Integer getVolumeSize() {
+            return volumeSize;
+        }
+
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os)
                 throws JCloudsCloud.ProvisioningFailedException {
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
-            builder.image(id);
+
+            if (volumeSize != null && volumeSize > 0) {
+              final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
+                      .sourceType(BDMSourceType.IMAGE)
+                      .destinationType(BDMDestType.VOLUME)
+                      .uuid(id)
+                      .volumeSize(volumeSize)
+                      .deleteOnTermination(true)
+                      .bootIndex(0);
+              builder.blockDevice(volumeBuilder.build());
+            } else {
+              builder.image(id);
+            }
         }
 
         @Override
@@ -245,6 +264,15 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         @Override
         public int hashCode() {
             return name.hashCode();
+        }
+
+        public static class OptionalVolumeSize {
+            private Integer volumeSize;
+
+            @DataBoundConstructor
+            public OptionalVolumeSize(Integer volumeSize) {
+                this.volumeSize = volumeSize;
+            }
         }
 
         @Extension

@@ -87,7 +87,7 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void eraseDefaults() throws Exception {
         SlaveOptions cloudOpts = PluginTestRule.dummySlaveOptions(); // Make sure nothing collides with defaults
-        SlaveOptions templateOpts = cloudOpts.getBuilder().bootSource(new BootSource.Image("id")).availabilityZone("other").build();
+        SlaveOptions templateOpts = cloudOpts.getBuilder().bootSource(new BootSource.Image("id", null)).availabilityZone("other").build();
         assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
@@ -102,7 +102,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());
-        assertEquals(SlaveOptions.builder().bootSource(new BootSource.Image("id")).availabilityZone("other").build(), template.getRawSlaveOptions());
+        assertEquals(SlaveOptions.builder().bootSource(new BootSource.Image("id", null)).availabilityZone("other").build(), template.getRawSlaveOptions());
     }
 
     @Test
