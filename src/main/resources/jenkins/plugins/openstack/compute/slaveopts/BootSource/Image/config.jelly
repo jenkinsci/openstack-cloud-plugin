@@ -3,4 +3,10 @@
     <f:entry title="Name" field="name">
         <f:select/>
     </f:entry>
+    <f:entry title="Create New Volume" field="createNewVolume">
+        <f:booleanRadio />
+    </f:entry>
+    <f:entry title="Volume Size (GB)" field="volumeSize">
+        <f:number/>
+    </f:entry>
 </j:jelly>

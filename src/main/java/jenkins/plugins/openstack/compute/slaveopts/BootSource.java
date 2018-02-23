@@ -208,10 +208,14 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         private static final long serialVersionUID = -8309975034351235331L;
 
         private final @Nonnull String name;
+        private final @Nonnull Boolean createNewVolume;
+        private final @Nonnull Integer volumeSize;
 
         @DataBoundConstructor
-        public Image(@Nonnull String name) {
+        public Image(@Nonnull String name, @Nonnull Boolean createNewVolume, @Nonnull Integer volumeSize) {
             this.name = name;
+            this.createNewVolume = createNewVolume;
+            this.volumeSize = volumeSize;
         }
 
         @Nonnull
@@ -219,12 +223,34 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return name;
         }
 
+        @Nonnull
+        public Boolean getCreateNewVolume() {
+            return createNewVolume;
+        }
+
+        @Nonnull
+        public Integer getVolumeSize() {
+            return volumeSize;
+        }
+
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os)
                 throws JCloudsCloud.ProvisioningFailedException {
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
-            builder.image(id);
+
+            if (createNewVolume) {
+              final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
+                      .sourceType(BDMSourceType.IMAGE)
+                      .destinationType(BDMDestType.VOLUME)
+                      .uuid(id)
+                      .volumeSize(volumeSize)
+                      .deleteOnTermination(true)
+                      .bootIndex(0);
+              builder.blockDevice(volumeBuilder.build());
+            } else {
+              builder.image(id);
+            }
         }
 
         @Override
