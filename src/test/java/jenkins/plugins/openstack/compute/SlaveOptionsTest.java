@@ -34,7 +34,7 @@ public class SlaveOptionsTest {
         assertEquals(1, (int) unmodified.getRetentionTime());
 
         SlaveOptions override = SlaveOptions.builder()
-                .bootSource(new BootSource.Image("iid", false, 0))
+                .bootSource(new BootSource.Image("iid", null))
                 .hardwareId("HW")
                 .networkId("NW")
                 .userDataId("UD")
@@ -53,7 +53,7 @@ public class SlaveOptionsTest {
         ;
         SlaveOptions overridden = PluginTestRule.dummySlaveOptions().override(override);
 
-        assertEquals(new BootSource.Image("iid", false, 0), overridden.getBootSource());
+        assertEquals(new BootSource.Image("iid", null), overridden.getBootSource());
         assertEquals("HW", overridden.getHardwareId());
         assertEquals("NW", overridden.getNetworkId());
         assertEquals("UD", overridden.getUserDataId());
@@ -72,8 +72,8 @@ public class SlaveOptionsTest {
 
     @Test
     public void eraseDefaults() {
-        SlaveOptions defaults = SlaveOptions.builder().bootSource(new BootSource.Image("ID", false, 0)).hardwareId("hw").networkId(null).floatingIpPool("a").build();
-        SlaveOptions configured = SlaveOptions.builder().bootSource(new BootSource.Image("ID", false, 0)).hardwareId("hw").networkId("MW").floatingIpPool("A").build();
+        SlaveOptions defaults = SlaveOptions.builder().bootSource(new BootSource.Image("ID", null)).hardwareId("hw").networkId(null).floatingIpPool("a").build();
+        SlaveOptions configured = SlaveOptions.builder().bootSource(new BootSource.Image("ID", null)).hardwareId("hw").networkId("MW").floatingIpPool("A").build();
 
         SlaveOptions actual = configured.eraseDefaults(defaults);
 

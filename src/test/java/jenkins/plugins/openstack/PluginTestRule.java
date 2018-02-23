@@ -128,7 +128,7 @@ public final class PluginTestRule extends JenkinsRule {
 
         // Use some real-looking values preserving defaults to make sure plugin works with them
         return JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
-                .bootSource(new BootSource.Image("dummyImageId", false, 0))
+                .bootSource(new BootSource.Image("dummyImageId", null))
                 .hardwareId("dummyHardwareId")
                 .networkId("dummyNetworkId")
                 .userDataId("dummyUserDataId")

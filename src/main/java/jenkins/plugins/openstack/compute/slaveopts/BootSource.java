@@ -208,24 +208,17 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         private static final long serialVersionUID = -8309975034351235331L;
 
         private final @Nonnull String name;
-        private final @Nonnull Boolean createNewVolume;
         private final @Nonnull Integer volumeSize;
 
         @DataBoundConstructor
-        public Image(@Nonnull String name, @Nonnull Boolean createNewVolume, @Nonnull Integer volumeSize) {
+        public Image(@Nonnull String name, @Nonnull OptionalVolumeSize createNewVolume) {
             this.name = name;
-            this.createNewVolume = createNewVolume;
-            this.volumeSize = volumeSize;
+            this.volumeSize = (createNewVolume != null) ? createNewVolume.volumeSize : null;
         }
 
         @Nonnull
         public String getName() {
             return name;
-        }
-
-        @Nonnull
-        public Boolean getCreateNewVolume() {
-            return createNewVolume;
         }
 
         @Nonnull
@@ -239,7 +232,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
 
-            if (createNewVolume) {
+            if (volumeSize != null && volumeSize > 0) {
               final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
                       .sourceType(BDMSourceType.IMAGE)
                       .destinationType(BDMDestType.VOLUME)
@@ -271,6 +264,15 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         @Override
         public int hashCode() {
             return name.hashCode();
+        }
+
+        public static class OptionalVolumeSize {
+            private Integer volumeSize;
+
+            @DataBoundConstructor
+            public OptionalVolumeSize(Integer volumeSize) {
+                this.volumeSize = volumeSize;
+            }
         }
 
         @Extension
