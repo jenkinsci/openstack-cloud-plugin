@@ -3,4 +3,9 @@
     <f:entry title="Name" field="name">
         <f:select/>
     </f:entry>
+    <f:optionalBlock name="createNewVolume" title="Create New Volume" checked="${instance.volumeSize != null}">
+        <f:entry title="Volume Size (GB)" field="volumeSize">
+            <f:number/>
+        </f:entry>
+    </f:optionalBlock>
 </j:jelly>
