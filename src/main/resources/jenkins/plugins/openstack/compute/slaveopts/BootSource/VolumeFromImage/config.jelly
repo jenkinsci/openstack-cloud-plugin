@@ -3,4 +3,7 @@
     <f:entry title="Name" field="name">
         <f:select/>
     </f:entry>
+    <f:entry title="Volume Size in GB" field="volumeSize">
+        <f:number clazz="required positive-number"/>
+    </f:entry>
 </j:jelly>

@@ -113,7 +113,7 @@ public class BootSourceTest {
         when(image.getId()).thenReturn("image-id");
         when(image.getName()).thenReturn(null);
 
-        OSClient osClient = mock(OSClient.class);
+        OSClient<?> osClient = mock(OSClient.class);
         ImageService imageService = mock(ImageService.class);
         when(osClient.images()).thenReturn(imageService);
         doReturn(Collections.singletonList(image)).when(imageService).listAll();

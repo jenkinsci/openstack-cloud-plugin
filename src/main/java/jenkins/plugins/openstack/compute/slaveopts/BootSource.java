@@ -204,16 +204,14 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         public abstract List<String> listAllNames(Openstack openstack);
     }
 
-    public static final class Image extends BootSource {
+    public static class Image extends BootSource {
         private static final long serialVersionUID = -8309975034351235331L;
 
-        private final @Nonnull String name;
-        private final @Nonnull Integer volumeSize;
+        protected final @Nonnull String name;
 
         @DataBoundConstructor
-        public Image(@Nonnull String name, @Nonnull OptionalVolumeSize createNewVolume) {
+        public Image(@Nonnull String name) {
             this.name = name;
-            this.volumeSize = (createNewVolume != null) ? createNewVolume.volumeSize : null;
         }
 
         @Nonnull
@@ -221,29 +219,14 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return name;
         }
 
-        @Nonnull
-        public Integer getVolumeSize() {
-            return volumeSize;
-        }
-
         @Override
-        public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os)
-                throws JCloudsCloud.ProvisioningFailedException {
+        public void setServerBootSource(
+                @Nonnull ServerCreateBuilder builder, @Nonnull Openstack os
+        ) throws JCloudsCloud.ProvisioningFailedException {
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
 
-            if (volumeSize != null && volumeSize > 0) {
-              final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
-                      .sourceType(BDMSourceType.IMAGE)
-                      .destinationType(BDMDestType.VOLUME)
-                      .uuid(id)
-                      .volumeSize(volumeSize)
-                      .deleteOnTermination(true)
-                      .bootIndex(0);
-              builder.blockDevice(volumeBuilder.build());
-            } else {
-              builder.image(id);
-            }
+            builder.image(id);
         }
 
         @Override
@@ -266,17 +249,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return name.hashCode();
         }
 
-        public static class OptionalVolumeSize {
-            private Integer volumeSize;
-
-            @DataBoundConstructor
-            public OptionalVolumeSize(Integer volumeSize) {
-                this.volumeSize = volumeSize;
-            }
-        }
-
         @Extension
-        public static final class Desc extends BootSourceDescriptor {
+        public static class Desc extends BootSourceDescriptor {
             @Override
             public @Nonnull String getDisplayName() {
                 return "Image";
@@ -292,7 +266,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Override
             public List<String> listAllNames(Openstack openstack) {
                 final Map<String, ?> images = openstack.getImages();
-                final List<String> allNames = new ArrayList<String>(images.size());
+                final List<String> allNames = new ArrayList<>(images.size());
                 allNames.addAll(images.keySet());
                 return allNames;
             }
@@ -319,6 +293,52 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                                               @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                                               @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
                 return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
+            }
+        }
+    }
+
+    public static final class VolumeFromImage extends Image {
+        private static final long serialVersionUID = 3932407339481241514L;
+
+        private final int volumeSize;
+
+        public int getVolumeSize() {
+            return volumeSize;
+        }
+
+        @DataBoundConstructor
+        public VolumeFromImage(@Nonnull String name, int volumeSize) {
+            super(name);
+            this.volumeSize = volumeSize;
+        }
+
+        @Override
+        public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os) throws JCloudsCloud.ProvisioningFailedException {
+            final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
+            final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
+
+            final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
+                    .sourceType(BDMSourceType.IMAGE)
+                    .destinationType(BDMDestType.VOLUME)
+                    .uuid(id)
+                    .volumeSize(volumeSize)
+                    .deleteOnTermination(true)
+                    .bootIndex(0)
+            ;
+            builder.blockDevice(volumeBuilder.build());
+        }
+
+        @Override
+        public String toString() {
+            return "Volume from Image " + name + " (" + volumeSize + "GB)";
+        }
+
+        @Extension
+        public static final class VFIDesc extends Desc {
+
+            @Override
+            public @Nonnull String getDisplayName() {
+                return "Volume from Image";
             }
         }
     }
@@ -406,7 +426,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Override
             public List<String> listAllNames(Openstack openstack) {
                 final Map<String, ?> images = openstack.getVolumeSnapshots();
-                final List<String> allNames = new ArrayList<String>(images.size());
+                final List<String> allNames = new ArrayList<>(images.size());
                 allNames.addAll(images.keySet());
                 return allNames;
             }
@@ -421,11 +441,11 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             public FormValidation doCheckName(@QueryParameter String value,
                     // authentication fields can be in two places relative to
                     // us.
-                                              @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
-                                              @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
-                                              @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
-                                              @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
-                                              @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
+                    @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
+                    @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
+                    @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
+                    @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
+                    @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
                     @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
                     @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                     @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {

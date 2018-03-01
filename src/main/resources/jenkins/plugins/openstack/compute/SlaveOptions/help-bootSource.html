@@ -1,28 +1,27 @@
 <div>
-  Selects the kind of image to be used as the boot source for the instance.
-  <p/>
   OpenStack has multiple ways of storing the data necessary for booting up a new instances.
-  This plugin supports the following:
+  This plugin supports the following boot sources:
   <dl>
-  <dt>Image (default)</dt>
-  <dd>
-  A bootable filesystem stored on OpenStack's &quot;image store&quot; subsystem.
-  Images get copied to the &quot;compute node&quot; before being booted.
-  The instance is given a writable copy which is disposed of when the
-  instance itself is destroyed.
-  </dd>
-  <dt>Volume Snapshot</dt>
-  <dd>
-  A bootable filesystem stored on OpenStack's &quot;block storage&quot; subsystem.
-  Booting from a Volume Snapshot requires OpenStack to create a new volume
-  for the instance to boot from, which will automatically be deleted when
-  the instance itself is disposed of.
-  </dd>
+    <dt>Image</dt>
+    <dd>
+    A bootable filesystem stored on OpenStack's "image store".
+    Images or Snapshots get copied to the "compute node" before being booted.
+    The instance is given a writable copy which is disposed of when the
+    instance itself is destroyed.
+    </dd>
+    <dt>Volume Snapshot</dt>
+    <dd>
+    A bootable filesystem stored on OpenStack's "block storage".
+    Booting from a Volume Snapshot requires OpenStack to create a new volume
+    for the instance to boot from, which will automatically be deleted when
+    the instance itself is destroyed.
+    </dd>
+    <dt>Volume from Image</dt>
+    <dd>
+    A bootable filesystem stored on OpenStack's "image storage" will be used as a source for a bootable volume.
+    It requires OpenStack to create a new volume
+    for the instance to boot from, which will automatically be deleted when
+    the instance itself is destroyed.
+    </dd>
   </dl>
-  OpenStack also supports booting from an
-  &quot;Instance Snapshot&quot;
-  or a
-  &quot;Volume&quot;
-  These methods are unsupported by this plugin but data can be converted,
-  e.g. by creating a Volume Snapshot from a Volume.
 </div>
