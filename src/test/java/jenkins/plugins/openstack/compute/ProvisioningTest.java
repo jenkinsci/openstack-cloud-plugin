@@ -103,10 +103,6 @@ public class ProvisioningTest {
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         computer.doDoDelete();
-        //noinspection deprecation
-        assertTrue("Slave is temporarily offline", computer.isTemporarilyOffline());
-
-        j.triggerOpenstackSlaveCleanup();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
         waitForCloudStatistics(activity, ProvisioningActivity.Phase.COMPLETED);
         assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));

@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.remoting.VirtualChannel;
+import hudson.security.Permission;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.SlaveComputer;
@@ -88,19 +89,19 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     @Override @Restricted(NoExternalUse.class)
-    public HttpResponse doDoDelete() throws IOException {
-        setPendingDelete(true);
+    public HttpResponse doDoDelete() {
+        checkPermission(Permission.DELETE);
         try {
-            return super.doDoDelete();
-        } catch (IOException|RuntimeException ex) {
-            setPendingDelete(false);
+            deleteSlave();
+            return new HttpRedirect("..");
+        } catch (Exception ex) {
             return HttpResponses.error(500, ex);
         }
     }
 
     @Restricted(NoExternalUse.class)
     public HttpRedirect doScheduleTermination() {
-        checkPermission(DISCONNECT);
+        checkPermission(Permission.DELETE);
         setPendingDelete(true);
         return new HttpRedirect(".");
     }
@@ -108,23 +109,19 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     /**
      * Delete the slave, terminate the instance.
      */
-    public void deleteSlave() throws IOException, InterruptedException {
-        LOGGER.info("Deleting slave " + getName());
+    /*package*/ void deleteSlave() throws IOException, InterruptedException {
         JCloudsSlave slave = getNode();
+        if (slave == null) return; // Slave already deleted
 
-        // Slave already deleted
-        if (slave == null) {
-            LOGGER.info("Skipping, computer is gone already: " + getName());
-            return;
+        LOGGER.info("Deleting slave " + getName());
+        setAcceptingTasks(false); // Prevent accepting further task while we are shutting down
+        try {
+            slave.terminate();
+            LOGGER.info("Deleted slave " + getName());
+        } catch (Throwable ex) {
+            setAcceptingTasks(true);
+            throw ex;
         }
-
-        VirtualChannel channel = slave.getChannel();
-        if (channel != null) {
-            channel.close();
-        }
-        slave.terminate();
-        Jenkins.getActiveInstance().removeNode(slave);
-        LOGGER.info("Deleted slave " + getName());
     }
 
     // Singleton
