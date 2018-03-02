@@ -1,18 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
-import hudson.remoting.VirtualChannel;
 import hudson.security.Permission;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
-import hudson.slaves.SlaveComputer;
 import hudson.slaves.OfflineCause.SimpleOfflineCause;
-
-import java.io.IOException;
-import java.util.logging.Logger;
-
-import jenkins.model.Jenkins;
-
+import hudson.slaves.SlaveComputer;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
@@ -26,6 +19,8 @@ import org.kohsuke.stapler.StaplerResponse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.logging.Logger;
 
 /**
  * OpenStack version of Jenkins {@link SlaveComputer} - responsible for terminating an instance.
@@ -129,7 +124,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     private static final class PendingTermination extends SimpleOfflineCause {
 
-        protected PendingTermination() {
+        private PendingTermination() {
             super(Messages._DeletedCause());
         }
     }

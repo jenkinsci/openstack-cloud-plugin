@@ -10,7 +10,6 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.OfflineCause;
-import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
