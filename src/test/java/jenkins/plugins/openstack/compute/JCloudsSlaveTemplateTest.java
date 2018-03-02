@@ -1,7 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
 import java.io.ByteArrayInputStream;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -18,6 +17,7 @@ import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.internal.util.reflection.Whitebox;
 import org.openstack4j.model.compute.BDMDestType;
 import org.openstack4j.model.compute.BDMSourceType;
 import org.openstack4j.model.compute.BlockDeviceMappingCreate;
@@ -27,6 +27,7 @@ import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -148,6 +149,7 @@ public class JCloudsSlaveTemplateTest {
         final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
         when(mockOs.getVolumeSnapshotIdsFor(volumeSnapshotName)).thenReturn(Collections.singletonList(volumeSnapshotId));
+
         final ArgumentCaptor<ServerCreateBuilder> scbCaptor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         final ArgumentCaptor<String> vnCaptor = ArgumentCaptor.forClass(String.class);
         final ArgumentCaptor<String> vdCaptor = ArgumentCaptor.forClass(String.class);
@@ -155,44 +157,51 @@ public class JCloudsSlaveTemplateTest {
         final Server actual = instance.provision(cloud);
 
         final String actualServerName = actual.getName();
-        final String actualServerId = actual.getId();
         verify(mockOs, times(1)).bootAndWaitActive(scbCaptor.capture(), anyInt());
         verify(mockOs, times(1)).setVolumeNameAndDescription(anyString(), vnCaptor.capture(), vdCaptor.capture());
-        final ServerCreateBuilder scbActual = scbCaptor.getValue();
-        final List<BlockDeviceMappingCreate> blockDeviceMappingActual = (List<BlockDeviceMappingCreate>)readPrivateField(readPrivateField(scbActual, "m"), "blockDeviceMapping");
-        assertThat(blockDeviceMappingActual, hasSize(1));
-        final NovaBlockDeviceMappingCreate bdmcActual = (NovaBlockDeviceMappingCreate)blockDeviceMappingActual.get(0);
+
+        final NovaBlockDeviceMappingCreate bdmcActual = getBlockDeviceMapping(scbCaptor.getValue());
         assertThat(bdmcActual.boot_index, equalTo(0));
         assertThat(bdmcActual.delete_on_termination, equalTo(true));
         assertThat(bdmcActual.uuid, equalTo(volumeSnapshotId));
         assertThat(bdmcActual.source_type, equalTo(BDMSourceType.SNAPSHOT));
         assertThat(bdmcActual.destination_type, equalTo(BDMDestType.VOLUME));
-        final String actualVolumeName = vnCaptor.getValue();
-        assertThat(actualVolumeName, equalTo(actualServerName+"[0]"));
+        assertThat(vnCaptor.getValue(), equalTo(actualServerName+"[0]"));
+
         final String actualVolumeDescription = vdCaptor.getValue();
         assertThat(actualVolumeDescription, containsString(actualServerName));
-        assertThat(actualVolumeDescription, containsString(actualServerId));
+        assertThat(actualVolumeDescription, containsString(actual.getId()));
         assertThat(actualVolumeDescription, containsString(volumeSnapshotName));
     }
 
-    private static Object readPrivateField(Object object, String fieldName) {
-        final StringBuilder msg = new StringBuilder();
-        final Class<?> clazz = object.getClass();
-        try {
-            msg.append("Unable to read field '").append(fieldName).append("' from ").append(object)
-                    .append(".  Known fields are:");
-            for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {
-                msg.append("\n").append(c).append(":");
-                for (Field f : c.getDeclaredFields()) {
-                    msg.append("\n  ").append(f);
-                }
-            }
-            final Field field = clazz.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            Object value = field.get(object);
-            return value;
-        } catch (Exception e) {
-            throw new AssertionError(msg.toString(), e);
-        }
+    @SuppressWarnings("unchecked")
+    private NovaBlockDeviceMappingCreate getBlockDeviceMapping(ServerCreateBuilder scbActual) {
+        assertNotNull(scbActual);
+        List<BlockDeviceMappingCreate> blockDeviceMapping = (List<BlockDeviceMappingCreate>) Whitebox.getInternalState(
+                scbActual.build(), "blockDeviceMapping"
+        );
+        assertThat(blockDeviceMapping, hasSize(1));
+        return (NovaBlockDeviceMappingCreate) blockDeviceMapping.get(0);
+    }
+
+    @Test
+    public void bootFromImageVolume() {
+        final SlaveOptions opts = PluginTestRule.dummySlaveOptions().getBuilder().bootSource(new BootSource.VolumeFromImage("src_img_id", 42)).build();
+        final JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
+        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        final Openstack os = cloud.getOpenstack();
+
+        template.provision(cloud);
+
+        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
+        verify(os, times(1)).bootAndWaitActive(captor.capture(), any(Integer.class));
+        NovaBlockDeviceMappingCreate blockDeviceMapping = getBlockDeviceMapping(captor.getValue());
+
+        assertThat(blockDeviceMapping.boot_index, equalTo(0));
+        assertThat(blockDeviceMapping.delete_on_termination, equalTo(true));
+        assertThat(blockDeviceMapping.uuid, equalTo("src_img_id"));
+        assertThat(blockDeviceMapping.source_type, equalTo(BDMSourceType.IMAGE));
+        assertThat(blockDeviceMapping.destination_type, equalTo(BDMDestType.VOLUME));
+        assertThat(blockDeviceMapping.volume_size, equalTo(42));
     }
 }
