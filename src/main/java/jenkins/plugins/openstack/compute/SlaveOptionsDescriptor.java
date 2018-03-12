@@ -458,8 +458,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     /**
      * Get Default value label.
      */
-    @Restricted(DoNotUse.class) // For view
-    public @Nonnull String def(@CheckForNull Object val) {
+    private @Nonnull String def(@CheckForNull Object val) {
         return val == null ? "" : ("Inherited value: " + val);
     }
 }

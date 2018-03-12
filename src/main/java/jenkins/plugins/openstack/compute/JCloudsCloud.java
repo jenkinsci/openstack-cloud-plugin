@@ -414,7 +414,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     /**
      * Get connected OpenStack client wrapper.
      */
-    @Restricted(DoNotUse.class)
+    @Restricted(NoExternalUse.class)
     public @Nonnull Openstack getOpenstack() {
         final Openstack os;
         try {
