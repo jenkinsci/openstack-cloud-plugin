@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import java.io.ObjectStreamException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,7 +10,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import hudson.model.Executor;
 import hudson.model.Result;
-import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.Cloud;
 import hudson.slaves.OfflineCause;
 import jenkins.model.CauseOfInterruption;
@@ -45,12 +43,7 @@ import javax.annotation.Nonnull;
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(JCloudsCleanupThread.class.getName());
 
-    private transient @Nonnull ListMultimap<String, String> stillFips = ArrayListMultimap.create();
-
-    private Object readResolve() throws ObjectStreamException {
-        stillFips = ArrayListMultimap.create();
-        return this;
-    }
+    private final @Nonnull ListMultimap<String, String> stillFips = ArrayListMultimap.create();
 
     public JCloudsCleanupThread() {
         super("OpenStack slave cleanup");
@@ -157,7 +150,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         for (Cloud cloud : Jenkins.getActiveInstance().clouds) {
             if (cloud instanceof JCloudsCloud) {
                 JCloudsCloud jc = (JCloudsCloud) cloud;
-                runningServers.put(jc.name, new ArrayList<Server>());
+                runningServers.put(jc.name, new ArrayList<>());
                 List<Server> servers = jc.getOpenstack().getRunningNodes();
                 for (Server server : servers) {
                     ServerScope scope = ServerScope.extract(server);
@@ -193,6 +186,8 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     }
 
     private static class MessageInterruption extends CauseOfInterruption {
+        private static final long serialVersionUID = 7125610351278586647L;
+
         private final String msg;
 
         private MessageInterruption(String msg) {
