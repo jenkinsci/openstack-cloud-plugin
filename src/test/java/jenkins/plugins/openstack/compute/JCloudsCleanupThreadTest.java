@@ -2,10 +2,13 @@ package jenkins.plugins.openstack.compute;
 
 import static org.junit.Assert.*;
 import static org.hamcrest.Matchers.startsWith;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import hudson.Launcher;
@@ -33,6 +36,7 @@ import org.openstack4j.model.compute.Server;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.NoSuchElementException;
 
 /**
  * @author ogondza.
@@ -134,7 +138,9 @@ public class JCloudsCleanupThreadTest {
         blocker.enter.block();
         assertTrue(build.isBuilding());
 
-        when(os.getRunningNodes()).thenReturn(Collections.<Server>emptyList());
+        when(os.getRunningNodes()).thenReturn(Collections.emptyList());
+        String serverId = JCloudsComputer.getAll().get(0).getNode().getServerId();
+        doThrow(new NoSuchElementException()).when(os).getServerById(eq(serverId));
         j.triggerOpenstackSlaveCleanup();
 
         j.assertBuildStatus(Result.ABORTED, build);
