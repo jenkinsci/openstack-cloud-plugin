@@ -1,11 +1,13 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.model.Computer;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.security.Permission;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.OfflineCause.SimpleOfflineCause;
 import hudson.slaves.SlaveComputer;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
@@ -20,6 +22,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -29,6 +33,19 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
+
+    /**
+     * Get all Openstack computers.
+     */
+    public static @Nonnull List<JCloudsComputer> getAll() {
+        ArrayList<JCloudsComputer> out = new ArrayList<>();
+        for (final Computer c : Jenkins.getActiveInstance().getComputers()) {
+            if (c instanceof JCloudsComputer) {
+                out.add((JCloudsComputer) c);
+            }
+        }
+        return out;
+    }
 
     public JCloudsComputer(JCloudsSlave slave) {
         super(slave);
