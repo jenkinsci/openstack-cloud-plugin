@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
@@ -97,7 +96,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         readResolve();
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "UnusedReturnValue"})
     private Object readResolve() {
         // Initializes data structure that we don't persist.
         labelSet = Label.parse(labelString);
@@ -200,8 +199,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      * @throws JCloudsCloud.ProvisioningFailedException Provisioning failed.
      */
     public @Nonnull JCloudsSlave provisionSlave(
-            @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id, @Nonnull TaskListener listener
-    ) throws JCloudsCloud.ProvisioningFailedException, InterruptedException {
+            @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id
+    ) throws JCloudsCloud.ProvisioningFailedException {
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
         Server nodeMetadata = provision(cloud);
@@ -241,7 +240,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      * Provision OpenStack machine.
      *
      * @throws Openstack.ActionFailed In case the provisioning failed.
-     * @see #provisionSlave(JCloudsCloud, ProvisioningActivity.Id, TaskListener)
+     * @see #provisionSlave(JCloudsCloud, ProvisioningActivity.Id)
      */
     /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
         return provision(cloud, null);

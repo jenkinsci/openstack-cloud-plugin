@@ -305,9 +305,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         @Override
-        public Node call() throws Exception {
-            // TODO: record the output somewhere
-            JCloudsSlave jcloudsSlave = template.provisionSlave(cloud, id, StreamTaskListener.fromStdout());
+        public Node call() {
+            JCloudsSlave jcloudsSlave = template.provisionSlave(cloud, id);
 
             LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
             return jcloudsSlave;
@@ -392,10 +391,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         JCloudsSlave node;
         try {
-            StringWriter sw = new StringWriter();
-            StreamTaskListener listener = new StreamTaskListener(sw);
             provisioningListener.onStarted(id);
-            node = t.provisionSlave(this, id, listener);
+            node = t.provisionSlave(this, id);
             provisioningListener.onComplete(id, node);
         } catch (Openstack.ActionFailed ex) {
             provisioningListener.onFailure(id, ex);
