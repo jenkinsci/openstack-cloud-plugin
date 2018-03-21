@@ -39,6 +39,7 @@ import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
@@ -380,7 +381,7 @@ public class ProvisioningTest {
         );
 
         List<ProvisioningActivity> all = CloudStatistics.get().getActivities();
-        assertThat(all, Matchers.<ProvisioningActivity>iterableWithSize(2));
+        assertThat(all, Matchers.iterableWithSize(2));
         for (ProvisioningActivity pa : all) {
             waitForCloudStatistics(pa, ProvisioningActivity.Phase.OPERATING);
             assertNotNull(pa.getPhaseExecution(ProvisioningActivity.Phase.OPERATING));
@@ -505,26 +506,33 @@ public class ProvisioningTest {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/Fake/it", 42));
-
         ((JCloudsComputer) slave.toComputer()).deleteSlave();
 
         ProvisioningActivity pa = CloudStatistics.get().getActivityFor(slave);
         List<PhaseExecutionAttachment> attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
-        assertThat(attachments, Matchers.<PhaseExecutionAttachment>iterableWithSize(1));
+        assertThat(attachments, Matchers.iterableWithSize(1));
         PhaseExecutionAttachment att = attachments.get(0);
         assertEquals("Disk space is too low. Only 0.000GB left on /Fake/it.", att.getTitle());
 
         slave = j.provision(cloud, "label");
-        OfflineCause.ChannelTermination cause = new OfflineCause.ChannelTermination(new RuntimeException("Broken alright"));
-        slave.toComputer().setTemporarilyOffline(true, cause);
-
+        slave.toComputer().setTemporarilyOffline(true, new OfflineCause.ChannelTermination(new RuntimeException("Broken alright")));
         ((JCloudsComputer) slave.toComputer()).deleteSlave();
 
         pa = CloudStatistics.get().getActivityFor(slave);
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
-        assertThat(attachments, Matchers.<PhaseExecutionAttachment>iterableWithSize(1));
+        assertThat(attachments, Matchers.iterableWithSize(1));
         att = attachments.get(0);
         assertThat(att.getTitle(), startsWith("Connection was broken: java.lang.RuntimeException: Broken alright"));
+
+        slave = j.provision(cloud, "label");
+        slave.toComputer().disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
+        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+
+        pa = CloudStatistics.get().getActivityFor(slave);
+        attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
+        assertThat(attachments, Matchers.iterableWithSize(1));
+        att = attachments.get(0);
+        assertThat(att.getTitle(), startsWith("Connection was broken: java.io.IOException: Broken badly"));
     }
 
     /**
@@ -566,6 +574,7 @@ public class ProvisioningTest {
         final int millisecondsToWaitBetweenPolls = 100;
         final int maxTimeToWaitInMilliseconds = 5000;
         final AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        //noinspection deprecation
         disposer.reschedule();
         final long timestampBeforeWaiting = System.nanoTime();
         while (true) {
