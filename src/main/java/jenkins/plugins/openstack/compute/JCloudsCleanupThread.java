@@ -192,7 +192,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                 // Gone as expected
             }
 
-            String msg = "No OpenStack server running for computer " + computer.getName() + ". Terminating server " + id;
+            String msg = "OpenStack server (" + id + ") is not running for computer " + computer.getName() + ". Terminating!";
             LOGGER.warning(msg);
             deleteComputer(computer, new MessageInterruption(msg));
         }

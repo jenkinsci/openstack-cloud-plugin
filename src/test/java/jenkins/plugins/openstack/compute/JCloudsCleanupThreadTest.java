@@ -111,7 +111,7 @@ public class JCloudsCleanupThreadTest {
     }
 
     @Test
-    public void deleteLeakedFip() throws Exception {
+    public void deleteLeakedFip() {
         JCloudsCloud cloud = j.dummyCloud();
         Openstack os = cloud.getOpenstack();
         when(os.getFreeFipIds()).thenReturn(Arrays.asList("busy1", "leaked")).thenReturn(Arrays.asList("leaked", "busy2"));
@@ -147,7 +147,7 @@ public class JCloudsCleanupThreadTest {
         j.waitUntilNoActivity();
         assertThat(
                 build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
-                startsWith("No OpenStack server running for computer")
+                startsWith("OpenStack server (" + serverId + ") is not running for computer ")
         );
     }
 
@@ -163,11 +163,11 @@ public class JCloudsCleanupThreadTest {
 
         Thread.sleep(2000); // For cloud to kick the machine while build is enqueued
 
-        assertThat(j.jenkins.getNodes(), Matchers.<Node>iterableWithSize(1));
+        assertThat(j.jenkins.getNodes(), Matchers.iterableWithSize(1));
 
         j.triggerOpenstackSlaveCleanup();
 
-        assertThat(j.jenkins.getNodes(), Matchers.<Node>iterableWithSize(1));
+        assertThat(j.jenkins.getNodes(), Matchers.iterableWithSize(1));
     }
 
     private static class BuildBlocker extends TestBuilder {
