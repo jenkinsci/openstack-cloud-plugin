@@ -7,6 +7,7 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Result;
+import hudson.model.User;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
@@ -16,6 +17,7 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -50,7 +52,7 @@ public class JCloudsCleanupThreadTest {
     public PluginTestRule j = new PluginTestRule();
 
     @Test
-    public void discardOutOfDiskSlave() throws Exception {
+    public void discardTemporarilyOfflineSlave() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
 
@@ -64,7 +66,7 @@ public class JCloudsCleanupThreadTest {
     }
 
     @Test
-    public void discardHardBrokenSlave() throws Exception {
+    public void discardDisconnectedSlave() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
 
@@ -76,6 +78,22 @@ public class JCloudsCleanupThreadTest {
 
         j.triggerOpenstackSlaveCleanup();
         assertNull(AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
+    }
+
+    @Test @Issue("JENKINS-50313") @Ignore("Not jet fixed")
+    public void doNotDiscardDisconnectedSlaveTemporarilyOfflineBySomeone() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
+
+        j.triggerOpenstackSlaveCleanup();
+        assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
+
+        computer.setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "For testing"));
+        computer.disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
+        assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
+
+        j.triggerOpenstackSlaveCleanup();
+        assertNotNull(AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
     }
 
     @Test
