@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
@@ -213,9 +214,24 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             String cause;
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
                 if ((System.currentTimeMillis() - node.getCreatedTime()) > timeout) {
+
                     String timeoutMessage = String.format("Failed to connect agent %s within timeout (%d ms): %s", node.getNodeName(), timeout, cause);
+                    Error errorQuerying = null;
+                    try {
+                        Server freshServer = cloud.getOpenstack().getServerById(nodeMetadata.getId());
+                        timeoutMessage += System.lineSeparator() + "Server state: " + freshServer;
+                        // TODO attach instance log (or tail of) to cloud statistics
+                    } catch (NoSuchElementException ex) {
+                        timeoutMessage += System.lineSeparator() + "Server does no longer exist: " + nodeMetadata.getId();
+                    } catch (Error ex) {
+                        errorQuerying = ex;
+                    }
                     LOGGER.warning(timeoutMessage);
-                    throw new JCloudsCloud.ProvisioningFailedException(timeoutMessage);
+                    JCloudsCloud.ProvisioningFailedException ex = new JCloudsCloud.ProvisioningFailedException(timeoutMessage);
+                    if (errorQuerying != null) {
+                        ex.addSuppressed(errorQuerying);
+                    }
+                    throw ex;
                 }
 
                 Thread.sleep(2000);

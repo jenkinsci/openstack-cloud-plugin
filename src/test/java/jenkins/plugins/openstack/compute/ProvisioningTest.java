@@ -85,7 +85,7 @@ public class ProvisioningTest {
     @Test
     public void manuallyProvisionAndKill() throws Exception {
         CloudStatistics cs = CloudStatistics.get();
-        assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(0));
+        assertThat(cs.getActivities(), Matchers.iterableWithSize(0));
 
         JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
         JCloudsSlave slave = j.provision(cloud, "label");
@@ -94,7 +94,7 @@ public class ProvisioningTest {
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
         assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
 
-        assertThat(cs.getActivities(), Matchers.<ProvisioningActivity>iterableWithSize(1));
+        assertThat(cs.getActivities(), Matchers.iterableWithSize(1));
         ProvisioningActivity activity = cs.getActivities().get(0);
 
         waitForCloudStatistics(activity, ProvisioningActivity.Phase.OPERATING);
@@ -146,7 +146,7 @@ public class ProvisioningTest {
         verifyNoMoreInteractions(os);
 
         List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
-        assertThat(activities, Matchers.<ProvisioningActivity>iterableWithSize(2));
+        assertThat(activities, Matchers.iterableWithSize(2));
     }
 
     @Test
@@ -195,7 +195,7 @@ public class ProvisioningTest {
         assertEquals(3, openTmplt.getRunningNodes().size());
     }
 
-    public void assertProvisioned(int expectedCount, Collection<NodeProvisioner.PlannedNode> nodes) throws Exception {
+    private void assertProvisioned(int expectedCount, Collection<NodeProvisioner.PlannedNode> nodes) throws Exception {
         assertEquals(expectedCount, nodes.size());
         for (NodeProvisioner.PlannedNode node : nodes) {
             node.future.get();
@@ -496,6 +496,7 @@ public class ProvisioningTest {
             String msg = ex.getCause().getMessage();
             assertThat(msg, containsString("Failed to connect agent"));
             assertThat(msg, containsString("JNLP connection was not established yet"));
+            assertThat("Server details are printed", msg, containsString("Server state: Mock for "));
         }
 
         verify(cloud.getOpenstack()).destroyServer(any(Server.class));
