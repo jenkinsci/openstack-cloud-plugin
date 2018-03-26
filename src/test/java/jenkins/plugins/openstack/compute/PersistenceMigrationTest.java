@@ -6,7 +6,6 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import jenkins.plugins.openstack.PluginTestRule;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv3;
@@ -23,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -100,7 +98,7 @@ public class PersistenceMigrationTest {
 
 
     @Test @LocalData
-    public void loadConfigFromV29() throws Exception {
+    public void loadConfigFromV29() {
         JCloudsCloud v2Cloud = JCloudsCloud.getByName("v2");
         JCloudsCloud v3Cloud = JCloudsCloud.getByName("v3");
 
