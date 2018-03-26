@@ -11,13 +11,15 @@ import hudson.slaves.SlaveComputer;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /*
  * This class as designed, is not supposed to be shared among multiple computers.
+ * Implementation of Serializable for Pipeline purposes
  */
-public class JCloudsLauncher extends DelegatingComputerLauncher {
+public class JCloudsLauncher extends DelegatingComputerLauncher implements Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsLauncher.class.getName());
 
