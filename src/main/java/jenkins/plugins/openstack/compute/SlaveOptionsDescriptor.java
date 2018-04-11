@@ -72,7 +72,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     private SlaveOptions opts() {
-        return ((JCloudsCloud.DescriptorImpl) Jenkins.getActiveInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
+        return JCloudsCloud.DescriptorImpl.getDefaultOptions();
     }
 
     @Restricted(DoNotUse.class)
@@ -219,37 +219,6 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
-    @InjectOsAuth
-    public ListBoxModel doFillNetworkIdItems(
-            @QueryParameter String networkId, @QueryParameter String endPointUrl,
-            @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialId, @QueryParameter String zone
-    ) {
-        ListBoxModel m = new ListBoxModel();
-        m.add("None specified", "");
-        final String valueOrEmpty = Util.fixNull(networkId);
-        try {
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
-            if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
-                for (org.openstack4j.model.network.Network network : openstack.getSortedNetworks()) {
-                    final String value = network.getId();
-                    final String displayText = String.format("%s (%s)", network.getName(), value);
-                    m.add(displayText, value);
-                }
-            }
-        } catch (AuthenticationException | FormValidation | ConnectionException ex) {
-            LOGGER.log(Level.FINEST, "Openstack call failed", ex);
-        } catch (Exception ex) {
-            LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-        }
-        if (!hasValue(m, valueOrEmpty)) {
-            m.add(networkId);
-        }
-        return m;
-    }
-
-    @Restricted(DoNotUse.class)
     public FormValidation doCheckNetworkId(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("networkId") String def
@@ -352,7 +321,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             @RelativePath("../..") @QueryParameter("credentialId") String credentialIdTemplate,
             @RelativePath("..") @QueryParameter("zone") String zoneCloud,
             @RelativePath("../..") @QueryParameter("zone") String zoneTemplate
-    ) throws FormValidation {
+    ) {
         // Warn user if they've not selected anything AND there's multiple availability zones
         // as this can lead to non-deterministic behavior.
         // But if we can't find any availability zones then we assume that all is OK

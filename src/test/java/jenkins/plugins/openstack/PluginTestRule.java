@@ -99,7 +99,7 @@ public final class PluginTestRule extends JenkinsRule {
             dummyUserData("dummyUserDataId");
         }
         return new SlaveOptions(
-                new BootSource.VolumeSnapshot("id"), "hw", "nw", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10,
+                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10,
                 "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 1
         );
     }

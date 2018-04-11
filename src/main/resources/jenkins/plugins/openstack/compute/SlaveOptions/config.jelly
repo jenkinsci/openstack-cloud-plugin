@@ -21,8 +21,8 @@
                     <f:entry title="Hardware" field="hardwareId">
                         <f:select/>
                     </f:entry>
-                    <f:entry title="Network" field="networkId">
-                        <f:select/>
+                    <f:entry title="Network(s)" field="networkId">
+                        <f:textbox/>
                     </f:entry>
                     <f:entry title="User Data" field="userDataId">
                         <f:select/>

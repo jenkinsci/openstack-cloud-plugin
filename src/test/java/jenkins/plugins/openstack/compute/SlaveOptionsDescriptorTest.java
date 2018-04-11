@@ -33,6 +33,7 @@ import org.openstack4j.model.compute.ext.AvailabilityZone;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -53,7 +54,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckInstanceCap() throws Exception {
+    public void doCheckInstanceCap() {
         assertThat(d.doCheckInstanceCap(null, null), hasState(OK, "Inherited value: 10"));
         assertThat(d.doCheckInstanceCap(null, "3"), hasState(OK, "Inherited value: 3"));
         assertThat(d.doCheckInstanceCap(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
@@ -67,7 +68,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckStartTimeout() throws Exception {
+    public void doCheckStartTimeout() {
         assertThat(d.doCheckStartTimeout(null, null), hasState(OK, "Inherited value: 600000"));
         assertThat(d.doCheckStartTimeout(null, "10"), hasState(OK, "Inherited value: 10"));
         assertThat(d.doCheckStartTimeout(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
@@ -81,7 +82,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckNumExecutors() throws Exception {
+    public void doCheckNumExecutors() {
         assertThat(d.doCheckNumExecutors(null, null), hasState(OK, "Inherited value: 1"));
         assertThat(d.doCheckNumExecutors(null, "10"), hasState(OK, "Inherited value: 10"));
         assertThat(d.doCheckNumExecutors(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
@@ -95,7 +96,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckRetentionTime() throws Exception {
+    public void doCheckRetentionTime() {
         assertThat(d.doCheckRetentionTime(null, null), hasState(OK, "Inherited value: 30"));
         assertThat(d.doCheckRetentionTime(null, "10"), hasState(OK, "Inherited value: 10"));
         assertThat(d.doCheckRetentionTime(null, "err"), hasState(OK, "Inherited value: err")); // It is ok, error should be reported for the default
@@ -208,7 +209,7 @@ public class SlaveOptionsDescriptorTest {
     public void doCheckAvailabilityZoneGivenNoAZAndOnlyOneZoneToChooseFromThenReturnsOK() throws Exception {
         final AvailabilityZone az1 = mock(AvailabilityZone.class, "az1");
         when(az1.getZoneName()).thenReturn("az1Name");
-        final List<AvailabilityZone> azs = Arrays.asList(az1);
+        final List<AvailabilityZone> azs = Collections.singletonList(az1);
         final Openstack os = j.fakeOpenstackFactory();
         doReturn(azs).when(os).getAvailabilityZones();
         final String value = "";
@@ -265,11 +266,9 @@ public class SlaveOptionsDescriptorTest {
         assertThat(getFillDependencies("keyPairName"), equalTo(expected));
         assertThat(getFillDependencies("floatingIpPool"), equalTo(expected));
         assertThat(getFillDependencies("hardwareId"), equalTo(expected));
-        assertThat(getFillDependencies("networkId"), equalTo(expected));
 
         assertFillWorks("floatingIpPool");
         assertFillWorks("hardwareId");
-        assertFillWorks("networkId");
         assertFillWorks("keyPairName");
     }
 
@@ -320,7 +319,7 @@ public class SlaveOptionsDescriptorTest {
         final HashMap<String, Object> map = new HashMap<>();
         // StaplerRequest required
         j.executeOnServer(new Callable<Void>() {
-            @Override public Void call() throws Exception {
+            @Override public Void call() {
                 SlaveOptionsDescriptor d = (SlaveOptionsDescriptor) j.jenkins.getDescriptorOrDie(SlaveOptions.class);
                 d.calcFillSettings(field, map);
                 return null;
