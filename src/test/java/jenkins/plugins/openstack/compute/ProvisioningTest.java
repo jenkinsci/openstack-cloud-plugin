@@ -140,10 +140,6 @@ public class ProvisioningTest {
         verify(os, times(2)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(2)).updateInfo(any(Server.class));
         verify(os, atLeastOnce()).destroyServer(any(Server.class));
-        verify(os, atLeastOnce()).getServerById(any(String.class));
-        verify(os, atLeastOnce()).getImageIdsFor(any(String.class));
-
-        verifyNoMoreInteractions(os);
 
         List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
         assertThat(activities, Matchers.iterableWithSize(2));
@@ -280,60 +276,6 @@ public class ProvisioningTest {
         slave = j.provision(cloud, "retention");
 
         assertEquals(42, (int) slave.getSlaveOptions().getRetentionTime());
-    }
-
-    @Test
-    public void allowToUseImageNameAsWellAsId() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.Image("image-id")).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
-
-        Openstack os = cloud.getOpenstack();
-        // simulate same image resolved to different ids
-        when(os.getImageIdsFor(eq("image-id"))).thenReturn(Collections.singletonList("image-id")).thenReturn(Collections.singletonList("something-else"));
-
-        j.provision(cloud, "label"); j.provision(cloud, "label");
-
-        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
-        verify(os, times(2)).bootAndWaitActive(captor.capture(), any(Integer.class));
-
-        List<ServerCreateBuilder> builders = captor.getAllValues();
-        assertEquals(2, builders.size());
-        assertEquals("image-id", builders.get(0).build().getImageRef());
-        assertEquals("something-else", builders.get(1).build().getImageRef());
-    }
-
-    @Test
-    public void allowToUseVolumeSnapshotNameAsWellAsId() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.VolumeSnapshot("vs-id")).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
-
-        Openstack os = cloud.getOpenstack();
-        // simulate same snapshot resolved to different ids
-        when(os.getVolumeSnapshotIdsFor(eq("vs-id"))).thenReturn(Collections.singletonList("vs-id")).thenReturn(Collections.singletonList("something-else"));
-
-        j.provision(cloud, "label"); j.provision(cloud, "label");
-
-        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
-        verify(os, times(2)).bootAndWaitActive(captor.capture(), any(Integer.class));
-
-        List<ServerCreateBuilder> builders = captor.getAllValues();
-        assertEquals(2, builders.size());
-        assertEquals("vs-id", getVolumeSnapshotId(builders.get(0)));
-        assertEquals("something-else", getVolumeSnapshotId(builders.get(1)));
-    }
-
-    @SuppressWarnings("unchecked")
-    private String getVolumeSnapshotId(ServerCreateBuilder builder) {
-        List<BlockDeviceMappingCreate> mapping = (List<BlockDeviceMappingCreate>) Whitebox.getInternalState(
-                builder.build(),
-                "blockDeviceMapping"
-        );
-
-        assertEquals(1, mapping.size());
-        NovaBlockDeviceMappingCreate device = (NovaBlockDeviceMappingCreate) mapping.get(0);
-        assertEquals(BDMSourceType.SNAPSHOT, device.source_type);
-        assertEquals(BDMDestType.VOLUME, device.destination_type);
-        return device.uuid;
     }
 
     @Test

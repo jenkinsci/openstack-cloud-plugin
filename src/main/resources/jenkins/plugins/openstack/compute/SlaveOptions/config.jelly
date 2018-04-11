@@ -21,8 +21,8 @@
                     <f:entry title="Hardware" field="hardwareId">
                         <f:select/>
                     </f:entry>
-                    <f:entry title="Network" field="networkId">
-                        <f:select/>
+                    <f:entry title="Network(s)" field="networkId">
+                        <f:textbox/>
                     </f:entry>
                     <f:entry title="User Data" field="userDataId">
                         <f:select/>
@@ -30,7 +30,7 @@
                     <f:entry title="Max. No. of Instances" field="instanceCap">
                         <f:number/>
                     </f:entry>
-                    <f:entry title="Associate floating IP from pool" field="floatingIpPool">
+                    <f:entry title="Floating IP pool" field="floatingIpPool">
                         <f:select/>
                     </f:entry>
                     <f:entry title="Security Groups" field="securityGroups">

@@ -52,7 +52,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
     private final @CheckForNull String hardwareId;
-    private final @CheckForNull String networkId;
+    private final @CheckForNull String networkId; // csv list of networkIds, in fact
     private final @CheckForNull String userDataId;
     private final Integer instanceCap;
     private final @CheckForNull String floatingIpPool;

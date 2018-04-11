@@ -19,7 +19,7 @@ public class SlaveOptionsTest {
 
         assertEquals(new BootSource.VolumeSnapshot("id"), unmodified.getBootSource());
         assertEquals("hw", unmodified.getHardwareId());
-        assertEquals("nw", unmodified.getNetworkId());
+        assertEquals("nw1,mw2", unmodified.getNetworkId());
         assertEquals("dummyUserDataId", unmodified.getUserDataId());
         assertEquals(1, (int) unmodified.getInstanceCap());
         assertEquals("pool", unmodified.getFloatingIpPool());

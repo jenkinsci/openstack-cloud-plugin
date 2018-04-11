@@ -45,6 +45,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -152,9 +153,14 @@ public class Openstack {
     }
 
     public @Nonnull Collection<? extends Network> getSortedNetworks() {
-        List<? extends Network> nets = clientProvider.get().networking().network().list();
+        List<? extends Network> nets = _listNetworks();
         Collections.sort(nets, RESOURCE_COMPARATOR);
         return nets;
+    }
+
+    @VisibleForTesting
+    public  @Nonnull List<? extends Network> _listNetworks() {
+        return clientProvider.get().networking().network().list();
     }
 
     private static final Comparator<BasicResource> RESOURCE_COMPARATOR = new Comparator<BasicResource>() {
@@ -163,6 +169,30 @@ public class Openstack {
             return ObjectUtils.compare(o1.getName(), o2.getName());
         }
     };
+
+    public @Nonnull List<String> getNetworkIds(@Nonnull List<String> nameOrIds) {
+        if (nameOrIds.isEmpty()) return Collections.emptyList();
+
+        Map<String, String> name2id = new HashMap<>();
+        for (Network network : _listNetworks()) {
+            name2id.put(network.getName(), network.getId());
+        }
+
+        ArrayList<String> networks = new ArrayList<>();
+        for (String requiredNetwork : nameOrIds) {
+            if (name2id.containsValue(requiredNetwork)) {
+                networks.add(requiredNetwork);
+                continue;
+            }
+            String id = name2id.get(requiredNetwork);
+            if (id != null) {
+                networks.add(id);
+                continue;
+            }
+            LOGGER.warning("No such network: " + requiredNetwork);
+        }
+        return networks;
+    }
 
     /**
      * Finds all {@link Image}s.
