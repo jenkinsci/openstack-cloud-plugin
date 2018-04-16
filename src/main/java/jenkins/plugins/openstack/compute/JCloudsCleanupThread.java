@@ -198,6 +198,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
     }
 
+    @Override protected Level getNormalLoggingLevel() { return Level.FINE; }
+    @Override protected Level getSlowLoggingLevel() { return Level.INFO; }
+
     private static class MessageInterruption extends CauseOfInterruption {
         private static final long serialVersionUID = 7125610351278586647L;
 
