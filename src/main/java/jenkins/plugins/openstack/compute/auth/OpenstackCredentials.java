@@ -16,11 +16,12 @@ import java.util.List;
 public class OpenstackCredentials {
 
     public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialId) {
+        Jenkins.getInstance().getACL().checkPermission(Jenkins.ADMINISTER);
         if (credentialId == null) return null;
 
         List<OpenstackCredential> credentials = CredentialsProvider.lookupCredentials(
                         OpenstackCredential.class, Jenkins.getInstance(), ACL.SYSTEM,
-                        Collections.<DomainRequirement>emptyList()
+                        Collections.emptyList()
         );
         return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialId));
     }

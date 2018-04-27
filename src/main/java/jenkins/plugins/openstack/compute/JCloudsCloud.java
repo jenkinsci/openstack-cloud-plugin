@@ -497,7 +497,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             }
 
             List<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(
-                    StandardCredentials.class, context, ACL.SYSTEM, Collections.<DomainRequirement>emptyList()
+                    StandardCredentials.class, context, ACL.SYSTEM, Collections.emptyList()
             );
             return new StandardListBoxModel()
                     .withEmptySelection()

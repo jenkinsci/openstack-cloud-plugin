@@ -425,8 +425,7 @@ public class ProvisioningTest {
         final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
         final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
         final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
-        final Matcher<Iterable<NodeProvisioner.PlannedNode>> hasOnlyOneElement = iterableWithSize(1);
-        assertThat(pns, hasOnlyOneElement);
+        assertThat(pns, iterableWithSize(1));
         final PlannedNode pn = pns.iterator().next();
         final Future<Node> pnf = pn.future;
 
