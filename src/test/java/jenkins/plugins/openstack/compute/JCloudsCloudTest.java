@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -295,13 +296,19 @@ public class JCloudsCloudTest {
         });
         clickAction(configfiles, "remove");
 
-        assertEquals(null, template.getUserData());
+        assertNull(template.getUserData());
 
         configfiles = wc.goTo("configfiles");
         HtmlPage newOne = configfiles.getAnchorByText("Add a new Config").click();
-        HtmlForm form = newOne.getForms().get(1);
-        form.getOneHtmlElementByAttribute("input", "value", "jenkins.plugins.openstack.compute.UserDataConfig").click();
-        HtmlPage newForm = j.submit(form);
+        HtmlForm configForm = null;
+        for (HtmlForm htmlForm : newOne.getForms()) {
+            if ("addConfig".equals(htmlForm.getActionAttribute())) {
+                configForm = htmlForm;
+            }
+        }
+        assertNotEquals("Unable to locate the config files form", null, configForm);
+        configForm.getOneHtmlElementByAttribute("input", "value", "jenkins.plugins.openstack.compute.UserDataConfig").click();
+        HtmlPage newForm = j.submit(configForm);
         j.submit(newForm.getForms().get(1));
     }
 
