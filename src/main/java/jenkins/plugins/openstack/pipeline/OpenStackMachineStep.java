@@ -16,6 +16,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -100,6 +101,7 @@ public class OpenStackMachineStep extends Step {
             return "Cloud instances provisioning";
         }
 
+        @RequirePOST
         public ListBoxModel doFillCloudItems() {
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
@@ -112,6 +114,7 @@ public class OpenStackMachineStep extends Step {
             return r;
         }
 
+        @RequirePOST
         public ListBoxModel doFillTemplateItems(@QueryParameter String cloud) {
             cloud = Util.fixEmpty(cloud);
             ListBoxModel r = new ListBoxModel();

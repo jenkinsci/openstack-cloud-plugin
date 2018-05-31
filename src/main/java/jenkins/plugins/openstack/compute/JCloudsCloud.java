@@ -54,6 +54,7 @@ import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.model.compute.Server;
 
 /**
@@ -341,6 +342,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * @param name Name of the template to provision
      */
     @Restricted(NoExternalUse.class)
+    @RequirePOST
     public void doProvision(
             StaplerRequest req, StaplerResponse rsp, @QueryParameter String name
     ) throws ServletException, IOException, Descriptor.FormException, InterruptedException {
@@ -455,6 +457,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         @Restricted(DoNotUse.class)
+        @RequirePOST
         public FormValidation doTestConnection(
                 @QueryParameter boolean ignoreSsl,
                 @QueryParameter String credentialId,
@@ -479,6 +482,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         @Restricted(DoNotUse.class)
+        @RequirePOST
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
             if (Util.fixEmpty(value) == null) return FormValidation.validateRequired(value);
 
@@ -491,6 +495,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         @Restricted(DoNotUse.class)
+        @RequirePOST
         public ListBoxModel doFillCredentialIdItems(@AncestorInPath Jenkins context) {
             if (context == null || !context.hasPermission(Item.CONFIGURE)) {
                 return new StandardListBoxModel();

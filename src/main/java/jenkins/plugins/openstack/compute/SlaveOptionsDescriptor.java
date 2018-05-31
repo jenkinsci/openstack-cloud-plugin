@@ -41,6 +41,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
 import org.openstack4j.model.compute.Flavor;
@@ -76,6 +77,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckInstanceCap(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("instanceCap") String def
@@ -89,6 +91,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckStartTimeout(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("startTimeout") String def
@@ -102,6 +105,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckNumExecutors(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("numExecutors") String def
@@ -115,6 +119,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckRetentionTime(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("retentionTime") String def
@@ -134,6 +139,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
 
     @Restricted(DoNotUse.class)
     @InjectOsAuth
+    @RequirePOST
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
             @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl,
@@ -162,6 +168,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckFloatingIpPool(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("floatingIpPool") String def
@@ -176,6 +183,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
 
     @Restricted(DoNotUse.class)
     @InjectOsAuth
+    @RequirePOST
     public ListBoxModel doFillHardwareIdItems(
             @QueryParameter String hardwareId, @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
@@ -206,6 +214,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckHardwareId(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("hardwareId") String def
@@ -219,6 +228,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckNetworkId(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("networkId") String def
@@ -232,6 +242,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public ListBoxModel doFillUserDataIdItems() {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
@@ -243,6 +254,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckUserDataId(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("userDataId") String def
@@ -270,6 +282,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckSecurityGroups(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("securityGroups") String def
@@ -284,6 +297,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
 
     @Restricted(DoNotUse.class)
     @InjectOsAuth
+    @RequirePOST
     public ComboBoxModel doFillAvailabilityZoneItems(
             @QueryParameter String availabilityZone, @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
@@ -310,6 +324,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckAvailabilityZone(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("availabilityZone") String def,
@@ -352,6 +367,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
 
     @Restricted(DoNotUse.class)
     @InjectOsAuth
+    @RequirePOST
     public ListBoxModel doFillKeyPairNameItems(
             @QueryParameter String keyPairName,
             @QueryParameter String endPointUrl,
@@ -381,6 +397,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckKeyPairName(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("keyPairName") String def
@@ -394,6 +411,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckJvmOptions(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("jvmOptions") String def
@@ -407,6 +425,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public FormValidation doCheckFsRoot(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("fsRoot") String def

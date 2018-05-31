@@ -17,6 +17,7 @@ import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -96,11 +97,13 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     // Hide /configure view inherited from Computer
     @Restricted(DoNotUse.class)
+    @RequirePOST
     public void doConfigure(StaplerResponse rsp) throws IOException {
         rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
     @Override @Restricted(NoExternalUse.class)
+    @RequirePOST
     public HttpResponse doDoDelete() {
         checkPermission(Permission.DELETE);
         try {
@@ -112,6 +115,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     @Restricted(NoExternalUse.class)
+    @RequirePOST
     public HttpRedirect doScheduleTermination() {
         checkPermission(Permission.DELETE);
         setPendingDelete(true);

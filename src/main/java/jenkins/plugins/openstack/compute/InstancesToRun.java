@@ -11,6 +11,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 @Restricted(NoExternalUse.class)
 public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun> {
@@ -45,6 +46,7 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
 
     @Extension
     public static class DescriptorImpl extends Descriptor<InstancesToRun> {
+        @RequirePOST
         public ListBoxModel doFillCloudNameItems() {
             ListBoxModel m = new ListBoxModel();
             for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
@@ -54,6 +56,7 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
             return m;
         }
 
+        @RequirePOST
         public ListBoxModel doFillTemplateNameItems(@QueryParameter String cloudName) {
             ListBoxModel m = new ListBoxModel();
             if (Util.fixEmpty(cloudName) != null) {
@@ -65,6 +68,7 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
             return m;
         }
 
+        @RequirePOST
         public FormValidation doCheckCount(@QueryParameter String value) {
             return FormValidation.validatePositiveInteger(value);
         }

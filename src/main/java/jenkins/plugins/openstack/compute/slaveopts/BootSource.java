@@ -42,6 +42,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
@@ -273,6 +274,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
             @Restricted(DoNotUse.class)
             @InjectOsAuth
+            @RequirePOST
             public ListBoxModel doFillNameItems(@QueryParameter String name,
                                                 @QueryParameter String endPointUrl,
                                                 @QueryParameter boolean ignoreSsl,
@@ -282,6 +284,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             }
 
             @Restricted(DoNotUse.class)
+            @RequirePOST
             public FormValidation doCheckName(@QueryParameter String value,
                     // authentication fields can be in two places relative to us.
                                               @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
@@ -433,11 +436,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
             @Restricted(DoNotUse.class)
             @OsAuthDescriptor.InjectOsAuth
+            @RequirePOST
             public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialId, @QueryParameter String zone) {
                 return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialId, zone);
             }
 
             @Restricted(DoNotUse.class)
+            @RequirePOST
             public FormValidation doCheckName(@QueryParameter String value,
                     // authentication fields can be in two places relative to
                     // us.
