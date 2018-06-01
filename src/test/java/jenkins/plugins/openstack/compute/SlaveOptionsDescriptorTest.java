@@ -1,5 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
@@ -11,9 +13,11 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -142,7 +146,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckAvailabilityZoneGivenAZThenReturnsOK() throws Exception {
+    public void doCheckAvailabilityZoneGivenAZThenReturnsOK() {
         final Openstack os = j.fakeOpenstackFactory();
         final String openstackAuth = j.dummyCredential();
 
@@ -153,7 +157,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckAvailabilityZoneGivenDefaultAZThenReturnsOKWithDefault() throws Exception {
+    public void doCheckAvailabilityZoneGivenDefaultAZThenReturnsOKWithDefault() {
         final String value = "";
         final String def = "defaultAZ";
         final Openstack os = j.fakeOpenstackFactory();
@@ -166,7 +170,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckAvailabilityZoneGivenNoAZAndOnlyOneZoneToChooseFromThenReturnsOK() throws Exception {
+    public void doCheckAvailabilityZoneGivenNoAZAndOnlyOneZoneToChooseFromThenReturnsOK() {
         final AvailabilityZone az1 = mock(AvailabilityZone.class, "az1");
         when(az1.getZoneName()).thenReturn("az1Name");
         final List<AvailabilityZone> azs = Collections.singletonList(az1);
@@ -180,7 +184,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckAvailabilityZoneGivenNoAZAndNoSupportForAZsThenReturnsOK() throws Exception {
+    public void doCheckAvailabilityZoneGivenNoAZAndNoSupportForAZsThenReturnsOK() {
         final Openstack os = j.fakeOpenstackFactory();
         doThrow(new RuntimeException("OpenStack said no")).when(os).getAvailabilityZones();
         final String value = "";
@@ -193,7 +197,7 @@ public class SlaveOptionsDescriptorTest {
     }
 
     @Test
-    public void doCheckAvailabilityZoneGivenNoAZAndMultipleZoneToChooseFromThenReturnsWarning() throws Exception {
+    public void doCheckAvailabilityZoneGivenNoAZAndMultipleZoneToChooseFromThenReturnsWarning() {
         final AvailabilityZone az1 = mock(AvailabilityZone.class, "az1");
         final AvailabilityZone az2 = mock(AvailabilityZone.class, "az2");
         when(az1.getZoneName()).thenReturn("az1Name");
@@ -249,7 +253,9 @@ public class SlaveOptionsDescriptorTest {
                 new AuthenticationException("No one cares as we are testing if correct credentials are passed in", 42)
         );
 
-        j.createWebClient().goTo(fillUrl + QUERY_STRING, "application/json");
+        URL url = new URL(j.getURL().toExternalForm() + fillUrl + QUERY_STRING);
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.getPage(wc.addCrumb(new WebRequest(url, HttpMethod.POST)));
 
         verify(factory).getOpenstack(eq(END_POINT), eq(IGNORE_SSL), eq(OpenstackCredentials.getCredential(CREDENTIALID)), eq(REGION));
         verifyNoMoreInteractions(factory);

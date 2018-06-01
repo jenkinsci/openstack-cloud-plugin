@@ -97,7 +97,6 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     // Hide /configure view inherited from Computer
     @Restricted(DoNotUse.class)
-    @RequirePOST
     public void doConfigure(StaplerResponse rsp) throws IOException {
         rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
