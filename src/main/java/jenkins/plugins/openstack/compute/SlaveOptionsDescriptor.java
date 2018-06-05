@@ -89,6 +89,19 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    public FormValidation doCheckInstancesMin(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("instancesMin") String def
+    ) {
+        if (Util.fixEmpty(value) == null) {
+            String d = getDefault(def, opts().getInstancesMin());
+            if (d != null) return FormValidation.ok(def(d));
+            return REQUIRED;
+        }
+        return FormValidation.validateNonNegativeInteger(value);
+    }
+
+    @Restricted(DoNotUse.class)
     public FormValidation doCheckStartTimeout(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("startTimeout") String def

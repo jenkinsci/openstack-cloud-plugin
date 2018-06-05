@@ -3,6 +3,8 @@ package jenkins.plugins.openstack.compute;
 import static org.junit.Assert.*;
 
 import hudson.model.Computer;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.User;
@@ -129,4 +131,56 @@ public class JCloudsRetentionStrategyTest {
         computer.getRetentionStrategy().check(computer);
         assertTrue(computer.isPendingDelete());
     }
+
+    @Test
+    public void doNotDeleteNewSlaveIfInstanceRequired() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+            j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+            "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.waitUntilOnline();
+
+        computer.getRetentionStrategy().check(computer);
+
+        assertFalse(computer.isPendingDelete());
+    }
+
+    @Test
+    public void deleteUsedSlaveWhenOnlyNewInstancesAreRequired() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+            j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+            "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.waitUntilOnline();
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedNode(slave);
+        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        j.waitForCompletion(build);
+
+        computer.getRetentionStrategy().check(computer);
+
+        assertTrue(computer.isPendingDelete());
+    }
+
+    @Test
+	public void deleteMinimumNumberOfInstancesWhenOverProvisioned() throws Exception {
+	    JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+	    	j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+	        "label"
+	    )));
+	    JCloudsSlave slave1 = j.provision(cloud, "label");
+	    JCloudsSlave slave2 = j.provision(cloud, "label");
+        JCloudsComputer computer1 = (JCloudsComputer) slave1.toComputer();
+        JCloudsComputer computer2 = (JCloudsComputer) slave2.toComputer();
+
+        computer1.getRetentionStrategy().check(computer1);
+        computer2.getRetentionStrategy().check(computer2);
+
+        assertTrue(computer1.isPendingDelete());
+        assertFalse(computer2.isPendingDelete());
+	}
 }

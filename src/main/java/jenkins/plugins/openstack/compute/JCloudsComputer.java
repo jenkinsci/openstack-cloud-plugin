@@ -94,6 +94,18 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         ;
     }
 
+    /**
+     * Has this computer been used to run builds?
+     */
+    public boolean isNew() {
+        /* We use the identify `connectTime == idleStartMilliseconds` as a proxy to
+        indicate that this computer hasn't run any job yet. This is not perfect
+        because if a node gets disconnected and then reconnected after being
+        used this identity will be true but it's a good enough approximation.
+        */
+        return getConnectTime() == getIdleStartMilliseconds();
+    }
+
     // Hide /configure view inherited from Computer
     @Restricted(DoNotUse.class)
     public void doConfigure(StaplerResponse rsp) throws IOException {

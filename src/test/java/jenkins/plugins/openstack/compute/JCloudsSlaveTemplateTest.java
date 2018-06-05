@@ -97,7 +97,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud cloud = new JCloudsCloud(
-                "my-openstack", "credential", false,"zone",
+                "my-openstack", "credential", false, "zone",
                 cloudOpts,
                 Collections.singletonList(template),
                 j.dummyCredential()

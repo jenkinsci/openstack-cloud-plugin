@@ -11,6 +11,7 @@ import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.remoting.Base64;
+import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
@@ -402,6 +403,28 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         }
         return tmplt;
+    }
+
+    /**
+     * Return the number of active nodes provisioned using this template.
+     *
+     * @param onlyNewComputers Whether or not to limit the list to nodes running on new machines.
+     */
+    public int getActiveNodesTotal(boolean onlyNewComputers) {
+        int totalServers = 0;
+        for (Server server : getRunningNodes()) {
+            JCloudsComputer computer = (JCloudsComputer) Jenkins.getActiveInstance().getNode(server.getName()).toComputer();
+            if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
+                if (onlyNewComputers) {
+                    if (computer.isNew()) {
+                        totalServers++;
+                    }
+                } else {
+                    totalServers++;
+                }
+            }
+        }
+        return totalServers;
     }
 
     @Override

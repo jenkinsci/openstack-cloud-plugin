@@ -37,7 +37,7 @@ import javax.annotation.Nonnull;
  *
  * Currently it ensures:
  *
- * - Node pending deletion get termionated with their servers
+ * - Node pending deletion get terminated with their servers.
  * - Servers that are running longer than declared are terminated.
  * - Nodes with server missing are terminated.
  */
