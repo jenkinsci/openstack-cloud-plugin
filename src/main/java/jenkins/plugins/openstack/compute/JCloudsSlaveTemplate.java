@@ -416,7 +416,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             JCloudsComputer computer = (JCloudsComputer) Jenkins.getActiveInstance().getNode(server.getName()).toComputer();
             if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
                 if (onlyNewComputers) {
-                    if (computer.isNew()) {
+                    if (!computer.isUsed()) {
                         totalServers++;
                     }
                 } else {

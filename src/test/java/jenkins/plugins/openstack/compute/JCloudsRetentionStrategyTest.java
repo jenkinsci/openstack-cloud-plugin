@@ -135,8 +135,8 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void doNotDeleteNewSlaveIfInstanceRequired() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
-            j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-            "label"
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+                "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
@@ -150,8 +150,8 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void deleteUsedSlaveWhenOnlyNewInstancesAreRequired() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
-            j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-            "label"
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+                "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
@@ -169,8 +169,8 @@ public class JCloudsRetentionStrategyTest {
     @Test
 	public void deleteMinimumNumberOfInstancesWhenOverProvisioned() throws Exception {
 	    JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
-	    	j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-	        "label"
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+                "label"
 	    )));
 	    JCloudsSlave slave1 = j.provision(cloud, "label");
 	    JCloudsSlave slave2 = j.provision(cloud, "label");

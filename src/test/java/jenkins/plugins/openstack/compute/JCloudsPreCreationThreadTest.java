@@ -9,6 +9,8 @@ import org.mockito.ArgumentCaptor;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
@@ -16,6 +18,26 @@ public class JCloudsPreCreationThreadTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
+
+    @Test
+    public void shouldSlaveBeRetainedTrueWhenInstancesAreRequired() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).instancesMin(1).build(),
+                "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        assertTrue("Slave must be retained", JCloudsPreCreationThread.shouldSlaveBeRetained(slave));
+    }
+
+	@Test
+    public void shouldSlaveBeRetainedFalseWhenNoInstancesAreRequired() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).instancesMin(0).build(),
+                "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        assertFalse("Slave does not need to be retained", JCloudsPreCreationThread.shouldSlaveBeRetained(slave));
+    }
 
     @Test
     public void createNodesWhenRequired() throws Exception {

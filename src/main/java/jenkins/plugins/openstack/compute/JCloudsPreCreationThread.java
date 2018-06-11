@@ -57,6 +57,35 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
         }
     }
 
+    /**
+    * Should a slave be retained to meet the minimum instances constraint?
+    */
+    public static boolean shouldSlaveBeRetained(JCloudsSlave slave) {
+        String templateName = slave.getId().getTemplateName();
+        String cloudName = slave.getId().getCloudName();
+        if (templateName != null && cloudName != null) {
+            JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
+            if (cloud != null) {
+                JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
+                if (template != null) {
+                    SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
+                    Integer instancesMin = slaveOptions.getInstancesMin();
+                    JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+                    Integer retentionTime = slaveOptions.getRetentionTime();
+                    if (instancesMin > 0 && computer != null) {
+                        if (retentionTime != 0 && (template.getActiveNodesTotal(false) - 1) < instancesMin) {
+                            return true;
+                        }
+                        if (retentionTime == 0 && !computer.isUsed() && (template.getActiveNodesTotal(true) - 1) < instancesMin) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     @Override protected Level getNormalLoggingLevel() { return Level.FINE; }
     @Override protected Level getSlowLoggingLevel() { return Level.INFO; }
 

@@ -80,7 +80,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     // Backward compatibility
     private transient @Deprecated Integer instanceCap;
-    private transient @Deprecated Integer instancesMin;
     private transient @Deprecated Integer retentionTime;
     private transient @Deprecated Integer startTimeout;
     private transient @Deprecated Boolean floatingIps;
@@ -125,10 +124,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @SuppressWarnings({"unused", "deprecation", "ConstantConditions"})
     private Object readResolve() {
-        if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null || instancesMin != null ) {
+        if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null ) {
             SlaveOptions carry = SlaveOptions.builder()
                     .instanceCap(instanceCap)
-                    .instancesMin(instancesMin)
                     .retentionTime(retentionTime)
                     .startTimeout(startTimeout)
                     .floatingIpPool(floatingIps ? "public" : null)
@@ -139,7 +137,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             startTimeout = null;
             floatingIps = null;
             instanceCap = null;
-            instancesMin = null;
         }
 
         // Migrate to v2.24

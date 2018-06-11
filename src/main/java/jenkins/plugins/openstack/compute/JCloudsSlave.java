@@ -214,33 +214,6 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return JCloudsCloud.getByName(cloudName).getOpenstack();
     }
 
-    public JCloudsSlaveTemplate getTemplate() {
-        JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
-        Server server = cloud.getOpenstack().getServerById(getServerId());
-        String templateName = server.getMetadata().get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY);
-        return cloud.getTemplate(templateName);
-    }
-
-    /**
-     * Should this node be retained to meet the minimum instances constraint?
-     */
-    public boolean shouldBeRetained() {
-        JCloudsSlaveTemplate template = getTemplate();
-        SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
-        Integer instancesMin = slaveOptions.getInstancesMin();
-        JCloudsComputer computer = (JCloudsComputer) toComputer();
-        Integer retentionTime = slaveOptions.getRetentionTime();
-        if (instancesMin > 0 && computer != null) {
-            if (retentionTime != 0 && (template.getActiveNodesTotal(false) - 1) < instancesMin) {
-                return true;
-            }
-            if (retentionTime == 0 && computer.isNew() && (template.getActiveNodesTotal(true) - 1) < instancesMin) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private final static class RecordDisposal implements Disposable {
         private static final long serialVersionUID = -3623764445481732365L;
 
