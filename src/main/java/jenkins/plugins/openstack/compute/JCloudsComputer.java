@@ -1,6 +1,8 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.model.Computer;
+import hudson.model.Executor;
+import hudson.model.Queue;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.security.Permission;
 import hudson.slaves.AbstractCloudComputer;
@@ -33,6 +35,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
+    private boolean used;
 
     /**
      * Get all Openstack computers.
@@ -50,6 +53,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     public JCloudsComputer(JCloudsSlave slave) {
         super(slave);
         this.provisioningId = slave.getId();
+        used = false;
     }
 
     @Override
@@ -92,6 +96,19 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
                 ? oc
                 : null
         ;
+    }
+
+    @Override
+    public void taskAccepted(Executor executor, Queue.Task task) {
+        super.taskAccepted(executor, task);
+        used = true;
+    }
+
+    /**
+     * Has this computer been used to run builds?
+     */
+    public boolean isUsed() {
+        return used;
     }
 
     // Hide /configure view inherited from Computer

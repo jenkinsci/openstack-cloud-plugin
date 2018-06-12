@@ -122,7 +122,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * but there is no way to prevent external machine deletion.
      */
     public @CheckForNull String getPublicAddress() throws NoSuchElementException {
-    	
+
         return Openstack.getPublicAddress(getOpenstack(cloudName).getServerById(nodeId));
     }
     /**
@@ -130,7 +130,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      */
     @Restricted(NoExternalUse.class)
     public @CheckForNull String getPublicAddressIpv4() throws NoSuchElementException {
-    	
+
         return Openstack.getPublicAddressIpv4(getOpenstack(cloudName).getServerById(nodeId));
     }
 

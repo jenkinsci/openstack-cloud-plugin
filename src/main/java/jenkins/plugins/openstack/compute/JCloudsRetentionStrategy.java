@@ -62,6 +62,10 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         final long idleSince = c.getIdleStartMilliseconds();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
         if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
+            if (JCloudsPreCreationThread.shouldSlaveBeRetained(node)) {
+                LOGGER.info("Keeping " + c .getName() + " to meet minium requirements");
+                return;
+            }
             LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
             try {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();

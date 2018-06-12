@@ -64,6 +64,7 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.StreamTaskListener;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
+import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
 import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -99,7 +100,7 @@ public final class PluginTestRule extends JenkinsRule {
             dummyUserData("dummyUserDataId");
         }
         return new SlaveOptions(
-                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10,
+                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, 2, "pool", "sg", "az", 1, null, 10,
                 "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 1
         );
     }
@@ -229,6 +230,13 @@ public final class PluginTestRule extends JenkinsRule {
                 break;
             }
         }
+    }
+
+    /**
+     * Force slave pre-creation now.
+     */
+    public void triggerSlavePreCreation() {
+        jenkins.getExtensionList(AsyncPeriodicWork.class).get(JCloudsPreCreationThread.class).execute(TaskListener.NULL);
     }
 
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
