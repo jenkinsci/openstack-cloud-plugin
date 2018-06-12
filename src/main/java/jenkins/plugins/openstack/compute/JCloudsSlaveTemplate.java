@@ -8,6 +8,7 @@ import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.remoting.Base64;
@@ -408,19 +409,24 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     /**
      * Return the number of active nodes provisioned using this template.
      *
-     * @param onlyNewComputers Whether or not to limit the list to nodes running on new machines.
+     * @param onlyNewComputers Whether or not to limit the count to unused machines.
      */
     public int getActiveNodesTotal(boolean onlyNewComputers) {
         int totalServers = 0;
-        for (Server server : getRunningNodes()) {
-            JCloudsComputer computer = (JCloudsComputer) Jenkins.getActiveInstance().getNode(server.getName()).toComputer();
-            if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
-                if (onlyNewComputers) {
-                    if (!computer.isUsed()) {
-                        totalServers++;
+        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+            if (node instanceof JCloudsSlave) {
+                JCloudsSlave slave = (JCloudsSlave) node;
+                if (slave.getId().getCloudName().equals(cloud.name) && slave.getId().getTemplateName().equals(name)) {
+                    JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+                    if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
+                        if (onlyNewComputers) {
+                            if (!computer.isUsed()) {
+                                totalServers++;
+                            }
+                        } else {
+                            totalServers++;
+                        }
                     }
-                } else {
-                    totalServers++;
                 }
             }
         }
