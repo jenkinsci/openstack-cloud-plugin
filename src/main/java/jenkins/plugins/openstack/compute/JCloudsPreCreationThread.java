@@ -8,11 +8,31 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.TaskListener;
 import hudson.model.AsyncPeriodicWork;
 
 /**
  * Periodically ensure enough slaves are created.
+ *
+ * The goal of this class is to pre-provision slaves ahead of time to avoid jobs
+ * having to wait until a slave gets provisioned to run.
+ *
+ * It works in conjunction with the logic in JCloudsRetentionStrategy to not
+ * only pre-provision slaves but also keep the slaves around to meet
+ * requirements.
+ *
+ * The behaviour is configured via the `instanceMin` setting which controls
+ * how many instances per-template will be pre-provisioned.
+ *
+ * A template's retention time of 0 (zero) will be interpreted as a sign that
+ * used instances shouldn't be re-used and thus new instances will be
+ * pre-provisioned, even if used instances are running.
+ *
+ * The pre-provisioning always respects the instance capacity (either global or
+ * per template).
+ *
+ *
  */
 @Extension @Restricted(NoExternalUse.class)
 public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
@@ -24,7 +44,7 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return MIN * 2;
+        return Functions.getIsUnitTest() ? Long.MAX_VALUE : MIN * 2;
     }
 
     @Override
@@ -39,14 +59,15 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
                     int templateMaxInstances = slaveOptions.getInstanceCap();
                     int maxNodes = Math.min(templateMaxInstances, globalMaxInstances);
                     // If retentionTime==0, take this as an indication that "used" instances should not
-                    // be reused and thus do not count them as running instances.
-                    int runningNodeTotal = template.getActiveNodesTotal(retentionTime == 0);
-                    int desiredNewInstances = Math.min(instancesMin, maxNodes) - runningNodeTotal;
+                    // be reused and thus do not count them as reusable running instances.
+                    int reusableRunningNodeTotal = template.getActiveNodesTotal(retentionTime == 0);
+                    int runningNodeTotal = template.getActiveNodesTotal(false);
+                    int desiredNewInstances = Math.min(instancesMin - reusableRunningNodeTotal, maxNodes - runningNodeTotal);
                     if (desiredNewInstances > 0) {
                         LOGGER.log(Level.INFO, "Pre-creating " + desiredNewInstances + " instance(s) for template " + template.name + " in cloud " + cloud.name);
                         for (int i = 0; i < desiredNewInstances; i++) {
                             try {
-                                cloud.doProvisionSlave(template);
+                                cloud.provisionSlave(template);
                             } catch (Throwable ex) {
                                 LOGGER.log(Level.SEVERE, "Failed to pre-create instance from template " + template.name, ex);
                             }

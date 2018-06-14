@@ -388,7 +388,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         JCloudsSlave node;
         try {
-            node = doProvisionSlave(t);
+            node = provisionSlave(t);
         } catch (Openstack.ActionFailed ex) {
             req.setAttribute("message", ex.getMessage());
             req.setAttribute("exception", ex);
@@ -399,7 +399,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
    @Restricted(NoExternalUse.class)
-   public @Nonnull JCloudsSlave doProvisionSlave(JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
+   public @Nonnull JCloudsSlave provisionSlave(JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
        CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
        ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.name);
 
