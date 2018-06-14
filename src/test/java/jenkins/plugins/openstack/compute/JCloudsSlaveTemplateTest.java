@@ -8,6 +8,7 @@ import java.util.Properties;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import hudson.remoting.Base64;
+import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -27,6 +28,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
+import static jenkins.model.Jenkins.getInstance;
 import static jenkins.plugins.openstack.PluginTestRule.dummySlaveOptions;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
@@ -42,8 +44,15 @@ public class JCloudsSlaveTemplateTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    private final String TEMPLATE_PROPERTIES = "name,labelString";
-    private final String CLOUD_PROPERTIES = "name,credentialId,zone";
+    private static final String TEMPLATE_PROPERTIES = "name,labelString";
+    private static final String CLOUD_PROPERTIES = "name,credentialId,zone";
+
+    @Test
+    public void doCheckTemplateName() {
+        JCloudsSlaveTemplate.DescriptorImpl d = getInstance().getDescriptorByType(JCloudsSlaveTemplate.DescriptorImpl.class);
+        assertEquals(FormValidation.Kind.OK, d.doCheckName("foo").kind);
+        assertEquals(FormValidation.Kind.ERROR, d.doCheckName("#1").kind);
+    }
 
     @Test
     public void configRoundtrip() throws Exception {
