@@ -22,6 +22,7 @@ public class SlaveOptionsTest {
         assertEquals("nw1,mw2", unmodified.getNetworkId());
         assertEquals("dummyUserDataId", unmodified.getUserDataId());
         assertEquals(1, (int) unmodified.getInstanceCap());
+        assertEquals(2, (int) unmodified.getInstancesMin());
         assertEquals("pool", unmodified.getFloatingIpPool());
         assertEquals("sg", unmodified.getSecurityGroups());
         assertEquals("az", unmodified.getAvailabilityZone());
@@ -39,6 +40,7 @@ public class SlaveOptionsTest {
                 .networkId("NW")
                 .userDataId("UD")
                 .instanceCap(42)
+                .instancesMin(0)
                 .floatingIpPool("POOL")
                 .securityGroups("SG")
                 .availabilityZone("AZ")
@@ -58,6 +60,7 @@ public class SlaveOptionsTest {
         assertEquals("NW", overridden.getNetworkId());
         assertEquals("UD", overridden.getUserDataId());
         assertEquals(42, (int) overridden.getInstanceCap());
+        assertEquals(0, (int) overridden.getInstancesMin());
         assertEquals("POOL", overridden.getFloatingIpPool());
         assertEquals("SG", overridden.getSecurityGroups());
         assertEquals("AZ", overridden.getAvailabilityZone());
@@ -86,7 +89,7 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                null, "", "", "", null, "", "", "", null, "", null, "", "", null, null
+                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .hardwareId("")

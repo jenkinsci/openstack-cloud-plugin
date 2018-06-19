@@ -8,9 +8,11 @@ import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.remoting.Base64;
+import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
@@ -405,6 +407,33 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return tmplt;
     }
 
+    /**
+     * Return the number of active nodes provisioned using this template.
+     *
+     * @param onlyNewComputers Whether or not to limit the count to unused machines.
+     */
+    public int getActiveNodesTotal(boolean onlyNewComputers) {
+        int totalServers = 0;
+        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+            if (node instanceof JCloudsSlave) {
+                JCloudsSlave slave = (JCloudsSlave) node;
+                if (slave.getId().getCloudName().equals(cloud.name) && slave.getId().getTemplateName().equals(name)) {
+                    JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+                    if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
+                        if (onlyNewComputers) {
+                            if (!computer.isUsed()) {
+                                totalServers++;
+                            }
+                        } else {
+                            totalServers++;
+                        }
+                    }
+                }
+            }
+        }
+        return totalServers;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public Descriptor<JCloudsSlaveTemplate> getDescriptor() {
@@ -413,7 +442,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
-        private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9][-a-zA-Z0-9]{0,79}");
+        private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z0-9][-a-zA-Z0-9]{0,79}$");
 
         @Override
         public String getDisplayName() {

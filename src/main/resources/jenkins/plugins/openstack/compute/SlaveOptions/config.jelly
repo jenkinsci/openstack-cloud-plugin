@@ -30,6 +30,9 @@
                     <f:entry title="Max. No. of Instances" field="instanceCap">
                         <f:number checkMethod="post"/>
                     </f:entry>
+                    <f:entry title="Min. No. of Instances" field="instancesMin">
+                        <f:number checkMethod="post"/>
+                    </f:entry>
                     <f:entry title="Floating IP pool" field="floatingIpPool">
                         <f:select checkMethod="post"/>
                     </f:entry>

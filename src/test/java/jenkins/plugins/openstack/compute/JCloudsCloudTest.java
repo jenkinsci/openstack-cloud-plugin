@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -151,10 +152,10 @@ public class JCloudsCloudTest {
         String openstackAuth = j.dummyCredential();
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
-                new BootSource.Image("iid"), "hw", "nw", "ud", 1, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
+                new BootSource.Image("iid"), "hw", "nw", "ud", 1, 0, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "endPointUrl", false,"zone", new SlaveOptions(
-                new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), 9
+                new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, 4, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), 9
         ), Collections.singletonList(template),openstackAuth);
         j.jenkins.clouds.add(cloud);
 
@@ -170,6 +171,9 @@ public class JCloudsCloudTest {
 
         assertEquals("6", c.value("instanceCap"));
         assertEquals(String.valueOf(DEF.getInstanceCap()), c.def("instanceCap"));
+
+        assertEquals("4", c.value("instancesMin"));
+        assertEquals(String.valueOf(DEF.getInstancesMin()), c.def("instancesMin"));
 
         assertEquals("SG", c.value("securityGroups"));
         assertEquals(DEF.getSecurityGroups(), c.def("securityGroups"));
@@ -304,13 +308,19 @@ public class JCloudsCloudTest {
         });
         clickAction(configfiles, "remove");
 
-        assertEquals(null, template.getUserData());
+        assertNull(template.getUserData());
 
         configfiles = wc.goTo("configfiles");
         HtmlPage newOne = configfiles.getAnchorByText("Add a new Config").click();
-        HtmlForm form = newOne.getForms().get(1);
-        form.getOneHtmlElementByAttribute("input", "value", "jenkins.plugins.openstack.compute.UserDataConfig").click();
-        HtmlPage newForm = j.submit(form);
+        HtmlForm configForm = null;
+        for (HtmlForm htmlForm : newOne.getForms()) {
+            if ("addConfig".equals(htmlForm.getActionAttribute())) {
+                configForm = htmlForm;
+            }
+        }
+        assertNotEquals("Unable to locate the config files form", null, configForm);
+        configForm.getOneHtmlElementByAttribute("input", "value", "jenkins.plugins.openstack.compute.UserDataConfig").click();
+        HtmlPage newForm = j.submit(configForm);
         j.submit(newForm.getForms().get(1));
     }
 
@@ -336,7 +346,7 @@ public class JCloudsCloudTest {
         final JCloudsCloud jenkinsRead = getCloudWhereUserIsAuthorizedTo(Jenkins.READ, template);
         try {
             j.executeOnServer(new DoProvision(jenkinsRead, template));
-            fail();
+            fail("Expected 'AccessDeniedException' exception hasn't been thrown");
         } catch (AccessDeniedException ex) {
             // Expected
         }

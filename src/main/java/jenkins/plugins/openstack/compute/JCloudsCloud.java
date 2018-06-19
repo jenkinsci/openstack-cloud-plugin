@@ -125,7 +125,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @SuppressWarnings({"unused", "deprecation", "ConstantConditions"})
     private Object readResolve() {
-        if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null) {
+        if (retentionTime != null || startTimeout != null || floatingIps != null || instanceCap != null ) {
             SlaveOptions carry = SlaveOptions.builder()
                     .instanceCap(instanceCap)
                     .retentionTime(retentionTime)
@@ -388,27 +388,38 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return;
         }
 
-        CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
-        ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, t.name);
-
         JCloudsSlave node;
         try {
-            provisioningListener.onStarted(id);
-            node = t.provisionSlave(this, id);
-            provisioningListener.onComplete(id, node);
+            node = provisionSlave(t);
         } catch (Openstack.ActionFailed ex) {
-            provisioningListener.onFailure(id, ex);
             req.setAttribute("message", ex.getMessage());
             req.setAttribute("exception", ex);
             rsp.forward(this,"error",req);
             return;
-        } catch (Throwable ex) {
-            provisioningListener.onFailure(id, ex);
-            throw ex;
         }
-        Jenkins.getActiveInstance().addNode(node);
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
+
+   @Restricted(NoExternalUse.class)
+   public @Nonnull JCloudsSlave provisionSlave(JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
+       CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
+       ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.name);
+
+       JCloudsSlave node;
+       try {
+           provisioningListener.onStarted(id);
+           node = template.provisionSlave(this, id);
+           provisioningListener.onComplete(id, node);
+       } catch (Openstack.ActionFailed ex) {
+           provisioningListener.onFailure(id, ex);
+           throw ex;
+       } catch (Throwable ex) {
+           provisioningListener.onFailure(id, ex);
+           throw ex;
+       }
+       Jenkins.getActiveInstance().addNode(node);
+       return node;
+   }
 
     /**
      * Get connected OpenStack client wrapper.
@@ -439,6 +450,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         // Plugin default slave attributes - the root of all overriding
         private static final SlaveOptions DEFAULTS = SlaveOptions.builder()
                 .instanceCap(10)
+                .instancesMin(0)
                 .retentionTime(30)
                 .startTimeout(600000)
                 .numExecutors(1)
