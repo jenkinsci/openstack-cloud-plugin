@@ -51,6 +51,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -203,6 +204,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         @Extension
         public static final class Desc extends Descriptor<LauncherFactory> {
             @Restricted(DoNotUse.class)
+            @RequirePOST
             public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
                 if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
                     return new ListBoxModel();

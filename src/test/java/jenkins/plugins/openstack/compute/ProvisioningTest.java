@@ -18,9 +18,7 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.slaves.OfflineCause;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
@@ -30,14 +28,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.mockito.ArgumentCaptor;
-import org.mockito.internal.util.reflection.Whitebox;
-import org.openstack4j.model.compute.BDMDestType;
-import org.openstack4j.model.compute.BDMSourceType;
-import org.openstack4j.model.compute.BlockDeviceMappingCreate;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
+import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -71,7 +64,6 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -289,16 +281,16 @@ public class ProvisioningTest {
 
         JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision").getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision").getWebResponse().getContentAsString(),
                 containsString("The slave template name query parameter is missing")
         );
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision?name=no_such_template").getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=no_such_template").getWebResponse().getContentAsString(),
                 containsString("No such slave template with name : no_such_template")
         );
 
         // Exceed template quota
-        HtmlPage provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name);
+        HtmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
         String slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
@@ -307,18 +299,18 @@ public class ProvisioningTest {
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
                 containsString("Instance cap for this template (openstack/template0) is now reached: 1")
         );
 
         // Exceed global quota
-        provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name);
+        provision = invokeProvisioning(cloud, wc, "/provision?name=" + free.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
         slaveName = extractNodeNameFomUrl(provision);
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name).getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=" + free.name).getWebResponse().getContentAsString(),
                 containsString("Instance cap of openstack is now reached: 2")
         );
 
@@ -331,6 +323,11 @@ public class ProvisioningTest {
             assertNotNull(j.jenkins.getComputer(pa.getName()));
             assertEquals(cloud.name, pa.getId().getCloudName());
         }
+    }
+
+    private HtmlPage invokeProvisioning(JCloudsCloud cloud, JenkinsRule.WebClient wc, String s) throws IOException, SAXException {
+        URL configureUrl = new URL(wc.getContextPath() + "cloud/" + cloud.name + s);
+        return wc.getPage(wc.addCrumb(new WebRequest(configureUrl, HttpMethod.POST)));
     }
 
     private String extractNodeNameFomUrl(HtmlPage provision) throws MalformedURLException {
@@ -425,8 +422,7 @@ public class ProvisioningTest {
         final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
         final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
         final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
-        final Matcher<Iterable<NodeProvisioner.PlannedNode>> hasOnlyOneElement = iterableWithSize(1);
-        assertThat(pns, hasOnlyOneElement);
+        assertThat(pns, iterableWithSize(1));
         final PlannedNode pn = pns.iterator().next();
         final Future<Node> pnf = pn.future;
 

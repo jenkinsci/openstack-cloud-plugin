@@ -4,13 +4,16 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+import hudson.model.Item;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
+import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 @Restricted(NoExternalUse.class)
 public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun> {
@@ -45,7 +48,9 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
 
     @Extension
     public static class DescriptorImpl extends Descriptor<InstancesToRun> {
+        @RequirePOST
         public ListBoxModel doFillCloudNameItems() {
+            Jenkins.getInstance().checkPermission(Item.CONFIGURE);
             ListBoxModel m = new ListBoxModel();
             for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
                 m.add(cloud.name, cloud.name);
@@ -54,7 +59,9 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
             return m;
         }
 
+        @RequirePOST
         public ListBoxModel doFillTemplateNameItems(@QueryParameter String cloudName) {
+            Jenkins.getInstance().checkPermission(Item.CONFIGURE);
             ListBoxModel m = new ListBoxModel();
             if (Util.fixEmpty(cloudName) != null) {
                 JCloudsCloud c = JCloudsCloud.getByName(cloudName);
@@ -65,6 +72,7 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
             return m;
         }
 
+        @RequirePOST
         public FormValidation doCheckCount(@QueryParameter String value) {
             return FormValidation.validatePositiveInteger(value);
         }

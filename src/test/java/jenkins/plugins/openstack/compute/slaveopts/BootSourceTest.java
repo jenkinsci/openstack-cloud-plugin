@@ -43,7 +43,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static jenkins.plugins.openstack.compute.SlaveOptionsDescriptorTest.hasState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doReturn;
@@ -142,7 +141,7 @@ public class BootSourceTest {
         final String credentialIdTemplate = j.dummyCredential();
 
         final FormValidation actual = id.doCheckName("",urlC,urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
-        assertThat(actual, hasState(VALIDATION_REQUIRED));
+        assertThat(actual, j.validateAs(VALIDATION_REQUIRED));
     }
 
     @Test
@@ -158,7 +157,7 @@ public class BootSourceTest {
         final FormValidation expected = FormValidation.error("Not found");
 
         final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
-        assertThat(actual, hasState(expected));
+        assertThat(actual, j.validateAs(expected));
     }
 
     @Test
@@ -173,7 +172,7 @@ public class BootSourceTest {
         final FormValidation expected = FormValidation.ok();
 
         final FormValidation actual = id.doCheckName("imageFound",urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
-        assertThat(actual, hasState(expected));
+        assertThat(actual, j.validateAs(expected));
     }
 
     @Test
@@ -188,7 +187,7 @@ public class BootSourceTest {
         final FormValidation expected = FormValidation.warning("Multiple matching results");
 
         final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
-        assertThat("imageAmbiguous", actual, hasState(expected));
+        assertThat("imageAmbiguous", actual, j.validateAs(expected));
     }
 
     @Test
@@ -203,6 +202,6 @@ public class BootSourceTest {
         final FormValidation expected = FormValidation.ok();
 
         final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
-        assertThat("vsFound", actual, hasState(expected));
+        assertThat("vsFound", actual, j.validateAs(expected));
     }
 }

@@ -3,6 +3,7 @@ package jenkins.plugins.openstack.compute;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
@@ -27,7 +28,10 @@ import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
+import hudson.ExtensionList;
 import hudson.model.Item;
+import hudson.model.UnprotectedRootAction;
+import hudson.model.User;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.security.ACL;
 import hudson.security.Permission;
@@ -60,14 +64,18 @@ import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
+import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.StaplerRequest;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -468,6 +476,58 @@ public class JCloudsCloudTest {
                     return permission.equals(authorized);
                 }
             };
+        }
+    }
+
+    @Test @Issue("SECURITY-808")
+    public void security808() throws Exception {
+        j.jenkins.setCrumbIssuer(null);
+        OpenstackCredentialv2 c = new OpenstackCredentialv2(
+                CredentialsScope.SYSTEM, "foo", "", "tenant", "username", "SHHH!"
+        );
+        OpenstackCredentials.add(c);
+        DescriptorImpl desc = j.getCloudDescriptor();
+
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
+        mas.grant(Jenkins.READ).everywhere().to("user");
+        mas.grant(Jenkins.ADMINISTER).everywhere().to("admin");
+        j.jenkins.setAuthorizationStrategy(mas);
+
+        final String destination = j.getURL().toExternalForm() + "security808";
+        ACL.impersonate(User.get("user").impersonate(), () -> {
+            FormValidation formValidation = desc.doTestConnection(true, c.getId(), destination, "");
+            assertEquals(0, ExtensionList.lookup(CredentialsCollectingPortal.class).get(0).reqs.size());
+            // Strange message as client does not understand the empty response
+            assertThat(formValidation.kind, equalTo(FormValidation.Kind.ERROR));
+            assertThat(formValidation.getMessage(), containsString("user is missing the Overall/Administer permission"));
+        });
+
+        ACL.impersonate(User.get("admin").impersonate(), () -> {
+            desc.doTestConnection(true, c.getId(), destination, "");
+            assertEquals(1, ExtensionList.lookup(CredentialsCollectingPortal.class).get(0).reqs.size());
+        });
+    }
+
+    @TestExtension("security808")
+    public static final class CredentialsCollectingPortal implements UnprotectedRootAction {
+
+        private List<StaplerRequest> reqs = new ArrayList<>();
+
+        @Override public String getIconFileName() {
+            return null;
+        }
+
+        @Override public String getDisplayName() {
+            return "security808";
+        }
+
+        @Override public String getUrlName() {
+            return "security808";
+        }
+
+        public void doDynamic() {
+            reqs.add(Stapler.getCurrentRequest());
         }
     }
 }

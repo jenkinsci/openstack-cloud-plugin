@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -34,6 +35,7 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import org.hamcrest.TypeSafeMatcher;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
@@ -543,5 +545,43 @@ public final class PluginTestRule extends JenkinsRule {
                 return "";
             }
         }
+    }
+
+    public TypeSafeMatcher<FormValidation> validateAs(final FormValidation.Kind kind, final String msg) {
+        return new TypeSafeMatcher<FormValidation>() {
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                description.appendText(kind.toString() + ": " + msg);
+            }
+
+            @Override
+            protected void describeMismatchSafely(FormValidation item, org.hamcrest.Description mismatchDescription) {
+                mismatchDescription.appendText(item.kind + ": " + item.getMessage());
+            }
+
+            @Override
+            protected boolean matchesSafely(FormValidation item) {
+                return kind.equals(item.kind) && Objects.equals(item.getMessage(), msg);
+            }
+        };
+    }
+
+    public TypeSafeMatcher<FormValidation> validateAs(final FormValidation expected) {
+        return new TypeSafeMatcher<FormValidation>() {
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                description.appendText(expected.kind.toString() + ": " + expected.getMessage());
+            }
+
+            @Override
+            protected void describeMismatchSafely(FormValidation item, org.hamcrest.Description mismatchDescription) {
+                mismatchDescription.appendText(item.kind + ": " + item.getMessage());
+            }
+
+            @Override
+            protected boolean matchesSafely(FormValidation item) {
+                return expected.kind.equals(item.kind) && Objects.equals(item.getMessage(), expected.getMessage());
+            }
+        };
     }
 }

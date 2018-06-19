@@ -19,49 +19,49 @@
                 <f:section title="Cloud Server Options">
                     <f:dropdownDescriptorSelector field="bootSource" title="Boot Source"/>
                     <f:entry title="Hardware" field="hardwareId">
-                        <f:select/>
+                        <f:select checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Network(s)" field="networkId">
-                        <f:textbox/>
+                        <f:textbox checkMethod="post"/>
                     </f:entry>
                     <f:entry title="User Data" field="userDataId">
-                        <f:select/>
+                        <f:select checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Max. No. of Instances" field="instanceCap">
-                        <f:number/>
+                        <f:number checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Min. No. of Instances" field="instancesMin">
-                        <f:number/>
+                        <f:number checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Floating IP pool" field="floatingIpPool">
-                        <f:select/>
+                        <f:select checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Security Groups" field="securityGroups">
-                        <f:textbox/>
+                        <f:textbox checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Availability Zone" field="availabilityZone">
-                        <f:combobox/>
+                        <f:combobox checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Startup Timeout" field="startTimeout">
-                        <f:textbox/>
+                        <f:textbox checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Key Pair Name" field="keyPairName">
-                        <f:select/>
+                        <f:select checkMethod="post"/>
                     </f:entry>
                 </f:section>
 
                 <f:section title="Slave Options">
                     <f:entry title="Number of Executors" field="numExecutors">
-                        <f:number/>
+                        <f:number checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Custom JVM Options" field="jvmOptions">
-                        <f:textbox/>
+                        <f:textbox checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Remote FS Root" field="fsRoot">
-                        <f:textbox/>
+                        <f:textbox checkMethod="post"/>
                     </f:entry>
                     <f:entry title="Retention Time" field="retentionTime">
-                        <f:number/>
+                        <f:number checkMethod="post"/>
                     </f:entry>
                     <f:dropdownDescriptorSelector field="launcherFactory" title="Connection type"/>
                 </f:section>

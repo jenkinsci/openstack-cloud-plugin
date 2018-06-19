@@ -19,6 +19,7 @@ import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -118,6 +119,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     @Override @Restricted(NoExternalUse.class)
+    @RequirePOST
     public HttpResponse doDoDelete() {
         checkPermission(Permission.DELETE);
         try {
@@ -129,6 +131,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     @Restricted(NoExternalUse.class)
+    @RequirePOST
     public HttpRedirect doScheduleTermination() {
         checkPermission(Permission.DELETE);
         setPendingDelete(true);

@@ -29,6 +29,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -449,6 +450,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         @Restricted(DoNotUse.class)
+        @RequirePOST
         public FormValidation doCheckName(@QueryParameter String value) {
             if (NAME_PATTERN.matcher(value).find()) return FormValidation.ok();
 
