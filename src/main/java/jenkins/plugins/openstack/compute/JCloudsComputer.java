@@ -99,6 +99,22 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         ;
     }
 
+    public Integer getRetentionTime() {
+        final JCloudsSlave node = getNode();
+        if (node == null) return null;
+        return node.getSlaveOptions().getRetentionTime();
+    }
+
+    @Override
+    public boolean isAcceptingTasks() {
+        // If this is a one-off node (i.e. retentionTime == 0) then
+        // reject tasks as soon at the first job is started.
+        if (getRetentionTime() == 0 && isUsed()) {
+            return false;
+        }
+        return super.isAcceptingTasks();
+    }
+
     @Override
     public void taskAccepted(Executor executor, Queue.Task task) {
         super.taskAccepted(executor, task);

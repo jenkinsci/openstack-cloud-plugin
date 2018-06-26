@@ -1,7 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Executor;
+import hudson.model.ExecutorListener;
+import hudson.model.Queue;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
@@ -19,7 +23,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 /**
  * @author Vijay Kiran
  */
-public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer> {
+public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer> implements ExecutorListener {
     private transient ReentrantLock checkLock;
 
     @DataBoundConstructor
@@ -51,7 +55,6 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     private void doCheck(JCloudsComputer c) {
         if (c.isPendingDelete()) return; // No need to do it again
         if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
-        if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
 
         final JCloudsSlave node = c.getNode();
         if (node == null) return; // Node is gone already
@@ -59,9 +62,12 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         final int retentionTime = node.getSlaveOptions().getRetentionTime();
         if (retentionTime < 0) return; // Keep forever
 
+        if (retentionTime !=0 && !c.isIdle()) return;
+        if (c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
+
         final long idleSince = c.getIdleStartMilliseconds();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
-        if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
+        if (retentionTime == 0 || idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
             if (JCloudsPreCreationThread.shouldSlaveBeRetained(node)) {
                 LOGGER.info("Keeping " + c .getName() + " to meet minium requirements");
                 return;
@@ -97,6 +103,34 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     protected Object readResolve() {
         checkLock = new ReentrantLock(false);
         return this;
+    }
+
+    @Override
+    public void taskAccepted(Executor executor, Queue.Task task) {
+    }
+
+    @Override
+    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
+        checkSlaveAfterTaskCompletion(executor.getOwner());
+    }
+
+    @Override
+    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
+        checkSlaveAfterTaskCompletion(executor.getOwner());
+    }
+
+    private void checkSlaveAfterTaskCompletion(Computer computer) {
+        // If the retention time for this computer is zero, this means it
+        // should not be re-used: force a check to set this computer as
+        // "pending delete".
+        if (computer instanceof JCloudsComputer) {
+            final JCloudsComputer cloudComputer = (JCloudsComputer) computer;
+            if (cloudComputer == null) return;
+            final int retentionTime = cloudComputer.getRetentionTime();
+            if (retentionTime == 0) {
+                doCheck(cloudComputer);
+            }
+        }
     }
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsRetentionStrategy.class.getName());

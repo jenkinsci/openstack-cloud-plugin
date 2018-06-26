@@ -183,4 +183,22 @@ public class JCloudsRetentionStrategyTest {
         assertTrue(computer1.isPendingDelete());
         assertFalse(computer2.isPendingDelete());
 	}
+
+    @Test
+    public void deleteUsedSlaveUponTaskCompletionIfRetentionTimeZero() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+                "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.waitUntilOnline();
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedNode(slave);
+        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        j.waitForCompletion(build);
+        j.waitUntilNoActivity();
+
+        assertTrue(computer.isPendingDelete());
+    }
 }

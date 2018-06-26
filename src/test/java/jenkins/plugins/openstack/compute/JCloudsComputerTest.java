@@ -1,5 +1,8 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import hudson.model.FreeStyleProject;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule.WebClient;
@@ -36,5 +39,35 @@ public class JCloudsComputerTest {
         assertTrue("Computer should be pending delete", computer.isPendingDelete());
         computer.setPendingDelete(false);
         assertFalse("Computer should not be pending delete", computer.isPendingDelete());
+    }
+
+    @Test
+    public void oneOffSlaveRejectsTasksAfterFirstTaskRun() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+                "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.waitUntilOnline();
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedNode(slave);
+        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        assertFalse(computer.isAcceptingTasks());
+    }
+
+    @Test
+    public void slaveWithRetentionTimeNonZeroStillAcceptsTasksAfterFirstTaskRun() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(10).instancesMin(1).build(),
+                "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        computer.waitUntilOnline();
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedNode(slave);
+        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        assertTrue(computer.isAcceptingTasks());
     }
 }
