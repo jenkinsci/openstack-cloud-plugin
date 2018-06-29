@@ -428,7 +428,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public @Nonnull Openstack getOpenstack() {
         final Openstack os;
         try {
-            os = Openstack.Factory.get(endPointUrl, ignoreSsl, OpenstackCredentials.getCredential(credentialId), zone);
+            OpenstackCredential credential = OpenstackCredentials.getCredential(credentialId);
+            if (credential == null) throw new RuntimeException("No credential found for " + credentialId);
+            os = Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone);
         } catch (FormValidation ex) {
             LOGGER.log(Level.SEVERE, "Openstack authentication invalid", ex);
             throw new RuntimeException("Openstack authentication invalid", ex);
@@ -479,6 +481,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             try {
                 // Get credential defined by user, using credential ID
                 OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+                if (credentialId == null) throw FormValidation.error("No credential found for " + credentialId);
                 Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 Throwable ex = openstack.sanityCheck();
 

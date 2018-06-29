@@ -15,6 +15,9 @@ import java.util.List;
 
 public class OpenstackCredentials {
 
+    /**
+     * @return null when the credentials are not found.
+     */
     public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialId) {
         Jenkins.getInstance().getACL().checkPermission(Jenkins.ADMINISTER);
         if (credentialId == null) return null;
