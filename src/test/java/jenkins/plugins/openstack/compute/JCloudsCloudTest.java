@@ -495,17 +495,20 @@ public class JCloudsCloudTest {
         j.jenkins.setAuthorizationStrategy(mas);
 
         final String destination = j.getURL().toExternalForm() + "security808";
+        final CredentialsCollectingPortal credentialsCollectingPortal = ExtensionList.lookup(CredentialsCollectingPortal.class).get(0);
         ACL.impersonate(User.get("user").impersonate(), () -> {
-            FormValidation formValidation = desc.doTestConnection(true, c.getId(), destination, "");
-            assertEquals(0, ExtensionList.lookup(CredentialsCollectingPortal.class).get(0).reqs.size());
-            // Strange message as client does not understand the empty response
-            assertThat(formValidation.kind, equalTo(FormValidation.Kind.ERROR));
-            assertThat(formValidation.getMessage(), containsString("user is missing the Overall/Administer permission"));
+            try {
+                desc.doTestConnection(true, c.getId(), destination, "");
+                fail();
+            } catch (AccessDeniedException ex) {
+                // Expected
+            }
+            assertEquals(0, credentialsCollectingPortal.reqs.size());
         });
 
         ACL.impersonate(User.get("admin").impersonate(), () -> {
             desc.doTestConnection(true, c.getId(), destination, "");
-            assertEquals(1, ExtensionList.lookup(CredentialsCollectingPortal.class).get(0).reqs.size());
+            assertEquals(1, credentialsCollectingPortal.reqs.size());
         });
     }
 

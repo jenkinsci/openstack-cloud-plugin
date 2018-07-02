@@ -471,8 +471,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 @QueryParameter String endPointUrl,
                 @QueryParameter String zone
         ) {
+            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
             try {
-                // Get credential defined by user, using credential ID
                 OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
                 if (openstackCredential == null) throw FormValidation.error("No credential found for " + credentialId);
                 Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
@@ -492,6 +492,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         @Restricted(DoNotUse.class)
         @RequirePOST
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
+            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
             if (Util.fixEmpty(value) == null) return FormValidation.validateRequired(value);
 
             try {
@@ -504,12 +505,12 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Restricted(DoNotUse.class)
         @RequirePOST
-        public ListBoxModel doFillCredentialIdItems(@AncestorInPath Jenkins context) {
-            if (context == null || !context.hasPermission(Item.CONFIGURE)) {
-                return new StandardListBoxModel();
-            }
+        public ListBoxModel doFillCredentialIdItems() {
+            Jenkins jenkins = Jenkins.getInstance();
+            jenkins.checkPermission(Jenkins.ADMINISTER);
+
             List<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(
-                    StandardCredentials.class, context, ACL.SYSTEM, Collections.emptyList()
+                    StandardCredentials.class, jenkins, ACL.SYSTEM, Collections.emptyList()
             );
             return new StandardListBoxModel()
                     .includeEmptyValue()
