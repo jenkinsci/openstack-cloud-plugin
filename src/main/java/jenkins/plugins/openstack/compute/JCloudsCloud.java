@@ -1,7 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -24,7 +23,6 @@ import javax.servlet.ServletException;
 import com.cloudbees.plugins.credentials.*;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.model.Item;
 import hudson.security.ACL;
 import hudson.util.ListBoxModel;
@@ -38,8 +36,6 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.*;
 
-import com.google.common.base.Objects;
-
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
@@ -51,7 +47,6 @@ import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
-import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -118,7 +113,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         this.credentialId = credentialId;
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
-        this.templates = Collections.unmodifiableList(Objects.firstNonNull(templates, Collections.<JCloudsSlaveTemplate> emptyList()));
+        this.templates = templates == null ? Collections.emptyList() : Collections.unmodifiableList(templates);
 
         injectReferenceIntoTemplates();
     }
@@ -345,7 +340,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     @RequirePOST
     public void doProvision(
             StaplerRequest req, StaplerResponse rsp, @QueryParameter String name
-    ) throws ServletException, IOException, Descriptor.FormException, InterruptedException {
+    ) throws ServletException, IOException {
 
         // Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
         // Using Item.CONFIGURE as users authorized to do so can provision via job execution.
@@ -410,9 +405,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
            provisioningListener.onStarted(id);
            node = template.provisionSlave(this, id);
            provisioningListener.onComplete(id, node);
-       } catch (Openstack.ActionFailed ex) {
-           provisioningListener.onFailure(id, ex);
-           throw ex;
        } catch (Throwable ex) {
            provisioningListener.onFailure(id, ex);
            throw ex;
@@ -442,6 +434,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return credentialId;
     }
 
+    @Restricted(DoNotUse.class) // Jelly
     public boolean getIgnoreSsl() {
         return ignoreSsl;
     }
@@ -481,7 +474,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             try {
                 // Get credential defined by user, using credential ID
                 OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
-                if (credentialId == null) throw FormValidation.error("No credential found for " + credentialId);
+                if (openstackCredential == null) throw FormValidation.error("No credential found for " + credentialId);
                 Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 Throwable ex = openstack.sanityCheck();
 
@@ -515,12 +508,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             if (context == null || !context.hasPermission(Item.CONFIGURE)) {
                 return new StandardListBoxModel();
             }
-
             List<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(
                     StandardCredentials.class, context, ACL.SYSTEM, Collections.emptyList()
             );
             return new StandardListBoxModel()
-                    .withEmptySelection()
+                    .includeEmptyValue()
                     .withMatching(CredentialsMatchers.instanceOf(OpenstackCredential.class), credentials)
             ;
         }
