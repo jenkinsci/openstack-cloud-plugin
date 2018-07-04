@@ -198,7 +198,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
     }
 
-    @Override protected Level getNormalLoggingLevel() { return Level.FINE; }
+    @Override protected Level getNormalLoggingLevel() { return Level.OFF; }
     @Override protected Level getSlowLoggingLevel() { return Level.INFO; }
 
     private static class MessageInterruption extends CauseOfInterruption {
