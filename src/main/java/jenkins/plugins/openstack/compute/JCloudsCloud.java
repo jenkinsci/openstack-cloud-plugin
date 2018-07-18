@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -13,12 +14,13 @@ import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 import com.cloudbees.plugins.credentials.*;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
@@ -28,6 +30,7 @@ import hudson.security.ACL;
 import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.compute.auth.*;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import jenkins.util.Timer;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -338,9 +341,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      */
     @Restricted(NoExternalUse.class)
     @RequirePOST
-    public void doProvision(
-            StaplerRequest req, StaplerResponse rsp, @QueryParameter String name
-    ) throws ServletException, IOException {
+    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String name) throws IOException {
 
         // Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
         // Using Item.CONFIGURE as users authorized to do so can provision via job execution.
@@ -349,13 +350,17 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             checkPermission(Cloud.PROVISION);
         }
 
+        if (rsp.getContentType() == null) { // test hack for JenkinsRule#executeOnServer
+            rsp.setContentType("text/xml");
+        }
+
         if (name == null) {
-            sendError("The slave template name query parameter is missing", req, rsp);
+            sendPlaintextError("The slave template name query parameter is missing", rsp);
             return;
         }
         JCloudsSlaveTemplate t = getTemplate(name);
         if (t == null) {
-            sendError("No such slave template with name : " + name, req, rsp);
+            sendPlaintextError("No such slave template with name : " + name, rsp);
             return;
         }
 
@@ -365,7 +370,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         int globalCap = getEffectiveSlaveOptions().getInstanceCap();
         if (global >= globalCap) {
             String msg = String.format("Instance cap of %s is now reached: %d", this.name, globalCap);
-            sendError(msg, req, rsp);
+            sendPlaintextError(msg, rsp);
             return;
         }
 
@@ -379,20 +384,28 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         int templateCap = t.getEffectiveSlaveOptions().getInstanceCap();
         if (template >= templateCap) {
             String msg = String.format("Instance cap for this template (%s/%s) is now reached: %d", this.name, name, templateCap);
-            sendError(msg, req, rsp);
+            sendPlaintextError(msg, rsp);
             return;
         }
 
-        JCloudsSlave node;
-        try {
-            node = provisionSlave(t);
-        } catch (Openstack.ActionFailed ex) {
-            req.setAttribute("message", ex.getMessage());
-            req.setAttribute("exception", ex);
-            rsp.forward(this,"error",req);
-            return;
-        }
-        rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
+        rsp.getWriter().println("<ok>Provisioning started</ok>");
+        // Provision asynchronously not to block the request thread
+        Timer.get().schedule(new Runnable() {
+            @Override public void run() {
+                try {
+                    provisionSlave(t);
+                } catch (Throwable ex) {
+                    LOGGER.log(Level.WARNING, "Provisioning failed", ex);
+                }
+            }
+        }, 0, TimeUnit.SECONDS);
+    }
+
+    // This is served by AJAX so we are stripping the html
+    private static void sendPlaintextError(String message, StaplerResponse rsp) throws IOException {
+        rsp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        PrintWriter response = rsp.getWriter();
+        response.println("<error>" + message + "</error>");
     }
 
    @Restricted(NoExternalUse.class)

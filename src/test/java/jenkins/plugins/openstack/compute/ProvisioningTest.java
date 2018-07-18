@@ -4,6 +4,7 @@ import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.xml.XmlPage;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -16,6 +17,7 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.slaves.OfflineCause;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -207,24 +209,6 @@ public class ProvisioningTest {
         verify(os, atLeastOnce()).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
     }
 
-    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
-    public void failToProvisionManuallyWhenOpenstackFails() throws Exception {
-        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        final JCloudsCloud cloud = j.dummyCloud(template);
-        Openstack os = cloud.getOpenstack();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
-
-        JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
-        Page page = wc.getPage(wc.addCrumb(new WebRequest(
-                new URL(wc.getContextPath() + "cloud/openstack/provision?name=" + template.name),
-                HttpMethod.POST
-        )));
-
-        assertThat(page.getWebResponse().getContentAsString(), containsString("It is broken, alright!"));
-
-        verify(os, times(1)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
-    }
-
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/37")
     public void detectBootTimingOut() {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
@@ -290,10 +274,12 @@ public class ProvisioningTest {
         );
 
         // Exceed template quota
-        HtmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name);
+        XmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        String slaveName = extractNodeNameFomUrl(provision);
-        assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
+        while (Jenkins.getInstance().getNodes().size() == 0) {
+            Thread.sleep(500);
+        }
+        String slaveName = j.jenkins.getNodes().get(0).getNodeName();
 
         Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) j.jenkins.getNode(slaveName)).getServerId());
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
@@ -306,7 +292,15 @@ public class ProvisioningTest {
         // Exceed global quota
         provision = invokeProvisioning(cloud, wc, "/provision?name=" + free.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        slaveName = extractNodeNameFomUrl(provision);
+        while (Jenkins.getInstance().getNodes().size() == 1) {
+            Thread.sleep(500);
+        }
+        slaveName = null;
+        for (Node node : j.jenkins.getNodes()) {
+            if (!node.getNodeName().equals(slaveName)) {
+                slaveName = node.getNodeName();
+            }
+        }
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
@@ -320,18 +314,13 @@ public class ProvisioningTest {
             waitForCloudStatistics(pa, ProvisioningActivity.Phase.OPERATING);
             assertNotNull(pa.getPhaseExecution(ProvisioningActivity.Phase.OPERATING));
             assertNull(pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED));
-            assertNotNull(j.jenkins.getComputer(pa.getName()));
             assertEquals(cloud.name, pa.getId().getCloudName());
         }
     }
 
-    private HtmlPage invokeProvisioning(JCloudsCloud cloud, JenkinsRule.WebClient wc, String s) throws IOException, SAXException {
+    private XmlPage invokeProvisioning(JCloudsCloud cloud, JenkinsRule.WebClient wc, String s) throws IOException {
         URL configureUrl = new URL(wc.getContextPath() + "cloud/" + cloud.name + s);
         return wc.getPage(wc.addCrumb(new WebRequest(configureUrl, HttpMethod.POST)));
-    }
-
-    private String extractNodeNameFomUrl(HtmlPage provision) throws MalformedURLException {
-        return provision.getFullyQualifiedUrl("").toExternalForm().replaceAll("^.*/(.*)/$", "$1");
     }
 
     @Test
