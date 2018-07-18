@@ -10,7 +10,7 @@
       </f:entry>
     </f:section>
 
-    <f:advanced>
+    <f:advanced title="Provisioning details" style="primary">
       <!-- defaultOpts was injected from outside -->
       <j:set var="instance" value="${instance.rawSlaveOptions}"/>
       <st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>
