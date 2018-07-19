@@ -36,7 +36,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
-    private boolean used;
+    private volatile boolean used;
 
     /**
      * Get all Openstack computers.
@@ -99,18 +99,16 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         ;
     }
 
-    public Integer getRetentionTime() {
-        final JCloudsSlave node = getNode();
-        if (node == null) return null;
-        return node.getSlaveOptions().getRetentionTime();
-    }
-
     @Override
     public boolean isAcceptingTasks() {
         // If this is a one-off node (i.e. retentionTime == 0) then
         // reject tasks as soon at the first job is started.
-        if (getRetentionTime() == 0 && isUsed()) {
-            return false;
+        final JCloudsSlave node = getNode();
+        if (used && node != null) {
+            int retentionTime = node.getSlaveOptions().getRetentionTime();
+            if (retentionTime == 0 && used) {
+                return false;
+            }
         }
         return super.isAcceptingTasks();
     }
@@ -126,6 +124,26 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
      */
     public boolean isUsed() {
         return used;
+    }
+
+    @Override
+    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
+        super.taskCompleted(executor, task, durationMS);
+        checkSlaveAfterTaskCompletion(this);
+    }
+
+    @Override
+    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
+        super.taskCompletedWithProblems(executor, task, durationMS, problems);
+        checkSlaveAfterTaskCompletion(this);
+    }
+
+    private void checkSlaveAfterTaskCompletion(JCloudsComputer computer) {
+        final JCloudsSlave node = computer.getNode();
+        if (node == null) return;
+        if (node.getSlaveOptions().getRetentionTime() == 0) {
+            setPendingDelete(true);
+        }
     }
 
     // Hide /configure view inherited from Computer

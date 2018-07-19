@@ -5,11 +5,14 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Queue;
 import hudson.model.TaskListener;
+import hudson.model.queue.CauseOfBlockage;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.OfflineCause;
+import hudson.slaves.SlaveComputer;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -165,6 +168,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     public long getCreatedTime() {
         return created;
+    }
+
+    @Override public JCloudsComputer getComputer() {
+        return (JCloudsComputer) super.getComputer();
     }
 
     @Extension

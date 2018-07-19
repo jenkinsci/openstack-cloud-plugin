@@ -1,14 +1,12 @@
 package jenkins.plugins.openstack.compute;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
-import hudson.model.Executor;
-import hudson.model.ExecutorListener;
-import hudson.model.Queue;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
+import jenkins.model.Jenkins;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -17,13 +15,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jenkins.model.Jenkins;
-import org.kohsuke.stapler.DataBoundConstructor;
-
 /**
  * @author Vijay Kiran
  */
-public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer> implements ExecutorListener {
+public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer> {
     private transient ReentrantLock checkLock;
 
     @DataBoundConstructor
@@ -103,34 +98,6 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     protected Object readResolve() {
         checkLock = new ReentrantLock(false);
         return this;
-    }
-
-    @Override
-    public void taskAccepted(Executor executor, Queue.Task task) {
-    }
-
-    @Override
-    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
-        checkSlaveAfterTaskCompletion(executor.getOwner());
-    }
-
-    @Override
-    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
-        checkSlaveAfterTaskCompletion(executor.getOwner());
-    }
-
-    private void checkSlaveAfterTaskCompletion(Computer computer) {
-        // If the retention time for this computer is zero, this means it
-        // should not be re-used: force a check to set this computer as
-        // "pending delete".
-        if (computer instanceof JCloudsComputer) {
-            final JCloudsComputer cloudComputer = (JCloudsComputer) computer;
-            if (cloudComputer == null) return;
-            final int retentionTime = cloudComputer.getRetentionTime();
-            if (retentionTime == 0) {
-                doCheck(cloudComputer);
-            }
-        }
     }
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsRetentionStrategy.class.getName());

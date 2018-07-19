@@ -52,8 +52,8 @@ public class JCloudsComputerTest {
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
-        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
-        assertFalse(computer.isAcceptingTasks());
+        j.buildAndAssertSuccess(p);
+        assertFalse(computer.isPendingDelete());
     }
 
     @Test
@@ -67,7 +67,7 @@ public class JCloudsComputerTest {
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
-        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        j.buildAndAssertSuccess(p);
         assertTrue(computer.isAcceptingTasks());
     }
 }
