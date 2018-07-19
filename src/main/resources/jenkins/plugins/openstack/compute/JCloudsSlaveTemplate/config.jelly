@@ -1,6 +1,6 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
-  <table width="100%" class="pane">
+  <table width="100%" class="pane openstack-slave-template">
     <f:section title="General Configuration">
       <f:entry title="Name" field="name">
         <f:textbox checkMethod="post"/>
@@ -10,7 +10,7 @@
       </f:entry>
     </f:section>
 
-    <f:advanced title="Provisioning details" style="primary">
+    <f:advanced title="Provisioning details">
       <!-- defaultOpts was injected from outside -->
       <j:set var="instance" value="${instance.rawSlaveOptions}"/>
       <st:include page="config.jelly" it="${instance}" from="${defaultOpts}"/>
