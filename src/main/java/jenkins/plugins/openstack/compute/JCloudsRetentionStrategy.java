@@ -50,6 +50,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     private void doCheck(JCloudsComputer c) {
         if (c.isPendingDelete()) return; // No need to do it again
         if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
+        if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
 
         final JCloudsSlave node = c.getNode();
         if (node == null) return; // Node is gone already
@@ -57,12 +58,9 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         final int retentionTime = node.getSlaveOptions().getRetentionTime();
         if (retentionTime < 0) return; // Keep forever
 
-        if (retentionTime !=0 && !c.isIdle()) return;
-        if (c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
-
         final long idleSince = c.getIdleStartMilliseconds();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
-        if (retentionTime == 0 || idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
+        if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
             if (JCloudsPreCreationThread.shouldSlaveBeRetained(node)) {
                 LOGGER.info("Keeping " + c .getName() + " to meet minium requirements");
                 return;

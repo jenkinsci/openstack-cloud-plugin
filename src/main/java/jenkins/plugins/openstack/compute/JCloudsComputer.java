@@ -99,16 +99,18 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         ;
     }
 
+    public Integer getRetentionTime() {
+        final JCloudsSlave node = getNode();
+        if (node == null) return -1;
+        return node.getSlaveOptions().getRetentionTime();
+    }
+
     @Override
     public boolean isAcceptingTasks() {
         // If this is a one-off node (i.e. retentionTime == 0) then
         // reject tasks as soon at the first job is started.
-        final JCloudsSlave node = getNode();
-        if (used && node != null) {
-            int retentionTime = node.getSlaveOptions().getRetentionTime();
-            if (retentionTime == 0 && used) {
-                return false;
-            }
+        if (isUsed() && getRetentionTime() == 0) {
+            return false;
         }
         return super.isAcceptingTasks();
     }
@@ -139,9 +141,9 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     private void checkSlaveAfterTaskCompletion(JCloudsComputer computer) {
-        final JCloudsSlave node = computer.getNode();
-        if (node == null) return;
-        if (node.getSlaveOptions().getRetentionTime() == 0) {
+        // If the retention time for this computer is zero, this means it
+        // should not be re-used: mark the node as "pending delete".
+        if (getRetentionTime() == 0) {
             setPendingDelete(true);
         }
     }
