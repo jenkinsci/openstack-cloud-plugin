@@ -220,7 +220,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
                 final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 for (Flavor flavor : openstack.getSortedFlavors()) {
                     final String value = flavor.getId();
-                    final String displayText = String.format("%s (%s)", flavor.getName(), value);
+                    final String displayText = String.format("%s (CPUs: %s, RAM: %sMB, Disk: %sGB)", flavor.getName(), flavor.getVcpus(), flavor.getRam(), flavor.getDisk());
                     m.add(displayText, value);
                 }
             }
