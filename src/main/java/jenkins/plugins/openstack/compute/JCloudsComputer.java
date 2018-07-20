@@ -36,7 +36,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
-    private boolean used;
+    private volatile boolean used;
 
     /**
      * Get all Openstack computers.
@@ -99,6 +99,22 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         ;
     }
 
+    public Integer getRetentionTime() {
+        final JCloudsSlave node = getNode();
+        if (node == null) return -1;
+        return node.getSlaveOptions().getRetentionTime();
+    }
+
+    @Override
+    public boolean isAcceptingTasks() {
+        // If this is a one-off node (i.e. retentionTime == 0) then
+        // reject tasks as soon at the first job is started.
+        if (isUsed() && getRetentionTime() == 0) {
+            return false;
+        }
+        return super.isAcceptingTasks();
+    }
+
     @Override
     public void taskAccepted(Executor executor, Queue.Task task) {
         super.taskAccepted(executor, task);
@@ -110,6 +126,26 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
      */
     public boolean isUsed() {
         return used;
+    }
+
+    @Override
+    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
+        super.taskCompleted(executor, task, durationMS);
+        checkSlaveAfterTaskCompletion(this);
+    }
+
+    @Override
+    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
+        super.taskCompletedWithProblems(executor, task, durationMS, problems);
+        checkSlaveAfterTaskCompletion(this);
+    }
+
+    private void checkSlaveAfterTaskCompletion(JCloudsComputer computer) {
+        // If the retention time for this computer is zero, this means it
+        // should not be re-used: mark the node as "pending delete".
+        if (getRetentionTime() == 0) {
+            setPendingDelete(true);
+        }
     }
 
     // Hide /configure view inherited from Computer
