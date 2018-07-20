@@ -99,7 +99,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         ;
     }
 
-    public Integer getRetentionTime() {
+    private int getRetentionTime() {
         final JCloudsSlave node = getNode();
         if (node == null) return -1;
         return node.getSlaveOptions().getRetentionTime();
@@ -131,16 +131,16 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     @Override
     public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
         super.taskCompleted(executor, task, durationMS);
-        checkSlaveAfterTaskCompletion(this);
+        checkSlaveAfterTaskCompletion();
     }
 
     @Override
     public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
         super.taskCompletedWithProblems(executor, task, durationMS, problems);
-        checkSlaveAfterTaskCompletion(this);
+        checkSlaveAfterTaskCompletion();
     }
 
-    private void checkSlaveAfterTaskCompletion(JCloudsComputer computer) {
+    private void checkSlaveAfterTaskCompletion() {
         // If the retention time for this computer is zero, this means it
         // should not be re-used: mark the node as "pending delete".
         if (getRetentionTime() == 0) {
