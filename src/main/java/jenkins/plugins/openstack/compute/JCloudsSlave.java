@@ -3,14 +3,12 @@ package jenkins.plugins.openstack.compute;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.OfflineCause;
-import hudson.slaves.SlaveComputer;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -210,9 +208,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     private @CheckForNull OfflineCause getFatalOfflineCause() {
-        Computer computer = toComputer();
+        JCloudsComputer computer = getComputer();
         if (computer == null) return null;
-        return ((JCloudsComputer) computer).getFatalOfflineCause();
+        return computer.getFatalOfflineCause();
     }
 
     private static Openstack getOpenstack(String cloudName) {

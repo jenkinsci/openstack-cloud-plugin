@@ -4,7 +4,6 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 
 import jenkins.plugins.openstack.PluginTestRule;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -48,10 +47,8 @@ public class JCloudsPreCreationThreadTest {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
         for (int i = 0; i < existingInstances; i++) {
-            JCloudsSlave slave = j.provision(cloud, "label");
-            JCloudsComputer computer = (JCloudsComputer) slave.getComputer();
+            j.provision(cloud, "label");
         }
-        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(os, times(existingInstances)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
 
         j.triggerSlavePreCreation();
@@ -68,10 +65,8 @@ public class JCloudsPreCreationThreadTest {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
         for (int i = 0; i < existingInstances; i++) {
-            JCloudsSlave slave = j.provision(cloud, "label");
-            JCloudsComputer computer = (JCloudsComputer) slave.getComputer();
+            j.provision(cloud, "label");
         }
-        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(os, times(existingInstances)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
 
         j.triggerSlavePreCreation();

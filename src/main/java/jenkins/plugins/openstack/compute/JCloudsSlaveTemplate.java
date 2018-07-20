@@ -418,7 +418,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             if (node instanceof JCloudsSlave) {
                 JCloudsSlave slave = (JCloudsSlave) node;
                 if (slave.getId().getCloudName().equals(cloud.name) && slave.getId().getTemplateName().equals(name)) {
-                    JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+                    JCloudsComputer computer = slave.getComputer();
                     if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
                         if (onlyNewComputers) {
                             if (!computer.isUsed()) {

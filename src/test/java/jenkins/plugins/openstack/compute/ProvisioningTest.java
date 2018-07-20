@@ -83,7 +83,7 @@ public class ProvisioningTest {
 
         JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
         assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
@@ -434,7 +434,7 @@ public class ProvisioningTest {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/Fake/it", 42));
-        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+        slave.getComputer().deleteSlave();
 
         ProvisioningActivity pa = CloudStatistics.get().getActivityFor(slave);
         List<PhaseExecutionAttachment> attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
@@ -444,7 +444,7 @@ public class ProvisioningTest {
 
         slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new OfflineCause.ChannelTermination(new RuntimeException("Broken alright")));
-        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+        slave.getComputer().deleteSlave();
 
         pa = CloudStatistics.get().getActivityFor(slave);
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
@@ -454,7 +454,7 @@ public class ProvisioningTest {
 
         slave = j.provision(cloud, "label");
         slave.toComputer().disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
-        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+        slave.getComputer().deleteSlave();
 
         pa = CloudStatistics.get().getActivityFor(slave);
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();

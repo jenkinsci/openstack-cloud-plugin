@@ -18,8 +18,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestExtension;
 
-import java.io.IOException;
-
 public class JCloudsRetentionStrategyTest {
 
     @Rule
@@ -35,7 +33,7 @@ public class JCloudsRetentionStrategyTest {
 
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         assertEquals(1, (int) slave.getSlaveOptions().getRetentionTime());
 
         JCloudsRetentionStrategy strategy = (JCloudsRetentionStrategy) slave.getRetentionStrategy();
@@ -73,7 +71,7 @@ public class JCloudsRetentionStrategyTest {
         } while(Jenkins.getInstance().getNodes().isEmpty());
 
         JCloudsSlave node = (JCloudsSlave) Jenkins.getInstance().getNodes().get(0);
-        JCloudsComputer computer = (JCloudsComputer) node.toComputer();
+        JCloudsComputer computer = node.getComputer();
         assertSame(computer, j.jenkins.getComputer(node.getNodeName()));
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
@@ -106,7 +104,7 @@ public class JCloudsRetentionStrategyTest {
     public static class LaunchBlocker extends ComputerListener {
         private static OneShotEvent unlock = new OneShotEvent();
         @Override
-        public void preLaunch(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
+        public void preLaunch(Computer c, TaskListener taskListener) throws InterruptedException {
             unlock.block();
         }
     }
@@ -119,7 +117,7 @@ public class JCloudsRetentionStrategyTest {
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
         computer.setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Offline"));
 
@@ -139,7 +137,7 @@ public class JCloudsRetentionStrategyTest {
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
 
         computer.getRetentionStrategy().check(computer);
@@ -154,7 +152,7 @@ public class JCloudsRetentionStrategyTest {
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
@@ -174,8 +172,8 @@ public class JCloudsRetentionStrategyTest {
 	    )));
 	    JCloudsSlave slave1 = j.provision(cloud, "label");
 	    JCloudsSlave slave2 = j.provision(cloud, "label");
-        JCloudsComputer computer1 = (JCloudsComputer) slave1.toComputer();
-        JCloudsComputer computer2 = (JCloudsComputer) slave2.toComputer();
+        JCloudsComputer computer1 = slave1.getComputer();
+        JCloudsComputer computer2 = slave2.getComputer();
 
         computer1.getRetentionStrategy().check(computer1);
         computer2.getRetentionStrategy().check(computer2);
@@ -191,7 +189,7 @@ public class JCloudsRetentionStrategyTest {
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);

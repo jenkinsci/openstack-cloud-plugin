@@ -8,6 +8,7 @@ import hudson.security.Permission;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.OfflineCause.SimpleOfflineCause;
+import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -97,6 +98,13 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
                 ? oc
                 : null
         ;
+    }
+
+    @Override // Overridden for type safety only
+    public JCloudsRetentionStrategy getRetentionStrategy() {
+        RetentionStrategy<?> rs = super.getRetentionStrategy();
+        if (rs instanceof JCloudsRetentionStrategy) return (JCloudsRetentionStrategy) rs;
+        return new JCloudsRetentionStrategy();
     }
 
     private int getRetentionTime() {

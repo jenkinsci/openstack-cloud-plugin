@@ -54,7 +54,7 @@ public class JCloudsCleanupThreadTest {
     @Test
     public void discardTemporarilyOfflineSlave() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
-        JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
+        JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
@@ -68,7 +68,7 @@ public class JCloudsCleanupThreadTest {
     @Test
     public void discardDisconnectedSlave() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
-        JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
+        JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
@@ -83,7 +83,7 @@ public class JCloudsCleanupThreadTest {
     @Test @Issue("JENKINS-50313") @Ignore("Not jet fixed")
     public void doNotDiscardDisconnectedSlaveTemporarilyOfflineBySomeone() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
-        JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
+        JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
@@ -100,7 +100,7 @@ public class JCloudsCleanupThreadTest {
     public void doNotDeleteSlaveThatIsNotIdle() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.getComputer();
+        JCloudsComputer computer = slave.getComputer();
 
         final BuildBlocker blocker = new BuildBlocker();
 

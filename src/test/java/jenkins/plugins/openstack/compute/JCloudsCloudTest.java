@@ -1,35 +1,18 @@
 package jenkins.plugins.openstack.compute;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
-import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.gargoylesoftware.htmlunit.ConfirmHandler;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
-import com.gargoylesoftware.htmlunit.Page;
+import com.gargoylesoftware.htmlunit.WebAssert;
+import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlElement;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.google.common.cache.Cache;
 import hudson.ExtensionList;
 import hudson.model.Item;
+import hudson.model.Label;
 import hudson.model.UnprotectedRootAction;
 import hudson.model.User;
 import hudson.plugins.sshslaves.SSHLauncher;
@@ -37,11 +20,14 @@ import hudson.security.ACL;
 import hudson.security.Permission;
 import hudson.security.SidACL;
 import hudson.slaves.Cloud;
+import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.GlobalConfig;
+import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -51,17 +37,6 @@ import org.apache.commons.io.IOUtils;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-
-import com.gargoylesoftware.htmlunit.WebAssert;
-import com.gargoylesoftware.htmlunit.html.HtmlButton;
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.google.common.cache.Cache;
-
-import hudson.model.Label;
-import hudson.util.FormValidation;
-import jenkins.plugins.openstack.PluginTestRule;
-import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
@@ -80,13 +55,34 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 public class JCloudsCloudTest {
-    public static final List<JCloudsSlaveTemplate> NO_TEMPLATES = Collections.<JCloudsSlaveTemplate>emptyList();
+    private static final List<JCloudsSlaveTemplate> NO_TEMPLATES = Collections.emptyList();
+
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
     @Test @Issue("JENKINS-39282") // The problem does not manifest in jenkins-test-harness - created as a regression test
-    public void guavaLeak() throws Exception {
+    public void guavaLeak() {
         NovaServer server = mock(NovaServer.class, CALLS_REAL_METHODS);
         server.id = "424242";
         assertThat(server.toString(), containsString("424242"));
@@ -301,11 +297,7 @@ public class JCloudsCloudTest {
         //j.interactiveBreak();
         j.submit(edit.getForms().get(1));
 
-        wc.setConfirmHandler(new ConfirmHandler() {
-            @Override public boolean handleConfirm(Page page, String s) {
-                return true;
-            }
-        });
+        wc.setConfirmHandler((page, s) -> true);
         clickAction(configfiles, "remove");
 
         assertNull(template.getUserData());
@@ -360,7 +352,7 @@ public class JCloudsCloudTest {
         final Cache<String, Openstack> cache = Openstack.FactoryEP.getCache();
         when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
             @Override
-            public Openstack answer(InvocationOnMock invocation) throws Throwable {
+            public Openstack answer(InvocationOnMock invocation) {
                 // create new instance every time we are called
                 return new Openstack(client);
             }
@@ -401,7 +393,7 @@ public class JCloudsCloudTest {
         final JCloudsCloud i112 = new JCloudsCloud("112", ep1, false, zone1, defOpts, null, openstackCredential2.getId());
         when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
             @Override
-            public Openstack answer(InvocationOnMock invocation) throws Throwable {
+            public Openstack answer(InvocationOnMock invocation) {
                 // create new instance every time we are called
                 return new Openstack(client);
             }

@@ -31,8 +31,6 @@ import hudson.model.AsyncPeriodicWork;
  *
  * The pre-provisioning always respects the instance capacity (either global or
  * per template).
- *
- *
  */
 @Extension @Restricted(NoExternalUse.class)
 public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
@@ -91,7 +89,7 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
                 if (template != null) {
                     SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
                     Integer instancesMin = slaveOptions.getInstancesMin();
-                    JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+                    JCloudsComputer computer = slave.getComputer();
                     Integer retentionTime = slaveOptions.getRetentionTime();
                     if (instancesMin > 0 && computer != null) {
                         if (retentionTime != 0 && (template.getActiveNodesTotal(false) - 1) < instancesMin) {
@@ -109,5 +107,4 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
 
     @Override protected Level getNormalLoggingLevel() { return Level.FINE; }
     @Override protected Level getSlowLoggingLevel() { return Level.INFO; }
-
 }

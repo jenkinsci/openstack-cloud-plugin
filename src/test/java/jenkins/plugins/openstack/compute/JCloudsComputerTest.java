@@ -1,13 +1,10 @@
 package jenkins.plugins.openstack.compute;
 
-import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
-import hudson.model.FreeStyleProject;
+import jenkins.plugins.openstack.PluginTestRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule.WebClient;
-
-import jenkins.plugins.openstack.PluginTestRule;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -32,7 +29,7 @@ public class JCloudsComputerTest {
 
     @Test
     public void pendingDelete() throws Exception {
-        JCloudsComputer computer = (JCloudsComputer) j.provisionDummySlave("label").toComputer();
+        JCloudsComputer computer = j.provisionDummySlave("label").getComputer();
         computer.waitUntilOnline(); // Not really needed but can affect tests negatively
         assertFalse("New slave should be online", computer.isPendingDelete());
         computer.setPendingDelete(true);
@@ -48,7 +45,7 @@ public class JCloudsComputerTest {
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
@@ -63,7 +60,7 @@ public class JCloudsComputerTest {
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
