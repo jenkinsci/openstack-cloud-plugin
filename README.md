@@ -2,6 +2,8 @@
 
 Provision slaves from OpenStack on demand.
 
+[![Build Status](https://ci.jenkins.io/job/Plugins/job/openstack-cloud-plugin/job/master/badge/icon)](https://ci.jenkins.io/job/Plugins/job/openstack-cloud-plugin/job/master/)
+
 ## Testing
 
 The plugin has an integration tests implemented using Acceptance Test Harness. We are looking for volunteers to run that in their environments to make sure the plugin works against their openstack.
