@@ -26,7 +26,9 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TreeMap;
 import java.util.logging.Logger;
 
 /**
@@ -40,6 +42,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     // Full/effective options
     private /*final*/ @Nonnull SlaveOptions options;
     private final @Nonnull ProvisioningActivity.Id provisioningId;
+    private final @CheckForNull Map<String, String> openstackMetaData;
 
     private /*final*/ @Nonnull String nodeId;
 
@@ -72,6 +75,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.provisioningId = id;
         this.options = slaveOptions;
         this.nodeId = metadata.getId();
+        final Map<String, String> instanceMetaData = metadata.getMetadata();
+        if (instanceMetaData != null && !instanceMetaData.isEmpty()) {
+            this.openstackMetaData = new TreeMap<>(instanceMetaData);
+        } else {
+            this.openstackMetaData = null;
+        }
         setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
     }
 
@@ -112,6 +121,16 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         nodeId =  nodeId.replaceFirst(".*/", ""); // Remove region prefix
 
         return this;
+    }
+
+    /**
+     * Get all the metadata settings that the plugin wrote into the OpenStack
+     * Server's metadata.
+     * 
+     * @return A Map of metadata key to metadata value. This will not be null.
+     */
+    public @Nonnull Map<String, String> getOpenstackMetaData() {
+        return openstackMetaData == null ? new TreeMap<>() : openstackMetaData;
     }
 
     /**

@@ -27,7 +27,9 @@ import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
@@ -61,6 +63,61 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     @Override
     public @CheckForNull JCloudsSlave getNode() {
         return super.getNode();
+    }
+
+    /**
+     * Gets the metadata settings that were provided to Openstack
+     * when the slave was created by the plugin, excluding any empty values.
+     * 
+     * @return A Map of metadata key to metadata value. This will not be null.
+     */
+    public Map<String, String> getOpenstackMetaData() {
+        final Map<String, String> result = new LinkedHashMap<>();
+        final JCloudsSlave node = getNode();
+        if (node != null) {
+            final Map<String, String> metaData = node.getOpenstackMetaData();
+            for (Map.Entry<String, String> entry : metaData.entrySet()) {
+                putIfNotNullOrEmpty(result, entry.getKey(), entry.getValue());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Gets most of the Server settings that were provided to Openstack
+     * when the slave was created by the plugin.
+     * Not all settings are interesting and any that are empty/null are omitted.
+     * 
+     * @return A Map of metadata key to metadata value. This will not be null.
+     */
+    public Map<String, String> getOpenstackSlaveOptions() {
+        final Map<String, String> result = new LinkedHashMap<>();
+        final JCloudsSlave node = getNode();
+        if (node != null) {
+            final SlaveOptions slaveOptions = node.getSlaveOptions();
+            putIfNotNullOrEmpty(result, "HardwareId", slaveOptions.getHardwareId());
+            putIfNotNullOrEmpty(result, "NetworkId", slaveOptions.getNetworkId());
+            putIfNotNullOrEmpty(result, "FloatingIpPool", slaveOptions.getFloatingIpPool());
+            putIfNotNullOrEmpty(result, "SecurityGroups", slaveOptions.getSecurityGroups());
+            putIfNotNullOrEmpty(result, "AvailabilityZone", slaveOptions.getAvailabilityZone());
+            putIfNotNullOrEmpty(result, "StartTimeout", slaveOptions.getStartTimeout());
+            putIfNotNullOrEmpty(result, "KeyPairName", slaveOptions.getKeyPairName());
+            final Object launcherFactory = slaveOptions.getLauncherFactory();
+            putIfNotNullOrEmpty(result, "LauncherFactory",
+                    launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
+            putIfNotNullOrEmpty(result, "JvmOptions", slaveOptions.getJvmOptions());
+        }
+        return result;
+    }
+
+    private static void putIfNotNullOrEmpty(final Map<String, String> mapToBeAddedTo, final String fieldName,
+            final Object fieldValue) {
+        if (fieldValue != null) {
+            final String valueString = fieldValue.toString();
+            if (!valueString.trim().isEmpty()) {
+                mapToBeAddedTo.put(fieldName, valueString);
+            }
+        }
     }
 
     @Override

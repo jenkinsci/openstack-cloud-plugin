@@ -1,0 +1,20 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
+
+  <h2>OpenStack server metadata</h2>
+  <dl>
+    <j:forEach var="entry" items="${it.getOpenstackMetaData().entrySet()}">
+      <dt>${entry.getKey()}:</dt>
+      <dd><tt>${entry.getValue()}</tt></dd>
+    </j:forEach>
+  </dl>
+
+  <h2>OpenStack server specifications</h2>
+  <dl>
+    <j:forEach var="entry" items="${it.getOpenstackSlaveOptions().entrySet()}">
+      <dt>${entry.getKey()}:</dt>
+      <dd><tt>${entry.getValue()}</tt></dd>
+    </j:forEach>
+  </dl>
+
+</j:jelly>
