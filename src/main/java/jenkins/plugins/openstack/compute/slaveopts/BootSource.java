@@ -70,6 +70,7 @@ import static jenkins.plugins.openstack.compute.SlaveOptionsDescriptor.REQUIRED;
 public abstract class BootSource extends AbstractDescribableImpl<BootSource> implements Serializable {
     private static final long serialVersionUID = -838838433829383008L;
     private static final Logger LOGGER = Logger.getLogger(BootSource.class.getName());
+    private static final String OPENSTACK_BOOTSOURCE_KEY = "jenkins-boot-source";
 
     /**
      * Configures the given {@link ServerCreateBuilder} to specify that the
@@ -85,6 +86,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
      */
     public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os)
             throws JCloudsCloud.ProvisioningFailedException {
+        builder.addMetadataItem(OPENSTACK_BOOTSOURCE_KEY, toString());
     }
 
     /**
@@ -192,6 +194,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
          *            Means of communicating with the OpenStack service.
          * @param nameOrId
          *            The user's selected name (or ID).
+         * @return A list of all the IDs matching the specified name.
          */
         public abstract @Nonnull List<String> findMatchingIds(Openstack openstack, String nameOrId);
 
@@ -201,12 +204,14 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
          * 
          * @param openstack
          *            Means of communicating with the OpenStack service.
+         * @return A list of all the names the user could choose from.
          */
         public abstract List<String> listAllNames(Openstack openstack);
     }
 
     public static class Image extends BootSource {
         private static final long serialVersionUID = -8309975034351235331L;
+        private static final String OPENSTACK_BOOTSOURCE_IMAGE_ID_KEY = "jenkins-boot-image-id";
 
         protected final @Nonnull String name;
 
@@ -224,10 +229,12 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         public void setServerBootSource(
                 @Nonnull ServerCreateBuilder builder, @Nonnull Openstack os
         ) throws JCloudsCloud.ProvisioningFailedException {
+            super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
 
             builder.image(id);
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_IMAGE_ID_KEY, id);
         }
 
         @Override
@@ -302,6 +309,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
     public static final class VolumeFromImage extends Image {
         private static final long serialVersionUID = 3932407339481241514L;
+        private static final String OPENSTACK_BOOTSOURCE_VOLUME_FROM_IMAGE_ID_KEY = "jenkins-boot-volumefromimage-id";
 
         private final int volumeSize;
 
@@ -317,6 +325,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os) throws JCloudsCloud.ProvisioningFailedException {
+            super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
 
@@ -329,6 +338,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     .bootIndex(0)
             ;
             builder.blockDevice(volumeBuilder.build());
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUME_FROM_IMAGE_ID_KEY, id);
         }
 
         @Override
@@ -348,6 +358,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
     public static final class VolumeSnapshot extends BootSource {
         private static final long serialVersionUID = 1629434277902240395L;
+        private static final String OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY = "jenkins-boot-volumesnapshot-id";
+
         private final @Nonnull String name;
 
         @DataBoundConstructor
@@ -362,6 +374,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os) {
+            super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "VolumeSnapshots");
             final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
@@ -371,6 +384,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     .deleteOnTermination(true)
                     .bootIndex(0);
             builder.blockDevice(volumeBuilder.build());
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY, id);
         }
 
         @Override
@@ -383,9 +397,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             final List<String> volumeIds = server.getOsExtendedVolumesAttached();
             final String instanceId = server.getId();
             final String instanceName = server.getName();
+            final Map<String, String> instanceMetaData = server.getMetadata();
+            final String instanceVolumeSnapshotId = instanceMetaData == null
+                    ? null
+                    : instanceMetaData.get(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY);
             int i = 0;
             final String newVolumeDescription = "For " + instanceName + " (" + instanceId + "), from VolumeSnapshot "
-                    + name + ".";
+                    + name + (instanceVolumeSnapshotId == null ? "" : " (" + instanceVolumeSnapshotId + ")") + ".";
             for (final String volumeId : volumeIds) {
                 final String newVolumeName = instanceName + '[' + (i++) + ']';
                 openstack.setVolumeNameAndDescription(volumeId, newVolumeName, newVolumeDescription);
