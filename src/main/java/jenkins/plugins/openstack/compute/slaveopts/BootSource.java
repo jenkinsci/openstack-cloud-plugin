@@ -359,6 +359,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
     public static final class VolumeSnapshot extends BootSource {
         private static final long serialVersionUID = 1629434277902240395L;
         private static final String OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY = "jenkins-boot-volumesnapshot-id";
+        private static final String OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_DESC_KEY = "jenkins-boot-volumesnapshot-description";
 
         private final @Nonnull String name;
 
@@ -377,6 +378,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "VolumeSnapshots");
+            final String volumeSnapshotDescription = os.getVolumeSnapshotDescription(id);
             final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
                     .sourceType(BDMSourceType.SNAPSHOT)
                     .destinationType(BDMDestType.VOLUME)
@@ -385,6 +387,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     .bootIndex(0);
             builder.blockDevice(volumeBuilder.build());
             builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY, id);
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_DESC_KEY, volumeSnapshotDescription);
         }
 
         @Override
