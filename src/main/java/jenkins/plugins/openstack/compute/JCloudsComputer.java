@@ -95,6 +95,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         final JCloudsSlave node = getNode();
         if (node != null) {
             final SlaveOptions slaveOptions = node.getSlaveOptions();
+            putIfNotNullOrEmpty(result, "ServerId", node.getServerId());
             putIfNotNullOrEmpty(result, "HardwareId", slaveOptions.getHardwareId());
             putIfNotNullOrEmpty(result, "NetworkId", slaveOptions.getNetworkId());
             putIfNotNullOrEmpty(result, "FloatingIpPool", slaveOptions.getFloatingIpPool());
