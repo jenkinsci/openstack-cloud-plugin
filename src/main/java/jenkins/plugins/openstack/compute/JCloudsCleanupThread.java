@@ -129,6 +129,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             for (Executor e : comp.getExecutors()) {
                 e.interrupt(Result.ABORTED, coi);
             }
+            for(Executor e : comp.getOneOffExecutors()){
+                e.interrupt(Result.ABORTED, coi);
+            }
             comp.deleteSlave();
         } catch (Throwable e) {
             LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + comp.getName(), e);
