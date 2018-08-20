@@ -442,7 +442,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
-        private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z0-9][-a-zA-Z0-9]{0,79}$");
+        private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z0-9][-_a-zA-Z0-9]{0,79}$");
 
         @Override
         public String getDisplayName() {
