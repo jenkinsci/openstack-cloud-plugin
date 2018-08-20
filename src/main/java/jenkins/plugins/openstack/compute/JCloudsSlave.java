@@ -21,8 +21,10 @@ import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.common.Link;
+import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Flavor;
+import org.openstack4j.model.compute.Image;
 import org.openstack4j.model.compute.Server;
 
 import com.google.common.cache.Cache;
@@ -31,6 +33,7 @@ import com.google.common.cache.CacheBuilder;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -52,13 +55,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
 
     /** metadata fields that aren't worth showing to the user. */
-    private static final Set<String> HIDDEN_METADATA_VALUES = new HashSet<>();
-    static {
-        HIDDEN_METADATA_VALUES.add(Openstack.FINGERPRINT_KEY);
-        HIDDEN_METADATA_VALUES.add(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY);
-        HIDDEN_METADATA_VALUES.add(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY);
-        HIDDEN_METADATA_VALUES.add(ServerScope.METADATA_KEY);
-    }
+    private static final List<String> HIDDEN_METADATA_VALUES = Arrays.asList(
+            Openstack.FINGERPRINT_KEY,
+            JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY,
+            JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY,
+            ServerScope.METADATA_KEY
+    );
 
     private final @Nonnull String cloudName;
     // Full/effective options
@@ -181,7 +183,17 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         }
         final Addresses addresses = s.getAddresses();
         if (addresses != null) {
-            putIfNotNullOrEmpty(result, "addresses", addresses.getAddresses());
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, List<? extends Address>> e: addresses.getAddresses().entrySet()) {
+                String networkName = e.getKey();
+                for (Address address : e.getValue()) {
+                    if (sb.length() != 0) {
+                        sb.append(", ");
+                    }
+                    sb.append(address.getAddr()).append(" (").append(address.getType()).append(" in ").append(networkName).append(")");
+                }
+            }
+            putIfNotNullOrEmpty(result, "addresses", sb.toString());
         }
         putIfNotNullOrEmpty(result, "availabilityZone", s.getAvailabilityZone());
         putIfNotNullOrEmpty(result, "configDrive", s.getConfigDrive());
@@ -189,38 +201,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         putIfNotNullOrEmpty(result, "fault", s.getFault());
         final Flavor flavor = s.getFlavor();
         if (flavor != null) {
-            final Map<String, String> flavorMap = new LinkedHashMap<>();
-            putIfNotNullOrEmpty(flavorMap, "ID", flavor.getId());
-            putIfNotNullOrEmpty(flavorMap, "name", flavor.getName());
-            putIfNotNullOrEmpty(flavorMap, "ram", flavor.getRam());
-            putIfNotNullOrEmpty(flavorMap, "vcpus", flavor.getVcpus());
-            putIfNotNullOrEmpty(flavorMap, "disk", flavor.getDisk());
-            if (flavor.getEphemeral() != 0) {
-                putIfNotNullOrEmpty(flavorMap, "ephemeral", flavor.getEphemeral());
-            }
-            if (flavor.getSwap() != 0) {
-                putIfNotNullOrEmpty(flavorMap, "swap", flavor.getSwap());
-            }
-            if (!flavorMap.isEmpty()) {
-                putIfNotNullOrEmpty(result, "flavor", flavorMap);
-            }
+            putIfNotNullOrEmpty(result, "flavor", Openstack.getFlavorInfo(flavor));
         }
         putIfNotNullOrEmpty(result, "host", s.getHost());
-        putIfNotNullOrEmpty(result, "hypervisorHostname", s.getHypervisorHostname());
-        putIfNotNullOrEmpty(result, "image", s.getImage());
         putIfNotNullOrEmpty(result, "instanceName", s.getInstanceName());
         putIfNotNullOrEmpty(result, "keyName", s.getKeyName());
         putIfNotNullOrEmpty(result, "launchedAt", s.getLaunchedAt());
-        final List<? extends Link> links = s.getLinks();
-        if (links != null && !links.isEmpty()) {
-            final StringBuilder sb = new StringBuilder();
-            for (final Link link : links) {
-                sb.append('\n');
-                sb.append(link.getHref());
-            }
-            sb.deleteCharAt(0);
-            putIfNotNullOrEmpty(result, "links", sb);
-        }
         putIfNotNullOrEmpty(result, "name", s.getName());
         putIfNotNullOrEmpty(result, "osExtendedVolumesAttached", s.getOsExtendedVolumesAttached());
         putIfNotNullOrEmpty(result, "powerState", s.getPowerState());
@@ -231,7 +217,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         if (metaDataOrNull != null) {
             for (Map.Entry<String, String> e : metaDataOrNull.entrySet()) {
                 final String key = e.getKey();
-                if( HIDDEN_METADATA_VALUES.contains(key)) {
+                if (HIDDEN_METADATA_VALUES.contains(key)) {
                     continue;
                 }
                 putIfNotNullOrEmpty(result, "metadata." + key, e.getValue());
@@ -244,11 +230,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         final Map<String, String> result = new LinkedHashMap<>();
         final SlaveOptions slaveOptions = getSlaveOptions();
         putIfNotNullOrEmpty(result, "serverId", nodeId);
-        putIfNotNullOrEmpty(result, "networkId", slaveOptions.getNetworkId());
+        putIfNotNullOrEmpty(result, "network", slaveOptions.getNetworkId());
         putIfNotNullOrEmpty(result, "floatingIpPool", slaveOptions.getFloatingIpPool());
         putIfNotNullOrEmpty(result, "securityGroups", slaveOptions.getSecurityGroups());
         putIfNotNullOrEmpty(result, "startTimeout", slaveOptions.getStartTimeout());
-        putIfNotNullOrEmpty(result, "keyPairName", slaveOptions.getKeyPairName());
         final Object launcherFactory = slaveOptions.getLauncherFactory();
         putIfNotNullOrEmpty(result, "launcherFactory",
                 launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
@@ -258,8 +243,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     private Server readOpenstackServer() {
         try {
-            final Server server = getOpenstack(cloudName).getServerById(nodeId);
-            return server;
+            return getOpenstack(cloudName).getServerById(nodeId);
         } catch (NoSuchElementException ex) {
             // just return empty
         } catch (Exception ex) {
@@ -388,11 +372,14 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.SECONDS).build();
     }
 
-    private static void putIfNotNullOrEmpty(@Nonnull final Map<String, String> mapToBeAddedTo, @Nonnull final String fieldName,
-            @CheckForNull final Object fieldValue) {
+    private static void putIfNotNullOrEmpty(
+            @Nonnull final Map<String, String> mapToBeAddedTo,
+            @Nonnull final String fieldName,
+            @CheckForNull final Object fieldValue
+    ) {
         if (fieldValue != null) {
-            final String valueString = fieldValue.toString();
-            if (!valueString.trim().isEmpty()) {
+            final String valueString = Util.fixEmptyAndTrim(fieldValue.toString());
+            if (valueString != null) {
                 mapToBeAddedTo.put(fieldName, valueString);
             }
         }

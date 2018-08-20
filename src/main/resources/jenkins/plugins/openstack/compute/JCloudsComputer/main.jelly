@@ -1,10 +1,9 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
-
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
   <h2>OpenStack details</h2>
   <j:choose>
     <j:when test="${it.node==null}">
-      <table class="pane sortable bigtable">
+      <table class="pane bigtable">
         <tr><td>
           ${%No data}
         </td></tr>
@@ -16,7 +15,7 @@
           <b>${%Warning}:</b> ${%Live data unavailable.}
         </j:when>
       </j:choose>
-      <table class="pane sortable bigtable">
+      <table class="pane bigtable">
         <tr>
           <th class="pane-header" initialSortDir="down">${%Name}</th>
           <th class="pane-header">${%Value}</th>

@@ -145,6 +145,13 @@ public class Openstack {
         };
     }
 
+    public static @Nonnull String getFlavorInfo(@Nonnull Flavor f) {
+        return String.format(
+                "%s (CPUs: %s, RAM: %sMB, Disk: %sGB, SWAP: %sMB, Ephemeral: %sGB)",
+                f.getName(), f.getVcpus(), f.getRam(), f.getDisk(), f.getSwap(), f.getEphemeral()
+        );
+    }
+
     /**
      * Get information about OpenStack deployment.
      */
