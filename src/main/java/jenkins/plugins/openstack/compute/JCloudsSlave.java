@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import com.google.common.base.Objects;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Util;
@@ -19,12 +20,11 @@ import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.openstack4j.model.common.Link;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Flavor;
-import org.openstack4j.model.compute.Image;
 import org.openstack4j.model.compute.Server;
 
 import com.google.common.cache.Cache;
@@ -35,12 +35,10 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -148,14 +146,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * 
      * @return A Map of fieldName to value. This will not be null or empty.
      */
+    @Restricted(DoNotUse.class) // Jelly
     public @Nonnull Map<String, String> getLiveOpenstackServerDetails() {
-        final Callable<Map<String, String>> loader = new Callable<Map<String, String>>() {
-            @Override
-            public Map<String, String> call() {
-                return readLiveOpenstackServerDetails();
-            }
-        };
-        return getCachableData("liveData", loader);
+        return getCachableData("liveData", this::readLiveOpenstackServerDetails);
     }
 
     /**
@@ -165,14 +158,20 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * 
      * @return A Map of option name to value. This will not be null or empty.
      */
+    @Restricted(DoNotUse.class) // Jelly
     public @Nonnull Map<String, String> getOpenstackSlaveData() {
-        final Callable<Map<String, String>> loader = new Callable<Map<String, String>>() {
-            @Override
-            public Map<String, String> call() {
-                return readOpenstackSlaveData();
-            }
-        };
-        return getCachableData("staticData", loader);
+        final Map<String, String> result = new LinkedHashMap<>();
+        final SlaveOptions slaveOptions = getSlaveOptions();
+        putIfNotNullOrEmpty(result, "serverId", nodeId);
+        putIfNotNullOrEmpty(result, "network", slaveOptions.getNetworkId());
+        putIfNotNullOrEmpty(result, "floatingIpPool", slaveOptions.getFloatingIpPool());
+        putIfNotNullOrEmpty(result, "securityGroups", slaveOptions.getSecurityGroups());
+        putIfNotNullOrEmpty(result, "startTimeout", slaveOptions.getStartTimeout());
+        final Object launcherFactory = slaveOptions.getLauncherFactory();
+        putIfNotNullOrEmpty(result, "launcherFactory",
+                launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
+        putIfNotNullOrEmpty(result, "jvmOptions", slaveOptions.getJvmOptions());
+        return result;
     }
 
     private @Nonnull Map<String, String> readLiveOpenstackServerDetails() {
@@ -223,21 +222,6 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 putIfNotNullOrEmpty(result, "metadata." + key, e.getValue());
             }
         }
-        return result;
-    }
-
-    private @Nonnull Map<String, String> readOpenstackSlaveData() {
-        final Map<String, String> result = new LinkedHashMap<>();
-        final SlaveOptions slaveOptions = getSlaveOptions();
-        putIfNotNullOrEmpty(result, "serverId", nodeId);
-        putIfNotNullOrEmpty(result, "network", slaveOptions.getNetworkId());
-        putIfNotNullOrEmpty(result, "floatingIpPool", slaveOptions.getFloatingIpPool());
-        putIfNotNullOrEmpty(result, "securityGroups", slaveOptions.getSecurityGroups());
-        putIfNotNullOrEmpty(result, "startTimeout", slaveOptions.getStartTimeout());
-        final Object launcherFactory = slaveOptions.getLauncherFactory();
-        putIfNotNullOrEmpty(result, "launcherFactory",
-                launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
-        putIfNotNullOrEmpty(result, "jvmOptions", slaveOptions.getJvmOptions());
         return result;
     }
 
@@ -435,9 +419,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
         @Override
         public int hashCode() {
-            int result = inner.hashCode();
-            result = 31 * result + provisioningId.hashCode();
-            return result;
+            return Objects.hashCode(inner.hashCode(), provisioningId.hashCode());
         }
     }
 }
