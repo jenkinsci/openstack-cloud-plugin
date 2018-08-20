@@ -159,12 +159,6 @@ public class Openstack {
         return clientProvider.getInfo();
     }
 
-    public @Nonnull Collection<? extends Network> getSortedNetworks() {
-        List<? extends Network> nets = _listNetworks();
-        Collections.sort(nets, RESOURCE_COMPARATOR);
-        return nets;
-    }
-
     @VisibleForTesting
     public  @Nonnull List<? extends Network> _listNetworks() {
         return clientProvider.get().networking().network().list();
