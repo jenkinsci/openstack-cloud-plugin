@@ -141,21 +141,16 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return this;
     }
 
-    /**
-     * Get settings from OpenStack about the Server for this slave.
-     * 
-     * @return A Map of fieldName to value. This will not be null or empty.
-     */
-    @Restricted(DoNotUse.class) // Jelly
-    public @Nonnull Map<String, String> getLiveOpenstackServerDetails() {
-        return getCachableData("liveData", this::readLiveOpenstackServerDetails);
+    /** Creates a cache where data will be kept for a short duration before being discarded. */
+    private static @Nonnull <K, V> Cache<K, V> makeCache() {
+        return CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
     }
 
     /**
      * Gets most of the Server settings that were provided to Openstack
      * when the slave was created by the plugin.
      * Not all settings are interesting and any that are empty/null are omitted.
-     * 
+     *
      * @return A Map of option name to value. This will not be null or empty.
      */
     @Restricted(DoNotUse.class) // Jelly
@@ -172,6 +167,16 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
         putIfNotNullOrEmpty(result, "jvmOptions", slaveOptions.getJvmOptions());
         return result;
+    }
+
+    /**
+     * Get settings from OpenStack about the Server for this slave.
+     *
+     * @return A Map of fieldName to value. This will not be null or empty.
+     */
+    @Restricted(DoNotUse.class) // Jelly
+    public @Nonnull Map<String, String> getLiveOpenstackServerDetails() {
+        return getCachableData("liveData", this::readLiveOpenstackServerDetails);
     }
 
     private @Nonnull Map<String, String> readLiveOpenstackServerDetails() {
@@ -235,6 +240,34 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                     "Unable to read details of server '" + nodeId + "' from cloud '" + cloudName + "'.", ex);
         }
         return null;
+    }
+
+    private static void putIfNotNullOrEmpty(
+            @Nonnull final Map<String, String> mapToBeAddedTo,
+            @Nonnull final String fieldName,
+            @CheckForNull final Object fieldValue
+    ) {
+        if (fieldValue != null) {
+            final String valueString = Util.fixEmptyAndTrim(fieldValue.toString());
+            if (valueString != null) {
+                mapToBeAddedTo.put(fieldName, valueString);
+            }
+        }
+    }
+
+    /** Gets something from the cache, loading it into the cache if necessary. */
+    @SuppressWarnings("unchecked")
+    private @Nonnull <K, V> V getCachableData(@Nonnull final K key, @Nonnull final Callable<V> dataloader) {
+        try {
+            final Object result = cache.get(key, dataloader);
+            return (V) result;
+        } catch (ExecutionException e) {
+            final Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -336,38 +369,6 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return computer.getFatalOfflineCause();
     }
 
-    /** Gets something from the cache, loading it into the cache if necessary. */
-    @SuppressWarnings("unchecked")
-    private @Nonnull <K, V> V getCachableData(@Nonnull final K key, @Nonnull final Callable<V> dataloader) {
-        try {
-            final Object result = cache.get(key, dataloader);
-            return (V) result;
-        } catch (ExecutionException e) {
-            final Throwable cause = e.getCause();
-            if (cause instanceof RuntimeException) {
-                throw (RuntimeException) cause;
-            }
-            throw new RuntimeException(e);
-        }
-    }
-
-    /** Creates a cache where data will be kept for a short duration before being discarded. */
-    private static @Nonnull <K, V> Cache<K, V> makeCache() {
-        return CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.SECONDS).build();
-    }
-
-    private static void putIfNotNullOrEmpty(
-            @Nonnull final Map<String, String> mapToBeAddedTo,
-            @Nonnull final String fieldName,
-            @CheckForNull final Object fieldValue
-    ) {
-        if (fieldValue != null) {
-            final String valueString = Util.fixEmptyAndTrim(fieldValue.toString());
-            if (valueString != null) {
-                mapToBeAddedTo.put(fieldName, valueString);
-            }
-        }
-    }
 
     private static Openstack getOpenstack(String cloudName) {
         return JCloudsCloud.getByName(cloudName).getOpenstack();
