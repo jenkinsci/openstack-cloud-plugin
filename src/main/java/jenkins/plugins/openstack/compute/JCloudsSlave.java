@@ -20,13 +20,28 @@ import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.openstack4j.model.common.Link;
+import org.openstack4j.model.compute.Addresses;
+import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -36,10 +51,20 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
 
+    /** metadata fields that aren't worth showing to the user. */
+    private static final Set<String> HIDDEN_METADATA_VALUES = new HashSet<>();
+    static {
+        HIDDEN_METADATA_VALUES.add(Openstack.FINGERPRINT_KEY);
+        HIDDEN_METADATA_VALUES.add(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY);
+        HIDDEN_METADATA_VALUES.add(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY);
+        HIDDEN_METADATA_VALUES.add(ServerScope.METADATA_KEY);
+    }
+
     private final @Nonnull String cloudName;
     // Full/effective options
     private /*final*/ @Nonnull SlaveOptions options;
     private final @Nonnull ProvisioningActivity.Id provisioningId;
+    private transient @Nonnull Cache<Object, Object> cache;
 
     private /*final*/ @Nonnull String nodeId;
 
@@ -72,6 +97,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.provisioningId = id;
         this.options = slaveOptions;
         this.nodeId = metadata.getId();
+        this.cache = makeCache();
         setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
     }
 
@@ -81,6 +107,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     @SuppressFBWarnings({"RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", "The fields are non-null after readResolve"})
     protected Object readResolve() {
         super.readResolve();
+        cache = makeCache();
         if (options == null) {
             // Node options are not of override of anything so we need to ensure this fill all mandatory fields
             // We base the outdated config on current plugin defaults to increase the chance it will work.
@@ -112,6 +139,134 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         nodeId =  nodeId.replaceFirst(".*/", ""); // Remove region prefix
 
         return this;
+    }
+
+    /**
+     * Get settings from OpenStack about the Server for this slave.
+     * 
+     * @return A Map of fieldName to value. This will not be null or empty.
+     */
+    public @Nonnull Map<String, String> getLiveOpenstackServerDetails() {
+        final Callable<Map<String, String>> loader = new Callable<Map<String, String>>() {
+            @Override
+            public Map<String, String> call() {
+                return readLiveOpenstackServerDetails();
+            }
+        };
+        return getCachableData("liveData", loader);
+    }
+
+    /**
+     * Gets most of the Server settings that were provided to Openstack
+     * when the slave was created by the plugin.
+     * Not all settings are interesting and any that are empty/null are omitted.
+     * 
+     * @return A Map of option name to value. This will not be null or empty.
+     */
+    public @Nonnull Map<String, String> getOpenstackSlaveData() {
+        final Callable<Map<String, String>> loader = new Callable<Map<String, String>>() {
+            @Override
+            public Map<String, String> call() {
+                return readOpenstackSlaveData();
+            }
+        };
+        return getCachableData("staticData", loader);
+    }
+
+    private @Nonnull Map<String, String> readLiveOpenstackServerDetails() {
+        final Map<String, String> result = new LinkedHashMap<>();
+        final Server s = readOpenstackServer();
+        if (s == null) {
+            return result;
+        }
+        final Addresses addresses = s.getAddresses();
+        if (addresses != null) {
+            putIfNotNullOrEmpty(result, "addresses", addresses.getAddresses());
+        }
+        putIfNotNullOrEmpty(result, "availabilityZone", s.getAvailabilityZone());
+        putIfNotNullOrEmpty(result, "configDrive", s.getConfigDrive());
+        putIfNotNullOrEmpty(result, "created", s.getCreated());
+        putIfNotNullOrEmpty(result, "fault", s.getFault());
+        final Flavor flavor = s.getFlavor();
+        if (flavor != null) {
+            final Map<String, String> flavorMap = new LinkedHashMap<>();
+            putIfNotNullOrEmpty(flavorMap, "ID", flavor.getId());
+            putIfNotNullOrEmpty(flavorMap, "name", flavor.getName());
+            putIfNotNullOrEmpty(flavorMap, "ram", flavor.getRam());
+            putIfNotNullOrEmpty(flavorMap, "vcpus", flavor.getVcpus());
+            putIfNotNullOrEmpty(flavorMap, "disk", flavor.getDisk());
+            if (flavor.getEphemeral() != 0) {
+                putIfNotNullOrEmpty(flavorMap, "ephemeral", flavor.getEphemeral());
+            }
+            if (flavor.getSwap() != 0) {
+                putIfNotNullOrEmpty(flavorMap, "swap", flavor.getSwap());
+            }
+            if (!flavorMap.isEmpty()) {
+                putIfNotNullOrEmpty(result, "flavor", flavorMap);
+            }
+        }
+        putIfNotNullOrEmpty(result, "host", s.getHost());
+        putIfNotNullOrEmpty(result, "hypervisorHostname", s.getHypervisorHostname());
+        putIfNotNullOrEmpty(result, "image", s.getImage());
+        putIfNotNullOrEmpty(result, "instanceName", s.getInstanceName());
+        putIfNotNullOrEmpty(result, "keyName", s.getKeyName());
+        putIfNotNullOrEmpty(result, "launchedAt", s.getLaunchedAt());
+        final List<? extends Link> links = s.getLinks();
+        if (links != null && !links.isEmpty()) {
+            final StringBuilder sb = new StringBuilder();
+            for (final Link link : links) {
+                sb.append('\n');
+                sb.append(link.getHref());
+            }
+            sb.deleteCharAt(0);
+            putIfNotNullOrEmpty(result, "links", sb);
+        }
+        putIfNotNullOrEmpty(result, "name", s.getName());
+        putIfNotNullOrEmpty(result, "osExtendedVolumesAttached", s.getOsExtendedVolumesAttached());
+        putIfNotNullOrEmpty(result, "powerState", s.getPowerState());
+        putIfNotNullOrEmpty(result, "status", s.getStatus());
+        putIfNotNullOrEmpty(result, "terminatedAt", s.getTerminatedAt());
+        putIfNotNullOrEmpty(result, "updated", s.getUpdated());
+        final Map<String, String> metaDataOrNull = s.getMetadata();
+        if (metaDataOrNull != null) {
+            for (Map.Entry<String, String> e : metaDataOrNull.entrySet()) {
+                final String key = e.getKey();
+                if( HIDDEN_METADATA_VALUES.contains(key)) {
+                    continue;
+                }
+                putIfNotNullOrEmpty(result, "metadata." + key, e.getValue());
+            }
+        }
+        return result;
+    }
+
+    private @Nonnull Map<String, String> readOpenstackSlaveData() {
+        final Map<String, String> result = new LinkedHashMap<>();
+        final SlaveOptions slaveOptions = getSlaveOptions();
+        putIfNotNullOrEmpty(result, "serverId", nodeId);
+        putIfNotNullOrEmpty(result, "networkId", slaveOptions.getNetworkId());
+        putIfNotNullOrEmpty(result, "floatingIpPool", slaveOptions.getFloatingIpPool());
+        putIfNotNullOrEmpty(result, "securityGroups", slaveOptions.getSecurityGroups());
+        putIfNotNullOrEmpty(result, "startTimeout", slaveOptions.getStartTimeout());
+        putIfNotNullOrEmpty(result, "keyPairName", slaveOptions.getKeyPairName());
+        final Object launcherFactory = slaveOptions.getLauncherFactory();
+        putIfNotNullOrEmpty(result, "launcherFactory",
+                launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
+        putIfNotNullOrEmpty(result, "jvmOptions", slaveOptions.getJvmOptions());
+        return result;
+    }
+
+    private Server readOpenstackServer() {
+        try {
+            final Server server = getOpenstack(cloudName).getServerById(nodeId);
+            return server;
+        } catch (NoSuchElementException ex) {
+            // just return empty
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING,
+                    "Unable to read details of server '" + nodeId + "' from cloud '" + cloudName + "'.", ex);
+        }
+        return null;
     }
 
     /**
@@ -211,6 +366,36 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         JCloudsComputer computer = getComputer();
         if (computer == null) return null;
         return computer.getFatalOfflineCause();
+    }
+
+    /** Gets something from the cache, loading it into the cache if necessary. */
+    @SuppressWarnings("unchecked")
+    private @Nonnull <K, V> V getCachableData(@Nonnull final K key, @Nonnull final Callable<V> dataloader) {
+        try {
+            final Object result = cache.get(key, dataloader);
+            return (V) result;
+        } catch (ExecutionException e) {
+            final Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Creates a cache where data will be kept for a short duration before being discarded. */
+    private static @Nonnull <K, V> Cache<K, V> makeCache() {
+        return CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.SECONDS).build();
+    }
+
+    private static void putIfNotNullOrEmpty(@Nonnull final Map<String, String> mapToBeAddedTo, @Nonnull final String fieldName,
+            @CheckForNull final Object fieldValue) {
+        if (fieldValue != null) {
+            final String valueString = fieldValue.toString();
+            if (!valueString.trim().isEmpty()) {
+                mapToBeAddedTo.put(fieldName, valueString);
+            }
+        }
     }
 
     private static Openstack getOpenstack(String cloudName) {

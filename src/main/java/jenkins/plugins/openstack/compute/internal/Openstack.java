@@ -397,6 +397,19 @@ public class Openstack {
     }
 
     /**
+     * Gets the description of a {@link VolumeSnapshot}. This will be visible
+     * if a user looks at volume snapshots using the OpenStack command-line or WebUI
+     * and may well contain useful information.
+     *
+     * @param volumeSnapshotId
+     *            The ID of the volume snapshot whose description is to be retrieved.
+     * @return The description string.
+     */
+    public String getVolumeSnapshotDescription(String volumeSnapshotId) {
+        return clientProvider.get().blockStorage().snapshots().get(volumeSnapshotId).getDescription();
+    }
+
+    /**
      * Sets the name and description of a {@link Volume}. These will be visible
      * if a user looks at volumes using the OpenStack command-line or WebUI.
      *

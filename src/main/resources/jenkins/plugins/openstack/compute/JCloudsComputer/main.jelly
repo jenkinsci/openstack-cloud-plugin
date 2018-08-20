@@ -1,0 +1,40 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
+
+  <h2>OpenStack details</h2>
+  <j:choose>
+    <j:when test="${it.node==null}">
+      <table class="pane sortable bigtable">
+        <tr><td>
+          ${%No data}
+        </td></tr>
+      </table>
+    </j:when>
+    <j:otherwise>
+      <j:choose>
+        <j:when test="${empty(it.node.liveOpenstackServerDetails)}">
+          <b>${%Warning}:</b> ${%Live data unavailable.}
+        </j:when>
+      </j:choose>
+      <table class="pane sortable bigtable">
+        <tr>
+          <th class="pane-header" initialSortDir="down">${%Name}</th>
+          <th class="pane-header">${%Value}</th>
+        </tr>
+        <j:forEach var="e" items="${it.node.openstackSlaveData.entrySet()}">
+          <tr>
+            <td class="pane"><st:out value="${e.key}"/></td>
+            <td class="pane"><st:out value="${e.value}"/></td>
+          </tr>
+        </j:forEach>
+        <j:forEach var="e" items="${it.node.liveOpenstackServerDetails.entrySet()}">
+          <tr>
+            <td class="pane"><st:out value="${e.key}"/></td>
+            <td class="pane"><st:out value="${e.value}"/></td>
+          </tr>
+        </j:forEach>
+      </table>
+    </j:otherwise>
+  </j:choose>
+
+</j:jelly>
