@@ -7,6 +7,7 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
+import hudson.model.Failure;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
@@ -45,7 +46,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 /**
  * @author Vijay Kiran
@@ -442,8 +442,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
-        private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z0-9][-a-zA-Z0-9]{0,79}$");
-
         @Override
         public String getDisplayName() {
             return clazz.getSimpleName();
@@ -452,12 +450,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         @Restricted(DoNotUse.class)
         @RequirePOST
         public FormValidation doCheckName(@QueryParameter String value) {
-            if (NAME_PATTERN.matcher(value).find()) return FormValidation.ok();
-
-            return FormValidation.error(
-                    "Must be a lowercase string, from 1 to 80 characteres long, starting with letter or number"
-            );
+            try {
+                Jenkins.checkGoodName(value);
+                return FormValidation.ok();
+            } catch (Failure ex) {
+                return FormValidation.error(ex.getMessage());
+            }
         }
     }
-
 }

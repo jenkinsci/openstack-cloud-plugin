@@ -25,6 +25,7 @@ import javax.servlet.http.HttpServletResponse;
 import com.cloudbees.plugins.credentials.*;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.security.ACL;
 import hudson.util.ListBoxModel;
@@ -474,6 +475,17 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         public static SlaveOptions getDefaultOptions() {
             return DEFAULTS;
+        }
+
+        @Restricted(DoNotUse.class)
+        @RequirePOST
+        public FormValidation doCheckName(@QueryParameter String value) {
+            try {
+                Jenkins.checkGoodName(value);
+                return FormValidation.ok();
+            } catch (Failure ex) {
+                return FormValidation.error(ex.getMessage());
+            }
         }
 
         @Restricted(DoNotUse.class)
