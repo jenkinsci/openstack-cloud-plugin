@@ -81,7 +81,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.identity.v2.Access;
 import org.openstack4j.model.identity.v3.Token;
-import org.openstack4j.model.image.Image;
+import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.model.storage.block.Volume;
@@ -204,7 +204,7 @@ public class Openstack {
      *         creation date.
      */
     public @Nonnull Map<String, Collection<Image>> getImages() {
-        final List<? extends Image> list = clientProvider.get().images().listAll();
+        final List<? extends Image> list = clientProvider.get().imagesV2().list();
         final TreeMultimap<String, Image> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, IMAGE_DATE_COMPARATOR);
         for (Image o : list) {
             final String name = Util.fixNull(o.getName());
@@ -353,11 +353,11 @@ public class Openstack {
         final Map<String, String> query = new HashMap<>(2);
         query.put("name", nameOrId);
         query.put("status", "active");
-        final List<? extends Image> findByName = clientProvider.get().images().listAll(query);
+        final List<? extends Image> findByName = clientProvider.get().imagesV2().list(query);
         sortedObjects.addAll(findByName);
         if (nameOrId.matches("[0-9a-f-]{36}")) {
-            final Image findById = clientProvider.get().images().get(nameOrId);
-            if (findById != null && findById.getStatus() == Image.Status.ACTIVE) {
+            final Image findById = clientProvider.get().imagesV2().get(nameOrId);
+            if (findById != null && findById.getStatus() == Image.ImageStatus.ACTIVE) {
                 sortedObjects.add(findById);
             }
         }
