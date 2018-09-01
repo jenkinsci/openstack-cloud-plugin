@@ -82,7 +82,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     ) throws IOException, Descriptor.FormException {
         super(
                 metadata.getName(),
-                null,
+                "IP: " + Openstack.getPublicAddress(metadata),
                 slaveOptions.getFsRoot(),
                 slaveOptions.getNumExecutors(),
                 Mode.NORMAL,
