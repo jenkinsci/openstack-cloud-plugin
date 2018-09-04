@@ -64,7 +64,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     // Full/effective options
     private /*final*/ @Nonnull SlaveOptions options;
     private final @Nonnull ProvisioningActivity.Id provisioningId;
-    private transient @Nonnull Cache<Object, Object> cache;
+    private transient @Nonnull Cache<String, Map<String, String>> cache;
 
     private /*final*/ @Nonnull String nodeId;
 
@@ -157,15 +157,14 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     public @Nonnull Map<String, String> getOpenstackSlaveData() {
         final Map<String, String> result = new LinkedHashMap<>();
         final SlaveOptions slaveOptions = getSlaveOptions();
-        putIfNotNullOrEmpty(result, "serverId", nodeId);
-        putIfNotNullOrEmpty(result, "network", slaveOptions.getNetworkId());
-        putIfNotNullOrEmpty(result, "floatingIpPool", slaveOptions.getFloatingIpPool());
-        putIfNotNullOrEmpty(result, "securityGroups", slaveOptions.getSecurityGroups());
-        putIfNotNullOrEmpty(result, "startTimeout", slaveOptions.getStartTimeout());
+        putIfNotNullOrEmpty(result, "Network(s)", slaveOptions.getNetworkId());
+        putIfNotNullOrEmpty(result, "Floating Ip Pool", slaveOptions.getFloatingIpPool());
+        putIfNotNullOrEmpty(result, "Security Groups", slaveOptions.getSecurityGroups());
+        putIfNotNullOrEmpty(result, "Start Timeout (ms)", slaveOptions.getStartTimeout());
         final Object launcherFactory = slaveOptions.getLauncherFactory();
-        putIfNotNullOrEmpty(result, "launcherFactory",
+        putIfNotNullOrEmpty(result, "Launcher Factory",
                 launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
-        putIfNotNullOrEmpty(result, "jvmOptions", slaveOptions.getJvmOptions());
+        putIfNotNullOrEmpty(result, "JVM Options", slaveOptions.getJvmOptions());
         return result;
     }
 
@@ -197,26 +196,30 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                     sb.append(address.getAddr()).append(" (").append(address.getType()).append(" in ").append(networkName).append(")");
                 }
             }
-            putIfNotNullOrEmpty(result, "addresses", sb.toString());
+            putIfNotNullOrEmpty(result, "Addresses", sb.toString());
         }
-        putIfNotNullOrEmpty(result, "availabilityZone", s.getAvailabilityZone());
-        putIfNotNullOrEmpty(result, "configDrive", s.getConfigDrive());
-        putIfNotNullOrEmpty(result, "created", s.getCreated());
-        putIfNotNullOrEmpty(result, "fault", s.getFault());
+        putIfNotNullOrEmpty(result, "Availability Zone", s.getAvailabilityZone());
+        putIfNotNullOrEmpty(result, "Config Drive", s.getConfigDrive());
+
         final Flavor flavor = s.getFlavor();
         if (flavor != null) {
-            putIfNotNullOrEmpty(result, "flavor", Openstack.getFlavorInfo(flavor));
+            putIfNotNullOrEmpty(result, "Flavor", Openstack.getFlavorInfo(flavor));
         }
-        putIfNotNullOrEmpty(result, "host", s.getHost());
-        putIfNotNullOrEmpty(result, "instanceName", s.getInstanceName());
-        putIfNotNullOrEmpty(result, "keyName", s.getKeyName());
-        putIfNotNullOrEmpty(result, "launchedAt", s.getLaunchedAt());
-        putIfNotNullOrEmpty(result, "name", s.getName());
-        putIfNotNullOrEmpty(result, "osExtendedVolumesAttached", s.getOsExtendedVolumesAttached());
-        putIfNotNullOrEmpty(result, "powerState", s.getPowerState());
-        putIfNotNullOrEmpty(result, "status", s.getStatus());
-        putIfNotNullOrEmpty(result, "terminatedAt", s.getTerminatedAt());
-        putIfNotNullOrEmpty(result, "updated", s.getUpdated());
+        putIfNotNullOrEmpty(result, "Host", s.getHost());
+        putIfNotNullOrEmpty(result, "Instance Name", s.getInstanceName());
+        putIfNotNullOrEmpty(result, "Key Name", s.getKeyName());
+        List<String> volumes = s.getOsExtendedVolumesAttached();
+        if (volumes != null && !volumes.isEmpty()) {
+            putIfNotNullOrEmpty(result, "osExtendedVolumesAttached", volumes);
+        }
+        putIfNotNullOrEmpty(result, "Power State", s.getPowerState());
+        putIfNotNullOrEmpty(result, "Status", s.getStatus());
+        putIfNotNullOrEmpty(result, "Fault", s.getFault());
+
+        putIfNotNullOrEmpty(result, "Created", s.getCreated());
+        putIfNotNullOrEmpty(result, "Launched At", s.getLaunchedAt());
+        putIfNotNullOrEmpty(result, "Updated", s.getUpdated());
+        putIfNotNullOrEmpty(result, "Terminated At", s.getTerminatedAt());
         final Map<String, String> metaDataOrNull = s.getMetadata();
         if (metaDataOrNull != null) {
             for (Map.Entry<String, String> e : metaDataOrNull.entrySet()) {
@@ -256,11 +259,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     /** Gets something from the cache, loading it into the cache if necessary. */
-    @SuppressWarnings("unchecked")
-    private @Nonnull <K, V> V getCachableData(@Nonnull final K key, @Nonnull final Callable<V> dataloader) {
+    private @Nonnull Map<String, String> getCachableData(@Nonnull final String key, @Nonnull final Callable<Map<String, String>> dataloader) {
         try {
-            final Object result = cache.get(key, dataloader);
-            return (V) result;
+            return cache.get(key, dataloader);
         } catch (ExecutionException e) {
             final Throwable cause = e.getCause();
             if (cause instanceof RuntimeException) {
@@ -302,8 +303,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return lf == null ? LauncherFactory.JNLP.JNLP : lf;
     }
 
-    // Exposed for testing
-    /*package*/ @Nonnull String getServerId() {
+    // Exposed for testing and Jelly
+    @Restricted(NoExternalUse.class)
+    public @Nonnull String getServerId() {
         return nodeId;
     }
 

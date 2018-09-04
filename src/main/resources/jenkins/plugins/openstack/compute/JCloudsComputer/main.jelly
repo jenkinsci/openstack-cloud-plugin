@@ -3,11 +3,7 @@
   <h2>OpenStack details</h2>
   <j:choose>
     <j:when test="${it.node==null}">
-      <table class="pane bigtable">
-        <tr><td>
-          ${%No data}
-        </td></tr>
-      </table>
+      ${%No data}
     </j:when>
     <j:otherwise>
       <j:choose>
@@ -15,21 +11,21 @@
           <b>${%Warning}:</b> ${%Live data unavailable.}
         </j:when>
       </j:choose>
-      <table class="pane bigtable">
+      <table class="pane bigtable" style="text-align: left;">
         <tr>
-          <th class="pane-header" initialSortDir="down">${%Name}</th>
-          <th class="pane-header">${%Value}</th>
+          <th>Server Id</th>
+          <td>${it.node.serverId}</td>
         </tr>
-        <j:forEach var="e" items="${it.node.openstackSlaveData.entrySet()}">
-          <tr>
-            <td class="pane"><st:out value="${e.key}"/></td>
-            <td class="pane"><st:out value="${e.value}"/></td>
-          </tr>
-        </j:forEach>
         <j:forEach var="e" items="${it.node.liveOpenstackServerDetails.entrySet()}">
           <tr>
-            <td class="pane"><st:out value="${e.key}"/></td>
-            <td class="pane"><st:out value="${e.value}"/></td>
+            <th>${e.key}</th>
+            <td>${e.value}</td>
+          </tr>
+        </j:forEach>
+        <j:forEach var="e" items="${it.node.openstackSlaveData.entrySet()}">
+          <tr>
+            <th>${e.key}</th>
+            <td>${e.value}</td>
           </tr>
         </j:forEach>
       </table>
