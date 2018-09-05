@@ -72,7 +72,7 @@ public class OpenstackTest {
         final List images = Arrays.asList(mockImageNamedBar1, mockImageWithNullName, mockImageNamedBar2,
                 mockImageNamedFoo, mockImageNamedBar3);
         final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.imagesV2().list()).thenReturn(images);
+        when(mockClient.imagesV2().list(any())).thenReturn(images);
         final Collection<Image> images0 = new ArrayList<>(
                 Arrays.asList(mockImageNamedBar2, mockImageNamedBar3, mockImageNamedBar1));
         final Collection<Image> images1 = new ArrayList<>(Arrays.asList(mockImageNamedFoo));
