@@ -33,8 +33,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.openstack4j.api.OSClient;
-import org.openstack4j.api.image.v2.ImageService;
-import org.openstack4j.model.image.v2.Image;
+import org.openstack4j.api.image.ImageService;
+import org.openstack4j.model.image.Image;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
 
@@ -114,8 +114,8 @@ public class BootSourceTest {
 
         OSClient<?> osClient = mock(OSClient.class);
         ImageService imageService = mock(ImageService.class);
-        when(osClient.imagesV2()).thenReturn(imageService);
-        doReturn(Collections.singletonList(image)).when(imageService).list();
+        when(osClient.images()).thenReturn(imageService);
+        doReturn(Collections.singletonList(image)).when(imageService).listAll();
 
         j.fakeOpenstackFactory(new Openstack(osClient));
         final String credentialId = j.dummyCredential();
@@ -128,7 +128,7 @@ public class BootSourceTest {
         assertEquals("image-id", item.name);
         assertEquals("image-id", item.value);
 
-        verify(imageService).list();
+        verify(imageService).listAll();
         verifyNoMoreInteractions(imageService);
     }
 
