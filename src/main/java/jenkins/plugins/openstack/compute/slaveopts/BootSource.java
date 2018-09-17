@@ -378,7 +378,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "VolumeSnapshots");
-            final String volumeSnapshotDescription = os.getVolumeSnapshotDescription(id);
+            final String volumeSnapshotDescriptionOrNull = os.getVolumeSnapshotDescription(id);
             final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
                     .sourceType(BDMSourceType.SNAPSHOT)
                     .destinationType(BDMDestType.VOLUME)
@@ -387,7 +387,9 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     .bootIndex(0);
             builder.blockDevice(volumeBuilder.build());
             builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY, id);
-            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_DESC_KEY, volumeSnapshotDescription);
+            if (volumeSnapshotDescriptionOrNull != null && !volumeSnapshotDescriptionOrNull.isEmpty()) {
+                builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_DESC_KEY, volumeSnapshotDescriptionOrNull);
+            }
         }
 
         @Override

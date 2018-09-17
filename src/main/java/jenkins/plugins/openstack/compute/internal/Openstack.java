@@ -421,9 +421,9 @@ public class Openstack {
      *
      * @param volumeSnapshotId
      *            The ID of the volume snapshot whose description is to be retrieved.
-     * @return The description string.
+     * @return The description string, or null if there isn't one.
      */
-    public String getVolumeSnapshotDescription(String volumeSnapshotId) {
+    public @CheckForNull String getVolumeSnapshotDescription(String volumeSnapshotId) {
         return clientProvider.get().blockStorage().snapshots().get(volumeSnapshotId).getDescription();
     }
 
