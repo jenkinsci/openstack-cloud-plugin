@@ -4,13 +4,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Descriptor;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
-import hudson.util.TimeUnit2;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -60,7 +60,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
         final long idleSince = c.getIdleStartMilliseconds();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
-        if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
+        if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
             if (JCloudsPreCreationThread.shouldSlaveBeRetained(node)) {
                 LOGGER.info("Keeping " + c .getName() + " to meet minium requirements");
                 return;
