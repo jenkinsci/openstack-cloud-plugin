@@ -11,7 +11,6 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.util.Secret;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.model.common.Identifier;
 import org.openstack4j.openstack.OSFactory;
