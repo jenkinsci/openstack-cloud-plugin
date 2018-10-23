@@ -53,7 +53,7 @@ public class JCloudsBuildWrapperTest {
                 assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));
 
                 List<Server> runningNodes = os.getRunningNodes();
-                assertThat(runningNodes, Matchers.<Server>iterableWithSize(3));
+                assertThat(runningNodes, Matchers.iterableWithSize(3));
                 for (Server server : runningNodes) {
                     assertEquals("run:" + p.getFullName() + ":1", server.getMetadata().get(ServerScope.METADATA_KEY));
                 }

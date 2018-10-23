@@ -122,7 +122,7 @@ public class BootSourceTest {
         final String credentialId = j.dummyCredential();
 
         ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialId, "OSzone");
-        assertThat(list.get(0).name, list, Matchers.<ListBoxModel.Option>iterableWithSize(2));
+        assertThat(list.get(0).name, list, Matchers.iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
         assertEquals("image-id", item.name);

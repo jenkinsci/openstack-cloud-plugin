@@ -62,7 +62,7 @@ public class OpenstackMachineStepTest {
         j.assertLogContains("42.42.42", b);
 
         List<Server> nodes = openstack.getRunningNodes();
-        assertThat(nodes, Matchers.<Server>iterableWithSize(1));
+        assertThat(nodes, Matchers.iterableWithSize(1));
         assertThat(ServerScope.extract(nodes.get(0)), instanceOf(ServerScope.Unlimited.class));
     }
 
