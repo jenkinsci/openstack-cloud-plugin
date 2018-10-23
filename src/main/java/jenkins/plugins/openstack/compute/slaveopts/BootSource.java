@@ -486,7 +486,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
      * No boot source specified. This exists only as a field in UI dropdown to
      * be read by stapler and converted to plain old null.
      */
-    // Therefore, noone refers to this as a symbol or tries to serialize it,
+    // Therefore, no one refers to this as a symbol or tries to serialize it,
     // ever.
     @SuppressWarnings({"unused", "serial"})
     public static final class Unspecified extends BootSource {

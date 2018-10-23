@@ -51,7 +51,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         return instancesToRun;
     }
 
-    // convert Jenkins staticy stuff into pojos; performing as little critical stuff here as
+    // convert Jenkins static stuff into pojos; performing as little critical stuff here as
     // possible, as this method is very hard to test due to static usage, etc.
     @Override
     public Environment setUp(final AbstractBuild build, Launcher launcher, final BuildListener listener) {

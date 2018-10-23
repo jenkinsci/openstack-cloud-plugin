@@ -94,7 +94,7 @@ import jenkins.model.Jenkins;
 /**
  * Encapsulate {@link OSClient}.
  *
- * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting.
+ * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unit testing.
  *
  * For server manipulation, this implementation provides metadata fingerprinting
  * to identify machines started via this plugin from given instance so it will not

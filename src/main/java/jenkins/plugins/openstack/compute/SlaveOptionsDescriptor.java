@@ -375,8 +375,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             final String d = getDefault(def, opts().getAvailabilityZone());
             if (d != null) return FormValidation.ok(def(d));
             final String endPointUrl = getDefault(endPointUrlCloud,endPointUrlTemplate);
-            final String credentiaId = getDefault(credentialIdCloud,credentialIdTemplate);
-            final OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentiaId);
+            final String credentialId = getDefault(credentialIdCloud,credentialIdTemplate);
+            final OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
             final String zone = getDefault(zoneCloud, zoneTemplate);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 try {
