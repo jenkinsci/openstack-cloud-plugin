@@ -46,7 +46,6 @@ import java.util.List;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -123,7 +122,7 @@ public class BootSourceTest {
         final String credentialId = j.dummyCredential();
 
         ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialId, "OSzone");
-        assertThat(list.get(0).name, list, Matchers.<ListBoxModel.Option>iterableWithSize(2));
+        assertThat(list.get(0).name, list, Matchers.iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
         assertEquals("image-id", item.name);
