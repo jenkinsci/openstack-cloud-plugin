@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.junit.Rule;
@@ -49,7 +50,9 @@ public class JCloudsComputerTest {
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
-        p.scheduleBuild2(0).waitForStart();
+        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        j.waitForCompletion(build);
+        j.waitUntilNoActivity();
         assertFalse(computer.isAcceptingTasks());
     }
 
@@ -64,7 +67,9 @@ public class JCloudsComputerTest {
         computer.waitUntilOnline();
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
-        p.scheduleBuild2(0).waitForStart();
+        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
+        j.waitForCompletion(build);
+        j.waitUntilNoActivity();
         assertTrue(computer.isAcceptingTasks());
     }
 }
