@@ -189,7 +189,7 @@ public class ProvisioningTest {
         );
 
         // Exceed template quota
-        XmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name);
+        XmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.getName());
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
         while (Jenkins.get().getNodes().size() == 0) {
             Thread.sleep(500);
@@ -200,12 +200,12 @@ public class ProvisioningTest {
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         assertThat(
-                invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=" + constrained.getName()).getWebResponse().getContentAsString(),
                 containsString("Instance cap for this template (openstack/template0) is now reached: 1")
         );
 
         // Exceed global quota
-        provision = invokeProvisioning(cloud, wc, "/provision?name=" + free.name);
+        provision = invokeProvisioning(cloud, wc, "/provision?name=" + free.getName());
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
         while (Jenkins.get().getNodes().size() == 1) {
             Thread.sleep(500);
@@ -219,7 +219,7 @@ public class ProvisioningTest {
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
-                invokeProvisioning(cloud, wc, "/provision?name=" + free.name).getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=" + free.getName()).getWebResponse().getContentAsString(),
                 containsString("Instance cap of openstack is now reached: 2")
         );
 
@@ -241,7 +241,7 @@ public class ProvisioningTest {
 
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.login("foo", "foo");
-        invokeProvisioning(cloud, wc, "/provision?name=" + template.name);
+        invokeProvisioning(cloud, wc, "/provision?name=" + template.getName());
         Thread.sleep(500);
 
         assertEquals("foo", ((Slave) j.jenkins.getNodes().get(0)).getUserId());
@@ -314,7 +314,7 @@ public class ProvisioningTest {
 
         assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
         assertEquals(cloud.name, m.get(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY));
-        assertEquals(template.name, m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
+        assertEquals(template.getName(), m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
         assertEquals(new ServerScope.Node(server.getName()).getValue(), m.get(ServerScope.METADATA_KEY));
     }
 

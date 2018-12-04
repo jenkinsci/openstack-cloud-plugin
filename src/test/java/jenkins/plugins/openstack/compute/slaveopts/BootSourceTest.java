@@ -44,7 +44,9 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -64,6 +66,37 @@ public class BootSourceTest {
     public void before() {
         id = (BootSource.Image.Desc) j.jenkins.getDescriptorOrDie(BootSource.Image.class);
         vsd = (BootSource.VolumeSnapshot.Desc) j.jenkins.getDescriptorOrDie(BootSource.VolumeSnapshot.class);
+    }
+
+    @Test
+    public void constructorInvariants() {
+        try {
+            new BootSource.Image(null);
+            fail();
+        } catch (NullPointerException e) {
+            assertThat(e.getMessage(), containsString("Image name missing"));
+        }
+
+        try {
+            new BootSource.VolumeSnapshot(null);
+            fail();
+        } catch (NullPointerException e) {
+            assertThat(e.getMessage(), containsString("Volume snapshot name missing"));
+        }
+
+        try {
+            new BootSource.VolumeFromImage(null, 1);
+            fail();
+        } catch (NullPointerException e) {
+            assertThat(e.getMessage(), containsString("Image name missing"));
+        }
+
+        try {
+            new BootSource.VolumeFromImage("foo", 0);
+            fail();
+        } catch (IllegalArgumentException e) {
+            assertThat(e.getMessage(), containsString("Volume size must be positive, got 0"));
+        }
     }
 
     @Test

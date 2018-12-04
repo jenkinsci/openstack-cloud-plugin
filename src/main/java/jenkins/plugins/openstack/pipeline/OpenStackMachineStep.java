@@ -121,7 +121,7 @@ public class OpenStackMachineStep extends Step {
             for (Cloud cl : jenkins.model.Jenkins.get().clouds) {
                 if (cl.getDisplayName().equals(cloud) && (cl instanceof JCloudsCloud)) {
                     for (JCloudsSlaveTemplate template : ((JCloudsCloud) cl).getTemplates()) {
-                       r.add(template.name);
+                       r.add(template.getName());
                     }
                 }
             }

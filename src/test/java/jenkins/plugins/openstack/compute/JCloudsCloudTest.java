@@ -17,7 +17,6 @@ import hudson.model.Item;
 import hudson.model.Label;
 import hudson.model.UnprotectedRootAction;
 import hudson.model.User;
-import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.security.Permission;
@@ -209,7 +208,7 @@ public class JCloudsCloudTest {
         LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("cid"));
         SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).launcherFactory(slaveType).build();
         JCloudsCloud cloud = new JCloudsCloud(
-                "openstack", "endPointUrl",  false,"zone", opts, NO_TEMPLATES, openstackAuth
+                "openstack", "endPointUrl", false, "zone", opts, NO_TEMPLATES, openstackAuth
         );
 
         assertEquals(opts, cloud.getEffectiveSlaveOptions());
@@ -222,9 +221,9 @@ public class JCloudsCloudTest {
 
         String openstackAuth = j.dummyCredential();
 
-        String beans = "credentialId,endPointUrl,ignoreSsl,zone";
+        String beans = "credentialsId,endPointUrl,ignoreSsl,zone";
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "endPointUrl", false,"zone", j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
+                "openstack", "endPointUrl", false, "zone", j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
         );
         j.jenkins.clouds.add(original);
 
@@ -232,6 +231,7 @@ public class JCloudsCloudTest {
 
         JCloudsCloud actual = JCloudsCloud.getByName("openstack");
         assertSame(j.getInstance().clouds.getByName("openstack"), actual);
+        assertEquals(actual.getCredentialsId(), original.getCredentialsId());
         j.assertEqualBeans(original, actual, beans);
         assertEquals(original.getRawSlaveOptions(), JCloudsCloud.getByName("openstack").getRawSlaveOptions());
     }
@@ -242,20 +242,20 @@ public class JCloudsCloudTest {
         String openstackAuth = j.dummyCredential();
 
         JCloudsCloud original = new JCloudsCloud(
-                "openstack", "endPointUrl", false,null, j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
+                "openstack", "endPointUrl", false, null, j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
         );
         j.jenkins.clouds.add(original);
 
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
-        assertNull(JCloudsCloud.getByName("openstack").zone);
+        assertNull(JCloudsCloud.getByName("openstack").getZone());
     }
 
     @Test @LocalData
     public void globalConfigMigrationFromV1() throws Exception {
         JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
-        assertEquals("http://my.openstack:5000/v2.0", cloud.endPointUrl);
+        assertEquals("http://my.openstack:5000/v2.0", cloud.getEndPointUrl());
 
-        OpenstackCredentialv2 credential = (OpenstackCredentialv2) OpenstackCredentials.getCredential(cloud.getCredentialId());
+        OpenstackCredentialv2 credential = (OpenstackCredentialv2) OpenstackCredentials.getCredential(cloud.getCredentialsId());
         assertEquals("user", credential.getUsername());
         assertEquals("tenant", credential.getTenant());
 
@@ -284,7 +284,7 @@ public class JCloudsCloudTest {
         final String actualUserData = toUnixEols(template.getUserData());
         assertEquals(expectedUserData, actualUserData);
 
-        BasicSSHUserPrivateKey creds = (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(((LauncherFactory.SSH) to.getLauncherFactory()).getCredentialsId());
+        BasicSSHUserPrivateKey creds = j.extractSshCredentials(to.getLauncherFactory());
         assertEquals("jenkins", creds.getUsername());
         final String expectedPrivateKey = toUnixEols(fileAsString("globalConfigMigrationFromV1/expected-private-key"));
         final String actualPrivateKey = toUnixEols(creds.getPrivateKey());
@@ -491,7 +491,7 @@ public class JCloudsCloudTest {
         }
 
         @Override public Object call() throws Exception {
-            cloud.doProvision(Stapler.getCurrentRequest(), Stapler.getCurrentResponse(), template.name);
+            cloud.doProvision(Stapler.getCurrentRequest(), Stapler.getCurrentResponse(), template.getName());
             return null;
         }
     }

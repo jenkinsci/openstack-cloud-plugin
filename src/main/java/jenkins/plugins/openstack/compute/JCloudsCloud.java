@@ -37,8 +37,10 @@ import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.compute.auth.*;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.util.Timer;
+
 import org.acegisecurity.Authentication;
 import org.jenkinsci.plugins.cloudstats.ActivityIndex;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -63,6 +65,8 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.model.compute.Server;
 
+import static java.lang.Boolean.TRUE;
+
 /**
  * The JClouds version of the Jenkins Cloud.
  *
@@ -72,18 +76,18 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
-    private String credentialId;
+    private final @Nonnull String endPointUrl;
 
-    public final @Nonnull String endPointUrl;
-    private boolean ignoreSsl;
+    private final boolean ignoreSsl;
 
-    // OpenStack4j requires null when there is no zone configured
-    public final @CheckForNull String zone;
-
-    private final @Nonnull List<JCloudsSlaveTemplate> templates;
+    private final @CheckForNull String zone; // OpenStack4j requires null when there is no zone configured
 
     // Make sure only diff of defaults is saved so when plugin defaults will change users are not stuck with outdated config
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
+
+    private final @Nonnull List<JCloudsSlaveTemplate> templates;
+
+    private /*final*/ @Nonnull String credentialId; // Name differs from property name not to break the persistence
 
     // Backward compatibility
     private transient @Deprecated Integer instanceCap;
@@ -115,20 +119,25 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
     public JCloudsCloud(
-            final String name, final String endPointUrl, final boolean ignoreSsl, final String zone,
-            final SlaveOptions slaveOptions,
-            final List<JCloudsSlaveTemplate> templates,
-            final String credentialId
+            final @Nonnull String name,
+            final @Nonnull String endPointUrl,
+            final boolean ignoreSsl,
+            final @CheckForNull String zone,
+            final @CheckForNull SlaveOptions slaveOptions,
+            final @CheckForNull List<JCloudsSlaveTemplate> templates,
+            final @Nonnull String credentialsId
     ) {
         super(Util.fixNull(name).trim());
+
         this.endPointUrl = Util.fixNull(endPointUrl).trim();
-        this.ignoreSsl = ignoreSsl;
+        this.ignoreSsl = TRUE.equals(ignoreSsl);
         this.zone = Util.fixEmptyAndTrim(zone);
-        this.credentialId = credentialId;
-        this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
+        this.credentialId = credentialsId;
+        this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
         this.templates = templates == null ? Collections.emptyList() : Collections.unmodifiableList(templates);
 
+        JCloudsSlaveTemplate.validate(slaveOptions);
         injectReferenceIntoTemplates();
     }
 
@@ -215,6 +224,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return templates;
     }
 
+    public @Nonnull String getEndPointUrl() {
+        return endPointUrl;
+    }
+
+    public @CheckForNull String getZone() {
+        return zone;
+    }
+
     /**
      * Get a queue of templates to be used to provision slaves of label.
      *
@@ -235,6 +252,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return queue; // more slaves then declared - no need to query openstack
         }
 
+
         final List<Server> runningNodes = getOpenstack().getRunningNodes();
 
         int serverCount = runningNodes.size();
@@ -250,7 +268,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 SlaveOptions opts = t.getEffectiveSlaveOptions();
                 final int templateMax = opts.getInstanceCap();
                 long templateNodeCount = Math.max(
-                        cloudComputers.stream().filter(it -> t.name.equals(it.getId().getTemplateName())).count(),
+                        cloudComputers.stream().filter(it -> t.getName().equals(it.getId().getTemplateName())).count(),
                         runningNodes.stream().filter(t::hasProvisioned).count()
                 );
                 if (templateNodeCount >= templateMax) continue; // Exceeded
@@ -283,11 +301,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 break;
             }
 
-            LOGGER.fine("Provisioning slave for " + label + " from template " + template.name);
+            LOGGER.fine("Provisioning slave for " + label + " from template " + template.getName());
 
             int numExecutors = template.getEffectiveSlaveOptions().getNumExecutors();
 
-            ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.name);
+            ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.getName());
             Future<Node> task = Computer.threadPoolForRemoting.submit(new NodeCallable(this, template, id));
             plannedNodeList.add(new TrackedPlannedNode(id, numExecutors, task));
 
@@ -331,7 +349,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public @CheckForNull JCloudsSlaveTemplate getTemplate(String name) {
         for (JCloudsSlaveTemplate t : templates)
-            if (t.name.equals(name))
+            if (t.getName().equals(name))
                 return t;
         return null;
     }
@@ -422,7 +440,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
    @Restricted(NoExternalUse.class)
    public @Nonnull JCloudsSlave provisionSlave(JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
        CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
-       ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.name);
+       ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.getName());
 
        JCloudsSlave node;
        try {
@@ -454,7 +472,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return os;
     }
 
-    public String getCredentialId() {
+    public String getCredentialsId() {
         return credentialId;
     }
 
@@ -464,6 +482,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     @Extension
+    @Symbol("openstack")
     public static class DescriptorImpl extends Descriptor<Cloud> {
 
         // Plugin default slave attributes - the root of all overriding

@@ -203,7 +203,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         public String getTemplate() {
-            return template.name;
+            return template.getName();
         }
 
         public int getCount() {

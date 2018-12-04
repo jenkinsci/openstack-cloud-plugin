@@ -9,7 +9,6 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Failure;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.remoting.Base64;
@@ -20,8 +19,6 @@ import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.jenkinsci.lib.configprovider.ConfigProvider;
-import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
@@ -41,7 +38,6 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -62,11 +58,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     private static final AtomicInteger nodeCounter = new AtomicInteger();
 
-    public final String name;
-    public final String labelString;
+    private final @Nonnull String name;
+    private final @Nonnull String labelString;
 
     // Difference compared to cloud
-    private /*final*/ SlaveOptions slaveOptions;
+    private /*final*/ @Nonnull SlaveOptions slaveOptions;
 
     private transient Set<LabelAtom> labelSet;
     private /*final*/ transient JCloudsCloud cloud;
@@ -87,14 +83,23 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private transient @Deprecated String availabilityZone;
 
     @DataBoundConstructor
-    public JCloudsSlaveTemplate(final String name, final String labelString, final SlaveOptions slaveOptions) {
+    public JCloudsSlaveTemplate(final @Nonnull String name, final @Nonnull String labels, final @CheckForNull SlaveOptions slaveOptions) {
+        this.name = Util.fixNull(name).trim();
+        this.labelString = Util.fixNull(labels).trim();
 
-        this.name = Util.fixEmptyAndTrim(name);
-        this.labelString = Util.fixNull(labelString);
+        this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions;
 
-        this.slaveOptions = slaveOptions;
+        validate(slaveOptions);
 
         readResolve();
+    }
+
+    // Does not quite belong here
+    /*package*/ static void validate(@CheckForNull SlaveOptions slaveOptions) {
+        String userDataId = slaveOptions.getUserDataId();
+        if (userDataId != null) {
+            UserDataConfig.resolve(userDataId);
+        }
     }
 
     @SuppressWarnings({"deprecation", "UnusedReturnValue"})
@@ -125,7 +130,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 lf = LauncherFactory.JNLP.JNLP;
             }
 
-            slaveOptions = SlaveOptions.builder().bootSource(new BootSource.Image(imageId)).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
+            BootSource.Image bs = imageId == null ? null : new BootSource.Image(imageId);
+            slaveOptions = SlaveOptions.builder().bootSource(bs).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
                     .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
                     .launcherFactory(lf).availabilityZone(availabilityZone).build()
             ;
@@ -183,12 +189,21 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return labelSet;
     }
 
+    public @Nonnull String getName() {
+        return name;
+    }
+
+    @Restricted(NoExternalUse.class) // Jelly + tests
+    public @Nonnull String getLabels() {
+        return labelString;
+    }
+
     public boolean canProvision(final Label label) {
         return label == null || label.matches(labelSet);
     }
 
     /*package*/ boolean hasProvisioned(@Nonnull Server server) {
-        return name.equals(server.getMetadata().get(OPENSTACK_TEMPLATE_NAME_KEY));
+        return getName().equals(server.getMetadata().get(OPENSTACK_TEMPLATE_NAME_KEY));
     }
 
     /**
@@ -209,7 +224,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         JCloudsSlave node = null;
         // Terminate node unless provisioned successfully
         try {
-            node = new JCloudsSlave(id, nodeMetadata, labelString, opts);
+            node = new JCloudsSlave(id, nodeMetadata, getLabels(), opts);
 
             String cause;
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
@@ -268,7 +283,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
 
-        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
+        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, getName());
         builder.addMetadataItem(OPENSTACK_CLOUD_NAME_KEY, cloud.name);
         if (scope == null) {
             scope = new ServerScope.Node(serverName);
@@ -282,7 +297,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         final Openstack openstack = cloud.getOpenstack();
         final BootSource bootSource = opts.getBootSource();
         if (bootSource == null) {
-            LOGGER.warning("No " + BootSource.class.getSimpleName() + " set for " + getClass().getSimpleName() + " with name='" + name + "'.");
+            LOGGER.warning("No " + BootSource.class.getSimpleName() + " set for " + getClass().getSimpleName() + " with name='" + getName() + "'.");
         } else {
             LOGGER.fine("Setting boot options to " + bootSource);
             bootSource.setServerBootSource(builder, openstack);
@@ -359,7 +374,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         CloudStatistics cs = CloudStatistics.get();
         next_number: for (;;) {
             // Using static counter to ensure colliding template names (between clouds) will not cause a clash
-            String nameCandidate = name + "-" + nodeCounter.getAndIncrement();
+            String nameCandidate = getName() + "-" + nodeCounter.getAndIncrement();
 
             // Collide with existing node - quite likely from this cloud
             if (Jenkins.get().getNode(nameCandidate) != null) continue;
@@ -386,14 +401,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {
-        UserDataConfig.UserDataConfigProvider userDataConfigProvider = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class);
-        if (userDataConfigProvider == null) throw new AssertionError("Openstack Config File Provider is not registered");
-        Config userData = userDataConfigProvider.getConfigById(getEffectiveSlaveOptions().getUserDataId());
-
-        return (userData == null || userData.content.isEmpty())
-                ? null
-                : userData.content
-        ;
+        return UserDataConfig.resolve(getEffectiveSlaveOptions().getUserDataId());
     }
 
     /*package for testing*/ List<? extends Server> getRunningNodes() {
@@ -411,6 +419,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      */
     /*package*/ int getAvailableNodesTotal() {
         int totalServers = 0;
+
         for (JCloudsComputer computer : JCloudsComputer.getAll()) {
             ProvisioningActivity.Id cid = computer.getId();
             // Not this template

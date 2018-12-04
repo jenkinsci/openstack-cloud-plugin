@@ -42,8 +42,7 @@ public class JCloudsSlaveTemplateTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    private static final String TEMPLATE_PROPERTIES = "name,labelString";
-    private static final String CLOUD_PROPERTIES = "name,credentialId,zone";
+    private static final String TEMPLATE_PROPERTIES = "name,labels";
 
     @Test
     public void doCheckTemplateName() {
@@ -65,7 +64,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(
-                "my-openstack", "endPointUrl", false,"zone",
+                "my-openstack", "endPointUrl", false, "zone",
                 SlaveOptions.empty(),
                 Arrays.asList(jnlpTemplate, sshTemplate),
                 j.dummyCredential()
@@ -78,7 +77,7 @@ public class JCloudsSlaveTemplateTest {
         j.submit(form);
 
         final JCloudsCloud actualCloud = JCloudsCloud.getByName("my-openstack");
-        j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
+        j.assertEqualBeans(originalCloud, actualCloud, "name,credentialsId,zone");
         assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 

@@ -87,7 +87,7 @@ public class InstanceCapacityTest {
         j.configureSlaveLaunchingWithFloatingIP(cloud);
 
         Server server = j.mockServer().name("foo0").withFixedIPv4("0.0.0.0").get();
-        ProvisioningActivity.Id id = new ProvisioningActivity.Id(cloud.name, restrictedTmplt.name);
+        ProvisioningActivity.Id id = new ProvisioningActivity.Id(cloud.name, restrictedTmplt.getName());
         j.jenkins.addNode(new JCloudsSlave(id, server, "restricted common", restrictedTmplt.getEffectiveSlaveOptions()));
 
         lr.capture(5);

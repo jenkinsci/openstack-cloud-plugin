@@ -80,12 +80,12 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
             int desired = min - available;
             int toProvision = Math.min(desired, permitted);
             if (toProvision > 0) {
-                LOGGER.log(Level.INFO, "Pre-creating " + toProvision + " instance(s) for template " + template.name + " in cloud " + cloud.name);
+                LOGGER.log(Level.INFO, "Pre-creating " + toProvision + " instance(s) for template " + template.getName() + " in cloud " + cloud.name);
                 for (int i = 0; i < toProvision; i++) {
                     try {
                         cloud.provisionSlave(template);
                     } catch (Throwable ex) {
-                        LOGGER.log(Level.SEVERE, "Failed to pre-create instance from template " + template.name, ex);
+                        LOGGER.log(Level.SEVERE, "Failed to pre-create instance from template " + template.getName(), ex);
                     }
                 }
             }

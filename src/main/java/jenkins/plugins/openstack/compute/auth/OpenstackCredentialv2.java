@@ -8,6 +8,7 @@ import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredenti
 import hudson.Extension;
 import hudson.Util;
 import hudson.util.Secret;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.openstack.OSFactory;
@@ -90,7 +91,7 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
     /**
      * {@inheritDoc}
      */
-    @Extension(ordinal = 1)
+    @Extension(ordinal = 1) @Symbol("openstackV2")
     public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
 
         /**
@@ -100,6 +101,5 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
         public @Nonnull String getDisplayName() {
             return "OpenStack auth v2";
         }
-
     }
 }

@@ -36,6 +36,7 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import net.sf.json.JSONObject;
+import org.jenkinsci.Symbol;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -218,6 +219,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
         @DataBoundConstructor
         public Image(@Nonnull String name) {
+            Objects.requireNonNull(name, "Image name missing");
             this.name = name;
         }
 
@@ -259,6 +261,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         }
 
         @Extension
+        @Symbol("image")
         public static class Desc extends BootSourceDescriptor {
             @Override
             public @Nonnull String getDisplayName() {
@@ -321,6 +324,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         @DataBoundConstructor
         public VolumeFromImage(@Nonnull String name, int volumeSize) {
             super(name);
+            if (volumeSize <= 0) throw new IllegalArgumentException("Volume size must be positive, got " + volumeSize);
             this.volumeSize = volumeSize;
         }
 
@@ -363,6 +367,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         }
 
         @Extension
+        @Symbol("volumeFromImage")
         public static final class VFIDesc extends Desc {
 
             @Override
@@ -381,6 +386,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
         @DataBoundConstructor
         public VolumeSnapshot(@Nonnull String name) {
+            Objects.requireNonNull(name, "Volume snapshot name missing");
             this.name = name;
         }
 
@@ -452,6 +458,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         }
 
         @Extension
+        @Symbol("volumeSnapshot")
         public static final class Desc extends BootSourceDescriptor {
             @Override
             public @Nonnull String getDisplayName() {

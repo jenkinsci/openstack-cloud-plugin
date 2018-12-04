@@ -34,6 +34,7 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.ItemGroup;
 import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.slaves.ComputerLauncher;
@@ -44,6 +45,7 @@ import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.SlaveOptions;
 import net.sf.json.JSONObject;
+import org.jenkinsci.Symbol;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -61,7 +63,7 @@ import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -101,35 +103,31 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
     public static final class SSH extends LauncherFactory {
         private static final long serialVersionUID = -1108865485314632255L;
 
-        private final String credentialsId;
-        private final String javaPath;
+        private final @Nonnull String credentialsId;
+        private final @CheckForNull String javaPath;
 
-        public String getCredentialsId() {
+        public @Nonnull String getCredentialsId() {
             return credentialsId;
         }
 
-        public String getJavaPath() {
+        public @CheckForNull String getJavaPath() {
             return javaPath;
         }
 
         @DataBoundConstructor
-        public SSH(String credentialsId, String javaPath) {
+        public SSH(@Nonnull String credentialsId, String javaPath) {
             this.credentialsId = credentialsId;
             this.javaPath = Util.fixEmptyAndTrim(javaPath);
         }
 
-        public SSH(String credentialsId) {
+        public SSH(@Nonnull String credentialsId) {
             this(credentialsId, null);
         }
 
         @Override
-        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
             int maxNumRetries = 5;
             int retryWaitTime = 15;
-
-            if (credentialsId == null) {
-                throw new JCloudsCloud.ProvisioningFailedException("No ssh credentials specified for " + slave.getNodeName());
-            }
 
             String publicAddress = slave.getPublicAddress();
 
@@ -137,7 +135,16 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             Integer timeout = opts.getStartTimeout();
             timeout = timeout == null ? 0: (timeout / 1000); // Never propagate null - always set some timeout
 
-            return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), javaPath, "", "", timeout, maxNumRetries, retryWaitTime);
+            return new SSHLauncher(
+                    publicAddress, 22,
+                    credentialsId,
+                    opts.getJvmOptions(),
+                    javaPath,
+                    "", "",
+                    timeout,
+                    maxNumRetries, retryWaitTime,
+                    new NonVerifyingKeyVerificationStrategy()
+            );
         }
 
         @Override public boolean equals(Object o) {
@@ -201,6 +208,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         }
 
         @Extension
+        @Symbol("ssh")
         public static final class Desc extends Descriptor<LauncherFactory> {
             @Restricted(DoNotUse.class)
             @RequirePOST
@@ -211,7 +219,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
                 return new StandardUsernameListBoxModel()
                         .includeMatchingAs(ACL.SYSTEM, context, StandardUsernameCredentials.class,
-                                Arrays.asList(SSHLauncher.SSH_SCHEME), SSHAuthenticator.matcher(Connection.class))
+                                Collections.singletonList(SSHLauncher.SSH_SCHEME), SSHAuthenticator.matcher(Connection.class))
                         .includeEmptyValue();
             }
         }
@@ -225,7 +233,8 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
         public static final LauncherFactory JNLP = new JNLP();
 
-        private JNLP() {}
+        @DataBoundConstructor // Needed for JCasC
+        public JNLP() {}
 
         @Override
         public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
@@ -254,9 +263,10 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         }
 
         @Extension
+        @Symbol("jnlp")
         public static final class Desc extends Descriptor<LauncherFactory> {
             @Override
-            public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+            public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
                 return JNLP; // Let's avoid creating instances where we can
             }
         }
@@ -270,7 +280,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
     public static final class Unspecified extends LauncherFactory {
         private Unspecified() {} // Never instantiate
 
-        @Override public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+        @Override public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
             throw new UnsupportedOperationException();
         }
 
@@ -284,7 +294,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
                 return "Inherit / Override later";
             }
 
-            @Override public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+            @Override public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
                 return null; // Make sure this is never instantiated and hence will be treated as absent
             }
         }

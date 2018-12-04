@@ -10,6 +10,7 @@ import hudson.model.AsyncPeriodicWork;
 import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.TaskListener;
+import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Channel;
 import hudson.remoting.Which;
 import hudson.slaves.Cloud;
@@ -33,9 +34,9 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
-import org.jenkinsci.lib.configprovider.ConfigProvider;
-import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.configfiles.GlobalConfigFiles;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -69,8 +70,9 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -157,8 +159,8 @@ public final class PluginTestRule extends JenkinsRule {
                 "SLAVE_LABELS: ${SLAVE_LABELS}\n" +
                 "DO_NOT_REPLACE_THIS: ${unknown} ${VARIABLE}"
         ;
-        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(
-                new Config(id, "Fake", "It is a fake", userData)
+        GlobalConfigFiles.get().save(
+                new UserDataConfig(id, "Fake", "It is a fake", userData)
         );
     }
 
@@ -169,6 +171,12 @@ public final class PluginTestRule extends JenkinsRule {
                 )
         );
         return id;
+    }
+
+    public static BasicSSHUserPrivateKey extractSshCredentials(LauncherFactory lf) {
+        assertThat(lf, Matchers.instanceOf(LauncherFactory.SSH.class));
+        LauncherFactory.SSH sshlf = (LauncherFactory.SSH) lf;
+        return (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(sshlf.getCredentialsId());
     }
 
     public void autoconnectJnlpSlaves() {
