@@ -12,14 +12,15 @@
             <td/>
             <td colspan="${monitors.size()+2}">
 
-                    <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenStack Cloud Plugin} - ${it.name}"/>
+                    <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenStack Cloud Plugin} - ${it.name}" name="${it.name}"/>
                     <st:once>
                         <script>
+                            var templates = [];
                             Behaviour.register({
                                 ".jclouds-provision-button" : function (e) {
                                     var submitHandler = function(type, args, item) {
-                                        new Ajax.Request("${rootURL}/cloud/${it.name}/provision", {
-                                            parameters: { name: item.value },
+                                        new Ajax.Request("${rootURL}/cloud/"+item.value.cloud+"/provision", {
+                                            parameters: { name: item.value.template },
                                             onFailure: function(obj) {
                                                 hoverNotification('Provisioning failed', item.element);
                                                 console.log(obj.status + " " + obj.statusText + ": " + obj.responseText)
@@ -27,18 +28,23 @@
                                         });
                                         hoverNotification('Provisioning started', item.element);
                                     };
-
-                                    var items = [
-                                        <j:forEach var="t" items="${it.templates}">
-                                            { text: "${t.name}", value: "${t.name}", onclick: { fn: submitHandler } },
-                                        </j:forEach>
-                                    ];
+                                    items = templates[e.name].map(function(template) {
+                                        return { text: template, value: {template: template, cloud: e.name}, onclick: { fn: submitHandler } }
+                                    });
                                     var menu = new YAHOO.widget.Button(e, { type: "menu", menu: items, name: "name" });
                                 }
                             });
                         </script>
                     </st:once>
+                    <script>
+                        templates["${it.name}"] = [
+                            <j:forEach var="t" items="${it.templates}">
+                                "${t.name}",
+                            </j:forEach>
+                        ];
+                    </script>
             </td>
         </tr>
     </j:if>
 </j:jelly>
+
