@@ -89,7 +89,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public static @Nonnull List<JCloudsCloud> getClouds() {
         List<JCloudsCloud> clouds = new ArrayList<>();
         for (Cloud c : Jenkins.getActiveInstance().clouds) {
-            if (JCloudsCloud.class.isInstance(c)) {
+            if (c instanceof JCloudsCloud) {
                 clouds.add((JCloudsCloud) c);
             }
         }
@@ -211,7 +211,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * The queue contains the same template in as many instances as is the number of machines that can be safely
      * provisioned without violating instanceCap constrain.
      */
-    private @CheckForNull Queue<JCloudsSlaveTemplate> getAvailableTemplateProvider(@CheckForNull Label label) {
+    private @Nonnull Queue<JCloudsSlaveTemplate> getAvailableTemplateProvider(@CheckForNull Label label) {
         final String labelString = (label != null) ? label.toString() : "none";
         final List<Server> runningNodes = getOpenstack().getRunningNodes();
         final int globalMax = getEffectiveSlaveOptions().getInstanceCap();
@@ -435,7 +435,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         final Openstack os;
         try {
             OpenstackCredential credential = OpenstackCredentials.getCredential(credentialId);
-            if (credential == null) throw new RuntimeException("No credential found for " + credentialId);
+            if (credential == null) throw new RuntimeException("No credential found for credential id '" + credentialId + "'");
             os = Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone);
         } catch (FormValidation ex) {
             LOGGER.log(Level.SEVERE, "Openstack authentication invalid", ex);
