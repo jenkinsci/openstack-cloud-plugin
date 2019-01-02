@@ -128,8 +128,7 @@ public class Openstack {
                 .useRegion(region);
 
         clientProvider = ClientProvider.get(client, region, config);
-        debug("Openstack client created for \"{1}\", \"{2}\".", auth.toString(), region);
-
+        debug("Openstack client created for \"{0}\", \"{1}\".", auth.toString(), region);
     }
 
     /*exposed for testing*/
@@ -521,7 +520,7 @@ public class Openstack {
                 }
                 throw err;
             }
-            debug("Machine started: " + server.getName());
+            debug("Machine started: {0}", server.getName());
             throwIfFailed(server);
             return server;
         } catch (ResponseException ex) {
@@ -557,7 +556,7 @@ public class Openstack {
                 if (nodeId.equals(ip.getInstanceId())) {
                     ActionResponse res = fipsService.deallocateIP(ip.getId());
                     if (res.isSuccess() || res.getCode() == 404) {
-                        debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
+                        debug("Deallocated Floating IP {0}", ip.getFloatingIpAddress());
                     } else {
                         throw new ActionFailed(
                                 "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault() + "(" + res.getCode()  + ")"
@@ -570,13 +569,13 @@ public class Openstack {
         ServerService servers = clientProvider.get().compute().servers();
         server = servers.get(nodeId);
         if (server == null || server.getStatus() == Server.Status.DELETED) {
-            debug("Machine destroyed: " + nodeId);
+            debug("Machine destroyed: {0}", nodeId);
             return; // Deleted
         }
 
         ActionResponse res = servers.delete(nodeId);
         if (res.getCode() == 404) {
-            debug("Machine destroyed: " + nodeId);
+            debug("Machine destroyed: {0}", nodeId);
             return; // Deleted
         }
 
@@ -592,7 +591,7 @@ public class Openstack {
      * @param poolName Name of the FIP pool to use. If null, openstack default pool will be used.
      */
     public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) throws ActionFailed {
-        debug("Allocating floating IP for " + server.getName());
+        debug("Allocating floating IP for {0}", server.getName());
         ComputeFloatingIPService fips = clientProvider.get().compute().floatingIps(); // This throws when user is not authorized to manipulate FIPs
         FloatingIP ip;
         try {
@@ -601,9 +600,9 @@ public class Openstack {
             // TODO Grab some still IPs from JCloudsCleanupThread
             throw new ActionFailed(ex.getMessage() + " Allocating for " + server.getName(), ex);
         }
-        debug("Floating IP allocated " + ip.getFloatingIpAddress());
+        debug("Floating IP allocated {0}", ip.getFloatingIpAddress());
         try {
-            debug("Assigning floating IP to " + server.getName());
+            debug("Assigning floating IP to {0}", server.getName());
             ActionResponse res = fips.addFloatingIP(server, ip.getFloatingIpAddress());
             throwIfFailed(res);
             debug("Floating IP assigned");
@@ -770,6 +769,15 @@ public class Openstack {
         }
     }
 
+    /**
+     * Logs a message at {@link Level#FINE}.
+     * 
+     * @param msg
+     *            The message format, where '{0}' will be replaced by args[0],
+     *            '{1}' by args[1] etc.
+     * @param args
+     *            The arguments.
+     */
     private static void debug(@Nonnull String msg, @Nonnull String... args) {
         LOGGER.log(Level.FINE, msg, args);
     }
