@@ -795,7 +795,7 @@ public class Openstack {
          * Instantiate Openstack client.
          */
         public static @Nonnull Openstack get(
-                @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @Nonnull final String region
+                @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @CheckForNull final String region
         ) throws FormValidation {
             final String fingerprint = Util.getDigestOf(endPointUrl +  '\n' + ignoreSsl + '\n' + auth.toString() + '\n' + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);

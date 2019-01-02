@@ -32,6 +32,7 @@ import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.compute.auth.*;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.util.Timer;
+import org.acegisecurity.Authentication;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -390,16 +391,21 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         rsp.getWriter().println("<ok>Provisioning started</ok>");
-        // Provision asynchronously not to block the request thread
-        Timer.get().schedule(new Runnable() {
-            @Override public void run() {
-                try {
-                    provisionSlave(t);
-                } catch (Throwable ex) {
-                    LOGGER.log(Level.WARNING, "Provisioning failed", ex);
-                }
+        provisionAsynchronouslyNotToBlockTheRequestThread(t);
+
+    }
+
+    private void provisionAsynchronouslyNotToBlockTheRequestThread(JCloudsSlaveTemplate t) {
+        Authentication auth = Jenkins.getAuthentication();
+        Runnable performProvisioning = () -> {
+            try {
+                provisionSlave(t);
+            } catch (Throwable ex) {
+                LOGGER.log(Level.WARNING, "Provisioning failed", ex);
             }
-        }, 0, TimeUnit.SECONDS);
+        };
+        // Impersonate current identity inside the worker thread not to lose the owner info
+        Timer.get().schedule(() -> ACL.impersonate(auth, performProvisioning), 0, TimeUnit.SECONDS);
     }
 
     // This is served by AJAX so we are stripping the html

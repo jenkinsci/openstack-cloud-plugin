@@ -8,6 +8,7 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
@@ -28,6 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.JenkinsRule.DummySecurityRealm;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
@@ -312,6 +314,19 @@ public class ProvisioningTest {
             assertNull(pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED));
             assertEquals(cloud.name, pa.getId().getCloudName());
         }
+    }
+
+    @Test
+    public void doProvisionShouldPreserveCreator() throws Exception {
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
+
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.login("foo", "foo");
+        invokeProvisioning(cloud, wc, "/provision?name=" + template.name);
+
+        assertEquals("foo", ((Slave) j.jenkins.getNodes().get(0)).getUserId());
     }
 
     private XmlPage invokeProvisioning(JCloudsCloud cloud, JenkinsRule.WebClient wc, String s) throws IOException {
