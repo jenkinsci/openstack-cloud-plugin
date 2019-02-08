@@ -653,7 +653,7 @@ public class Openstack {
     /**
      * Extract public address from server info.
      *
-     * @return Floating IP, if there is none Fixed IP (IPv4, if not found IPv6)`, null if there is none either.
+     * @return Floating IP, if there is none Fixed IP (first IPv4, if not found first IPv6)`, null if there is none either.
      */
     public static @CheckForNull String getPublicAddress(@Nonnull Server server) {
         String fixedIPv4 = null;
@@ -663,9 +663,9 @@ public class Openstack {
                 if ("floating".equals(addr.getType())) {
                     return addr.getAddr();
                 }
-                if (addr.getVersion() == 4) {
+                if (addr.getVersion() == 4 && fixedIPv4 == null) {
                     fixedIPv4 = addr.getAddr();
-                } else if (addr.getVersion() == 6) {
+                } else if (addr.getVersion() == 6 && fixedIPv6 == null) {
                     fixedIPv6 = addr.getAddr();
                 } else {
                     throw new ActionFailed("Unknown or unsupported IP protocol version");
@@ -673,7 +673,7 @@ public class Openstack {
             }
         }
 
-        // No floating IP found so use fixed IPv4 if found, if not use fixed IPv6 or null
+        // No floating IP found so use first fixed IPv4 if found, if not use first fixed IPv6 or null
         return fixedIPv4 != null ? fixedIPv4 : fixedIPv6;
     }
 
