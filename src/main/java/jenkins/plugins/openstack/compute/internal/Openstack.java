@@ -653,22 +653,28 @@ public class Openstack {
     /**
      * Extract public address from server info.
      *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
+     * @return Floating IP, if there is none Fixed IP (IPv4, if not found IPv6)`, null if there is none either.
      */
     public static @CheckForNull String getPublicAddress(@Nonnull Server server) {
-        String fixed = null;
+        String fixedIPv4 = null;
+        String fixedIPv6 = null;
         for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
             for (Address addr: addresses) {
                 if ("floating".equals(addr.getType())) {
                     return addr.getAddr();
                 }
-
-                fixed = addr.getAddr();
+                if (addr.getVersion() == 4) {
+                    fixedIPv4 = addr.getAddr();
+                } else if (addr.getVersion() == 6) {
+                    fixedIPv6 = addr.getAddr();
+                } else {
+                    throw new ActionFailed("Unknown or unsupported IP protocol version");
+                }
             }
         }
 
-        // No floating IP found - use fixed
-        return fixed;
+        // No floating IP found so use fixed IPv4 if found, if not use fixed IPv6 or null
+        return fixedIPv4 != null ? fixedIPv4 : fixedIPv6;
     }
 
     /**
