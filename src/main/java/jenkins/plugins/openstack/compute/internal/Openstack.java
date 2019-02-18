@@ -686,27 +686,6 @@ public class Openstack {
     }
 
     /**
-     * Extract public address from server info.
-     *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
-     */
-    public static @CheckForNull String getPublicAddressIpv4(@Nonnull Server server) {
-        String fixed = null;
-        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
-            for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr.getAddr();
-                } else if (addr.getVersion()==4) {
-                	fixed = addr.getAddr();
-                }
-            }
-        }
-
-        // No floating IP found - use fixed
-        return fixed;
-    }
-
-    /**
      * @return true if succeeded.
      */
     private static boolean logIfFailed(@Nonnull ActionResponse res) {

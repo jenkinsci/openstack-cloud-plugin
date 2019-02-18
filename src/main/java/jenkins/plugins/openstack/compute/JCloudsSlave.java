@@ -281,14 +281,6 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
         return Openstack.getPublicAddress(getOpenstack(cloudName).getServerById(nodeId));
     }
-    /**
-     * Get public IP address of the server.
-     */
-    @Restricted(NoExternalUse.class)
-    public @CheckForNull String getPublicAddressIpv4() throws NoSuchElementException {
-
-        return Openstack.getPublicAddressIpv4(getOpenstack(cloudName).getServerById(nodeId));
-    }
 
     /**
      * Get effective options used to configure this slave.
