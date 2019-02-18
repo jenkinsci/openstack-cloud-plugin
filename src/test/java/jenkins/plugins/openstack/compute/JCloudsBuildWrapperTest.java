@@ -35,7 +35,7 @@ public class JCloudsBuildWrapperTest {
 
     @Test
     public void provisionSeveral() throws Exception {
-        final JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
+        final JCloudsCloud cloud = j.createCloudLaunchingDummySlavesWithFloatingIP("label");
         JCloudsSlaveTemplate template = cloud.getTemplates().get(0);
         final Openstack os = cloud.getOpenstack();
 
@@ -74,7 +74,7 @@ public class JCloudsBuildWrapperTest {
         JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
 
-        Server success = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
+        Server success = j.mockServer().name("provisioned").withFloatingIp("42.42.42.42").get();
 
         // Fail the second invocation
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class)))

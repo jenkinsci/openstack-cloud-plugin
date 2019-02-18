@@ -29,12 +29,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.JenkinsRule.DummySecurityRealm;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
+import javax.annotation.CheckForNull;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -75,15 +78,123 @@ public class ProvisioningTest {
     public PluginTestRule j = new PluginTestRule();
 
     @Test
-    public void manuallyProvisionAndKill() throws Exception {
+    public void manuallyProvisionAndKillWithPublicIPv4() throws Exception {
+        manuallyProvisionAndKillIPCheck(
+                j.createCloudLaunchingDummySlavesWithPublicIPv4("label"),
+                "42.42.42.",
+                null,
+                null);
+    }
+
+    @Test
+    public void manuallyProvisionAndKillWithPublicIPv6() throws Exception {
+        manuallyProvisionAndKillIPCheck(
+                j.createCloudLaunchingDummySlavesWithPublicIPv6("label"),
+                "4242::",
+                null,
+                null);
+    }
+
+    @Test
+    public void manuallyProvisionAndKillWithFloatingIP() throws Exception {
+        manuallyProvisionAndKillIPCheck(
+                j.createCloudLaunchingDummySlavesWithFloatingIP("label"),
+                "42.42.42.",
+                null,
+                null);
+    }
+
+    // Prefer floating IP over public IPv4
+    @Test
+    public void manuallyProvisionAndKillWithPreferFloatingOverPublicIPv4() throws Exception {
+        final List<Server> running = new ArrayList<>();
+        manuallyProvisionAndKillIPCheck(
+                null,
+                "42.42.42.",
+                new Answer<Server>() {
+                    @Override
+                    public Server answer(InvocationOnMock invocation) throws Throwable {
+                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+                        Server machine = j.mockServer()
+                                .name(builder.build().getName())
+                                .withPublicIPv4("43.43.43." + j.getSlaveCount().getAndIncrement())
+                                .withFloatingIp("42.42.42." + j.getSlaveCount().getAndIncrement())
+                                .metadata(builder.build().getMetaData())
+                                .get();
+                        synchronized (running) {
+                            running.add(machine);
+                        }
+                        return machine;
+                    }
+                },
+                running);
+    }
+
+    // Prefer floating IP over public IPv6
+    @Test
+    public void manuallyProvisionAndKillWithPreferFloatingOverPublicIPv6() throws Exception {
+        final List<Server> running = new ArrayList<>();
+        manuallyProvisionAndKillIPCheck(
+                null,
+                "42.42.42.",
+                new Answer<Server>() {
+                    @Override
+                    public Server answer(InvocationOnMock invocation) throws Throwable {
+                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+                        Server machine = j.mockServer()
+                                .name(builder.build().getName())
+                                .withPublicIPv6("4242::" + j.getSlaveCount().getAndIncrement())
+                                .withFloatingIp("42.42.42." + j.getSlaveCount().getAndIncrement())
+                                .metadata(builder.build().getMetaData())
+                                .get();
+                        synchronized (running) {
+                            running.add(machine);
+                        }
+                        return machine;
+                    }
+                },
+                running);
+    }
+
+    // Prefer IPv4 over IPv6
+    @Test
+    public void manuallyProvisionAndKillWithPreferPublicIPv4OverPublicIPv6() throws Exception {
+        final List<Server> running = new ArrayList<>();
+        manuallyProvisionAndKillIPCheck(
+                null,
+                "42.42.42.",
+                new Answer<Server>() {
+                    @Override
+                    public Server answer(InvocationOnMock invocation) throws Throwable {
+                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+                        Server machine = j.mockServer()
+                                .name(builder.build().getName())
+                                .withPublicIPv4("42.42.42." + j.getSlaveCount().getAndIncrement())
+                                .withPublicIPv6("4242::" + j.getSlaveCount().getAndIncrement())
+                                .metadata(builder.build().getMetaData())
+                                .get();
+                        synchronized (running) {
+                            running.add(machine);
+                        }
+                        return machine;
+                    }
+                },
+                running);
+    }
+
+    private void manuallyProvisionAndKillIPCheck(@CheckForNull JCloudsCloud cloud, String publicIP, Answer<Server> answer,
+                                                 List<Server> running) throws Exception {
         CloudStatistics cs = CloudStatistics.get();
         assertThat(cs.getActivities(), Matchers.iterableWithSize(0));
+        if (cloud == null) {
+            j.autoconnectJnlpSlaves();
+            cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate("label")), answer, running);
+        }
 
-        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
-        assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
+        assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith(publicIP));
         assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
 
         assertThat(cs.getActivities(), Matchers.iterableWithSize(1));
@@ -108,7 +219,7 @@ public class ProvisioningTest {
         assertThat(originalComputers, arrayWithSize(1)); // Only master expected
 
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("custom").build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts,"label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts,"label")));
 
         FreeStyleProject p = j.createFreeStyleProject();
         // Provision with label
@@ -143,7 +254,7 @@ public class ProvisioningTest {
         JCloudsSlaveTemplate restrictedTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
         JCloudsSlaveTemplate openTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
         JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(4).build(), restrictedTmplt, openTmplt);
-        j.configureSlaveLaunching(cloud);
+        j.configureSlaveLaunchingWithFloatingIP(cloud);
 
         Label restricted = Label.get("restricted");
         Label open = Label.get("open");
@@ -232,7 +343,7 @@ public class ProvisioningTest {
     public void verifyOptionsPropagatedToLauncher() throws Exception {
         LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("credid"), "java");
         SlaveOptions expected = j.defaultSlaveOptions().getBuilder().launcherFactory(slaveType).retentionTime(10).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
                 expected,
                 j.dummySlaveTemplate("label"),
                 j.dummySlaveTemplate(expected.getBuilder().retentionTime(42).build(), "retention")
@@ -256,7 +367,7 @@ public class ProvisioningTest {
     public void doProvision() throws Exception {
         JCloudsSlaveTemplate constrained = j.dummySlaveTemplate(j.defaultSlaveOptions().getBuilder().instanceCap(1).build(), "label");
         JCloudsSlaveTemplate free = j.dummySlaveTemplate("free");
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
                 j.defaultSlaveOptions().getBuilder().instanceCap(2).build(),
                 constrained, free
         ));
@@ -320,7 +431,7 @@ public class ProvisioningTest {
     public void doProvisionShouldPreserveCreator() throws Exception {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
 
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.login("foo", "foo");
@@ -337,7 +448,7 @@ public class ProvisioningTest {
     @Test
     public void useSeveralTemplatesToProvisionInOneBatchWhenTemplateInstanceCapExceeded() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().instanceCap(1).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
                 j.dummySlaveTemplate(opts, "label 1"),
                 j.dummySlaveTemplate(opts, "label 2"),
                 j.dummySlaveTemplate(opts, "label 3")
@@ -361,7 +472,7 @@ public class ProvisioningTest {
     public void destroyTheServerWhenFipAllocationFails() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("my_pool").build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
         when(os.assignFloatingIp(any(Server.class), any(String.class))).thenThrow(new Openstack.ActionFailed("Unable to assign"));
 
@@ -380,7 +491,7 @@ public class ProvisioningTest {
     @Test
     public void correctMetadataSet() throws Exception {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
 
         Server server = template.provision(cloud);
         Map<String, String> m = server.getMetadata();
@@ -420,7 +531,7 @@ public class ProvisioningTest {
     @Test
     public void timeoutLaunching() throws Exception {
         final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
         final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
         assertThat(pns, iterableWithSize(1));
         final PlannedNode pn = pns.iterator().next();
@@ -442,7 +553,7 @@ public class ProvisioningTest {
 
     @Test
     public void reportOfflineCauseInCloudStats() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/Fake/it", 42));
         slave.getComputer().deleteSlave();

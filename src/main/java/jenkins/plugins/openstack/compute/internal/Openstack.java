@@ -663,12 +663,20 @@ public class Openstack {
                 if ("floating".equals(addr.getType())) {
                     return addr.getAddr();
                 }
-                if (addr.getVersion() == 4 && fixedIPv4 == null) {
-                    fixedIPv4 = addr.getAddr();
-                } else if (addr.getVersion() == 6 && fixedIPv6 == null) {
-                    fixedIPv6 = addr.getAddr();
-                } else {
-                    throw new ActionFailed("Unknown or unsupported IP protocol version");
+                switch (addr.getVersion()) {
+                    case 4:
+                        if (fixedIPv4 == null) {
+                            fixedIPv4 = addr.getAddr();
+                        }
+                        break;
+                    case 6:
+                        if (fixedIPv6 == null) {
+                            fixedIPv6 = addr.getAddr();
+                        }
+                        break;
+                    default:
+                        throw new ActionFailed("Unknown or unsupported IP protocol version: " + addr.getVersion());
+
                 }
             }
         }

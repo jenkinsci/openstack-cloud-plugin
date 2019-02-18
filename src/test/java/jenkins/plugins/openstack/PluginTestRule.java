@@ -261,40 +261,110 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
-    public JCloudsCloud createCloudLaunchingDummySlaves(String labels) {
-        return configureSlaveLaunching(dummyCloud(dummySlaveTemplate(labels)));
+    public JCloudsCloud createCloudLaunchingDummySlavesWithFloatingIP(String labels) {
+        return configureSlaveLaunchingWithFloatingIP(dummyCloud(dummySlaveTemplate(labels)));
     }
 
-    public JCloudsCloud configureSlaveLaunching(JCloudsCloud cloud) {
+    public JCloudsCloud createCloudLaunchingDummySlavesWithPublicIPv4(String labels) {
+        return configureSlaveLaunchingWithPublicIPv4(dummyCloud(dummySlaveTemplate(labels)));
+    }
+
+    public JCloudsCloud createCloudLaunchingDummySlavesWithPublicIPv6(String labels) {
+        return configureSlaveLaunchingWithPublicIPv6(dummyCloud(dummySlaveTemplate(labels)));
+    }
+
+    public JCloudsCloud configureSlaveLaunchingWithFloatingIP(JCloudsCloud cloud) {
         autoconnectJnlpSlaves();
-        return configureSlaveProvisioning(cloud);
+        return configureSlaveProvisioningWithFloatingIP(cloud);
+    }
+
+    public JCloudsCloud configureSlaveLaunchingWithPublicIPv4(JCloudsCloud cloud) {
+        autoconnectJnlpSlaves();
+        return configureSlaveProvisioningWithPublicIPv4(cloud);
+    }
+
+    public JCloudsCloud configureSlaveLaunchingWithPublicIPv6(JCloudsCloud cloud) {
+        autoconnectJnlpSlaves();
+        return configureSlaveProvisioningWithPublicIPv6(cloud);
     }
 
     /**
      * The provisioning future will never complete as it will wait for launch.
      */
-    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud) {
+    public JCloudsCloud configureSlaveProvisioningWithFloatingIP(final JCloudsCloud cloud) {
+        final List<Server> running = new ArrayList<>();
+        return configureSlaveProvisioning(
+                cloud,
+                new Answer<Server>() {
+                    @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+                        int num = slaveCount.getAndIncrement();
+                        Server machine = mockServer()
+                                .name(builder.build().getName())
+                                .withFloatingIp("42.42.42." + num)
+                                .metadata(builder.build().getMetaData())
+                                .get()
+                                ;
+                        synchronized (running) {
+                            running.add(machine);
+                        }
+                        return machine;
+                    }
+                },
+                running);
+    }
+
+    public JCloudsCloud configureSlaveProvisioningWithPublicIPv4(JCloudsCloud cloud) {
+        final List<Server> running = new ArrayList<>();
+        return configureSlaveProvisioning(
+                cloud,
+                new Answer<Server>() {
+                    @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+                        int num = slaveCount.getAndIncrement();
+                        Server machine = mockServer()
+                                .name(builder.build().getName())
+                                .withPublicIPv4("42.42.42." + num)
+                                .metadata(builder.build().getMetaData())
+                                .get()
+                                ;
+                        synchronized (running) {
+                            running.add(machine);
+                        }
+                        return machine;
+                    }
+                },
+                running);
+    }
+
+    public JCloudsCloud configureSlaveProvisioningWithPublicIPv6(JCloudsCloud cloud) {
+        final List<Server> running = new ArrayList<>();
+        return configureSlaveProvisioning(
+                cloud,
+                new Answer<Server>() {
+                    @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+                        int num = slaveCount.getAndIncrement();
+                        Server machine = mockServer()
+                                .name(builder.build().getName())
+                                .withPublicIPv6("4242::" + num)
+                                .metadata(builder.build().getMetaData())
+                                .get()
+                                ;
+                        synchronized (running) {
+                            running.add(machine);
+                        }
+                        return machine;
+                    }
+                },
+                running);
+    }
+
+    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud, Answer answer, List<Server> running) {
         if (cloud.getTemplates().size() == 0) throw new Error("Unable to provision - no templates provided");
 
-        final List<Server> running = new ArrayList<>();
-
         Openstack os = cloud.getOpenstack();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {
-            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
-                int num = slaveCount.getAndIncrement();
-                Server machine = mockServer()
-                        .name(builder.build().getName())
-                        .floatingIp("42.42.42." + num)
-                        .metadata(builder.build().getMetaData())
-                        .get()
-                ;
-                synchronized (running) {
-                    running.add(machine);
-                }
-                return machine;
-            }
-        });
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(answer);
         when(os.updateInfo(any(Server.class))).thenAnswer(new Answer<Server>() {
             @Override public Server answer(InvocationOnMock invocation) throws Throwable {
                 return (Server) invocation.getArguments()[0];
@@ -331,6 +401,10 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
+    public AtomicInteger getSlaveCount() {
+        return this.slaveCount;
+    }
+
     public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException, IOException {
         Collection<PlannedNode> slaves = cloud.provision(Label.get(label), 1);
         if (slaves.size() != 1) throw new AssertionError("One slave expected to be provisioned, was " + slaves.size());
@@ -362,7 +436,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException, IOException {
-        JCloudsCloud cloud = createCloudLaunchingDummySlaves(labels);
+        JCloudsCloud cloud = createCloudLaunchingDummySlavesWithFloatingIP(labels);
         return provision(cloud, labels);
     }
 
@@ -430,10 +504,33 @@ public final class PluginTestRule extends JenkinsRule {
             return this;
         }
 
-        public MockServerBuilder floatingIp(String ip) {
+        public MockServerBuilder withFloatingIp(String ip) {
             NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
-            when(addr.getType()).thenReturn("floating");
+
+            // TODO: IPv4-mapped-IPv6 addresses '::ffff:127.0.0.' aren't supported
+            when(addr.getVersion()).thenReturn(ip.contains(".") ? 4 : 6);
             when(addr.getAddr()).thenReturn(ip);
+            when(addr.getType()).thenReturn("floating");
+
+            server.getAddresses().add(String.valueOf(rnd.nextInt()), addr);
+            return this;
+        }
+
+        public MockServerBuilder withPublicIPv4(String ip) {
+            NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
+            when(addr.getVersion()).thenReturn(4);
+            when(addr.getAddr()).thenReturn(ip);
+            when(addr.getType()).thenReturn("fixed");
+
+            server.getAddresses().add(String.valueOf(rnd.nextInt()), addr);
+            return this;
+        }
+
+        public MockServerBuilder withPublicIPv6(String ip) {
+            NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
+            when(addr.getVersion()).thenReturn(6);
+            when(addr.getAddr()).thenReturn(ip);
+            when(addr.getType()).thenReturn("fixed");
 
             server.getAddresses().add(String.valueOf(rnd.nextInt()), addr);
             return this;

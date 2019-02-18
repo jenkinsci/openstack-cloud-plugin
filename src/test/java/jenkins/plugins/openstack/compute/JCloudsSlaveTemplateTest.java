@@ -118,7 +118,7 @@ public class JCloudsSlaveTemplateTest {
     public void replaceUserData() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
 
         template.provision(cloud);
@@ -139,7 +139,7 @@ public class JCloudsSlaveTemplateTest {
     public void noFloatingPoolId() {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool(null).build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
 
         template.provision(cloud);
@@ -152,7 +152,7 @@ public class JCloudsSlaveTemplateTest {
     public void bootWithMultipleNetworks() {
         final SlaveOptions opts = dummySlaveOptions().getBuilder().networkId("foo,BAR").build();
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(instance));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
         when(mockOs.getNetworkIds(any())).thenCallRealMethod();
 
@@ -176,7 +176,7 @@ public class JCloudsSlaveTemplateTest {
         final String volumeSnapshotId = "vs-123-id";
         final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(instance));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
         when(mockOs.getVolumeSnapshotIdsFor(volumeSnapshotName)).thenReturn(Collections.singletonList(volumeSnapshotId));
 
@@ -218,7 +218,7 @@ public class JCloudsSlaveTemplateTest {
     public void bootFromImageVolume() {
         final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new BootSource.VolumeFromImage("src_img_id", 42)).build();
         final JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         final Openstack os = cloud.getOpenstack();
 
         template.provision(cloud);
@@ -238,7 +238,7 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void allowToUseImageNameAsWellAsId() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.Image("image-id")).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
         // simulate same image resolved to different ids
@@ -258,7 +258,7 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void allowToUseVolumeSnapshotNameAsWellAsId() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new VolumeSnapshot("vs-id")).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
         // simulate same snapshot resolved to different ids

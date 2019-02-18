@@ -40,7 +40,7 @@ public class JCloudsComputerTest {
 
     @Test
     public void oneOffSlaveRejectsTasksAfterFirstTaskRun() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
                 "label"
         )));
@@ -55,7 +55,7 @@ public class JCloudsComputerTest {
 
     @Test
     public void slaveWithRetentionTimeNonZeroStillAcceptsTasksAfterFirstTaskRun() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(10).instancesMin(1).build(),
                 "label"
         )));

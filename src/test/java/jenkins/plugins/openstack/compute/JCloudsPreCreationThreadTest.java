@@ -19,7 +19,7 @@ public class JCloudsPreCreationThreadTest {
 
     @Test
     public void shouldSlaveBeRetainedTrueWhenInstancesAreRequired() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(1).instancesMin(1).build(),
                 "label"
         )));
@@ -29,7 +29,7 @@ public class JCloudsPreCreationThreadTest {
 
 	@Test
     public void shouldSlaveBeRetainedFalseWhenNoInstancesAreRequired() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(1).instancesMin(0).build(),
                 "label"
         )));
@@ -43,7 +43,7 @@ public class JCloudsPreCreationThreadTest {
         int existingInstances = minInstances - 2;
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().instancesMin(minInstances).build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
         for (int i = 0; i < existingInstances; i++) {
             j.provision(cloud, "label");
@@ -61,7 +61,7 @@ public class JCloudsPreCreationThreadTest {
         int existingInstances = minInstances + 2;
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().instancesMin(minInstances).build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
         for (int i = 0; i < existingInstances; i++) {
             j.provision(cloud, "label");
