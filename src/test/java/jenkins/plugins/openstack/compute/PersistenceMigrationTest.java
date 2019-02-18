@@ -117,7 +117,7 @@ public class PersistenceMigrationTest {
         JCloudsSlave slave = mock(JCloudsSlave.class);
         when(slave.getNodeName()).thenReturn("fake");
         when(slave.getSlaveOptions()).thenReturn(options);
-        when(slave.getPublicAddressIpv4()).thenReturn("42.42.42.42");
+        when(slave.getPublicAddress()).thenReturn("42.42.42.42");
 
         LauncherFactory launcherFactory = options.getLauncherFactory();
         assertNotNull(launcherFactory);
