@@ -53,7 +53,7 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void discardTemporarilyOfflineSlave() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
@@ -67,7 +67,7 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void discardDisconnectedSlave() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
@@ -82,7 +82,7 @@ public class JCloudsCleanupThreadTest {
 
     @Test @Issue("JENKINS-50313") @Ignore("Not jet fixed")
     public void doNotDiscardDisconnectedSlaveTemporarilyOfflineBySomeone() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
@@ -98,7 +98,7 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void doNotDeleteSlaveThatIsNotIdle() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
 
@@ -163,7 +163,7 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void terminateNodeWithoutServer() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         Openstack os = cloud.getOpenstack();
 
         FreeStyleProject p = j.createFreeStyleProject();
@@ -192,7 +192,7 @@ public class JCloudsCleanupThreadTest {
     public void doNotTerminateNodeThatIsBeingProvisioned() throws Exception {
         // Simulate node stuck launching
         SlaveOptions options = j.defaultSlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).instanceCap(1).build();
-        j.configureSlaveProvisioning(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+        j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
 
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedLabel(Label.get("label"));

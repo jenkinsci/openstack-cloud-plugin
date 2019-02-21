@@ -425,7 +425,7 @@ public class JCloudsCloudTest {
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {
-        return j.configureSlaveLaunching(new AclControllingJCloudsCloud(template, authorized));
+        return j.configureSlaveLaunchingWithFloatingIP(new AclControllingJCloudsCloud(template, authorized));
     }
 
     /**

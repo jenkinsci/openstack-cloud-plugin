@@ -31,7 +31,7 @@ public class JCloudsRetentionStrategyTest {
                 "template", "label", SlaveOptions.builder().retentionTime(retentionTime).build()
         );
 
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
         assertEquals(1, (int) slave.getSlaveOptions().getRetentionTime());
@@ -58,7 +58,7 @@ public class JCloudsRetentionStrategyTest {
      */
     @Test
     public void doNotDeleteTheSlaveWhileLaunching() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(0) // disposable immediately
                         //.startTimeout(3000) // give up soon enough to speed the test up
                         .build(),
@@ -111,7 +111,7 @@ public class JCloudsRetentionStrategyTest {
 
     @Test
     public void doNotDeleteSlavePutOfflineByUser() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 // no retention to make the slave disposable w.r.t retention time
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).build(),
                 "label"
@@ -132,7 +132,7 @@ public class JCloudsRetentionStrategyTest {
 
     @Test
     public void doNotDeleteNewSlaveIfInstanceRequired() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
                 "label"
         )));
@@ -147,7 +147,7 @@ public class JCloudsRetentionStrategyTest {
 
     @Test
     public void deleteUsedSlaveWhenOnlyNewInstancesAreRequired() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
                 "label"
         )));
@@ -166,7 +166,7 @@ public class JCloudsRetentionStrategyTest {
 
     @Test
 	public void deleteMinimumNumberOfInstancesWhenOverProvisioned() throws Exception {
-	    JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+	    JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
                 "label"
 	    )));
@@ -184,7 +184,7 @@ public class JCloudsRetentionStrategyTest {
 
     @Test
     public void deleteUsedSlaveUponTaskCompletionIfRetentionTimeZero() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
                 "label"
         )));

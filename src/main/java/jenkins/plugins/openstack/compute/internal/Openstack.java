@@ -653,43 +653,36 @@ public class Openstack {
     /**
      * Extract public address from server info.
      *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
+     * @return Floating IP, if there is none Fixed IP (first IPv4, if not found first IPv6)`, null if there is none either.
      */
     public static @CheckForNull String getPublicAddress(@Nonnull Server server) {
-        String fixed = null;
+        String fixedIPv4 = null;
+        String fixedIPv6 = null;
         for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
             for (Address addr: addresses) {
                 if ("floating".equals(addr.getType())) {
                     return addr.getAddr();
                 }
+                switch (addr.getVersion()) {
+                    case 4:
+                        if (fixedIPv4 == null) {
+                            fixedIPv4 = addr.getAddr();
+                        }
+                        break;
+                    case 6:
+                        if (fixedIPv6 == null) {
+                            fixedIPv6 = addr.getAddr();
+                        }
+                        break;
+                    default:
+                        throw new ActionFailed("Unknown or unsupported IP protocol version: " + addr.getVersion());
 
-                fixed = addr.getAddr();
-            }
-        }
-
-        // No floating IP found - use fixed
-        return fixed;
-    }
-
-    /**
-     * Extract public address from server info.
-     *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
-     */
-    public static @CheckForNull String getPublicAddressIpv4(@Nonnull Server server) {
-        String fixed = null;
-        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
-            for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr.getAddr();
-                } else if (addr.getVersion()==4) {
-                	fixed = addr.getAddr();
                 }
             }
         }
 
-        // No floating IP found - use fixed
-        return fixed;
+        // No floating IP found so use first fixed IPv4 if found, if not use first fixed IPv6 or null
+        return fixedIPv4 != null ? fixedIPv4 : fixedIPv6;
     }
 
     /**

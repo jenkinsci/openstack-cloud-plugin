@@ -16,7 +16,7 @@ public class JCloudsOneOffSlaveTest {
 
     @Test
     public void discardSlaveOnceUsed() throws Exception {
-        j.createCloudLaunchingDummySlaves("label");
+        j.createCloudLaunchingDummySlavesWithFloatingIP("label");
 
         FreeStyleProject p = j.createFreeStyleProject();
         p.getBuildWrappersList().add(new JCloudsOneOffSlave());

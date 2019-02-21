@@ -132,7 +132,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
                 throw new JCloudsCloud.ProvisioningFailedException("No ssh credentials specified for " + slave.getNodeName());
             }
 
-            String publicAddress = slave.getPublicAddressIpv4();
+            String publicAddress = slave.getPublicAddress();
 
             final SlaveOptions opts = slave.getSlaveOptions();
             Integer timeout = opts.getStartTimeout();
@@ -173,7 +173,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
             String publicAddress;
             try {
-                publicAddress = slave.getPublicAddressIpv4();
+                publicAddress = slave.getPublicAddress();
             } catch (NoSuchElementException ex) {
                 throw new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex);
             }

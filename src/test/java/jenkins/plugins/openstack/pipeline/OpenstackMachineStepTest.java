@@ -27,7 +27,7 @@ public class OpenstackMachineStepTest {
 
     @Before
     public void setup () {
-        cloud = j.createCloudLaunchingDummySlaves("whatever");
+        cloud = j.createCloudLaunchingDummySlavesWithFloatingIP("whatever");
         j.jenkins.clouds.add(cloud);
         openstack = cloud.getOpenstack();
     }
