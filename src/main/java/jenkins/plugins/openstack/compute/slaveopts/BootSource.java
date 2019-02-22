@@ -354,6 +354,21 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                 return "Volume from Image";
             }
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
+            final VolumeFromImage that = (VolumeFromImage) o;
+            return name.equals(that.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return name.hashCode();
+        }
     }
 
     public static final class VolumeSnapshot extends BootSource {

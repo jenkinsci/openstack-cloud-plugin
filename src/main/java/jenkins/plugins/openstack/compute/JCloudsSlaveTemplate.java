@@ -362,7 +362,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             String nameCandidate = name + "-" + nodeCounter.getAndIncrement();
 
             // Collide with existing node - quite likely from this cloud
-            if (Jenkins.getInstance().getNode(nameCandidate) != null) continue;
+            if (Jenkins.getActiveInstance().getNode(nameCandidate) != null) continue;
 
             // Collide with node being provisioned (at this point this plugin does not assign final name before launch
             // is completed) or recently used name (just to avoid confusion).
@@ -417,15 +417,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         for (Node node : Jenkins.getActiveInstance().getNodes()) {
             if (node instanceof JCloudsSlave) {
                 JCloudsSlave slave = (JCloudsSlave) node;
-                if (slave.getId().getCloudName().equals(cloud.name) && slave.getId().getTemplateName().equals(name)) {
-                    JCloudsComputer computer = slave.getComputer();
-                    if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
-                        if (onlyNewComputers) {
-                            if (!computer.isUsed()) {
+                if (slave.getId().getCloudName().equals(cloud.name)) {
+                    String template = slave.getId().getTemplateName();
+                    if (template != null && template.equals(name)) {
+                        JCloudsComputer computer = slave.getComputer();
+                        if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
+                            if (onlyNewComputers) {
+                                if (!computer.isUsed()) {
+                                    totalServers++;
+                                }
+                            } else {
                                 totalServers++;
                             }
-                        } else {
-                            totalServers++;
                         }
                     }
                 }

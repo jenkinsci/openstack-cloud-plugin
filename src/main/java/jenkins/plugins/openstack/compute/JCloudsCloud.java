@@ -159,8 +159,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             OpenstackCredential migratedOpenstackCredential = null;
             if (id.length == 2) {
                 //If id.length == 2, it is assumed that is being used API V2
-                String tenant = id.length > 0 ? id[0] : "";
-                String username = id.length > 1 ? id[1] : "";
+                String tenant = id[0];
+                String username = id[1];
                 migratedOpenstackCredential = new OpenstackCredentialv2(CredentialsScope.SYSTEM,null,null,tenant,username,credential);
             } else if (id.length == 3) {
                 // convert the former identity string PROJECT_NAME:USER_NAME:DOMAIN_NAME
@@ -523,7 +523,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         @Restricted(DoNotUse.class)
         @RequirePOST
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
-            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
+            Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
             if (Util.fixEmpty(value) == null) return FormValidation.validateRequired(value);
 
             try {
@@ -537,7 +537,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         @Restricted(DoNotUse.class)
         @RequirePOST
         public ListBoxModel doFillCredentialIdItems() {
-            Jenkins jenkins = Jenkins.getInstance();
+            Jenkins jenkins = Jenkins.getActiveInstance();
             jenkins.checkPermission(Jenkins.ADMINISTER);
 
             List<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(
