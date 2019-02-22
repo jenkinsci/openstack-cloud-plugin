@@ -45,6 +45,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
+import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
@@ -798,7 +799,11 @@ public class Openstack {
         public static @Nonnull Openstack get(
                 @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @CheckForNull final String region
         ) throws FormValidation {
-            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n' + ignoreSsl + '\n' + auth.toString() + '\n' + region);
+            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n'
+                    + ignoreSsl + '\n'
+                    + auth.toString() + '\n'
+                    + (auth instanceof PasswordCredentials ? ((PasswordCredentials) auth).getPassword().getEncryptedValue() + '\n' : "")
+                    + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
             final Callable<Openstack> cacheMissFunction = new Callable<Openstack>() {
                 @Override
