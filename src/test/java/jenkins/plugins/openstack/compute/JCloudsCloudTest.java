@@ -1,7 +1,9 @@
 package jenkins.plugins.openstack.compute;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
@@ -409,7 +411,6 @@ public class JCloudsCloudTest {
         final Openstack actual121 = i121.getOpenstack();
         final Openstack actual112 = i112.getOpenstack();
 
-
         // Then
         // Cache is returning same data when it should:
         assertThat(actual111, sameInstance(e111));
@@ -422,6 +423,46 @@ public class JCloudsCloudTest {
         assertThat(actual211, not(anyOf( sameInstance(e111), sameInstance(e121), sameInstance(null),  sameInstance(e111) )));
         assertThat(actual111, not(anyOf( sameInstance(e112), sameInstance(e211), sameInstance(e121), sameInstance(null)  )));
         verify(factory, times(4)).getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class));
+    }
+
+    @Test
+    public void cachedOpenstackInstanceInvalidatedIfPasswordChanges() throws Exception {
+        // Given
+        final String ep = "http://foo";
+        final String zone = "region";
+        final Openstack.FactoryEP factory = j.mockOpenstackFactory();
+        final OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
+        final String credentialId = "myCredId";
+        final String credentialDescription = "desc";
+        final String credentialTenant = "tenant";
+        final String credentialUsername = "user";
+        final OpenstackCredential openstackCredentialWithOldPassword = new OpenstackCredentialv2(CredentialsScope.SYSTEM, credentialId, credentialDescription, credentialTenant, credentialUsername, "originalPassword");
+        final OpenstackCredential openstackCredentialWithNewPassword = new OpenstackCredentialv2(CredentialsScope.SYSTEM, credentialId, credentialDescription, credentialTenant, credentialUsername, "updatedPassword");
+        final List<Credentials> openstackCredentials = SystemCredentialsProvider.getInstance().getCredentials();
+        openstackCredentials.add(openstackCredentialWithOldPassword);
+        final int indexOfCredentials = openstackCredentials.indexOf(openstackCredentialWithOldPassword);
+        final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
+        final JCloudsCloud cloud = new JCloudsCloud("cloudName", ep, false, zone, defOpts, null, openstackCredentialWithOldPassword.getId());
+        when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
+            @Override
+            public Openstack answer(InvocationOnMock invocation) {
+                // create new instance every time we are called
+                return new Openstack(client);
+            }
+        });
+        final Openstack original = cloud.getOpenstack();
+
+        // When
+        final Openstack beforePwdChange = cloud.getOpenstack();
+        openstackCredentials.set(indexOfCredentials, openstackCredentialWithNewPassword);
+        final Openstack afterPwdChange = cloud.getOpenstack();
+
+        // Then
+        // Cache is returning same data when it should:
+        assertThat(beforePwdChange, sameInstance(original));
+        // Cache is returning different data when it must:
+        assertThat(afterPwdChange, not(anyOf( sameInstance(original), sameInstance(null),  sameInstance(beforePwdChange))));
+        verify(factory, times(2)).getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class));
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {
