@@ -58,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -346,6 +347,21 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return "Volume from Image " + name + " (" + volumeSize + "GB)";
         }
 
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass() || !super.equals(o))
+                return false;
+            final VolumeFromImage that = (VolumeFromImage) o;
+            return this.volumeSize == that.volumeSize;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(volumeSize, name);
+        }
+
         @Extension
         public static final class VFIDesc extends Desc {
 
@@ -353,21 +369,6 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             public @Nonnull String getDisplayName() {
                 return "Volume from Image";
             }
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o)
-                return true;
-            if (o == null || getClass() != o.getClass())
-                return false;
-            final VolumeFromImage that = (VolumeFromImage) o;
-            return name.equals(that.name);
-        }
-
-        @Override
-        public int hashCode() {
-            return name.hashCode();
         }
     }
 
