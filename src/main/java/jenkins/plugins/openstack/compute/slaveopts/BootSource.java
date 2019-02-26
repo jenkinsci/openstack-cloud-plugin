@@ -359,7 +359,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
         @Override
         public int hashCode() {
-            return Objects.hash(volumeSize, name);
+            return Objects.hash(volumeSize, super.hashCode());
         }
 
         @Extension
