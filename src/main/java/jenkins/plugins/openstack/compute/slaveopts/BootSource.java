@@ -351,7 +351,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         public boolean equals(Object o) {
             if (this == o)
                 return true;
-            if (o == null || getClass() != o.getClass() || !super.equals(o))
+            if (!super.equals(o))
                 return false;
             final VolumeFromImage that = (VolumeFromImage) o;
             return this.volumeSize == that.volumeSize;
