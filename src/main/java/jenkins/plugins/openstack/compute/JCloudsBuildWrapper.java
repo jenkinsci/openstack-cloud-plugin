@@ -147,7 +147,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
         final List<String> ips = new ArrayList<>(instancesToRun.size());
         for (RunningNode node : runningNodes) {
-            String addr = Openstack.getPublicAddress(node.getNode());
+            String addr = Openstack.getAccessIpAddress(node.getNode());
             if (addr != null) {
                 ips.add(addr);
             } else {

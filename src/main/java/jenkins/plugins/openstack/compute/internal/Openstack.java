@@ -63,6 +63,7 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.NoStaplerConstructorException;
 import org.openstack4j.core.transport.Config;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
@@ -631,59 +632,55 @@ public class Openstack {
     }
 
     /**
-     * Extract public address from server info.
+     * Extract public address from server.
      *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
+     * @return Preferring IPv4 over IPv6 and floating address over fixed.
+     * @throws IllegalArgumentException When address can not be understood.
+     * @throws NoSuchElementException When no suitable address is found.
      */
-    public static @CheckForNull Address getPublicAddressObject(@Nonnull Server server) {
-    	Address fixed = null;
-        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
-            for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr;
-                }
-
-                fixed = addr;
-            }
-        }
-
-        // No floating IP found - use fixed
-        return fixed;
-    }
-
-    /**
-     * Extract public address from server info.
-     *
-     * @return Floating IP, if there is none Fixed IP (first IPv4, if not found first IPv6)`, null if there is none either.
-     */
-    public static @CheckForNull String getPublicAddress(@Nonnull Server server) {
+    public static @CheckForNull String getAccessIpAddress(@Nonnull Server server) throws IllegalArgumentException, NoSuchElementException {
         String fixedIPv4 = null;
         String fixedIPv6 = null;
-        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
+        String floatingIPv6 = null;
+        Collection<List<? extends Address>> addressMap = server.getAddresses().getAddresses().values();
+        for (List<? extends Address> addresses: addressMap) {
             for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr.getAddr();
-                }
-                switch (addr.getVersion()) {
-                    case 4:
-                        if (fixedIPv4 == null) {
-                            fixedIPv4 = addr.getAddr();
-                        }
-                        break;
-                    case 6:
-                        if (fixedIPv6 == null) {
-                            fixedIPv6 = addr.getAddr();
-                        }
-                        break;
-                    default:
-                        throw new ActionFailed("Unknown or unsupported IP protocol version: " + addr.getVersion());
+                String type = addr.getType();
+                int version = addr.getVersion();
+                String address = addr.getAddr();
 
+                if (version != 4 && version != 6) throw new IllegalArgumentException(
+                        "Unknown or unsupported IP protocol version: " + version
+                );
+
+                if (Objects.equal(type, "floating")) {
+                    if (version == 4) {
+                        // The most favourable option so we can return early here
+                        return address;
+                    } else {
+                        if (floatingIPv6 == null) {
+                            floatingIPv6 = address;
+                        }
+                    }
+                } else  if (Objects.equal(type, "fixed")) {
+                    if (version == 4) {
+                        if (fixedIPv4 == null) {
+                            fixedIPv4 = address;
+                        }
+                    } else {
+                        if (fixedIPv6 == null) {
+                            fixedIPv6 = address;
+                        }
+                    }
                 }
             }
         }
 
-        // No floating IP found so use first fixed IPv4 if found, if not use first fixed IPv6 or null
-        return fixedIPv4 != null ? fixedIPv4 : fixedIPv6;
+        if (floatingIPv6 != null) return floatingIPv6;
+        if (fixedIPv4 != null) return fixedIPv4;
+        if (fixedIPv6 != null) return fixedIPv6;
+
+        throw new NoSuchElementException("No access IP address found for " + server.getName() + ": " + addressMap);
     }
 
     /**
@@ -942,7 +939,7 @@ public class Openstack {
         // jenkins deployed plugin have different classloader environments. Messing around with maven-hpi-plugin opts can
         // fix or break any of that and there is no regression test to catch that.
         try {
-            File path = Which.jarFile(Objects.ToStringHelper.class);
+            File path = Which.jarFile(com.google.common.base.Objects.ToStringHelper.class);
             LOGGER.info("com.google.common.base.Objects loaded from " + path);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Unable to get source of com.google.common.base.Objects", e);

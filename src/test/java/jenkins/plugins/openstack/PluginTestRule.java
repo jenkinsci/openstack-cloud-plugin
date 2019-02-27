@@ -1,7 +1,57 @@
 package jenkins.plugins.openstack;
 
-import static org.mockito.Mockito.*;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import hudson.Extension;
+import hudson.Launcher.LocalLauncher;
+import hudson.Proc;
+import hudson.model.AsyncPeriodicWork;
+import hudson.model.Computer;
+import hudson.model.Label;
+import hudson.model.TaskListener;
+import hudson.remoting.Channel;
+import hudson.remoting.Which;
+import hudson.slaves.Cloud;
+import hudson.slaves.CloudProvisioningListener;
+import hudson.slaves.ComputerListener;
+import hudson.slaves.NodeProvisioner;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.util.FormValidation;
+import hudson.util.StreamTaskListener;
+import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
+import jenkins.plugins.openstack.compute.JCloudsCloud;
+import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
+import jenkins.plugins.openstack.compute.JCloudsSlave;
+import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
+import jenkins.plugins.openstack.compute.SlaveOptions;
+import jenkins.plugins.openstack.compute.UserDataConfig;
+import jenkins.plugins.openstack.compute.auth.AbstractOpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
+import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.BootSource;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import org.hamcrest.TypeSafeMatcher;
+import org.jenkinsci.lib.configprovider.ConfigProvider;
+import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.mockito.stubbing.Answer;
+import org.openstack4j.api.OSClient;
+import org.openstack4j.api.client.IOSClientBuilder;
+import org.openstack4j.api.exceptions.AuthenticationException;
+import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.ServerCreate;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.openstack.compute.domain.NovaAddresses;
+import org.openstack4j.openstack.compute.domain.NovaAddresses.NovaAddress;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -19,59 +69,12 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import hudson.slaves.Cloud;
-import hudson.slaves.CloudProvisioningListener;
-import hudson.slaves.NodeProvisioner;
-import hudson.util.FormValidation;
-import jenkins.model.Jenkins;
-import jenkins.plugins.openstack.compute.SlaveOptions;
-import jenkins.plugins.openstack.compute.UserDataConfig;
-import jenkins.plugins.openstack.compute.auth.AbstractOpenstackCredential;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
-import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.hamcrest.TypeSafeMatcher;
-import org.jenkinsci.lib.configprovider.ConfigProvider;
-import org.jenkinsci.lib.configprovider.model.Config;
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.openstack4j.api.OSClient;
-import org.openstack4j.api.client.IOSClientBuilder;
-import org.openstack4j.api.exceptions.AuthenticationException;
-import org.openstack4j.model.compute.Server;
-import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.openstack.compute.domain.NovaAddresses;
-import org.openstack4j.openstack.compute.domain.NovaAddresses.NovaAddress;
-
-import hudson.Extension;
-import hudson.Launcher.LocalLauncher;
-import hudson.Proc;
-import hudson.model.AsyncPeriodicWork;
-import hudson.model.Computer;
-import hudson.model.Label;
-import hudson.model.TaskListener;
-import hudson.remoting.Channel;
-import hudson.remoting.Which;
-import hudson.slaves.ComputerListener;
-import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.StreamTaskListener;
-import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
-import jenkins.plugins.openstack.compute.JCloudsCloud;
-import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
-import jenkins.plugins.openstack.compute.JCloudsSlave;
-import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
-import jenkins.plugins.openstack.compute.internal.Openstack;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * Test utils for plugin functional testing.
@@ -261,16 +264,8 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
-    public JCloudsCloud createCloudLaunchingDummySlavesWithFloatingIP(String labels) {
+    public JCloudsCloud configureSlaveLaunchingWithFloatingIP(String labels) {
         return configureSlaveLaunchingWithFloatingIP(dummyCloud(dummySlaveTemplate(labels)));
-    }
-
-    public JCloudsCloud createCloudLaunchingDummySlavesWithPublicIPv4(String labels) {
-        return configureSlaveLaunchingWithPublicIPv4(dummyCloud(dummySlaveTemplate(labels)));
-    }
-
-    public JCloudsCloud createCloudLaunchingDummySlavesWithPublicIPv6(String labels) {
-        return configureSlaveLaunchingWithPublicIPv6(dummyCloud(dummySlaveTemplate(labels)));
     }
 
     public JCloudsCloud configureSlaveLaunchingWithFloatingIP(JCloudsCloud cloud) {
@@ -278,131 +273,85 @@ public final class PluginTestRule extends JenkinsRule {
         return configureSlaveProvisioningWithFloatingIP(cloud);
     }
 
-    public JCloudsCloud configureSlaveLaunchingWithPublicIPv4(JCloudsCloud cloud) {
-        autoconnectJnlpSlaves();
-        return configureSlaveProvisioningWithPublicIPv4(cloud);
-    }
+    // Addresses with 42 as floating while those with 43 are fixed
+    public enum NetworkAddress {
+        FLOATING_4 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFloatingIpv4("42.42.42." + cnt.incrementAndGet());
+            }
+        },
+        FLOATING_6 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFloatingIpv6("4242::" + cnt.incrementAndGet());
+            }
+        },
+        FIXED_4 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFixedIPv4("43.43.43." + cnt.incrementAndGet());
+            }
+        },
+        FIXED_6 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFixedIPv6("4343::" + cnt.incrementAndGet());
+            }
+        };
 
-    public JCloudsCloud configureSlaveLaunchingWithPublicIPv6(JCloudsCloud cloud) {
-        autoconnectJnlpSlaves();
-        return configureSlaveProvisioningWithPublicIPv6(cloud);
+        public abstract void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger sequence);
     }
 
     /**
      * The provisioning future will never complete as it will wait for launch.
      */
     public JCloudsCloud configureSlaveProvisioningWithFloatingIP(final JCloudsCloud cloud) {
-        final List<Server> running = new ArrayList<>();
-        return configureSlaveProvisioning(
-                cloud,
-                new Answer<Server>() {
-                    @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
-                        int num = slaveCount.getAndIncrement();
-                        Server machine = mockServer()
-                                .name(builder.build().getName())
-                                .withFloatingIp("42.42.42." + num)
-                                .metadata(builder.build().getMetaData())
-                                .get()
-                                ;
-                        synchronized (running) {
-                            running.add(machine);
-                        }
-                        return machine;
-                    }
-                },
-                running);
+        return configureSlaveProvisioning(cloud, Collections.singletonList(NetworkAddress.FLOATING_4));
     }
 
-    public JCloudsCloud configureSlaveProvisioningWithPublicIPv4(JCloudsCloud cloud) {
-        final List<Server> running = new ArrayList<>();
-        return configureSlaveProvisioning(
-                cloud,
-                new Answer<Server>() {
-                    @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
-                        int num = slaveCount.getAndIncrement();
-                        Server machine = mockServer()
-                                .name(builder.build().getName())
-                                .withPublicIPv4("42.42.42." + num)
-                                .metadata(builder.build().getMetaData())
-                                .get()
-                                ;
-                        synchronized (running) {
-                            running.add(machine);
-                        }
-                        return machine;
-                    }
-                },
-                running);
-    }
-
-    public JCloudsCloud configureSlaveProvisioningWithPublicIPv6(JCloudsCloud cloud) {
-        final List<Server> running = new ArrayList<>();
-        return configureSlaveProvisioning(
-                cloud,
-                new Answer<Server>() {
-                    @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                        ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
-                        int num = slaveCount.getAndIncrement();
-                        Server machine = mockServer()
-                                .name(builder.build().getName())
-                                .withPublicIPv6("4242::" + num)
-                                .metadata(builder.build().getMetaData())
-                                .get()
-                                ;
-                        synchronized (running) {
-                            running.add(machine);
-                        }
-                        return machine;
-                    }
-                },
-                running);
-    }
-
-    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud, Answer answer, List<Server> running) {
+    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud, Collection<NetworkAddress> networks) {
         if (cloud.getTemplates().size() == 0) throw new Error("Unable to provision - no templates provided");
 
+        final List<Server> running = new ArrayList<>();
         Openstack os = cloud.getOpenstack();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(answer);
-        when(os.updateInfo(any(Server.class))).thenAnswer(new Answer<Server>() {
-            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                return (Server) invocation.getArguments()[0];
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer((Answer<Server>) invocation -> {
+            ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+
+            ServerCreate create = builder.build();
+            MockServerBuilder serverBuilder = mockServer().name(create.getName()).metadata(create.getMetaData());
+            for (NetworkAddress network : networks) {
+                network.apply(serverBuilder, slaveCount);
+            }
+            Server machine = serverBuilder.get();
+
+            synchronized (running) {
+                running.add(machine);
+            }
+            return machine;
+        });
+        when(os.updateInfo(any(Server.class))).thenAnswer((Answer<Server>) invocation1 -> (Server) invocation1.getArguments()[0]);
+        when(os.getRunningNodes()).thenAnswer((Answer<List<Server>>) invocation1 -> {
+            synchronized (running) {
+                return new ArrayList<>(running);
             }
         });
-        when(os.getRunningNodes()).thenAnswer(new Answer<List<Server>>() {
-            @Override public List<Server> answer(InvocationOnMock invocation) throws Throwable {
-                synchronized (running) {
-                    return new ArrayList<>(running);
-                }
-            }
-        });
-        when(os.getServerById(any(String.class))).thenAnswer(new Answer<Server>() {
-            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                String expected = (String) invocation.getArguments()[0];
-                synchronized (running) {
-                    for (Server s: running) {
-                        if (expected.equals(s.getId())) {
-                            return s;
-                        }
+        when(os.getServerById(any(String.class))).thenAnswer((Answer<Server>) invocation1 -> {
+            String expected = (String) invocation1.getArguments()[0];
+            synchronized (running) {
+                for (Server s: running) {
+                    if (expected.equals(s.getId())) {
+                        return s;
                     }
                 }
+            }
 
-                return null;
-            }
+            return null;
         });
-        doAnswer(new Answer<Void>() {
-            @Override public Void answer(InvocationOnMock invocation) throws Throwable {
-                Server server = (Server) invocation.getArguments()[0];
-                running.remove(server);
-                return null;
+        doAnswer((Answer<Void>) invocation1 -> {
+            Server server1 = (Server) invocation1.getArguments()[0];
+            synchronized (running) {
+                running.remove(server1);
             }
+            return null;
         }).when(os).destroyServer(any(Server.class));
         return cloud;
-    }
-
-    public AtomicInteger getSlaveCount() {
-        return this.slaveCount;
     }
 
     public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException, IOException {
@@ -428,15 +377,17 @@ public final class PluginTestRule extends JenkinsRule {
             }
             throw new AssertionError("Computer not created in time");
         } catch (Throwable ex) {
+            // Unwrap ExecutionException as NodeProvisioner does it too
+            Throwable problem = (ex instanceof ExecutionException) ? ex.getCause(): ex;
             for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
-                cl.onFailure(plannedNode, ex);
+                cl.onFailure(plannedNode, problem);
             }
             throw ex;
         }
     }
 
     public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException, IOException {
-        JCloudsCloud cloud = createCloudLaunchingDummySlavesWithFloatingIP(labels);
+        JCloudsCloud cloud = configureSlaveLaunchingWithFloatingIP(labels);
         return provision(cloud, labels);
     }
 
@@ -444,20 +395,18 @@ public final class PluginTestRule extends JenkinsRule {
         return fakeOpenstackFactory(mock(Openstack.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS).serializable()));
     }
 
-    @SuppressWarnings("deprecation")
     public Openstack fakeOpenstackFactory(final Openstack os) {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
             @Override
             public @Nonnull Openstack getOpenstack(
                     @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
-            ) throws FormValidation {
+            ) {
                 return os;
             }
         });
         return os;
     }
 
-    @SuppressWarnings("deprecation")
     public Openstack.FactoryEP mockOpenstackFactory() {
         // Yes. We are wrapping mock into a real instance on purpose. We need an not-mocked instance so the 'cache' instance
         // field is initialized properly as we are referring to it form the factory method. But, as we need to mock/verify
@@ -504,33 +453,27 @@ public final class PluginTestRule extends JenkinsRule {
             return this;
         }
 
-        public MockServerBuilder withFloatingIp(String ip) {
-            NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
-
-            // TODO: IPv4-mapped-IPv6 addresses '::ffff:127.0.0.' aren't supported
-            when(addr.getVersion()).thenReturn(ip.contains(".") ? 4 : 6);
-            when(addr.getAddr()).thenReturn(ip);
-            when(addr.getType()).thenReturn("floating");
-
-            server.getAddresses().add(String.valueOf(rnd.nextInt()), addr);
-            return this;
+        public MockServerBuilder withFloatingIpv4(String ip) {
+            return withAddress(ip, 4, "floating");
         }
 
-        public MockServerBuilder withPublicIPv4(String ip) {
-            NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
-            when(addr.getVersion()).thenReturn(4);
-            when(addr.getAddr()).thenReturn(ip);
-            when(addr.getType()).thenReturn("fixed");
-
-            server.getAddresses().add(String.valueOf(rnd.nextInt()), addr);
-            return this;
+        public MockServerBuilder withFloatingIpv6(String ip) {
+            return withAddress(ip, 6, "floating");
         }
 
-        public MockServerBuilder withPublicIPv6(String ip) {
+        public MockServerBuilder withFixedIPv4(String ip) {
+            return withAddress(ip, 4, "fixed");
+        }
+
+        public MockServerBuilder withFixedIPv6(String ip) {
+            return withAddress(ip, 6, "fixed");
+        }
+
+        public MockServerBuilder withAddress(String ip, int i, String fixed) {
             NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
-            when(addr.getVersion()).thenReturn(6);
+            when(addr.getVersion()).thenReturn(i);
             when(addr.getAddr()).thenReturn(ip);
-            when(addr.getType()).thenReturn("fixed");
+            when(addr.getType()).thenReturn(fixed);
 
             server.getAddresses().add(String.valueOf(rnd.nextInt()), addr);
             return this;

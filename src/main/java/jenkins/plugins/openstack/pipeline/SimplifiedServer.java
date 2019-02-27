@@ -54,7 +54,7 @@ public class SimplifiedServer implements Serializable {
     public String getAddress() {
         if (srv == null) return null;
 
-        return Openstack.getPublicAddress(srv);
+        return Openstack.getAccessIpAddress(srv);
     }
 
     @Whitelisted

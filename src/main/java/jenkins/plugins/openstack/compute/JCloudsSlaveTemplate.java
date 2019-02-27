@@ -241,7 +241,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         } catch (Throwable ex) {
             JCloudsCloud.ProvisioningFailedException cause = ex instanceof JCloudsCloud.ProvisioningFailedException
                     ? (JCloudsCloud.ProvisioningFailedException) ex
-                    : new JCloudsCloud.ProvisioningFailedException("Unable to provision node: " + ex.getMessage(), ex)
+                    : new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex)
             ;
 
             if (node != null) {

@@ -90,7 +90,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 null,
                 new JCloudsRetentionStrategy(),
                 Collections.singletonList(new EnvironmentVariablesNodeProperty(
-                        new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getPublicAddress(metadata))
+                        new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getAccessIpAddress(metadata))
                 ))
         );
         this.cloudName = id.getCloudName(); // TODO deprecate field
@@ -279,7 +279,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      */
     public @CheckForNull String getPublicAddress() throws NoSuchElementException {
 
-        return Openstack.getPublicAddress(getOpenstack(cloudName).getServerById(nodeId));
+        return Openstack.getAccessIpAddress(getOpenstack(cloudName).getServerById(nodeId));
     }
 
     /**

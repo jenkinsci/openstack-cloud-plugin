@@ -35,7 +35,7 @@ public class JCloudsBuildWrapperTest {
 
     @Test
     public void provisionSeveral() throws Exception {
-        final JCloudsCloud cloud = j.createCloudLaunchingDummySlavesWithFloatingIP("label");
+        final JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP("label");
         JCloudsSlaveTemplate template = cloud.getTemplates().get(0);
         final Openstack os = cloud.getOpenstack();
 
@@ -50,7 +50,7 @@ public class JCloudsBuildWrapperTest {
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
                 String[] ips = build.getEnvironment(TaskListener.NULL).get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
-                assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));
+                assertThat(ips, arrayContainingInAnyOrder("42.42.42.1", "42.42.42.2", "42.42.42.3"));
 
                 List<Server> runningNodes = os.getRunningNodes();
                 assertThat(runningNodes, Matchers.iterableWithSize(3));
@@ -74,7 +74,7 @@ public class JCloudsBuildWrapperTest {
         JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
 
-        Server success = j.mockServer().name("provisioned").withFloatingIp("42.42.42.42").get();
+        Server success = j.mockServer().name("provisioned").withFloatingIpv4("42.42.42.42").get();
 
         // Fail the second invocation
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class)))
