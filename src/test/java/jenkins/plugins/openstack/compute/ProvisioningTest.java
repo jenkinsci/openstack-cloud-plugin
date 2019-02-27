@@ -10,7 +10,6 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
@@ -56,7 +55,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -106,59 +104,6 @@ public class ProvisioningTest {
 
         List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
         assertThat(activities, Matchers.iterableWithSize(2));
-    }
-
-    @Test
-    public void doNotProvisionOnceInstanceCapReached() throws Exception {
-        SlaveOptions init = j.defaultSlaveOptions();
-        JCloudsSlaveTemplate restrictedTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
-        JCloudsSlaveTemplate openTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
-        JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(4).build(), restrictedTmplt, openTmplt);
-        j.configureSlaveLaunchingWithFloatingIP(cloud);
-
-        Label restricted = Label.get("restricted");
-        Label open = Label.get("open");
-
-        // Template quota exceeded
-        assertProvisioned(1, cloud.provision(restricted, 2));
-        assertEquals(1, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-
-        assertProvisioned(0, cloud.provision(restricted, 1));
-        assertEquals(1, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-
-        // Cloud quota exceeded
-        assertProvisioned(2, cloud.provision(open, 2));
-        assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(2, openTmplt.getRunningNodes().size());
-
-        assertProvisioned(1, cloud.provision(open, 2));
-        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(3, openTmplt.getRunningNodes().size());
-
-        // Both exceeded
-        assertProvisioned(0, cloud.provision(restricted, 1));
-        assertProvisioned(0, cloud.provision(open, 1));
-        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-        assertEquals(3, openTmplt.getRunningNodes().size());
-
-        cloud.getOpenstack().destroyServer(openTmplt.getRunningNodes().get(0));
-        assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
-
-        // Choose the available one when multiple options
-        assertProvisioned(1, cloud.provision(Label.get("common"), 1));
-        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-        assertEquals(3, openTmplt.getRunningNodes().size());
-    }
-
-    private void assertProvisioned(int expectedCount, Collection<NodeProvisioner.PlannedNode> nodes) throws Exception {
-        assertEquals(expectedCount, nodes.size());
-        for (NodeProvisioner.PlannedNode node : nodes) {
-            node.future.get();
-        }
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
@@ -303,28 +248,6 @@ public class ProvisioningTest {
     private XmlPage invokeProvisioning(JCloudsCloud cloud, JenkinsRule.WebClient wc, String s) throws IOException {
         URL configureUrl = new URL(wc.getContextPath() + "cloud/" + cloud.name + s);
         return wc.getPage(wc.addCrumb(new WebRequest(configureUrl, HttpMethod.POST)));
-    }
-
-    @Test
-    public void useSeveralTemplatesToProvisionInOneBatchWhenTemplateInstanceCapExceeded() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().instanceCap(1).build();
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
-                j.dummySlaveTemplate(opts, "label 1"),
-                j.dummySlaveTemplate(opts, "label 2"),
-                j.dummySlaveTemplate(opts, "label 3")
-        ));
-
-        Collection<NodeProvisioner.PlannedNode> plan = cloud.provision(Label.get("label"), 4);
-        assertEquals(3, plan.size());
-
-        int cntr = 1;
-        for (NodeProvisioner.PlannedNode pn: plan) {
-            LabelAtom expectedLabel = LabelAtom.get(String.valueOf(cntr));
-
-            Set<LabelAtom> assignedLabels = pn.future.get().getAssignedLabels();
-            assertTrue(assignedLabels.toString(), assignedLabels.contains(expectedLabel));
-            cntr++;
-        }
     }
 
     @Test

@@ -399,8 +399,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     /*package for testing*/ List<? extends Server> getRunningNodes() {
         List<Server> tmplt = new ArrayList<>();
         for (Server server : cloud.getOpenstack().getRunningNodes()) {
-            Map<String, String> md = server.getMetadata();
-            if (name.equals(md.get(OPENSTACK_TEMPLATE_NAME_KEY))) {
+            if (hasProvisioned(server)) {
                 tmplt.add(server);
             }
         }
