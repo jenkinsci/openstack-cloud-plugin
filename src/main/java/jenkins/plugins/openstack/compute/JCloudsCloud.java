@@ -89,7 +89,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public static @Nonnull List<JCloudsCloud> getClouds() {
         List<JCloudsCloud> clouds = new ArrayList<>();
-        for (Cloud c : Jenkins.getActiveInstance().clouds) {
+        for (Cloud c : Jenkins.get().clouds) {
             if (c instanceof JCloudsCloud) {
                 clouds.add((JCloudsCloud) c);
             }
@@ -99,7 +99,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     public static @Nonnull JCloudsCloud getByName(@Nonnull String name) throws IllegalArgumentException {
-        Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
+        Cloud cloud = Jenkins.get().clouds.getByName(name);
         if (cloud instanceof JCloudsCloud) return (JCloudsCloud) cloud;
         throw new IllegalArgumentException("'" + name + "' is not an OpenStack cloud but " + cloud);
     }
@@ -273,7 +273,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
-        while (excessWorkload > 0 && !Jenkins.getActiveInstance().isQuietingDown() && !Jenkins.getActiveInstance().isTerminating()) {
+        while (excessWorkload > 0 && !Jenkins.get().isQuietingDown() && !Jenkins.get().isTerminating()) {
 
             final JCloudsSlaveTemplate template = templateProvider.poll();
             if (template == null) {
@@ -429,7 +429,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
            provisioningListener.onFailure(id, ex);
            throw ex;
        }
-       Jenkins.getActiveInstance().addNode(node);
+       Jenkins.get().addNode(node);
        return node;
    }
 
@@ -502,7 +502,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 @QueryParameter String endPointUrl,
                 @QueryParameter String zone
         ) {
-            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
                 OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
                 if (openstackCredential == null) throw FormValidation.error("No credential found for " + credentialId);
@@ -523,7 +523,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         @Restricted(DoNotUse.class)
         @RequirePOST
         public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
-            Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (Util.fixEmpty(value) == null) return FormValidation.validateRequired(value);
 
             try {
@@ -537,7 +537,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         @Restricted(DoNotUse.class)
         @RequirePOST
         public ListBoxModel doFillCredentialIdItems() {
-            Jenkins jenkins = Jenkins.getActiveInstance();
+            Jenkins jenkins = Jenkins.get();
             jenkins.checkPermission(Jenkins.ADMINISTER);
 
             List<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(

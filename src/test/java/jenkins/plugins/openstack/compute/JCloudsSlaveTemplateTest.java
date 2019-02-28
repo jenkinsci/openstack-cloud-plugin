@@ -28,7 +28,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
-import static jenkins.model.Jenkins.getInstance;
+import static jenkins.model.Jenkins.get;
 import static jenkins.plugins.openstack.PluginTestRule.dummySlaveOptions;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
@@ -47,7 +47,7 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void doCheckTemplateName() {
-        JCloudsSlaveTemplate.DescriptorImpl d = getInstance().getDescriptorByType(JCloudsSlaveTemplate.DescriptorImpl.class);
+        JCloudsSlaveTemplate.DescriptorImpl d = get().getDescriptorByType(JCloudsSlaveTemplate.DescriptorImpl.class);
         assertEquals(FormValidation.Kind.OK, d.doCheckName("foo").kind);
         assertEquals(FormValidation.Kind.ERROR, d.doCheckName("#1").kind);
     }

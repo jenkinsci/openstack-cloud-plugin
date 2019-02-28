@@ -44,7 +44,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
      */
     public static @Nonnull List<JCloudsComputer> getAll() {
         ArrayList<JCloudsComputer> out = new ArrayList<>();
-        for (final Computer c : Jenkins.getActiveInstance().getComputers()) {
+        for (final Computer c : Jenkins.get().getComputers()) {
             if (c instanceof JCloudsComputer) {
                 out.add((JCloudsComputer) c);
             }

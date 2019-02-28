@@ -50,7 +50,7 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
     public static class DescriptorImpl extends Descriptor<InstancesToRun> {
         @RequirePOST
         public ListBoxModel doFillCloudNameItems() {
-            Jenkins.getInstance().checkPermission(Item.CONFIGURE);
+            Jenkins.get().checkPermission(Item.CONFIGURE);
             ListBoxModel m = new ListBoxModel();
             for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
                 m.add(cloud.name, cloud.name);
@@ -61,7 +61,7 @@ public final class InstancesToRun extends AbstractDescribableImpl<InstancesToRun
 
         @RequirePOST
         public ListBoxModel doFillTemplateNameItems(@QueryParameter String cloudName) {
-            Jenkins.getInstance().checkPermission(Item.CONFIGURE);
+            Jenkins.get().checkPermission(Item.CONFIGURE);
             ListBoxModel m = new ListBoxModel();
             if (Util.fixEmpty(cloudName) != null) {
                 JCloudsCloud c = JCloudsCloud.getByName(cloudName);

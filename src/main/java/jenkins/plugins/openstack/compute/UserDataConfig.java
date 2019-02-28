@@ -23,7 +23,7 @@ public class UserDataConfig extends Config {
 
     @Override
     public ConfigProvider getDescriptor() {
-        return Jenkins.getActiveInstance().getDescriptorByType(UserDataConfigProvider.class);
+        return Jenkins.get().getDescriptorByType(UserDataConfigProvider.class);
     }
 
     @Extension(ordinal = 70)
