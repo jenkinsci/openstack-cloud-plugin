@@ -68,9 +68,9 @@ public class JCloudsRetentionStrategyTest {
 
         do {
             Thread.sleep(500);
-        } while(Jenkins.getInstance().getNodes().isEmpty());
+        } while(Jenkins.get().getNodes().isEmpty());
 
-        JCloudsSlave node = (JCloudsSlave) Jenkins.getInstance().getNodes().get(0);
+        JCloudsSlave node = (JCloudsSlave) Jenkins.get().getNodes().get(0);
         JCloudsComputer computer = node.getComputer();
         assertSame(computer, j.jenkins.getComputer(node.getNodeName()));
         assertFalse(computer.isPendingDelete());

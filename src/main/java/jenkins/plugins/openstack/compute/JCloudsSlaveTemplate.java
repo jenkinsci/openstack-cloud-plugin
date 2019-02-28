@@ -323,7 +323,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         @CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
-            String rootUrl = Jenkins.getActiveInstance().getRootUrl();
+            String rootUrl = Jenkins.get().getRootUrl();
             UserDataVariableResolver resolver = new UserDataVariableResolver(rootUrl, serverName, labelString, opts);
             String content = Util.replaceMacro(userDataText, resolver);
             LOGGER.fine("Sending user-data:\n" + content);
@@ -362,7 +362,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             String nameCandidate = name + "-" + nodeCounter.getAndIncrement();
 
             // Collide with existing node - quite likely from this cloud
-            if (Jenkins.getInstance().getNode(nameCandidate) != null) continue;
+            if (Jenkins.get().getNode(nameCandidate) != null) continue;
 
             // Collide with node being provisioned (at this point this plugin does not assign final name before launch
             // is completed) or recently used name (just to avoid confusion).
@@ -414,18 +414,21 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      */
     public int getActiveNodesTotal(boolean onlyNewComputers) {
         int totalServers = 0;
-        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+        for (Node node : Jenkins.get().getNodes()) {
             if (node instanceof JCloudsSlave) {
                 JCloudsSlave slave = (JCloudsSlave) node;
-                if (slave.getId().getCloudName().equals(cloud.name) && slave.getId().getTemplateName().equals(name)) {
-                    JCloudsComputer computer = slave.getComputer();
-                    if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
-                        if (onlyNewComputers) {
-                            if (!computer.isUsed()) {
+                if (slave.getId().getCloudName().equals(cloud.name)) {
+                    String template = slave.getId().getTemplateName();
+                    if (template != null && template.equals(name)) {
+                        JCloudsComputer computer = slave.getComputer();
+                        if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
+                            if (onlyNewComputers) {
+                                if (!computer.isUsed()) {
+                                    totalServers++;
+                                }
+                            } else {
                                 totalServers++;
                             }
-                        } else {
-                            totalServers++;
                         }
                     }
                 }
@@ -437,7 +440,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     @Override
     @SuppressWarnings("unchecked")
     public Descriptor<JCloudsSlaveTemplate> getDescriptor() {
-        return Jenkins.getActiveInstance().getDescriptor(getClass());
+        return Jenkins.get().getDescriptor(getClass());
     }
 
     @Extension

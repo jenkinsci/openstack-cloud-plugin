@@ -505,6 +505,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     @Override
     public SlaveOptionsDescriptor getDescriptor() {
-        return (SlaveOptionsDescriptor) Jenkins.getActiveInstance().getDescriptorOrDie(getClass());
+        return (SlaveOptionsDescriptor) Jenkins.get().getDescriptorOrDie(getClass());
     }
 }

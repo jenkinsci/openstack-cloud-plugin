@@ -58,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -344,6 +345,21 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         @Override
         public String toString() {
             return "Volume from Image " + name + " (" + volumeSize + "GB)";
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (!super.equals(o))
+                return false;
+            final VolumeFromImage that = (VolumeFromImage) o;
+            return this.volumeSize == that.volumeSize;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(volumeSize, super.hashCode());
         }
 
         @Extension
