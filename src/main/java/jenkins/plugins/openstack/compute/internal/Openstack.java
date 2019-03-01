@@ -118,6 +118,8 @@ public class Openstack {
         final IOSClientBuilder<? extends OSClient<?>, ?> builder = auth.getBuilder(endPointUrl);
 
         Config config = Config.newConfig();
+        config.withConnectionTimeout(20_000);
+        config.withReadTimeout(20_000);
         if (ignoreSsl) {
             config.withSSLVerificationDisabled();
         }
