@@ -91,7 +91,7 @@ public class ProvisioningTest {
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         node.toComputer().doDoDelete();
-        assertEquals("Slave is discarded", null, j.jenkins.getComputer(node.getNodeName()));
+        assertNull("Slave is discarded", j.jenkins.getComputer(node.getNodeName()));
 
         // Provision without label
         p.setAssignedLabel(null);
