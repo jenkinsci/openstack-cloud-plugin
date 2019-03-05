@@ -159,7 +159,7 @@ public abstract class ServerScope {
 
         @Override
         public boolean isOutOfScope(@Nonnull Server server) {
-            if (Jenkins.getActiveInstance().getNode(specifier) != null) return false;
+            if (Jenkins.get().getNode(specifier) != null) return false;
 
             // The node may be provisioned or deleted at the moment - do not interfere
             for (ProvisioningActivity pa : CloudStatistics.get().getActivities()) {
@@ -223,7 +223,7 @@ public abstract class ServerScope {
 
         @Override
         public boolean isOutOfScope(@Nonnull Server server) {
-            Job job = Jenkins.getActiveInstance().getItemByFullName(project, Job.class);
+            Job job = Jenkins.get().getItemByFullName(project, Job.class);
             if (job == null) return true; // Presuming it was deleted/renamed, either way the build do not need the server anymore
             hudson.model.Run run = job.getBuildByNumber(this.run);
             if (run == null) return true; // Presuming it was deleted already

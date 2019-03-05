@@ -206,7 +206,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             @Restricted(DoNotUse.class)
             @RequirePOST
             public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-                if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
+                if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.get()).hasPermission(Computer.CONFIGURE)) {
                     return new ListBoxModel();
                 }
                 List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
@@ -232,7 +232,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
         @Override
         public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
-            Jenkins.getActiveInstance().addNode(slave);
+            Jenkins.get().addNode(slave);
             return new JNLPLauncher();
         }
 

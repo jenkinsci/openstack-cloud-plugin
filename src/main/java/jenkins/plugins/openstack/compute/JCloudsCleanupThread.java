@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import hudson.model.Executor;
+import hudson.model.Node;
 import hudson.model.Result;
 import hudson.slaves.OfflineCause;
 import jenkins.model.CauseOfInterruption;
@@ -159,7 +160,10 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private void terminatesNodesWithoutServers(@Nonnull HashMap<JCloudsCloud, List<Server>> runningServers) {
         Map<String, JCloudsComputer> jenkinsComputers = new HashMap<>();
         for (JCloudsComputer computer: JCloudsComputer.getAll()) {
-            jenkinsComputers.put(computer.getNode().getServerId(), computer);
+            JCloudsSlave node = computer.getNode();
+            if (node != null) {
+                jenkinsComputers.put(node.getServerId(), computer);
+            }
         }
 
         // Eliminate computers we have servers for

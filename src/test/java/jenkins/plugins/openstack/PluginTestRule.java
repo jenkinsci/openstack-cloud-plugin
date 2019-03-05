@@ -100,7 +100,7 @@ public final class PluginTestRule extends JenkinsRule {
      * Reusable options instance guaranteed not to collide with defaults
      */
     public static SlaveOptions dummySlaveOptions() {
-        if (Jenkins.getInstance() != null) {
+        if (Jenkins.getInstanceOrNull() != null) {
             dummyUserData("dummyUserDataId");
         }
         return new SlaveOptions(

@@ -245,7 +245,7 @@ public class ProvisioningTest {
         // Exceed template quota
         XmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        while (Jenkins.getInstance().getNodes().size() == 0) {
+        while (Jenkins.get().getNodes().size() == 0) {
             Thread.sleep(500);
         }
         String slaveName = j.jenkins.getNodes().get(0).getNodeName();
@@ -261,7 +261,7 @@ public class ProvisioningTest {
         // Exceed global quota
         provision = invokeProvisioning(cloud, wc, "/provision?name=" + free.name);
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        while (Jenkins.getInstance().getNodes().size() == 1) {
+        while (Jenkins.get().getNodes().size() == 1) {
             Thread.sleep(500);
         }
         slaveName = null;
