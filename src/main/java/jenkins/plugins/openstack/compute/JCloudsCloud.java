@@ -17,8 +17,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
@@ -36,6 +38,7 @@ import jenkins.plugins.openstack.compute.auth.*;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.util.Timer;
 import org.acegisecurity.Authentication;
+import org.jenkinsci.plugins.cloudstats.ActivityIndex;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -215,55 +218,48 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      * The queue contains the same template in as many instances as is the number of machines that can be safely
      * provisioned without violating instanceCap constrain.
      */
-    private @Nonnull Queue<JCloudsSlaveTemplate> getAvailableTemplateProvider(@CheckForNull Label label) {
-        final String labelString = (label != null) ? label.toString() : "none";
-        final List<Server> runningNodes = getOpenstack().getRunningNodes();
+    private @Nonnull Queue<JCloudsSlaveTemplate> getAvailableTemplateProvider(@CheckForNull Label label, int excessWorkload) {
         final int globalMax = getEffectiveSlaveOptions().getInstanceCap();
 
         final Queue<JCloudsSlaveTemplate> queue = new ConcurrentLinkedDeque<>();
-        int globalCapacity = globalMax - runningNodes.size();
-        if (globalCapacity <= 0) {
-            LOGGER.log(Level.INFO,
-                    "Global instance cap ({0}) reached while adding capacity for label: {1}",
-                    new Object[] { globalMax, labelString}
-            );
-            return queue; // No need to proceed any further;
+
+        List<JCloudsComputer> cloudComputers = JCloudsComputer.getAll().stream().filter(
+                it -> name.equals(it.getId().getCloudName())
+        ).collect(Collectors.toList());
+
+        int nodeCount = cloudComputers.size();
+        if (nodeCount >= globalMax) {
+            return queue; // more slaves then declared - no need to query openstack
         }
 
-        final Map<JCloudsSlaveTemplate, Integer> template2capacity = new LinkedHashMap<>();
+        final List<Server> runningNodes = getOpenstack().getRunningNodes();
+
+        int serverCount = runningNodes.size();
+        if (serverCount >= globalMax) {
+            return queue; // more servers than needed - no need to proceed any further
+        }
+
+        int globalCapacity = globalMax - Math.max(nodeCount, serverCount);
+        assert globalCapacity > 0;
+
         for (JCloudsSlaveTemplate t : templates) {
             if (t.canProvision(label)) {
-                final int templateMax = t.getEffectiveSlaveOptions().getInstanceCap();
+                SlaveOptions opts = t.getEffectiveSlaveOptions();
+                final int templateMax = opts.getInstanceCap();
+                long templateNodeCount = Math.max(
+                        cloudComputers.stream().filter(it -> t.name.equals(it.getId().getTemplateName())).count(),
+                        runningNodes.stream().filter(t::hasProvisioned).count()
+                );
+                if (templateNodeCount >= templateMax) continue; // Exceeded
 
-                int templateCapacity = templateMax;
-                for (Server server : runningNodes) {
-                    if (t.hasProvisioned(server)) {
-                        templateCapacity--;
-                    }
-                }
+                long templateCapacity = templateMax - templateNodeCount;
+                assert templateCapacity > 0;
 
-                if (templateCapacity > 0) {
-                    template2capacity.put(t, templateCapacity);
-                } else {
-                    LOGGER.log(Level.INFO,
-                            "Template instance cap for {0} ({1}) reached while adding capacity for label: {2}",
-                            new Object[] { t.name, templateMax, labelString }
-                    );
-                }
-            }
-        }
+                for (int i = 0; i < templateCapacity; i++) {
+                    int size = queue.size();
+                    if (size >= globalCapacity || size >= excessWorkload) return queue;
 
-        done: for (Map.Entry<JCloudsSlaveTemplate, Integer> e : template2capacity.entrySet()) {
-            for (int i = e.getValue(); i > 0; i--) {
-                if (globalCapacity > 0) {
-                    queue.add(e.getKey());
-                    globalCapacity--;
-                } else {
-                    LOGGER.log(Level.INFO,
-                            "Global instance cap ({0}) reached while adding capacity for label: {1}",
-                            new Object[] { globalMax, labelString}
-                    );
-                    break done;
+                    queue.add(t);
                 }
             }
         }
@@ -273,14 +269,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @Override
     public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
-        Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label);
+        Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
         while (excessWorkload > 0 && !Jenkins.get().isQuietingDown() && !Jenkins.get().isTerminating()) {
 
             final JCloudsSlaveTemplate template = templateProvider.poll();
             if (template == null) {
-                LOGGER.info("Instance cap exceeded on all available templates");
+                LOGGER.info("Instance cap exceeded for cloud " + name + " while provisioning for label " + label);
                 break;
             }
 
