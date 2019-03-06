@@ -82,7 +82,7 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
 
         return launcher = slave == null
-                ? new JNLPLauncher() // Return something harmless to prevent NPE
+                ? new JNLPLauncher(false) // Return something harmless to prevent NPE
                 : slave.getLauncherFactory().createLauncher(slave)
         ;
     }

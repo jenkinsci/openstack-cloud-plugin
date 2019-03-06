@@ -19,6 +19,7 @@ import hudson.model.UnprotectedRootAction;
 import hudson.model.User;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.security.Permission;
 import hudson.security.SidACL;
 import hudson.slaves.Cloud;
@@ -529,7 +530,7 @@ public class JCloudsCloudTest {
 
         final String destination = j.getURL().toExternalForm() + "security808";
         final CredentialsCollectingPortal credentialsCollectingPortal = ExtensionList.lookup(CredentialsCollectingPortal.class).get(0);
-        ACL.impersonate(User.get("user").impersonate(), () -> {
+        try (ACLContext ctx = ACL.as(User.getOrCreateByIdOrFullName("user"))) {
             try {
                 desc.doTestConnection(true, c.getId(), destination, "");
                 fail();
@@ -537,12 +538,12 @@ public class JCloudsCloudTest {
                 // Expected
             }
             assertEquals(0, credentialsCollectingPortal.reqs.size());
-        });
+        }
 
-        ACL.impersonate(User.get("admin").impersonate(), () -> {
+        try (ACLContext ctx = ACL.as(User.getOrCreateByIdOrFullName("admin"))) {
             desc.doTestConnection(true, c.getId(), destination, "");
             assertEquals(1, credentialsCollectingPortal.reqs.size());
-        });
+        };
     }
 
     @TestExtension("security808")

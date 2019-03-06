@@ -47,6 +47,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -939,7 +940,7 @@ public class Openstack {
         // jenkins deployed plugin have different classloader environments. Messing around with maven-hpi-plugin opts can
         // fix or break any of that and there is no regression test to catch that.
         try {
-            File path = Which.jarFile(com.google.common.base.Objects.ToStringHelper.class);
+            File path = Which.jarFile(MoreObjects.ToStringHelper.class);
             LOGGER.info("com.google.common.base.Objects loaded from " + path);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Unable to get source of com.google.common.base.Objects", e);

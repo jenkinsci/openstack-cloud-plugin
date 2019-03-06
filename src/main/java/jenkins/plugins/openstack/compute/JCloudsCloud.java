@@ -22,12 +22,15 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
-import com.cloudbees.plugins.credentials.*;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.util.ListBoxModel;
 import jenkins.plugins.openstack.compute.auth.*;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -398,14 +401,16 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private void provisionAsynchronouslyNotToBlockTheRequestThread(JCloudsSlaveTemplate t) {
         Authentication auth = Jenkins.getAuthentication();
         Runnable performProvisioning = () -> {
-            try {
-                provisionSlave(t);
-            } catch (Throwable ex) {
-                LOGGER.log(Level.WARNING, "Provisioning failed", ex);
+            // Impersonate current identity inside the worker thread not to lose the owner info
+            try (ACLContext ctx = ACL.as(auth)) {
+                try {
+                    provisionSlave(t);
+                } catch (Throwable ex) {
+                    LOGGER.log(Level.WARNING, "Provisioning failed", ex);
+                }
             }
         };
-        // Impersonate current identity inside the worker thread not to lose the owner info
-        Timer.get().schedule(() -> ACL.impersonate(auth, performProvisioning), 0, TimeUnit.SECONDS);
+        Timer.get().schedule(performProvisioning, 0, TimeUnit.SECONDS);
     }
 
     // This is served by AJAX so we are stripping the html
@@ -540,13 +545,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             Jenkins jenkins = Jenkins.get();
             jenkins.checkPermission(Jenkins.ADMINISTER);
 
-            List<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(
-                    StandardCredentials.class, jenkins, ACL.SYSTEM, Collections.emptyList()
-            );
             return new StandardListBoxModel()
-                    .includeEmptyValue()
-                    .withMatching(CredentialsMatchers.instanceOf(OpenstackCredential.class), credentials)
-            ;
+                    .includeMatchingAs(ACL.SYSTEM, jenkins, StandardCredentials.class,
+                            Collections.<DomainRequirement>emptyList(),
+                            CredentialsMatchers.instanceOf(OpenstackCredential.class))
+                    .includeEmptyValue();
         }
     }
 

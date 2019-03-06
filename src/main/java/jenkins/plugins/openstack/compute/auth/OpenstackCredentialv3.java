@@ -5,8 +5,6 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.NameWith;
 import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
 import hudson.util.Secret;
@@ -15,6 +13,7 @@ import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.model.common.Identifier;
 import org.openstack4j.openstack.OSFactory;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 @NameWith(value = OpenstackCredentialv3.NameProvider.class)
@@ -51,7 +50,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         this.password = password;
     }
 
-    @NonNull
+    @Nonnull
     @Override
     public Secret getPassword() {
         return password;
@@ -101,9 +100,9 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         /**
          * {@inheritDoc}
          */
-        @NonNull
+        @Nonnull
         @Override
-        public String getName(@NonNull OpenstackCredentialv3 c) {
+        public String getName(@Nonnull OpenstackCredentialv3 c) {
             String description = Util.fixEmptyAndTrim(c.getDescription());
             return c.getProjectDomain() + ":"
                     + c.getProjectName() + ":"

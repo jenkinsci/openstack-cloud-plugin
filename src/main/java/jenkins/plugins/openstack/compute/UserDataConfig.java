@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import jenkins.model.Jenkins;
 import org.jenkinsci.lib.configprovider.AbstractConfigProviderImpl;
@@ -11,6 +10,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -43,9 +43,9 @@ public class UserDataConfig extends Config {
             return "OpenStack User Data";
         }
 
-        @NonNull
+        @Nonnull
         // @Override c-f-p 2.15+
-        public Config newConfig(@NonNull String id) {
+        public Config newConfig(@Nonnull String id) {
             return new UserDataConfig(id, "UserData", "", "");
         }
 
@@ -61,7 +61,7 @@ public class UserDataConfig extends Config {
         }
 
         @Restricted(DoNotUse.class) // Jelly
-        public Collection<String> usages(@NonNull String id) {
+        public Collection<String> usages(@Nonnull String id) {
             ArrayList<String> usages = new ArrayList<String>();
             for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
                 for (JCloudsSlaveTemplate template : cloud.getTemplates()) {

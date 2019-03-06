@@ -24,7 +24,6 @@
 package jenkins.plugins.openstack.compute.slaveopts;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.trilead.ssh2.Connection;
@@ -62,7 +61,7 @@ import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.List;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -209,13 +208,11 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
                 if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.get()).hasPermission(Computer.CONFIGURE)) {
                     return new ListBoxModel();
                 }
-                List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
-                        StandardUsernameCredentials.class, context, ACL.SYSTEM, SSHLauncher.SSH_SCHEME
-                );
+
                 return new StandardUsernameListBoxModel()
-                        .withMatching(SSHAuthenticator.matcher(Connection.class), credentials)
-                        .withEmptySelection()
-                ;
+                        .includeMatchingAs(ACL.SYSTEM, context, StandardUsernameCredentials.class,
+                                Arrays.asList(SSHLauncher.SSH_SCHEME), SSHAuthenticator.matcher(Connection.class))
+                        .includeEmptyValue();
             }
         }
     }
@@ -233,7 +230,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         @Override
         public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
             Jenkins.get().addNode(slave);
-            return new JNLPLauncher();
+            return new JNLPLauncher(false);
         }
 
         @Override
