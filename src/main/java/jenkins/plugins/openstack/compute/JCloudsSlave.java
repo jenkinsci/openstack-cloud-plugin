@@ -368,6 +368,11 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return JCloudsCloud.getByName(cloudName).getOpenstack();
     }
 
+    /**
+     * Second layer disposable to track removal of Jenkins slave.
+     *
+     * @see DestroyMachine
+     */
     private final static class RecordDisposal implements Disposable {
         private static final long serialVersionUID = -3623764445481732365L;
 
@@ -392,6 +397,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                     );
                     statistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, attachment);
                 }
+
+                // Log the problem once and then stop tracking it
+                if (ex instanceof DestroyMachine.CloudGoneException) return State.PURGED;
+
                 throw ex;
             }
         }
