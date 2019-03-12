@@ -23,6 +23,7 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import hudson.Functions;
 import hudson.Util;
 import hudson.util.VariableResolver;
 import jenkins.slaves.JnlpSlaveAgentProtocol;
@@ -40,7 +41,7 @@ import java.util.Map;
  */
 /*package*/ class UserDataVariableResolver implements VariableResolver<String> {
     // Exposed for jelly
-    public static final Map<String, Entry> STUB = new LinkedHashMap<>();
+    /*package*/ static final Map<String, Entry> STUB = new LinkedHashMap<>();
     static {
         stub(
                 "SLAVE_JENKINS_HOME",
@@ -65,7 +66,7 @@ import java.util.Map;
         stub(
                 "SLAVE_JNLP_URL",
                 "The endpoint URL for the JNLP connection.",
-                r -> r.rootUrl + "computer/" + r.serverName + "/slave-agent.jnlp"
+                r -> r.rootUrl + "computer/" + Util.rawEncode(r.serverName) + "/slave-agent.jnlp"
         );
         stub(
                 "SLAVE_JNLP_SECRET",
