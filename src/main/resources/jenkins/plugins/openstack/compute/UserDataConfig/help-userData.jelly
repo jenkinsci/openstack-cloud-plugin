@@ -7,7 +7,7 @@
       <!-- Descriptor not exposed for help files? -->
       <j:forEach var="entry" items="${app.getDescriptor('jenkins.plugins.openstack.compute.UserDataConfig').variables}">
         <dt><tt>${entry.name}</tt></dt>
-        <dd>${entry.description}</dd>
+        <dd><j:out value="${entry.description}"/></dd>
       </j:forEach>
     </dl>
     </p>
