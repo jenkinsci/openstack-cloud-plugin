@@ -271,6 +271,38 @@ public class ProvisioningTest {
     }
 
     @Test
+    public void reflectCloudDeletionInDisposable() throws Exception {
+        AsyncResourceDisposer ard = AsyncResourceDisposer.get();
+        CloudStatistics cs = CloudStatistics.get();
+
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP("foo");
+        JCloudsSlave foo = j.provision(cloud, "foo");
+
+        j.jenkins.clouds.remove(cloud);
+        j.jenkins.save();
+
+        foo.toComputer().doDoDelete();
+
+        assertCloudMissingReportedOnce(cs, ard, foo);
+
+        ard.reschedule();
+        Thread.sleep(100);
+
+        assertCloudMissingReportedOnce(cs, ard, foo);
+    }
+
+    private void assertCloudMissingReportedOnce(CloudStatistics cs, AsyncResourceDisposer ard, JCloudsSlave foo) {
+        final ProvisioningActivity activity = cs.getActivityFor(foo.getId());
+        assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
+        final List<PhaseExecutionAttachment> attachments = activity.getCurrentPhaseExecution().getAttachments();
+        assertThat(attachments, iterableWithSize(1));
+        assertThat(attachments.get(0).getDisplayName(), equalTo("Cloud openstack does no longer exists"));
+        assertThat(attachments.get(0).getStatus(), equalTo(ProvisioningActivity.Status.WARN));
+
+        assertThat(ard.getBacklog().size(), equalTo(0));
+    }
+
+    @Test
     public void correctMetadataSet() throws Exception {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));

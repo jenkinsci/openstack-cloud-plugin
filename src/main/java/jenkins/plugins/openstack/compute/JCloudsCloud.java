@@ -104,6 +104,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return clouds;
     }
 
+    /**
+     * @throws IllegalArgumentException If the OpenStack cloud with given name does not exist.
+     */
     public static @Nonnull JCloudsCloud getByName(@Nonnull String name) throws IllegalArgumentException {
         Cloud cloud = Jenkins.get().clouds.getByName(name);
         if (cloud instanceof JCloudsCloud) return (JCloudsCloud) cloud;
