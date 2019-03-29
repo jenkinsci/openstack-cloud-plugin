@@ -158,6 +158,7 @@ public class JCloudsRetentionStrategyTest {
         p.setAssignedNode(slave);
         FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
         j.waitForCompletion(build);
+        j.waitUntilNoActivity();
 
         computer.getRetentionStrategy().check(computer);
 
