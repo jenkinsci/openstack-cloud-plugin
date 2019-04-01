@@ -6,8 +6,13 @@ import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.Queue;
 import hudson.model.TaskListener;
 import hudson.model.User;
+import hudson.model.queue.CauseOfBlockage;
+import hudson.model.queue.QueueTaskDispatcher;
+import hudson.model.queue.QueueTaskFuture;
 import hudson.slaves.ComputerListener;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
@@ -200,4 +205,62 @@ public class JCloudsRetentionStrategyTest {
 
         assertTrue(computer.isPendingDelete());
     }
+
+    @Test
+    public void doNotPendingDeleteBeforeItIsUsedIfRetentionTimeZeroAndMinInstancesZero() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(0).build(),
+                "label"
+        )));
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = slave.getComputer();
+
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedNode(slave);
+
+        //block item to simulate state, that item is prepared to be executed (BuildableItem), but executor has still not taken it.
+        QueueTaskDispatcher.all().get(QueueTaskDispatcherTest.class).waiting(true);
+        QueueTaskFuture future = p.scheduleBuild2(0);
+
+        //wait transfering a task from waiting items into buildbalbe items can take some time
+        Thread.sleep(500);
+
+        //call check computer whether it should be marked peeding delete.
+        computer.getRetentionStrategy().check(computer);
+        assertFalse(computer.isPendingDelete());
+
+        //allow execute the task in the queue
+        QueueTaskDispatcher.all().get(QueueTaskDispatcherTest.class).waiting(false);
+
+        future.waitForStart();
+        j.waitForCompletion(p.getLastBuild());
+        j.waitUntilNoActivity();
+
+        assertTrue(computer.isPendingDelete());
+    }
+
+    @TestExtension
+    public static class QueueTaskDispatcherTest extends QueueTaskDispatcher {
+
+        private boolean wait = false;
+
+        public CauseOfBlockage canTake(Node node, Queue.BuildableItem item) {
+            if(wait) {
+                return new CauseOfBlockage() {
+                    @Override
+                    public String getShortDescription() {
+                        return "block";
+                    }
+                };
+            }
+            return null;
+        }
+
+        public void waiting(boolean wait){
+            this.wait = wait;
+        }
+
+    }
+
+
 }
