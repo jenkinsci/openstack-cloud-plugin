@@ -39,7 +39,7 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
         long timeout = node.getCreatedTime() + configuredTimeout;
         do {
             launcher(computer).launch(computer, listener);
-            if (computer.isOnline()) return;
+            if (computer.getChannel() != null) return;
 
             listener.getLogger().println("Launcher failed to bring the node online. Retrying ...");
 
