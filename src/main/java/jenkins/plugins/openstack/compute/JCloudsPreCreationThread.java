@@ -101,7 +101,7 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
                             return true;
                         }
                     } else {
-                        if(computer !=null && retentionTime == 0) {
+                        if (computer != null && retentionTime == 0 && Jenkins.getInstanceOrNull() != null) {
                             //check if there is a task in the queue - retentionTime=0 && instancesMin<0 can cause removal of computer before it was ever used.
                             return !Jenkins.getInstanceOrNull().getQueue().getBuildableItems(computer).isEmpty();
                         }
