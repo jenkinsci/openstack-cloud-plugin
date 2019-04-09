@@ -53,14 +53,13 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
             for (JCloudsSlaveTemplate template : cloud.getTemplates()) {
                 SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
                 int instancesMin = slaveOptions.getInstancesMin();
-                int retentionTime = slaveOptions.getRetentionTime();
                 if (instancesMin > 0) {
                     int globalMaxInstances = cloud.getEffectiveSlaveOptions().getInstanceCap();
                     int templateMaxInstances = slaveOptions.getInstanceCap();
                     int maxNodes = Math.min(templateMaxInstances, globalMaxInstances);
                     // If retentionTime==0, take this as an indication that "used" instances should not
                     // be reused and thus do not count them as reusable running instances.
-                    int reusableRunningNodeTotal = template.getActiveNodesTotal(retentionTime == 0);
+                    int reusableRunningNodeTotal = template.getActiveNodesTotal(slaveOptions.getRetentionTime() == 0);
                     int runningNodeTotal = template.getActiveNodesTotal(false);
                     int desiredNewInstances = Math.min(instancesMin - reusableRunningNodeTotal, maxNodes - runningNodeTotal);
                     if (desiredNewInstances > 0) {
@@ -81,30 +80,27 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
     /**
     * Should a slave be retained to meet the minimum instances constraint?
     */
-    public static boolean shouldSlaveBeRetained(JCloudsSlave slave) {
+    /*package*/ static boolean shouldSlaveBeRetained(JCloudsSlave slave) {
         String templateName = slave.getId().getTemplateName();
         String cloudName = slave.getId().getCloudName();
-        if (templateName != null && cloudName != null) {
+        if (templateName != null) {
             JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
-            if (cloud != null) {
-                JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
-                if (template != null) {
-                    SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
-                    Integer instancesMin = slaveOptions.getInstancesMin();
-                    JCloudsComputer computer = slave.getComputer();
-                    Integer retentionTime = slaveOptions.getRetentionTime();
-                    if (instancesMin > 0 && computer != null) {
-                        if (retentionTime != 0 && (template.getActiveNodesTotal(false) - 1) < instancesMin) {
-                            return true;
-                        }
-                        if (retentionTime == 0 && !computer.isUsed() && (template.getActiveNodesTotal(true) - 1) < instancesMin) {
-                            return true;
-                        }
-                    } else {
-                        if (computer != null && retentionTime == 0 && Jenkins.getInstanceOrNull() != null) {
-                            //check if there is a task in the queue - retentionTime=0 && instancesMin<0 can cause removal of computer before it was ever used.
-                            return !Jenkins.getInstanceOrNull().getQueue().getBuildableItems(computer).isEmpty();
-                        }
+            JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
+            if (template != null) {
+                SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
+                Integer instancesMin = slaveOptions.getInstancesMin();
+                JCloudsComputer computer = slave.getComputer();
+                Integer retentionTime = slaveOptions.getRetentionTime();
+                if (instancesMin > 0 && computer != null) {
+                    if (retentionTime != 0 && (template.getActiveNodesTotal(false) - 1) < instancesMin) {
+                        return true;
+                    }
+                    return retentionTime == 0 && !computer.isUsed() && (template.getActiveNodesTotal(true) - 1) < instancesMin;
+                } else {
+                    Jenkins instanceOrNull = Jenkins.getInstanceOrNull();
+                    if (computer != null && retentionTime == 0 && instanceOrNull != null) {
+                        //check if there is a task in the queue - retentionTime=0 && instancesMin<0 can cause removal of computer before it was ever used.
+                        return !instanceOrNull.getQueue().getBuildableItems(computer).isEmpty();
                     }
                 }
             }
