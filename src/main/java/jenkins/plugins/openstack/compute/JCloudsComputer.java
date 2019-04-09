@@ -123,12 +123,6 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         return super.isAcceptingTasks();
     }
 
-    @Override
-    public void taskAccepted(Executor executor, Queue.Task task) {
-        super.taskAccepted(executor, task);
-        used = true;
-    }
-
     /**
      * Has this computer been used to run builds?
      */
@@ -149,6 +143,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     private void checkSlaveAfterTaskCompletion() {
+        used = true;
         // If the retention time for this computer is zero, this means it
         // should not be re-used: mark the node as "pending delete".
         if (getRetentionTime() == 0) {

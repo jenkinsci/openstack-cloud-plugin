@@ -1,9 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
 import java.lang.Math;
+import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -97,6 +99,11 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
                         }
                         if (retentionTime == 0 && !computer.isUsed() && (template.getActiveNodesTotal(true) - 1) < instancesMin) {
                             return true;
+                        }
+                    } else {
+                        if (computer != null && retentionTime == 0 && Jenkins.getInstanceOrNull() != null) {
+                            //check if there is a task in the queue - retentionTime=0 && instancesMin<0 can cause removal of computer before it was ever used.
+                            return !Jenkins.getInstanceOrNull().getQueue().getBuildableItems(computer).isEmpty();
                         }
                     }
                 }
