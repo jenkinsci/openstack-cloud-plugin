@@ -66,12 +66,14 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
                 return;
             }
             LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
-            try {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                Jenkins.XSTREAM2.toXMLUTF8(node, out);
-                LOGGER.fine(out.toString("UTF-8"));
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING,"Failed to dump node config", e);
+            if (LOGGER.isLoggable(Level.FINE)) {
+                try {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    Jenkins.XSTREAM2.toXMLUTF8(node, out);
+                    LOGGER.fine(out.toString("UTF-8"));
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, "Failed to dump node config", e);
+                }
             }
             c.setPendingDelete(true);
         }
