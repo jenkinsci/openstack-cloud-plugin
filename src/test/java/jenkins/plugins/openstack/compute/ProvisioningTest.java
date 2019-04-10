@@ -466,7 +466,7 @@ public class ProvisioningTest {
     private static void waitForCloudStatistics(ProvisioningActivity activityToWaitFor,
             ProvisioningActivity.Phase expectedPhase) throws InterruptedException {
         final int millisecondsToWaitBetweenPolls = 100;
-        final int maxTimeToWaitInMilliseconds = 5000;
+        final int maxTimeToWaitInMilliseconds = 10000;
         final long timestampBeforeWaiting = System.nanoTime();
         while (true) {
             final Object actual = activityToWaitFor.getPhaseExecution(expectedPhase);
