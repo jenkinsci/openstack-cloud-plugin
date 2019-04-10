@@ -76,7 +76,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         if (is == newVal) return;
 
         LOGGER.info("Setting " + getName() + " pending delete status to " + newVal);
-        setTemporarilyOffline(newVal, newVal ? PENDING_TERMINATION : null);
+        // PendingTermination has a timestamp attached so cannot use a singleton instance
+        setTemporarilyOffline(newVal, newVal ? new PendingTermination(): null);
     }
 
     /**
@@ -194,9 +195,6 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
             throw ex;
         }
     }
-
-    // Singleton
-    private static final PendingTermination PENDING_TERMINATION = new PendingTermination();
 
     private static final class PendingTermination extends SimpleOfflineCause {
 
