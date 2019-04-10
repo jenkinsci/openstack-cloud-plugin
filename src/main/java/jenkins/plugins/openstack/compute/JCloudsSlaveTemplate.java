@@ -408,30 +408,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     /**
      * Return the number of active nodes provisioned using this template.
-     *
-     * @param onlyNewComputers Whether or not to limit the count to unused machines.
      */
-    public int getActiveNodesTotal(boolean onlyNewComputers) {
+    /*package*/ int getAvailableNodesTotal() {
         int totalServers = 0;
-        for (Node node : Jenkins.get().getNodes()) {
-            if (node instanceof JCloudsSlave) {
-                JCloudsSlave slave = (JCloudsSlave) node;
-                if (slave.getId().getCloudName().equals(cloud.name)) {
-                    String template = slave.getId().getTemplateName();
-                    if (template != null && template.equals(name)) {
-                        JCloudsComputer computer = slave.getComputer();
-                        if (computer != null && !computer.isPendingDelete() && !(computer.getOfflineCause() instanceof OfflineCause.UserCause)) {
-                            if (onlyNewComputers) {
-                                if (!computer.isUsed()) {
-                                    totalServers++;
-                                }
-                            } else {
-                                totalServers++;
-                            }
-                        }
-                    }
-                }
-            }
+        for (JCloudsComputer computer : JCloudsComputer.getAll()) {
+            ProvisioningActivity.Id cid = computer.getId();
+            // Not this template
+            if (!name.equals(cid.getTemplateName()) || !cloud.name.equals(cid.getCloudName())) continue;
+
+            // Not active
+            if (!computer.isIdle() || computer.isPendingDelete() || computer.getOfflineCause() instanceof OfflineCause.UserCause) continue;
+
+            totalServers++;
         }
         return totalServers;
     }

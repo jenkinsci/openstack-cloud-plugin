@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 /**
@@ -37,7 +38,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
-    private volatile boolean used;
+    private volatile AtomicInteger used = new AtomicInteger(0);
 
     /**
      * Get all Openstack computers.
@@ -55,7 +56,6 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     public JCloudsComputer(JCloudsSlave slave) {
         super(slave);
         this.provisioningId = slave.getId();
-        used = false;
     }
 
     @Override
@@ -118,17 +118,14 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     public boolean isAcceptingTasks() {
         // If this is a one-off node (i.e. retentionTime == 0) then
         // reject tasks as soon at the first job is started.
-        if (isUsed() && getRetentionTime() == 0) {
+        if (getRetentionTime() == 0 && used.get() > 1) {
             return false;
         }
         return super.isAcceptingTasks();
     }
 
-    /**
-     * Has this computer been used to run builds?
-     */
-    public boolean isUsed() {
-        return used;
+    /*package*/ int getTasksExecuted() {
+        return used.get();
     }
 
     @Override
@@ -144,7 +141,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     private void checkSlaveAfterTaskCompletion() {
-        used = true;
+        used.incrementAndGet();
+
         // If the retention time for this computer is zero, this means it
         // should not be re-used: mark the node as "pending delete".
         if (getRetentionTime() == 0) {
@@ -185,7 +183,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         JCloudsSlave slave = getNode();
         if (slave == null) return; // Slave already deleted
 
-        LOGGER.info("Deleting slave " + getName());
+        LOGGER.info("Deleting slave " + getName() + " after executing " + getTasksExecuted() + " builds");
         setAcceptingTasks(false); // Prevent accepting further task while we are shutting down
         try {
             slave.terminate();

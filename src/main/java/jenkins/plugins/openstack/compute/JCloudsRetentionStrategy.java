@@ -56,16 +56,16 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         if (node == null) return; // Node is gone already
 
         final int retentionTime = node.getSlaveOptions().getRetentionTime();
-        if (retentionTime < 0) return; // Keep forever
+        if (retentionTime <= 0) return; // 0 is handled in JCloudsComputer, negative values needs no handling
 
         final long idleSince = c.getIdleStartMilliseconds();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
         if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
-            if (JCloudsPreCreationThread.shouldSlaveBeRetained(node)) {
+            if (JCloudsPreCreationThread.isNeededReadyComputer(node.getComputer())) {
                 LOGGER.info("Keeping " + c .getName() + " to meet minimum requirements");
                 return;
             }
-            LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
+            LOGGER.info("Scheduling " + c .getName() + " for termination after " +  retentionTime+ " minutes as it was idle since " + new Date(idleSince));
             if (LOGGER.isLoggable(Level.FINE)) {
                 try {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();

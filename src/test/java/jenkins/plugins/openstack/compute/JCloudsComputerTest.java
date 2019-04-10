@@ -40,23 +40,6 @@ public class JCloudsComputerTest {
     }
 
     @Test
-    public void oneOffSlaveRejectsTasksAfterFirstTaskRun() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-                "label"
-        )));
-        JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = slave.getComputer();
-        computer.waitUntilOnline();
-        FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedNode(slave);
-        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
-        j.waitForCompletion(build);
-        j.waitUntilNoActivity();
-        assertFalse(computer.isAcceptingTasks());
-    }
-
-    @Test
     public void slaveWithRetentionTimeNonZeroStillAcceptsTasksAfterFirstTaskRun() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(10).instancesMin(1).build(),

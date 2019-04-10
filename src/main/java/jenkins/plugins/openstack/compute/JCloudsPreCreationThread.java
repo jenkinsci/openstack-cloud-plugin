@@ -1,11 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
 import java.lang.Math;
-import java.util.Queue;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -49,28 +49,43 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
 
     @Override
     public void execute(TaskListener listener) {
+        HashMap<JCloudsSlaveTemplate, JCloudsCloud> requiredCapacity = new HashMap<>();
         for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
             for (JCloudsSlaveTemplate template : cloud.getTemplates()) {
-                SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
-                int instancesMin = slaveOptions.getInstancesMin();
-                if (instancesMin > 0) {
-                    int globalMaxInstances = cloud.getEffectiveSlaveOptions().getInstanceCap();
-                    int templateMaxInstances = slaveOptions.getInstanceCap();
-                    int maxNodes = Math.min(templateMaxInstances, globalMaxInstances);
-                    // If retentionTime==0, take this as an indication that "used" instances should not
-                    // be reused and thus do not count them as reusable running instances.
-                    int reusableRunningNodeTotal = template.getActiveNodesTotal(slaveOptions.getRetentionTime() == 0);
-                    int runningNodeTotal = template.getActiveNodesTotal(false);
-                    int desiredNewInstances = Math.min(instancesMin - reusableRunningNodeTotal, maxNodes - runningNodeTotal);
-                    if (desiredNewInstances > 0) {
-                        LOGGER.log(Level.INFO, "Pre-creating " + desiredNewInstances + " instance(s) for template " + template.name + " in cloud " + cloud.name);
-                        for (int i = 0; i < desiredNewInstances; i++) {
-                            try {
-                                cloud.provisionSlave(template);
-                            } catch (Throwable ex) {
-                                LOGGER.log(Level.SEVERE, "Failed to pre-create instance from template " + template.name, ex);
-                            }
-                        }
+                SlaveOptions to = template.getEffectiveSlaveOptions();
+                if (to.getInstancesMin() > 0) {
+                    requiredCapacity.put(template, cloud);
+                }
+            }
+        }
+
+        if (requiredCapacity.isEmpty()) return; // No capacity required anywhere
+
+        for (Map.Entry<JCloudsSlaveTemplate, JCloudsCloud> entry : requiredCapacity.entrySet()) {
+            JCloudsCloud cloud = entry.getValue();
+            JCloudsSlaveTemplate template = entry.getKey();
+            SlaveOptions so = template.getEffectiveSlaveOptions();
+            Integer min = so.getInstancesMin();
+            Integer cap = so.getInstanceCap();
+
+            int available = template.getAvailableNodesTotal();
+            if (available >= min) continue; // Satisfied
+            if (available >= cap) continue; // Obey instanceCap even if instanceMin > instanceCap
+
+            int runningNodes = template.getRunningNodes().size();
+
+            if (runningNodes >= cap) continue; // Obey instanceCap
+
+            int permitted = cap - runningNodes;
+            int desired = min - available;
+            int toProvision = Math.min(desired, permitted);
+            if (toProvision > 0) {
+                LOGGER.log(Level.INFO, "Pre-creating " + toProvision + " instance(s) for template " + template.name + " in cloud " + cloud.name);
+                for (int i = 0; i < toProvision; i++) {
+                    try {
+                        cloud.provisionSlave(template);
+                    } catch (Throwable ex) {
+                        LOGGER.log(Level.SEVERE, "Failed to pre-create instance from template " + template.name, ex);
                     }
                 }
             }
@@ -78,31 +93,21 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
     }
 
     /**
-    * Should a slave be retained to meet the minimum instances constraint?
-    */
-    /*package*/ static boolean shouldSlaveBeRetained(JCloudsSlave slave) {
-        String templateName = slave.getId().getTemplateName();
-        String cloudName = slave.getId().getCloudName();
-        if (templateName != null) {
-            JCloudsCloud cloud = JCloudsCloud.getByName(cloudName);
+     * Should a slave be retained to meet the minimum instances constraint?
+     *
+     * @param computer Idle, not pending delete, not user offline but overdue w.r.t. retention time.
+     */
+    /*package*/ static boolean isNeededReadyComputer(JCloudsComputer computer) {
+        if (computer == null) return false;
+
+        Integer instancesMin = computer.getNode().getSlaveOptions().getInstancesMin();
+        if (instancesMin > 0) {
+            JCloudsCloud cloud = JCloudsCloud.getByName(computer.getId().getCloudName());
+            String templateName = computer.getId().getTemplateName();
             JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
             if (template != null) {
-                SlaveOptions slaveOptions = template.getEffectiveSlaveOptions();
-                Integer instancesMin = slaveOptions.getInstancesMin();
-                JCloudsComputer computer = slave.getComputer();
-                Integer retentionTime = slaveOptions.getRetentionTime();
-                if (instancesMin > 0 && computer != null) {
-                    if (retentionTime != 0 && (template.getActiveNodesTotal(false) - 1) < instancesMin) {
-                        return true;
-                    }
-                    return retentionTime == 0 && !computer.isUsed() && (template.getActiveNodesTotal(true) - 1) < instancesMin;
-                } else {
-                    Jenkins instanceOrNull = Jenkins.getInstanceOrNull();
-                    if (computer != null && retentionTime == 0 && instanceOrNull != null) {
-                        //check if there is a task in the queue - retentionTime=0 && instancesMin<0 can cause removal of computer before it was ever used.
-                        return !instanceOrNull.getQueue().getBuildableItems(computer).isEmpty();
-                    }
-                }
+                int readyNodes = template.getAvailableNodesTotal();
+                return readyNodes <= instancesMin;
             }
         }
         return false;

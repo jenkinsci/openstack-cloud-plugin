@@ -240,7 +240,7 @@ public final class PluginTestRule extends JenkinsRule {
      * Force slave pre-creation now.
      */
     public void triggerSlavePreCreation() {
-        jenkins.getExtensionList(AsyncPeriodicWork.class).get(JCloudsPreCreationThread.class).execute(TaskListener.NULL);
+        JCloudsPreCreationThread.all().get(JCloudsPreCreationThread.class).execute(TaskListener.NULL);
     }
 
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
