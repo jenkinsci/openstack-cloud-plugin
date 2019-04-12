@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.EnvVars;
+import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -18,6 +19,7 @@ import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestExtension;
@@ -155,6 +157,7 @@ public class JCloudsRetentionStrategyTest {
 
     @Test
     public void doNotScheduleForTerminationDuringLaunch() throws Exception {
+        Assume.assumeFalse(Functions.isWindows());
         LauncherFactory launcherFactory = new CommandLauncherFactory();
         j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
