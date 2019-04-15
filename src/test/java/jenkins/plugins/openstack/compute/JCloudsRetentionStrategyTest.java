@@ -1,27 +1,43 @@
 package jenkins.plugins.openstack.compute;
 
-import static org.junit.Assert.*;
-
+import hudson.EnvVars;
+import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
-import hudson.model.Node;
-import hudson.model.Queue;
 import hudson.model.TaskListener;
 import hudson.model.User;
-import hudson.model.queue.CauseOfBlockage;
-import hudson.model.queue.QueueTaskDispatcher;
 import hudson.model.queue.QueueTaskFuture;
+import hudson.slaves.CommandLauncher;
+import hudson.slaves.ComputerLauncher;
 import hudson.slaves.ComputerListener;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestExtension;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 public class JCloudsRetentionStrategyTest {
 
@@ -64,7 +80,7 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void doNotDeleteTheSlaveWhileLaunching() throws Exception {
         JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0) // disposable immediately
+                j.defaultSlaveOptions().getBuilder().retentionTime(1) // disposable asap
                         //.startTimeout(3000) // give up soon enough to speed the test up
                         .build(),
                 "label"
@@ -80,6 +96,8 @@ public class JCloudsRetentionStrategyTest {
         assertSame(computer, j.jenkins.getComputer(node.getNodeName()));
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
+
+        Thread.sleep(60*1000); // Sleep long enough for retention time to expire
 
         computer.getRetentionStrategy().check(computer);
 
@@ -117,150 +135,89 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void doNotDeleteSlavePutOfflineByUser() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                // no retention to make the slave disposable w.r.t retention time
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).build(),
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).build(),
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
-        computer.setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Offline"));
+        OfflineCause.UserCause userCause = new OfflineCause.UserCause(User.current(), "Offline");
+        computer.setTemporarilyOffline(true, userCause);
 
         computer.getRetentionStrategy().check(computer);
         assertFalse(computer.isPendingDelete());
+        assertEquals(userCause, computer.getOfflineCause());
 
         computer.setTemporarilyOffline(false, null);
+        Thread.sleep(60*1000); // Wait for shortest amount possible for retentions strategy
 
         computer.getRetentionStrategy().check(computer);
         assertTrue(computer.isPendingDelete());
     }
 
     @Test
-    public void doNotDeleteNewSlaveIfInstanceRequired() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+    public void doNotScheduleForTerminationDuringLaunch() throws Exception {
+        Assume.assumeFalse(Functions.isWindows());
+        LauncherFactory launcherFactory = new CommandLauncherFactory();
+        j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
                 "label"
         )));
-        JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = slave.getComputer();
-        computer.waitUntilOnline();
-
-        computer.getRetentionStrategy().check(computer);
-
-        assertFalse(computer.isPendingDelete());
-    }
-
-    @Test
-    public void deleteUsedSlaveWhenOnlyNewInstancesAreRequired() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-                "label"
-        )));
-        JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = slave.getComputer();
-        computer.waitUntilOnline();
-        FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedNode(slave);
-        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
-        j.waitForCompletion(build);
-        j.waitUntilNoActivity();
-
-        computer.getRetentionStrategy().check(computer);
-
-        assertTrue(computer.isPendingDelete());
-    }
-
-    @Test
-	public void deleteMinimumNumberOfInstancesWhenOverProvisioned() throws Exception {
-	    JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-                "label"
-	    )));
-	    JCloudsSlave slave1 = j.provision(cloud, "label");
-	    JCloudsSlave slave2 = j.provision(cloud, "label");
-        JCloudsComputer computer1 = slave1.getComputer();
-        JCloudsComputer computer2 = slave2.getComputer();
-
-        computer1.getRetentionStrategy().check(computer1);
-        computer2.getRetentionStrategy().check(computer2);
-
-        assertTrue(computer1.isPendingDelete());
-        assertFalse(computer2.isPendingDelete());
-	}
-
-    @Test
-    public void deleteUsedSlaveUponTaskCompletionIfRetentionTimeZero() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-                "label"
-        )));
-        JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = slave.getComputer();
-        computer.waitUntilOnline();
-        FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedNode(slave);
-        FreeStyleBuild build = p.scheduleBuild2(0).waitForStart();
-        j.waitForCompletion(build);
-        j.waitUntilNoActivity();
-
-        assertTrue(computer.isPendingDelete());
-    }
-
-    @Test
-    public void doNotPendingDeleteBeforeItIsUsedIfRetentionTimeZeroAndMinInstancesZero() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(0).build(),
-                "label"
-        )));
-        JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = slave.getComputer();
 
         FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedNode(slave);
+        p.setAssignedLabel(Label.get("label"));
+        QueueTaskFuture<FreeStyleBuild> f = p.scheduleBuild2(0);
 
-        //block item to simulate state, that item is prepared to be executed (BuildableItem), but executor has still not taken it.
-        QueueTaskDispatcher.all().get(QueueTaskDispatcherTest.class).waiting(true);
-        QueueTaskFuture future = p.scheduleBuild2(0);
+        JCloudsComputer computer = waitForProvisionedComputer();
+        assertTrue(computer.isConnecting());
 
-        //wait transfering a task from waiting items into buildbalbe items can take some time
-        Thread.sleep(500);
-
-        //call check computer whether it should be marked peeding delete.
-        computer.getRetentionStrategy().check(computer);
-        assertFalse(computer.isPendingDelete());
-
-        //allow execute the task in the queue
-        QueueTaskDispatcher.all().get(QueueTaskDispatcherTest.class).waiting(false);
-
-        future.waitForStart();
-        j.waitForCompletion(p.getLastBuild());
-        j.waitUntilNoActivity();
-
-        assertTrue(computer.isPendingDelete());
-    }
-
-    @TestExtension
-    public static class QueueTaskDispatcherTest extends QueueTaskDispatcher {
-
-        private boolean wait = false;
-
-        public CauseOfBlockage canTake(Node node, Queue.BuildableItem item) {
-            if(wait) {
-                return new CauseOfBlockage() {
-                    @Override
-                    public String getShortDescription() {
-                        return "block";
-                    }
-                };
+        FreeStyleBuild build;
+        while (true) {
+            computer.getRetentionStrategy().check(computer);
+            try {
+                build = f.get(5, TimeUnit.SECONDS);
+                break;
+            } catch (TimeoutException e) {
+                // continue waiting
             }
+        }
+
+        j.assertBuildStatusSuccess(build);
+        MatcherAssert.assertThat(build.getBuiltOn(), equalTo(computer.getNode()));
+    }
+
+    private JCloudsComputer waitForProvisionedComputer() throws InterruptedException {
+        while (true) {
+            List<JCloudsComputer> computers = JCloudsComputer.getAll();
+            switch (computers.size()) {
+                case 0: Thread.sleep(5_000); break;
+                case 1: return computers.get(0);
+                default: throw new AssertionError("More computers than expected " + computers);
+            }
+        }
+    }
+
+    private static class CommandLauncherFactory extends LauncherFactory {
+        private static final long serialVersionUID = -1430772041065953918L;
+
+        @Override
+        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
+            return new CommandLauncher(
+                    String.format("bash -c \"sleep 70 && java -jar '%s'\"",getAbsolutePath()),
+                    new EnvVars());
+        }
+
+        private static @Nonnull String getAbsolutePath() {
+            try {
+                return new File(Jenkins.get().getJnlpJars("slave.jar").getURL().toURI()).getAbsolutePath();
+            } catch (URISyntaxException | IOException e) {
+                throw new Error(e);
+            }
+        }
+
+        @Override
+        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException {
             return null;
         }
-
-        public void waiting(boolean wait){
-            this.wait = wait;
-        }
-
     }
-
-
 }

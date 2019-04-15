@@ -10,6 +10,7 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.OfflineCause;
+import hudson.slaves.RetentionStrategy;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -293,6 +294,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     public @Nonnull LauncherFactory getLauncherFactory() {
         LauncherFactory lf = options.getLauncherFactory();
         return lf == null ? LauncherFactory.JNLP.JNLP : lf;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked") // Parent signature is type-unsafe, let's handle it here instead of in all clients
+    public RetentionStrategy<JCloudsComputer> getRetentionStrategy() {
+        return ((RetentionStrategy<JCloudsComputer>) super.getRetentionStrategy());
     }
 
     // Exposed for testing and Jelly
