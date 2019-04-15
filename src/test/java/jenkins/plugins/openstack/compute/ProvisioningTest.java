@@ -3,7 +3,6 @@ package jenkins.plugins.openstack.compute;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.xml.XmlPage;
-import hudson.model.Computer;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
@@ -44,9 +43,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.iterableWithSize;
@@ -73,8 +72,7 @@ public class ProvisioningTest {
     @Test
     public void provisionSlaveOnDemand() throws Exception {
         j.jenkins.setNumExecutors(0);
-        Computer[] originalComputers = j.jenkins.getComputers();
-        assertThat(originalComputers, arrayWithSize(1)); // Only master expected
+        assertThat(JCloudsComputer.getAll(), emptyIterable());
 
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("custom").build();
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts,"label")));
@@ -89,6 +87,9 @@ public class ProvisioningTest {
         assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         node.toComputer().doDoDelete();
+        if (j.jenkins.getComputer(node.getNodeName()) != null) {
+            Thread.sleep(100);
+        }
         assertNull("Slave is discarded", j.jenkins.getComputer(node.getNodeName()));
 
         // Provision without label
@@ -241,6 +242,7 @@ public class ProvisioningTest {
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.login("foo", "foo");
         invokeProvisioning(cloud, wc, "/provision?name=" + template.name);
+        Thread.sleep(500);
 
         assertEquals("foo", ((Slave) j.jenkins.getNodes().get(0)).getUserId());
     }
@@ -286,7 +288,7 @@ public class ProvisioningTest {
         assertCloudMissingReportedOnce(cs, ard, foo);
 
         ard.reschedule();
-        Thread.sleep(100);
+        Thread.sleep(1000);
 
         assertCloudMissingReportedOnce(cs, ard, foo);
     }
@@ -362,6 +364,11 @@ public class ProvisioningTest {
             assertThat("Server details are printed", msg, containsString("Server state: Mock for "));
         }
 
+        // Wait for the server to be dereflleted
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        while (!disposer.getBacklog().isEmpty()) {
+            Thread.sleep(1000);
+        }
         verify(cloud.getOpenstack()).destroyServer(any(Server.class));
     }
 

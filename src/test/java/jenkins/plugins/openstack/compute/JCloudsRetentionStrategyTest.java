@@ -12,6 +12,7 @@ import hudson.model.queue.QueueTaskFuture;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.ComputerListener;
+import hudson.slaves.NodeProvisioner;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
@@ -29,6 +30,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -36,6 +38,7 @@ import java.util.concurrent.TimeoutException;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -159,31 +162,23 @@ public class JCloudsRetentionStrategyTest {
     public void doNotScheduleForTerminationDuringLaunch() throws Exception {
         Assume.assumeFalse(Functions.isWindows());
         LauncherFactory launcherFactory = new CommandLauncherFactory();
-        j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
                 "label"
         )));
+        j.provision(cloud, "label");
 
-        FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedLabel(Label.get("label"));
-        QueueTaskFuture<FreeStyleBuild> f = p.scheduleBuild2(0);
-
-        JCloudsComputer computer = waitForProvisionedComputer();
-        assertTrue(computer.isConnecting());
-
-        FreeStyleBuild build;
         while (true) {
+            JCloudsComputer computer = waitForProvisionedComputer();
             computer.getRetentionStrategy().check(computer);
-            try {
-                build = f.get(5, TimeUnit.SECONDS);
+            computer.waitUntilOnline();
+            // TODO current implementation prevents node to go offline during launch but the idle time still involves launch time
+            if (computer.getChannel() != null) {
                 break;
-            } catch (TimeoutException e) {
-                // continue waiting
             }
+            assertNull(computer.getOfflineCause());
+            Thread.sleep(5000);
         }
-
-        j.assertBuildStatusSuccess(build);
-        MatcherAssert.assertThat(build.getBuiltOn(), equalTo(computer.getNode()));
     }
 
     private JCloudsComputer waitForProvisionedComputer() throws InterruptedException {
