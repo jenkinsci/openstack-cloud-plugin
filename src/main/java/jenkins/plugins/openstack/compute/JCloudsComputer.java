@@ -145,7 +145,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
         // If the retention time for this computer is zero, this means it
         // should not be re-used: mark the node as "pending delete".
-        if (getRetentionTime() == 0) {
+        if (getRetentionTime() == 0 && !(getOfflineCause() instanceof OfflineCause.UserCause)) {
             setPendingDelete(true);
         }
     }

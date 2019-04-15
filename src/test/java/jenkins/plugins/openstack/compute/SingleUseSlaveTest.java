@@ -24,18 +24,23 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import hudson.Launcher;
 import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
+import hudson.model.User;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.model.queue.QueueTaskDispatcher;
 import hudson.model.queue.QueueTaskFuture;
+import hudson.slaves.OfflineCause;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
 
 import java.io.IOException;
@@ -47,6 +52,7 @@ import java.util.stream.Stream;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -125,6 +131,31 @@ public class SingleUseSlaveTest {
         j.triggerOpenstackSlaveCleanup();
 
         assertThat(JCloudsComputer.getAll(), emptyIterable());
+    }
+
+    @Test
+    public void preserveAgentOfflineByUser() throws Exception {
+        j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+                "label"
+        )));
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedLabel(Label.get("label"));
+        p.getBuildersList().add(new TestBuilder() {
+            @Override
+            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
+                build.getBuiltOn().toComputer().setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Keep me"));
+                return true;
+            }
+        });
+
+        FreeStyleBuild b = j.buildAndAssertSuccess(p);
+        j.waitUntilNoActivity();
+        assertThat(JCloudsComputer.getAll(), iterableWithSize(1));
+        JCloudsSlave node = ((JCloudsSlave) b.getBuiltOn());
+        JCloudsComputer computer = node.getComputer();
+        assertFalse(computer.isPendingDelete());
+        assertThat(computer.getOfflineCauseReason(), equalTo("Keep me"));
     }
 
     @Test
