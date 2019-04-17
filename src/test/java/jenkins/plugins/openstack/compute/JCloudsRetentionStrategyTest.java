@@ -1,41 +1,24 @@
 package jenkins.plugins.openstack.compute;
 
-import hudson.EnvVars;
 import hudson.Functions;
 import hudson.model.Computer;
-import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.User;
-import hudson.model.queue.QueueTaskFuture;
-import hudson.slaves.CommandLauncher;
-import hudson.slaves.ComputerLauncher;
 import hudson.slaves.ComputerListener;
-import hudson.slaves.NodeProvisioner;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestExtension;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -161,7 +144,7 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void doNotScheduleForTerminationDuringLaunch() throws Exception {
         Assume.assumeFalse(Functions.isWindows());
-        LauncherFactory launcherFactory = new CommandLauncherFactory();
+        LauncherFactory launcherFactory = new TestCommandLauncherFactory("bash -c \"sleep 70 && java -jar '%s'\"");
         JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
                 j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
                 "label"
@@ -192,27 +175,4 @@ public class JCloudsRetentionStrategyTest {
         }
     }
 
-    private static class CommandLauncherFactory extends LauncherFactory {
-        private static final long serialVersionUID = -1430772041065953918L;
-
-        @Override
-        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
-            return new CommandLauncher(
-                    String.format("bash -c \"sleep 70 && java -jar '%s'\"",getAbsolutePath()),
-                    new EnvVars());
-        }
-
-        private static @Nonnull String getAbsolutePath() {
-            try {
-                return new File(Jenkins.get().getJnlpJars("slave.jar").getURL().toURI()).getAbsolutePath();
-            } catch (URISyntaxException | IOException e) {
-                throw new Error(e);
-            }
-        }
-
-        @Override
-        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException {
-            return null;
-        }
-    }
 }

@@ -7,9 +7,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -20,7 +18,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.annotation.CheckForNull;
-import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
@@ -38,7 +35,6 @@ import jenkins.plugins.openstack.compute.auth.*;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.util.Timer;
 import org.acegisecurity.Authentication;
-import org.jenkinsci.plugins.cloudstats.ActivityIndex;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -337,7 +333,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     /**
-     * Provisions a new node manually (by clicking a button in the computer list)
+     * Provisions a new node manually (by clicking a button in the computer list).
      *
      * @param req  {@link StaplerRequest}
      * @param rsp  {@link StaplerResponse}
@@ -403,7 +399,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             // Impersonate current identity inside the worker thread not to lose the owner info
             try (ACLContext ctx = ACL.as(auth)) {
                 try {
-                    provisionSlave(t);
+                    provisionSlaveExplicitly(t);
                 } catch (Throwable ex) {
                     LOGGER.log(Level.WARNING, "Provisioning failed", ex);
                 }
@@ -419,23 +415,26 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         response.println("<error>" + message + "</error>");
     }
 
-   @Restricted(NoExternalUse.class)
-   public @Nonnull JCloudsSlave provisionSlave(JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
-       CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
-       ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.name);
+    /**
+     * Provision slave out of {@link NodeProvisioner} context.
+     */
+    @Restricted(NoExternalUse.class)
+    /*package*/ @Nonnull JCloudsSlave provisionSlaveExplicitly(@Nonnull JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
+        CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
+        ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, template.name);
 
-       JCloudsSlave node;
-       try {
-           provisioningListener.onStarted(id);
-           node = template.provisionSlave(this, id);
-           provisioningListener.onComplete(id, node);
-       } catch (Throwable ex) {
-           provisioningListener.onFailure(id, ex);
-           throw ex;
-       }
-       Jenkins.get().addNode(node);
-       return node;
-   }
+        JCloudsSlave node;
+        try {
+            provisioningListener.onStarted(id);
+            node = template.provisionSlave(this, id);
+            provisioningListener.onComplete(id, node);
+        } catch (Throwable ex) {
+            provisioningListener.onFailure(id, ex);
+            throw ex;
+        }
+        Jenkins.get().addNode(node);
+        return node;
+    }
 
     /**
      * Get connected OpenStack client wrapper.

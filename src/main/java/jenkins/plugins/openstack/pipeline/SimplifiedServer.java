@@ -38,7 +38,7 @@ public class SimplifiedServer implements Serializable {
         JCloudsSlaveTemplate t = jcl.getTemplate(template);
         if (t == null) throw new IllegalArgumentException("Invalid template: " + template);
 
-        this.srv = t.provision(jcl, serverscope);
+        this.srv = t.provisionServer(serverscope, null);
     }
 
     @Whitelisted
