@@ -83,8 +83,9 @@ public class ProvisioningTest {
         Node node = j.buildAndAssertSuccess(p).getBuiltOn();
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
 
-        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) node).getServerId());
-        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+        JCloudsSlave s = (JCloudsSlave) node;
+        Server server = cloud.getOpenstack().getServerById(s.getServerId());
+        assertEquals("node:" + server.getName() + ":" + s.getId().getFingerprint(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         node.toComputer().doDoDelete();
         if (j.jenkins.getComputer(node.getNodeName()) != null) {
@@ -135,7 +136,7 @@ public class ProvisioningTest {
         when(os.updateInfo(eq(server))).thenReturn(server);
 
         try {
-            template.provision(cloud);
+            template.provisionServer(null, null);
             fail();
         } catch (Openstack.ActionFailed ex) {
             assertThat(ex.getMessage(), containsString("Failed to boot server provisioned in time"));
@@ -196,8 +197,9 @@ public class ProvisioningTest {
         }
         String slaveName = j.jenkins.getNodes().get(0).getNodeName();
 
-        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) j.jenkins.getNode(slaveName)).getServerId());
-        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+        JCloudsSlave slave = (JCloudsSlave) j.jenkins.getNode(slaveName);
+        Server server = cloud.getOpenstack().getServerById(slave.getServerId());
+        assertEquals("node:" + server.getName() + ":" + slave.getId().getFingerprint(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         assertThat(
                 invokeProvisioning(cloud, wc, "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
@@ -261,7 +263,7 @@ public class ProvisioningTest {
         when(os.assignFloatingIp(any(Server.class), any(String.class))).thenThrow(new Openstack.ActionFailed("Unable to assign"));
 
         try {
-            template.provision(cloud);
+            template.provisionServer(null, null);
             fail();
         } catch (Openstack.ActionFailed ex) {
             assertThat(ex.getMessage(), containsString("Unable to assign"));
@@ -309,7 +311,7 @@ public class ProvisioningTest {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
 
-        Server server = template.provision(cloud);
+        Server server = template.provisionServer(null, null);
         Map<String, String> m = server.getMetadata();
 
         assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
@@ -457,7 +459,7 @@ public class ProvisioningTest {
         assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
 
         Server server = cloud.getOpenstack().getServerById(computer.getNode().getServerId());
-        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+        assertEquals("node:" + server.getName() + ":" + computer.getId().getFingerprint(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         computer.doDoDelete();
         assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
