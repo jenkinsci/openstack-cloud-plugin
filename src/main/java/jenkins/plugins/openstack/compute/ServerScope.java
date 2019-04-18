@@ -186,7 +186,7 @@ public abstract class ServerScope {
             if (cloudStatsFingerprint != null) {
                 // The node may be provisioned or deleted at the moment - do not interfere
                 for (ProvisioningActivity pa : CloudStatistics.get().getActivities()) {
-                    // Note the node name might not have been assigned yet so using fingerprint insteadk
+                    // Note the node name might not have been assigned yet so using fingerprint instead
                     if (pa.getId().getFingerprint() == cloudStatsFingerprint) {
                         switch (pa.getCurrentPhase()) {
                             case PROVISIONING:
