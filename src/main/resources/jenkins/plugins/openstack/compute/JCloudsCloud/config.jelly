@@ -15,7 +15,7 @@
     <f:entry title="Region" field="zone">
         <f:textbox/>
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,ignoreSsl,credentialId,zone"/>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,ignoreSsl,credentialsId,zone"/>
 
     <f:advanced title="Default slave options">
         <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>

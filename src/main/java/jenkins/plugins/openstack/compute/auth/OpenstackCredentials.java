@@ -17,14 +17,14 @@ public class OpenstackCredentials {
     /**
      * @return null when the credentials are not found.
      */
-    public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialId) {
-        if (credentialId == null) return null;
+    public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialsId) {
+        if (credentialsId == null) return null;
 
         List<OpenstackCredential> credentials = CredentialsProvider.lookupCredentials(
                         OpenstackCredential.class, Jenkins.get(), ACL.SYSTEM,
                         Collections.emptyList()
         );
-        return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialId));
+        return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialsId));
     }
 
     public static void add(@Nonnull OpenstackCredential openstackCredential) {

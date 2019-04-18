@@ -162,14 +162,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
             @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialId, @QueryParameter String zone
+            @QueryParameter String credentialsId, @QueryParameter String zone
     ) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(floatingIpPool);
         try {
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 for (String p : openstack.getSortedIpPools()) {
@@ -208,14 +208,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     public ListBoxModel doFillHardwareIdItems(
             @QueryParameter String hardwareId, @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialId, @QueryParameter String zone
+            @QueryParameter String credentialsId, @QueryParameter String zone
     ) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(hardwareId);
         try {
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 for (Flavor flavor : openstack.getSortedFlavors()) {
@@ -329,14 +329,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     public ComboBoxModel doFillAvailabilityZoneItems(
             @QueryParameter String availabilityZone, @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialId, @QueryParameter String zone
+            @QueryParameter String credentialsId, @QueryParameter String zone
     ) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         // Support for availabilityZones is optional in OpenStack, so this is a f:combobox not f:select field.
         // Therefore we suggest some options if we can, but if we can't then we assume it's because they're not needed.
         final ComboBoxModel m = new ComboBoxModel();
         try {
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 for (final AvailabilityZone az : openstack.getAvailabilityZones()) {
@@ -361,8 +361,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             @RelativePath("..") @QueryParameter("endPointUrl") String endPointUrlCloud,
             @RelativePath("..") @QueryParameter("ignoreSsl") boolean ignoreSsl,
             @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
-            @RelativePath("..") @QueryParameter("credentialId") String credentialIdCloud,
-            @RelativePath("../..") @QueryParameter("credentialId") String credentialIdTemplate,
+            @RelativePath("..") @QueryParameter("credentialsId") String credentialsIdCloud,
+            @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
             @RelativePath("..") @QueryParameter("zone") String zoneCloud,
             @RelativePath("../..") @QueryParameter("zone") String zoneTemplate
     ) {
@@ -375,8 +375,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             final String d = getDefault(def, opts().getAvailabilityZone());
             if (d != null) return FormValidation.ok(def(d));
             final String endPointUrl = getDefault(endPointUrlCloud,endPointUrlTemplate);
-            final String credentialId = getDefault(credentialIdCloud,credentialIdTemplate);
-            final OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            final String credentialsId = getDefault(credentialsIdCloud,credentialsIdTemplate);
+            final OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             final String zone = getDefault(zoneCloud, zoneTemplate);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 try {
@@ -402,14 +402,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             @QueryParameter String keyPairName,
             @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialId, @QueryParameter String zone
+            @QueryParameter String credentialsId, @QueryParameter String zone
     ) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
         final String valueOrEmpty = Util.fixNull(keyPairName);
         try {
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 for (String value : openstack.getSortedKeyPairNames()) {

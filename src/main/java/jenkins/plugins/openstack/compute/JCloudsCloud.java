@@ -464,8 +464,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public @Nonnull Openstack getOpenstack() {
         final Openstack os;
         try {
-            OpenstackCredential credential = OpenstackCredentials.getCredential(credentialId);
-            if (credential == null) throw new RuntimeException("No credential found for credential id '" + credentialId + "'");
+            OpenstackCredential credential = OpenstackCredentials.getCredential(getCredentialsId());
+            if (credential == null) throw new RuntimeException("No credential found for credential id '" + getCredentialsId() + "'");
             os = Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone);
         } catch (FormValidation ex) {
             LOGGER.log(Level.SEVERE, "Openstack authentication invalid", ex);
@@ -523,14 +523,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         @RequirePOST
         public FormValidation doTestConnection(
                 @QueryParameter boolean ignoreSsl,
-                @QueryParameter String credentialId,
+                @QueryParameter String credentialsId,
                 @QueryParameter String endPointUrl,
                 @QueryParameter String zone
         ) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
-                OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
-                if (openstackCredential == null) throw FormValidation.error("No credential found for " + credentialId);
+                OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
+                if (openstackCredential == null) throw FormValidation.error("No credential found for " + credentialsId);
                 Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                 Throwable ex = openstack.sanityCheck();
 
@@ -561,7 +561,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Restricted(DoNotUse.class)
         @RequirePOST
-        public ListBoxModel doFillCredentialIdItems() {
+        public ListBoxModel doFillCredentialsIdItems() {
             Jenkins jenkins = Jenkins.get();
             jenkins.checkPermission(Jenkins.ADMINISTER);
 

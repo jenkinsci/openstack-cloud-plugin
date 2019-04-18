@@ -132,10 +132,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return Arrays.asList("../..", "../../..");
         }
 
-        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialId, String zone) {
+        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialsId, String zone) {
             ListBoxModel m = new ListBoxModel();
             final String valueOrEmpty = Util.fixNull(existingValue);
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             m.add(new ListBoxModel.Option("None specified", "", valueOrEmpty.isEmpty()));
             try {
                 if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
@@ -157,13 +157,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return m;
         }
 
-        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl1, boolean ignoreSsl2, String credentialId1, String credentialId2, String zone1, String zone2) {
+        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl1, boolean ignoreSsl2, String credentialsId1, String credentialsId2, String zone1, String zone2) {
             if (Util.fixEmpty(value) == null)
                 return REQUIRED;
             final String endPointUrl = getDefault(endPointUrl1, endPointUrl2);
-            final String credentialId = getDefault(credentialId1,credentialId2);
+            final String credentialsId = getDefault(credentialsId1,credentialsId2);
             final boolean ignoreSsl = ignoreSsl1 || ignoreSsl2;
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             final String zone = getDefault(zone1, zone2);
             if (!haveAuthDetails(endPointUrl, openstackCredential, zone))
                 return FormValidation.ok();
@@ -289,9 +289,9 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             public ListBoxModel doFillNameItems(@QueryParameter String name,
                                                 @QueryParameter String endPointUrl,
                                                 @QueryParameter boolean ignoreSsl,
-                                                @QueryParameter String credentialId,
+                                                @QueryParameter String credentialsId,
                                                 @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialId, zone);
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
             }
 
             @Restricted(DoNotUse.class)
@@ -302,11 +302,11 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                                               @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
                                               @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
                                               @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
-                                              @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
-                                              @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
+                                              @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdCloud,
+                                              @RelativePath("../../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
                                               @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                                               @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }
@@ -483,8 +483,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Restricted(DoNotUse.class)
             @OsAuthDescriptor.InjectOsAuth
             @RequirePOST
-            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialId, @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialId, zone);
+            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialsId, @QueryParameter String zone) {
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
             }
 
             @Restricted(DoNotUse.class)
@@ -496,11 +496,11 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
                     @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
                     @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
-                    @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
-                    @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
+                    @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdCloud,
+                    @RelativePath("../../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
                     @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                     @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }
