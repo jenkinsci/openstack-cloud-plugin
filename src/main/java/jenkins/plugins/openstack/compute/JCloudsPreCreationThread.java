@@ -83,7 +83,7 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
                 LOGGER.log(Level.INFO, "Pre-creating " + toProvision + " instance(s) for template " + template.getName() + " in cloud " + cloud.name);
                 for (int i = 0; i < toProvision; i++) {
                     try {
-                        cloud.provisionSlave(template);
+                        cloud.provisionSlaveExplicitly(template);
                     } catch (Throwable ex) {
                         LOGGER.log(Level.SEVERE, "Failed to pre-create instance from template " + template.getName(), ex);
                     }

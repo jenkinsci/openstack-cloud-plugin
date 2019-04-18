@@ -120,7 +120,7 @@ public class JCloudsSlaveTemplateTest {
         JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
 
-        template.provision(cloud);
+        template.provisionServer(null, null);
 
         ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(os).bootAndWaitActive(captor.capture(), anyInt());
@@ -141,7 +141,7 @@ public class JCloudsSlaveTemplateTest {
         JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
 
-        template.provision(cloud);
+        template.provisionServer(null, null);
 
         verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
         verify(os, never()).assignFloatingIp(any(Server.class), any(String.class));
@@ -159,7 +159,7 @@ public class JCloudsSlaveTemplateTest {
         Network n2 = mock(Network.class); when(n2.getName()).thenReturn("BAR"); when(n2.getId()).thenReturn("bar");
         doReturn(Arrays.asList(n1, n2)).when(mockOs)._listNetworks();
 
-        instance.provision(cloud);
+        instance.provisionServer(null, null);
 
         ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(mockOs, times(1)).bootAndWaitActive(captor.capture(), any(Integer.class));
@@ -183,7 +183,7 @@ public class JCloudsSlaveTemplateTest {
         final ArgumentCaptor<String> vnCaptor = ArgumentCaptor.forClass(String.class);
         final ArgumentCaptor<String> vdCaptor = ArgumentCaptor.forClass(String.class);
 
-        final Server actual = instance.provision(cloud);
+        final Server actual = instance.provisionServer(null, null);
 
         final String actualServerName = actual.getName();
         verify(mockOs, times(1)).bootAndWaitActive(scbCaptor.capture(), anyInt());
@@ -220,7 +220,7 @@ public class JCloudsSlaveTemplateTest {
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         final Openstack os = cloud.getOpenstack();
 
-        template.provision(cloud);
+        template.provisionServer(null, null);
 
         ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(os, times(1)).bootAndWaitActive(captor.capture(), any(Integer.class));

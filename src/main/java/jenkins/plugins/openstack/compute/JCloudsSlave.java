@@ -1,6 +1,5 @@
 package jenkins.plugins.openstack.compute;
 
-import com.google.common.base.Objects;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Util;
@@ -40,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +82,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
     ) throws IOException, Descriptor.FormException {
         super(
-                metadata.getName(),
+                Objects.requireNonNull(metadata.getName()),
                 null,
                 slaveOptions.getFsRoot(),
                 slaveOptions.getNumExecutors(),
@@ -430,7 +430,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
         @Override
         public int hashCode() {
-            return Objects.hashCode(inner.hashCode(), provisioningId.hashCode());
+            return Objects.hash(inner.hashCode(), provisioningId.hashCode());
         }
     }
 }

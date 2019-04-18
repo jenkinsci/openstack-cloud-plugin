@@ -211,15 +211,13 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         Callable<Server> getNodeSupplier() {
-            final JCloudsCloud cloud1 = cloud;
             final JCloudsSlaveTemplate template1 = template;
             return new Callable<Server>() {
-                private final @Nonnull JCloudsCloud cloud = cloud1;
                 private final @Nonnull JCloudsSlaveTemplate template = template1;
 
                 @Override
-                public Server call() throws Exception {
-                    return template.provision(cloud, scope);
+                public Server call() {
+                    return template.provisionServer(scope, null);
                 }
             };
         }

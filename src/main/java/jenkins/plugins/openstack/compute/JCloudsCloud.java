@@ -1,5 +1,52 @@
 package jenkins.plugins.openstack.compute;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import hudson.Extension;
+import hudson.Util;
+import hudson.model.Computer;
+import hudson.model.Descriptor;
+import hudson.model.Failure;
+import hudson.model.Item;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.security.ACL;
+import hudson.security.ACLContext;
+import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv3;
+import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import jenkins.util.Timer;
+import org.acegisecurity.Authentication;
+import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.openstack4j.model.compute.Server;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
@@ -7,9 +54,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -18,52 +63,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnegative;
-import javax.annotation.Nonnull;
-import javax.servlet.http.HttpServletResponse;
-
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.common.StandardCredentials;
-import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
-import hudson.model.Failure;
-import hudson.model.Item;
-import hudson.security.ACL;
-import hudson.security.ACLContext;
-import hudson.util.ListBoxModel;
-import jenkins.plugins.openstack.compute.auth.*;
-import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import jenkins.util.Timer;
-
-import org.acegisecurity.Authentication;
-import org.jenkinsci.plugins.cloudstats.ActivityIndex;
-import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.cloudstats.CloudStatistics;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.DoNotUse;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.*;
-
-import hudson.Extension;
-import hudson.Util;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner;
-import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.FormValidation;
-import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.plugins.openstack.compute.internal.Openstack;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-import org.openstack4j.model.compute.Server;
 
 import static java.lang.Boolean.TRUE;
 
@@ -355,7 +354,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     /**
-     * Provisions a new node manually (by clicking a button in the computer list)
+     * Provisions a new node manually (by clicking a button in the computer list).
      *
      * @param req  {@link StaplerRequest}
      * @param rsp  {@link StaplerResponse}
@@ -421,7 +420,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             // Impersonate current identity inside the worker thread not to lose the owner info
             try (ACLContext ctx = ACL.as(auth)) {
                 try {
-                    provisionSlave(t);
+                    provisionSlaveExplicitly(t);
                 } catch (Throwable ex) {
                     LOGGER.log(Level.WARNING, "Provisioning failed", ex);
                 }
@@ -437,23 +436,26 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         response.println("<error>" + message + "</error>");
     }
 
-   @Restricted(NoExternalUse.class)
-   public @Nonnull JCloudsSlave provisionSlave(JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
-       CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
-       ProvisioningActivity.Id id = new ProvisioningActivity.Id(this.name, template.getName());
+    /**
+     * Provision slave out of {@link NodeProvisioner} context.
+     */
+    @Restricted(NoExternalUse.class)
+    /*package*/ @Nonnull JCloudsSlave provisionSlaveExplicitly(@Nonnull JCloudsSlaveTemplate template) throws IOException, Openstack.ActionFailed{
+        CloudStatistics.ProvisioningListener provisioningListener = CloudStatistics.ProvisioningListener.get();
+        ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, template.getName());
 
-       JCloudsSlave node;
-       try {
-           provisioningListener.onStarted(id);
-           node = template.provisionSlave(this, id);
-           provisioningListener.onComplete(id, node);
-       } catch (Throwable ex) {
-           provisioningListener.onFailure(id, ex);
-           throw ex;
-       }
-       Jenkins.get().addNode(node);
-       return node;
-   }
+        JCloudsSlave node;
+        try {
+            provisioningListener.onStarted(id);
+            node = template.provisionSlave(this, id);
+            provisioningListener.onComplete(id, node);
+        } catch (Throwable ex) {
+            provisioningListener.onFailure(id, ex);
+            throw ex;
+        }
+        Jenkins.get().addNode(node);
+        return node;
+    }
 
     /**
      * Get connected OpenStack client wrapper.

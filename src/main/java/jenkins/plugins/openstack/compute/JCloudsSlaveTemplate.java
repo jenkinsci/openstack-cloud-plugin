@@ -219,12 +219,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     ) throws JCloudsCloud.ProvisioningFailedException {
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
-        Server nodeMetadata = provision(cloud);
+        Server server = provisionServer(null, id);
 
         JCloudsSlave node = null;
         // Terminate node unless provisioned successfully
         try {
-            node = new JCloudsSlave(id, nodeMetadata, getLabels(), opts);
+            node = new JCloudsSlave(id, server, labelString, opts);
 
             String cause;
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
@@ -233,11 +233,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                     String timeoutMessage = String.format("Failed to connect agent %s within timeout (%d ms): %s", node.getNodeName(), timeout, cause);
                     Error errorQuerying = null;
                     try {
-                        Server freshServer = cloud.getOpenstack().getServerById(nodeMetadata.getId());
+                        Server freshServer = cloud.getOpenstack().getServerById(server.getId());
                         timeoutMessage += System.lineSeparator() + "Server state: " + freshServer;
                         // TODO attach instance log (or tail of) to cloud statistics
                     } catch (NoSuchElementException ex) {
-                        timeoutMessage += System.lineSeparator() + "Server does no longer exist: " + nodeMetadata.getId();
+                        timeoutMessage += System.lineSeparator() + "Server does no longer exist: " + server.getId();
                     } catch (Error ex) {
                         errorQuerying = ex;
                     }
@@ -267,18 +267,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
-    /**
-     * Provision OpenStack machine.
-     *
-     * @throws Openstack.ActionFailed In case the provisioning failed.
-     * @see #provisionSlave(JCloudsCloud, ProvisioningActivity.Id)
-     */
-    /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
-        return provision(cloud, null);
-    }
-
     @Restricted(NoExternalUse.class)
-    public @Nonnull Server provision(@Nonnull JCloudsCloud cloud, @CheckForNull ServerScope scope) throws Openstack.ActionFailed {
+    public @Nonnull Server provisionServer(@CheckForNull ServerScope scope, @CheckForNull ProvisioningActivity.Id id) throws Openstack.ActionFailed {
         final String serverName = getServerName();
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
@@ -286,7 +276,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, getName());
         builder.addMetadataItem(OPENSTACK_CLOUD_NAME_KEY, cloud.name);
         if (scope == null) {
-            scope = new ServerScope.Node(serverName);
+            scope = id == null
+                    ? new ServerScope.Node(serverName)
+                    : new ServerScope.Node(serverName, id)
+            ;
         }
         builder.addMetadataItem(ServerScope.METADATA_KEY, scope.getValue());
 
