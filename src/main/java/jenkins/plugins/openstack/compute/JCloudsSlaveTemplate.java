@@ -89,17 +89,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions;
 
-        validate(slaveOptions);
-
         readResolve();
-    }
-
-    // Does not quite belong here
-    /*package*/ static void validate(@CheckForNull SlaveOptions slaveOptions) {
-        String userDataId = slaveOptions.getUserDataId();
-        if (userDataId != null) {
-            UserDataConfig.resolve(userDataId);
-        }
     }
 
     @SuppressWarnings({"deprecation", "UnusedReturnValue"})

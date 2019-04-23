@@ -148,7 +148,7 @@ public class ProvisioningTest {
 
     @Test
     public void verifyOptionsPropagatedToLauncher() throws Exception {
-        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("credid"), "java");
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredentials("credid"), "java");
         SlaveOptions expected = j.defaultSlaveOptions().getBuilder().launcherFactory(slaveType).retentionTime(10).build();
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
                 expected,
@@ -271,7 +271,7 @@ public class ProvisioningTest {
 
         waitForAsyncResourceDisposer();
 
-        verify(os).destroyServer(any(Server.class));
+        verify(os, atLeastOnce()).destroyServer(any(Server.class));
     }
 
     @Test

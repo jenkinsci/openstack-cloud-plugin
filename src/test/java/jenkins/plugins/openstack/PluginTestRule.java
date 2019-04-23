@@ -111,11 +111,11 @@ public final class PluginTestRule extends JenkinsRule {
         );
     }
 
-    public static class DummyOpenstackCredential extends AbstractOpenstackCredential {
+    public static class DummyOpenstackCredentials extends AbstractOpenstackCredential {
         private static final long serialVersionUID = -6458476198187349017L;
 
-        private DummyOpenstackCredential() {
-            super(CredentialsScope.SYSTEM, "my-id", "testCredential");
+        private DummyOpenstackCredentials() {
+            super(CredentialsScope.SYSTEM, "my-id", "testCredentials");
         }
 
         @Override
@@ -124,8 +124,8 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    public String dummyCredential() {
-        DummyOpenstackCredential c = new DummyOpenstackCredential();
+    public String dummyCredentials() {
+        DummyOpenstackCredentials c = new DummyOpenstackCredentials();
         OpenstackCredentials.add(c);
         return c.getId();
     }
@@ -164,7 +164,7 @@ public final class PluginTestRule extends JenkinsRule {
         );
     }
 
-    public String dummySshCredential(String id) {
+    public String dummySshCredentials(String id) {
         SystemCredentialsProvider.getInstance().getCredentials().add(
                 new BasicSSHUserPrivateKey(
                         CredentialsScope.SYSTEM, id, "john " + id, null, null, "Description " + id
@@ -566,7 +566,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack", "endPointUrl", false,"zone", opts, Arrays.asList(templates), "credentialId");
+            super("openstack", "endPointUrl", false,"zone", opts, Arrays.asList(templates), "credentialsId");
         }
 
         @Override

@@ -53,7 +53,7 @@ public class PersistenceMigrationTest {
 
     @Test @LocalData
     public void loadConfigFromV18() throws Exception {
-        j.dummySshCredential("2040d591-062a-4ccf-8f36-0a3340a1c51b");
+        j.dummySshCredentials("2040d591-062a-4ccf-8f36-0a3340a1c51b");
         // Node persisted
         JCloudsSlave s = (JCloudsSlave) j.jenkins.getNode("cloud-slave");
         assertEquals("2235b04d-267c-4487-908f-e55d2e81c0a9", s.getServerId());

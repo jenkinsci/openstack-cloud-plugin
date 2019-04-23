@@ -58,7 +58,7 @@ public class JCloudsSlaveTemplateTest {
                 "jnlp-template", "openstack-slave-type1 openstack-type2", dummySlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).build()
         );
 
-        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("sshid"), "mypath");
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredentials("sshid"), "mypath");
         JCloudsSlaveTemplate sshTemplate = new JCloudsSlaveTemplate(
                 "ssh-template", "openstack-slave-type1 openstack-type2", dummySlaveOptions().getBuilder().launcherFactory(slaveType).build()
         );
@@ -67,7 +67,7 @@ public class JCloudsSlaveTemplateTest {
                 "my-openstack", "endPointUrl", false, "zone",
                 SlaveOptions.empty(),
                 Arrays.asList(jnlpTemplate, sshTemplate),
-                j.dummyCredential()
+                j.dummyCredentials()
         );
 
         j.jenkins.clouds.add(originalCloud);
@@ -106,7 +106,7 @@ public class JCloudsSlaveTemplateTest {
                 "my-openstack", "credential", false, "zone",
                 cloudOpts,
                 Collections.singletonList(template),
-                j.dummyCredential()
+                j.dummyCredentials()
         );
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());

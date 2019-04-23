@@ -136,7 +136,6 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         this.templates = templates == null ? Collections.emptyList() : Collections.unmodifiableList(templates);
 
-        JCloudsSlaveTemplate.validate(slaveOptions);
         injectReferenceIntoTemplates();
     }
 

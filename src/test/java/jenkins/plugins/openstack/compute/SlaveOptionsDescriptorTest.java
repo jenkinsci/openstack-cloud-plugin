@@ -115,7 +115,7 @@ public class SlaveOptionsDescriptorTest {
     public void doFillAvailabilityZoneItemsGivenAZsThenPopulatesList() {
         final AvailabilityZone az1 = mock(AvailabilityZone.class, "az1");
         final AvailabilityZone az2 = mock(AvailabilityZone.class, "az2");
-        final String openstackAuth = j.dummyCredential();
+        final String openstackAuth = j.dummyCredentials();
         when(az1.getZoneName()).thenReturn("az1Name");
         when(az2.getZoneName()).thenReturn("az2Name");
         final List<AvailabilityZone> azs = Arrays.asList(az1, az2);
@@ -134,7 +134,7 @@ public class SlaveOptionsDescriptorTest {
     @Test
     public void doFillAvailabilityZoneItemsGivenNoSupportForAZsThenGivesEmptyList() {
         final Openstack os = j.fakeOpenstackFactory();
-        final String openstackAuth = j.dummyCredential();
+        final String openstackAuth = j.dummyCredentials();
         doThrow(new RuntimeException("OpenStack said no")).when(os).getAvailabilityZones();
 
         final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", false, openstackAuth, "OSzone");
@@ -145,7 +145,7 @@ public class SlaveOptionsDescriptorTest {
     @Test
     public void doCheckAvailabilityZoneGivenAZThenReturnsOK() {
         final Openstack os = j.fakeOpenstackFactory();
-        final String openstackAuth = j.dummyCredential();
+        final String openstackAuth = j.dummyCredentials();
 
         final FormValidation actual = d.doCheckAvailabilityZone("chosenAZ", "", "OSurl", false,"OSurl", openstackAuth,openstackAuth,"OSzone", "OSzone");
 
@@ -158,7 +158,7 @@ public class SlaveOptionsDescriptorTest {
         final String value = "";
         final String def = "defaultAZ";
         final Openstack os = j.fakeOpenstackFactory();
-        final String openstackAuth = j.dummyCredential();
+        final String openstackAuth = j.dummyCredentials();
 
         final FormValidation actual = d.doCheckAvailabilityZone(value, def,  "OSurl", false,"OSurl", openstackAuth,openstackAuth,"OSzone", "OSzone");
 
@@ -173,7 +173,7 @@ public class SlaveOptionsDescriptorTest {
         final List<AvailabilityZone> azs = Collections.singletonList(az1);
         final Openstack os = j.fakeOpenstackFactory();
         doReturn(azs).when(os).getAvailabilityZones();
-        final String openstackAuth = j.dummyCredential();
+        final String openstackAuth = j.dummyCredentials();
 
         final FormValidation actual = d.doCheckAvailabilityZone("", "", "OSurl", false,"OSurl", openstackAuth,openstackAuth, "OSzone", "OSzone");
 
@@ -186,7 +186,7 @@ public class SlaveOptionsDescriptorTest {
         doThrow(new RuntimeException("OpenStack said no")).when(os).getAvailabilityZones();
         final String value = "";
         final String def = "";
-        final String openstackAuth = j.dummyCredential();
+        final String openstackAuth = j.dummyCredentials();
 
         final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", openstackAuth, openstackAuth, "OSzone", "OSzone");
 
@@ -204,7 +204,7 @@ public class SlaveOptionsDescriptorTest {
         doReturn(azs).when(os).getAvailabilityZones();
         final String value = "";
         final String def = "";
-        final String openstackAuth = j.dummyCredential();
+        final String openstackAuth = j.dummyCredentials();
         final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false, "OSurl",openstackAuth, openstackAuth, "OSzone", "OSzone");
 
         assertThat(actual, j.validateAs(FormValidation.warning("Ambiguity warning: Multiple zones found.")));
@@ -215,7 +215,7 @@ public class SlaveOptionsDescriptorTest {
         List<String> expected = Arrays.asList(
                 "../endPointUrl", "../../endPointUrl",
                 "../ignoreSsl", "../../ignoreSsl",
-                "../credentialId", "../../credentialId",
+                "../credentialsId", "../../credentialsId",
                 "../zone", "../../zone"
         );
 
@@ -231,11 +231,11 @@ public class SlaveOptionsDescriptorTest {
     private void assertFillWorks(String attribute) throws Exception {
         final String END_POINT = "END_POINT-" + attribute;
         final Boolean IGNORE_SSL = false;
-        final String CREDENTIALID = j.dummyCredential();
+        final String CREDENTIALSID = j.dummyCredentials();
         final String REGION = "REGION";
         final String QUERY_STRING = String.format(
-                "?endPointUrl=%s&ignoreSsl=%s&credentialId=%s&zone=%s",
-                END_POINT, IGNORE_SSL, CREDENTIALID, REGION
+                "?endPointUrl=%s&ignoreSsl=%s&credentialsId=%s&zone=%s",
+                END_POINT, IGNORE_SSL, CREDENTIALSID, REGION
         );
 
         String contextPath = j.getURL().getFile();
@@ -254,7 +254,7 @@ public class SlaveOptionsDescriptorTest {
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.getPage(wc.addCrumb(new WebRequest(url, HttpMethod.POST)));
 
-        verify(factory).getOpenstack(eq(END_POINT), eq(IGNORE_SSL), eq(OpenstackCredentials.getCredential(CREDENTIALID)), eq(REGION));
+        verify(factory).getOpenstack(eq(END_POINT), eq(IGNORE_SSL), eq(OpenstackCredentials.getCredential(CREDENTIALSID)), eq(REGION));
         verifyNoMoreInteractions(factory);
     }
 

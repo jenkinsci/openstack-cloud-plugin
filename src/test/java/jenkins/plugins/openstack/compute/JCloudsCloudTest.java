@@ -95,7 +95,7 @@ public class JCloudsCloudTest {
         DescriptorImpl desc = j.getCloudDescriptor();
         FormValidation v;
 
-        String openstackAuth = j.dummyCredential();
+        String openstackAuth = j.dummyCredentials();
 
         v = desc.doTestConnection(false, openstackAuth, null,"REGION");
         assertEquals("OpenstackCredential is required", FormValidation.Kind.ERROR, v.kind);
@@ -147,7 +147,7 @@ public class JCloudsCloudTest {
     public void presentUIDefaults() throws Exception {
         SlaveOptions DEF = DescriptorImpl.getDefaultOptions();
 
-        String openstackAuth = j.dummyCredential();
+        String openstackAuth = j.dummyCredentials();
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
                 new BootSource.Image("iid"), "hw", "nw", "ud", 1, 0, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
@@ -202,10 +202,10 @@ public class JCloudsCloudTest {
     public void eraseDefaults() {
         int biggerInstanceCap = DescriptorImpl.getDefaultOptions().getInstanceCap() * 2;
 
-        String openstackAuth = j.dummyCredential();
+        String openstackAuth = j.dummyCredentials();
 
         // Base tests on cloud defaults as that is the baseline for erasure
-        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("cid"));
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredentials("cid"));
         SlaveOptions opts = DescriptorImpl.getDefaultOptions().getBuilder().instanceCap(biggerInstanceCap).launcherFactory(slaveType).build();
         JCloudsCloud cloud = new JCloudsCloud(
                 "openstack", "endPointUrl", false, "zone", opts, NO_TEMPLATES, openstackAuth
@@ -219,7 +219,7 @@ public class JCloudsCloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
 
-        String openstackAuth = j.dummyCredential();
+        String openstackAuth = j.dummyCredentials();
 
         String beans = "credentialsId,endPointUrl,ignoreSsl,zone";
         JCloudsCloud original = new JCloudsCloud(
@@ -239,7 +239,7 @@ public class JCloudsCloudTest {
     @Test
     public void configRoundtripNullZone() throws Exception {
 
-        String openstackAuth = j.dummyCredential();
+        String openstackAuth = j.dummyCredentials();
 
         JCloudsCloud original = new JCloudsCloud(
                 "openstack", "endPointUrl", false, null, j.defaultSlaveOptions(), NO_TEMPLATES, openstackAuth
@@ -303,7 +303,7 @@ public class JCloudsCloudTest {
         wc.setConfirmHandler((page, s) -> true);
         clickAction(configfiles, "remove");
 
-        assertNull(template.getUserData());
+        assertEquals("jenkins.plugins.openstack.compute.UserDataConfig.1455188317989", template.getEffectiveSlaveOptions().getUserDataId());
 
         configfiles = wc.goTo("configfiles");
         HtmlPage newOne = configfiles.getAnchorByText("Add a new Config").click();
@@ -361,7 +361,7 @@ public class JCloudsCloudTest {
             }
         });
         final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
-        final JCloudsCloud instance = new JCloudsCloud("name", "endPointUrl", false,"zone", defOpts, null, j.dummyCredential());
+        final JCloudsCloud instance = new JCloudsCloud("name", "endPointUrl", false,"zone", defOpts, null, j.dummyCredentials());
 
         // When
         final Openstack actual1 = instance.getOpenstack();
@@ -433,12 +433,12 @@ public class JCloudsCloudTest {
         final String zone = "region";
         final Openstack.FactoryEP factory = j.mockOpenstackFactory();
         final OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
-        final String credentialId = "myCredId";
+        final String credentialsId = "myCredId";
         final String credentialDescription = "desc";
         final String credentialTenant = "tenant";
         final String credentialUsername = "user";
-        final OpenstackCredential openstackCredentialWithOldPassword = new OpenstackCredentialv2(CredentialsScope.SYSTEM, credentialId, credentialDescription, credentialTenant, credentialUsername, "originalPassword");
-        final OpenstackCredential openstackCredentialWithNewPassword = new OpenstackCredentialv2(CredentialsScope.SYSTEM, credentialId, credentialDescription, credentialTenant, credentialUsername, "updatedPassword");
+        final OpenstackCredential openstackCredentialWithOldPassword = new OpenstackCredentialv2(CredentialsScope.SYSTEM, credentialsId, credentialDescription, credentialTenant, credentialUsername, "originalPassword");
+        final OpenstackCredential openstackCredentialWithNewPassword = new OpenstackCredentialv2(CredentialsScope.SYSTEM, credentialsId, credentialDescription, credentialTenant, credentialUsername, "updatedPassword");
         final List<Credentials> openstackCredentials = SystemCredentialsProvider.getInstance().getCredentials();
         openstackCredentials.add(openstackCredentialWithOldPassword);
         final int indexOfCredentials = openstackCredentials.indexOf(openstackCredentialWithOldPassword);

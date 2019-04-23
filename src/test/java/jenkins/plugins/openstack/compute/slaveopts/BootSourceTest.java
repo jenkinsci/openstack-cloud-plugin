@@ -107,11 +107,11 @@ public class BootSourceTest {
         when(image.getName()).thenReturn(imageName);
 
         Openstack os = j.fakeOpenstackFactory();
-        final String credentialId = j.dummyCredential();
+        final String credentialsId = j.dummyCredentials();
 
         doReturn(Collections.singletonMap(imageName, Collections.singletonList(image))).when(os).getImages();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone");
         assertEquals(2, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         ListBoxModel.Option item = list.get(1);
@@ -126,12 +126,12 @@ public class BootSourceTest {
         when(volumeSnapshot.getName()).thenReturn("vs-name");
         when(volumeSnapshot.getStatus()).thenReturn(Volume.Status.AVAILABLE);
         final Collection<VolumeSnapshot> justVolumeSnapshot = Collections.singletonList(volumeSnapshot);
-        final String credentialId = j.dummyCredential();
+        final String credentialsId = j.dummyCredentials();
 
         Openstack os = j.fakeOpenstackFactory();
         when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", justVolumeSnapshot));
 
-        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialId, "OSzone");
+        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone");
         assertEquals(3, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         assertEquals("Second menu entry is the VS OpenStack can see", "vs-name", list.get(1).name);
@@ -152,9 +152,9 @@ public class BootSourceTest {
         doReturn(Collections.singletonList(image)).when(imageService).list(any());
 
         j.fakeOpenstackFactory(new Openstack(osClient));
-        final String credentialId = j.dummyCredential();
+        final String credentialsId = j.dummyCredentials();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone");
         assertThat(list.get(0).name, list, Matchers.iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
@@ -170,10 +170,10 @@ public class BootSourceTest {
         final String urlC, urlT, zoneC, zoneT;
         urlC= urlT= zoneC= zoneT= "dummy";
 
-        final String credentialIdCloud = j.dummyCredential();
-        final String credentialIdTemplate = j.dummyCredential();
+        final String credentialsIdCloud = j.dummyCredentials();
+        final String credentialsIdTemplate = j.dummyCredentials();
 
-        final FormValidation actual = id.doCheckName("",urlC,urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
         assertThat(actual, j.validateAs(VALIDATION_REQUIRED));
     }
 
@@ -183,13 +183,13 @@ public class BootSourceTest {
         urlC= urlT= zoneC= zoneT= "dummy";
         final Openstack os = mock(Openstack.class);
         final List<String> noIDs = Collections.emptyList();
-        final String credentialIdCloud = j.dummyCredential();
-        final String credentialIdTemplate = j.dummyCredential();
+        final String credentialsIdCloud = j.dummyCredentials();
+        final String credentialsIdTemplate = j.dummyCredentials();
         when(os.getImageIdsFor("imageNotFound")).thenReturn(noIDs);
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.error("Not found");
 
-        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false,false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
         assertThat(actual, j.validateAs(expected));
     }
 
@@ -198,13 +198,13 @@ public class BootSourceTest {
         final String urlC, urlT, zoneC, zoneT;
         urlC= urlT= zoneC= zoneT= "dummy";
         final Openstack os = mock(Openstack.class);
-        final String credentialIdCloud = j.dummyCredential();
-        final String credentialIdTemplate = j.dummyCredential();
+        final String credentialsIdCloud = j.dummyCredentials();
+        final String credentialsIdTemplate = j.dummyCredentials();
         when(os.getImageIdsFor("imageFound")).thenReturn(Collections.singletonList("imageFoundId"));
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = id.doCheckName("imageFound",urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
         assertThat(actual, j.validateAs(expected));
     }
 
@@ -213,13 +213,13 @@ public class BootSourceTest {
         final String urlC, urlT, zoneC, zoneT;
         urlC= urlT= zoneC= zoneT= "dummy";
         final Openstack os = mock(Openstack.class);
-        final String credentialIdCloud = j.dummyCredential();
-        final String credentialIdTemplate = j.dummyCredential();
+        final String credentialsIdCloud = j.dummyCredentials();
+        final String credentialsIdTemplate = j.dummyCredentials();
         when(os.getImageIdsFor("imageAmbiguous")).thenReturn(Arrays.asList("imageAmbiguousId1", "imageAmbiguousId2"));
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.warning("Multiple matching results");
 
-        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
         assertThat("imageAmbiguous", actual, j.validateAs(expected));
     }
 
@@ -228,13 +228,13 @@ public class BootSourceTest {
         final String urlC, urlT, zoneC, zoneT;
         urlC= urlT= zoneC= zoneT= "dummy";
         final Openstack os = mock(Openstack.class);
-        final String credentialIdCloud = j.dummyCredential();
-        final String credentialIdTemplate = j.dummyCredential();
+        final String credentialsIdCloud = j.dummyCredentials();
+        final String credentialsIdTemplate = j.dummyCredentials();
         when(os.getVolumeSnapshotIdsFor("vsFound")).thenReturn(Collections.singletonList("vsFoundId"));
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialIdCloud, credentialIdTemplate, zoneC, zoneT);
+        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
         assertThat("vsFound", actual, j.validateAs(expected));
     }
 }
