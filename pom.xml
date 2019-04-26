@@ -221,14 +221,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>cobertura-maven-plugin</artifactId>
-                    <version>2.7</version> <!-- JDK 7 support -->
-                </plugin>
-                <plugin>
-                    <groupId>org.jenkins-ci.tools</groupId>
-                    <artifactId>maven-hpi-plugin</artifactId>
-                    <configuration>
-                        <pluginFirstClassLoader>true</pluginFirstClassLoader>
-                    </configuration>
+                    <version>2.7</version> <!-- JDK 7+ support -->
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
