@@ -475,7 +475,9 @@ public class Openstack {
      * @return Identifier to filter instances we control.
      */
     private @Nonnull String instanceFingerprint() {
-        return Jenkins.get().getRootUrl();
+        String rootUrl = Jenkins.get().getRootUrl();
+        if (rootUrl == null) throw new IllegalStateException("Jenkins instance URL is not configured");
+        return rootUrl;
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
