@@ -64,7 +64,6 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.NoStaplerConstructorException;
 import org.openstack4j.core.transport.Config;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
@@ -167,13 +166,6 @@ public class Openstack {
     public  @Nonnull List<? extends Network> _listNetworks() {
         return clientProvider.get().networking().network().list();
     }
-
-    private static final Comparator<BasicResource> RESOURCE_COMPARATOR = new Comparator<BasicResource>() {
-        @Override
-        public int compare(BasicResource o1, BasicResource o2) {
-            return ObjectUtils.compare(o1.getName(), o2.getName());
-        }
-    };
 
     public @Nonnull List<String> getNetworkIds(@Nonnull List<String> nameOrIds) {
         if (nameOrIds.isEmpty()) return Collections.emptyList();
