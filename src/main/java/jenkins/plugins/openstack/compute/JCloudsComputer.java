@@ -4,6 +4,7 @@ import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Queue;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
+import hudson.remoting.Channel;
 import hudson.security.Permission;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
@@ -26,6 +27,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,6 +41,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
     private volatile AtomicInteger used = new AtomicInteger(0);
+    private transient long connectionTime;
 
     /**
      * Get all Openstack computers.
@@ -193,6 +196,17 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
             throw ex;
         }
     }
+
+
+    public void setChannel(Channel channel, OutputStream launchLog, Channel.Listener listener) throws IOException, InterruptedException {
+        super.setChannel(channel, launchLog, listener);
+        connectionTime = System.currentTimeMillis();
+    }
+
+    public long getConnectionTime(){
+        return connectionTime;
+    }
+
 
     private static final class PendingTermination extends SimpleOfflineCause {
 
