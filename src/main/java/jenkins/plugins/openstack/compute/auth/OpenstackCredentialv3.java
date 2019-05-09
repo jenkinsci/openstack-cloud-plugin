@@ -83,6 +83,11 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         return username;
     }
 
+    // Jelly only
+    public @Nonnull String getUserName() {
+        return username;
+    }
+
     public String getUserDomain() {
         return userDomain;
     }

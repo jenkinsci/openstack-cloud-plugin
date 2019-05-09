@@ -9,7 +9,7 @@
     <f:entry title="User Domain" field="userDomain">
        <f:textbox clazz="required"/>
     </f:entry>
-    <f:entry title="User Name" field="username">
+    <f:entry title="User Name" field="userName">
        <f:textbox clazz="required"/>
      </f:entry>
     <f:entry title="Password" field="password">
