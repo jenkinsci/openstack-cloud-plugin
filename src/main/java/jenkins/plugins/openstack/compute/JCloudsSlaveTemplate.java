@@ -1,8 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
 import au.com.bytecode.opencsv.CSVReader;
-import com.google.common.base.Charsets;
-import com.google.common.base.Strings;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
@@ -35,6 +33,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -287,20 +286,20 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         String hwid = opts.getHardwareId();
-        if (!Strings.isNullOrEmpty(hwid)) {
+        if (Util.fixEmpty(hwid) != null) {
             LOGGER.fine("Setting hardware Id to " + hwid);
             builder.flavor(hwid);
         }
 
         String nid = opts.getNetworkId();
-        if (!Strings.isNullOrEmpty(nid)) {
+        if (Util.fixEmpty(nid) != null) {
             List<String> networks = openstack.getNetworkIds(Arrays.asList(csvToArray(nid)));
             LOGGER.fine("Setting networks to " + networks);
             builder.networks(networks);
         }
 
         String securityGroups = opts.getSecurityGroups();
-        if (!Strings.isNullOrEmpty(securityGroups)) {
+        if (Util.fixEmpty(securityGroups) != null) {
             LOGGER.fine("Setting security groups to " + securityGroups);
             for (String sg: csvToArray(securityGroups)) {
                 builder.addSecurityGroup(sg);
@@ -308,13 +307,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         String kpn = opts.getKeyPairName();
-        if (!Strings.isNullOrEmpty(kpn)) {
+        if (Util.fixEmpty(kpn) != null) {
             LOGGER.fine("Setting keyPairName to " + kpn);
             builder.keypairName(kpn);
         }
 
         String az = opts.getAvailabilityZone();
-        if (!Strings.isNullOrEmpty(az)) {
+        if (Util.fixEmpty(az) != null) {
             LOGGER.fine("Setting availabilityZone to " + az);
             builder.availabilityZone(az);
         }
@@ -325,7 +324,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             UserDataVariableResolver resolver = new UserDataVariableResolver(rootUrl, serverName, labelString, opts);
             String content = Util.replaceMacro(userDataText, resolver);
             LOGGER.fine("Sending user-data:\n" + content);
-            builder.userData(Base64.encode(content.getBytes(Charsets.UTF_8)));
+            builder.userData(Base64.encode(content.getBytes(StandardCharsets.UTF_8)));
         }
 
         Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());

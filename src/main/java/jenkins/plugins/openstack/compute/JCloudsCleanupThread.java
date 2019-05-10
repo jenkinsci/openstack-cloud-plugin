@@ -11,7 +11,6 @@ import java.util.logging.Logger;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import hudson.model.Executor;
-import hudson.model.Node;
 import hudson.model.Result;
 import hudson.slaves.OfflineCause;
 import jenkins.model.CauseOfInterruption;

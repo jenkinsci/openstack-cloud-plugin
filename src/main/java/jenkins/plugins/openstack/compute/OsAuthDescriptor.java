@@ -23,7 +23,6 @@
  */
 package jenkins.plugins.openstack.compute;
 
-import com.google.common.base.Joiner;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
@@ -104,7 +103,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
         }
 
         if (!deps.isEmpty()) {
-            attributes.put("fillDependsOn", Joiner.on(' ').join(deps));
+            attributes.put("fillDependsOn", String.join(" ", deps));
         }
     }
 
