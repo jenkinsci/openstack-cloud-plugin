@@ -29,10 +29,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -48,10 +51,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.TreeMultimap;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
@@ -61,7 +62,6 @@ import hudson.Util;
 import hudson.remoting.Which;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.core.transport.Config;
@@ -72,7 +72,6 @@ import org.openstack4j.api.compute.ServerService;
 import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.ActionResponse;
-import org.openstack4j.model.common.BasicResource;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
@@ -111,6 +110,18 @@ public class Openstack {
 
     private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
     public static final String FINGERPRINT_KEY = "jenkins-instance";
+
+    private static final Comparator<Date> ACCEPT_NULLS = Comparator.nullsLast(Comparator.naturalOrder());
+    private static final Comparator<Flavor> FLAVOR_COMPARATOR = Comparator.nullsLast(Comparator.comparing(Flavor::getName));
+    private static final Comparator<AvailabilityZone> AVAILABILITY_ZONES_COMPARATOR = Comparator.nullsLast(
+            Comparator.comparing(AvailabilityZone::getZoneName)
+    );
+    private static final Comparator<VolumeSnapshot> VOLUMESNAPSHOT_DATE_COMPARATOR = Comparator.nullsLast(
+            Comparator.comparing(VolumeSnapshot::getCreated, ACCEPT_NULLS).thenComparing(VolumeSnapshot::getId))
+    ;
+    private static final Comparator<Image> IMAGE_DATE_COMPARATOR = Comparator.nullsLast(
+            Comparator.comparing(Image::getUpdatedAt, ACCEPT_NULLS).thenComparing(Image::getCreatedAt, ACCEPT_NULLS).thenComparing(Image::getId)
+    );
 
     // Store the OS session token so clients can be created from it per all threads using this.
     private final ClientProvider clientProvider;
@@ -199,15 +210,25 @@ public class Openstack {
      *         name-collisions, the images for a given name are sorted by
      *         creation date.
      */
-    public @Nonnull Map<String, Collection<Image>> getImages() {
+    public @Nonnull Map<String, List<Image>> getImages() {
         final List<? extends Image> list = getAllImages();
-        final TreeMultimap<String, Image> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, IMAGE_DATE_COMPARATOR);
-        for (Image o : list) {
-            final String name = Util.fixNull(o.getName());
-            final String nameOrId = name.isEmpty() ? o.getId() : name;
-            set.put(nameOrId, o);
+        TreeMap<String, List<Image>> data = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Image image : list) {
+            final String name = Util.fixNull(image.getName());
+            final String nameOrId = name.isEmpty() ? image.getId() : name;
+            List<Image> sameNamed = data.get(nameOrId);
+            if (sameNamed == null) {
+                sameNamed = new ArrayList<>();
+                data.putIfAbsent(nameOrId, sameNamed);
+
+            }
+            sameNamed.add(image);
         }
-        return set.asMap();
+        for (List<Image> sameNamed : data.values()) {
+            sameNamed.sort(IMAGE_DATE_COMPARATOR);
+        }
+
+        return data;
     }
 
     // Glance2 API does not have the listAll() pagination helper in the library so reimplementing it here
@@ -227,19 +248,6 @@ public class Openstack {
         return all;
     }
 
-    private static final Comparator<Image> IMAGE_DATE_COMPARATOR = new Comparator<Image>() {
-        @Override
-        public int compare(Image o1, Image o2) {
-            int result;
-            result = ObjectUtils.compare(o1.getUpdatedAt(), o2.getUpdatedAt());
-            if (result != 0) return result;
-            result = ObjectUtils.compare(o1.getCreatedAt(), o2.getCreatedAt());
-            if (result != 0) return result;
-            result = ObjectUtils.compare(o1.getId(), o1.getId());
-            return result;
-        }
-    };
-
     /**
      * Finds all {@link VolumeSnapshot}s that are {@link Status#AVAILABLE}.
      *
@@ -248,43 +256,37 @@ public class Openstack {
      *         and, in the event of name-collisions, the volume snapshots for a
      *         given name are sorted by creation date.
      */
-    public @Nonnull Map<String, Collection<VolumeSnapshot>> getVolumeSnapshots() {
+    public @Nonnull Map<String, List<VolumeSnapshot>> getVolumeSnapshots() {
         final List<? extends VolumeSnapshot> list = clientProvider.get().blockStorage().snapshots().list();
-        final TreeMultimap<String, VolumeSnapshot> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, VOLUMESNAPSHOT_DATE_COMPARATOR);
-        for (VolumeSnapshot o : list) {
-            if (o.getStatus() != Status.AVAILABLE) {
+        TreeMap<String, List<VolumeSnapshot>> data = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        //final TreeMultimap<String, VolumeSnapshot> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, VOLUMESNAPSHOT_DATE_COMPARATOR);
+        for (VolumeSnapshot vs : list) {
+            if (vs.getStatus() != Status.AVAILABLE) {
                 continue;
             }
-            final String name = Util.fixNull(o.getName());
-            final String nameOrId = name.isEmpty() ? o.getId() : name;
-            set.put(nameOrId, o);
+            final String name = Util.fixNull(vs.getName());
+            final String nameOrId = name.isEmpty() ? vs.getId() : name;
+            List<VolumeSnapshot> sameNamed = data.get(nameOrId);
+            if (sameNamed == null) {
+                sameNamed = new ArrayList<>();
+                data.putIfAbsent(nameOrId, sameNamed);
+
+            }
+            sameNamed.add(vs);
         }
-        return set.asMap();
+        for (List<VolumeSnapshot> sameNamed : data.values()) {
+            sameNamed.sort(VOLUMESNAPSHOT_DATE_COMPARATOR);
+        }
+        return data;
     }
 
-    private static final Comparator<VolumeSnapshot> VOLUMESNAPSHOT_DATE_COMPARATOR = new Comparator<VolumeSnapshot>() {
-        @Override
-        public int compare(VolumeSnapshot o1, VolumeSnapshot o2) {
-            int result;
-            result = ObjectUtils.compare(o1.getCreated(), o2.getCreated());
-            if( result!=0 ) return result;
-            result = ObjectUtils.compare(o1.getId(), o1.getId());
-            return result;
-        }
-    };
 
     public @Nonnull Collection<? extends Flavor> getSortedFlavors() {
         List<? extends Flavor> flavors = clientProvider.get().compute().flavors().list();
-        Collections.sort(flavors, FLAVOR_COMPARATOR);
+        flavors.sort(FLAVOR_COMPARATOR);
         return flavors;
     }
 
-    private static final Comparator<Flavor> FLAVOR_COMPARATOR = new Comparator<Flavor>() {
-        @Override
-        public int compare(Flavor o1, Flavor o2) {
-            return ObjectUtils.compare(o1.getName(), o2.getName());
-        }
-    };
 
     public @Nonnull List<String> getSortedIpPools() {
         ComputeFloatingIPService ipService = getComputeFloatingIPService();
@@ -297,16 +299,10 @@ public class Openstack {
 
     public @Nonnull List<? extends AvailabilityZone> getAvailabilityZones() {
         final List<? extends AvailabilityZone> zones = clientProvider.get().compute().zones().list();
-        Collections.sort(zones, AVAILABILITY_ZONES_COMPARATOR);
+        zones.sort(AVAILABILITY_ZONES_COMPARATOR);
         return zones;
     }
 
-    private static final Comparator<AvailabilityZone> AVAILABILITY_ZONES_COMPARATOR = new Comparator<AvailabilityZone>() {
-        @Override
-        public int compare(AvailabilityZone o1, AvailabilityZone o2) {
-            return ObjectUtils.compare(o1.getZoneName(), o2.getZoneName());
-        }
-    };
 
     /**
      * @return null when user is not authorized to use the endpoint which is a valid use-case.
@@ -392,7 +388,7 @@ public class Openstack {
     public @Nonnull List<String> getVolumeSnapshotIdsFor(String nameOrId) {
         final Collection<VolumeSnapshot> sortedObjects = new TreeSet<>(VOLUMESNAPSHOT_DATE_COMPARATOR);
         // OpenStack block-storage/v3 API doesn't allow us to filter by name, so fetch all and search.
-        final Map<String, Collection<VolumeSnapshot>> allVolumeSnapshots = getVolumeSnapshots();
+        final Map<String, List<VolumeSnapshot>> allVolumeSnapshots = getVolumeSnapshots();
         final Collection<VolumeSnapshot> findByName = allVolumeSnapshots.get(nameOrId);
         if (findByName != null) {
             sortedObjects.addAll(findByName);
@@ -650,7 +646,7 @@ public class Openstack {
                         "Unknown or unsupported IP protocol version: " + version
                 );
 
-                if (Objects.equal(type, "floating")) {
+                if (Objects.equals(type, "floating")) {
                     if (version == 4) {
                         // The most favourable option so we can return early here
                         return address;
@@ -659,7 +655,7 @@ public class Openstack {
                             floatingIPv6 = address;
                         }
                     }
-                } else  if (Objects.equal(type, "fixed")) {
+                } else  if (Objects.equals(type, "fixed")) {
                     if (version == 4) {
                         if (fixedIPv4 == null) {
                             fixedIPv4 = address;

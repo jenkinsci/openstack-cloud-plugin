@@ -76,17 +76,17 @@ public class OpenstackTest {
         final Collection<Image> images2 = new ArrayList<>(Arrays.asList(mockImageWithNullName));
 
         final Openstack instance = new Openstack(mockClient);
-        final Map<String, Collection<Image>> actual = instance.getImages();
+        final Map<String, List<Image>> actual = instance.getImages();
 
         // Result keys should be in name order
-        final Iterator<Map.Entry<String, Collection<Image>>> iterator = actual.entrySet().iterator();
-        final Map.Entry<String, Collection<Image>> entry0 = iterator.next();
+        final Iterator<Map.Entry<String, List<Image>>> iterator = actual.entrySet().iterator();
+        final Map.Entry<String, List<Image>> entry0 = iterator.next();
         assertThat(entry0.getKey(), equalTo("Bar"));
         assertThat(new ArrayList<>(entry0.getValue()), equalTo(images0));
-        final Map.Entry<String, Collection<Image>> entry1 = iterator.next();
+        final Map.Entry<String, List<Image>> entry1 = iterator.next();
         assertThat(entry1.getKey(), equalTo("Foo"));
         assertThat(new ArrayList<>(entry1.getValue()), equalTo(images1));
-        final Map.Entry<String, Collection<Image>> entry2 = iterator.next();
+        final Map.Entry<String, List<Image>> entry2 = iterator.next();
         assertThat(entry2.getKey(), equalTo("mockImageWithNullNameId"));
         assertThat(new ArrayList<>(entry2.getValue()), equalTo(images2));
         assertThat(iterator.hasNext(), equalTo(false));
@@ -132,17 +132,17 @@ public class OpenstackTest {
                 Arrays.asList(mockVolumeSnapshotWithNullName));
 
         final Openstack instance = new Openstack(mockClient);
-        final Map<String, Collection<VolumeSnapshot>> actual = instance.getVolumeSnapshots();
+        final Map<String, List<VolumeSnapshot>> actual = instance.getVolumeSnapshots();
 
         // Result keys should be in name order
-        final Iterator<Map.Entry<String, Collection<VolumeSnapshot>>> iterator = actual.entrySet().iterator();
-        final Map.Entry<String, Collection<VolumeSnapshot>> entry0 = iterator.next();
+        final Iterator<Map.Entry<String, List<VolumeSnapshot>>> iterator = actual.entrySet().iterator();
+        final Map.Entry<String, List<VolumeSnapshot>> entry0 = iterator.next();
         assertThat(entry0.getKey(), equalTo("Bar"));
         assertThat(new ArrayList<>(entry0.getValue()), equalTo(volumeSnapshots0));
-        final Map.Entry<String, Collection<VolumeSnapshot>> entry1 = iterator.next();
+        final Map.Entry<String, List<VolumeSnapshot>> entry1 = iterator.next();
         assertThat(entry1.getKey(), equalTo("Foo"));
         assertThat(new ArrayList<>(entry1.getValue()), equalTo(volumeSnapshots1));
-        final Map.Entry<String, Collection<VolumeSnapshot>> entry2 = iterator.next();
+        final Map.Entry<String, List<VolumeSnapshot>> entry2 = iterator.next();
         assertThat(entry2.getKey(), equalTo("mockVolumeSnapshotWithNullNameId"));
         assertThat(new ArrayList<>(entry2.getValue()), equalTo(volumeSnapshots2));
         assertThat(iterator.hasNext(), equalTo(false));

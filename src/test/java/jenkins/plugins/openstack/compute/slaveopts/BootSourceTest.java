@@ -125,11 +125,10 @@ public class BootSourceTest {
         when(volumeSnapshot.getId()).thenReturn("vs-id");
         when(volumeSnapshot.getName()).thenReturn("vs-name");
         when(volumeSnapshot.getStatus()).thenReturn(Volume.Status.AVAILABLE);
-        final Collection<VolumeSnapshot> justVolumeSnapshot = Collections.singletonList(volumeSnapshot);
         final String credentialsId = j.dummyCredentials();
 
         Openstack os = j.fakeOpenstackFactory();
-        when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", justVolumeSnapshot));
+        when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", Collections.singletonList(volumeSnapshot)));
 
         ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone");
         assertEquals(3, list.size());

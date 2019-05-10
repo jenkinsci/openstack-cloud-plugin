@@ -277,10 +277,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Nonnull
             @Override
             public List<String> listAllNames(Openstack openstack) {
-                final Map<String, ?> images = openstack.getImages();
-                final List<String> allNames = new ArrayList<>(images.size());
-                allNames.addAll(images.keySet());
-                return allNames;
+                return new ArrayList<>(openstack.getImages().keySet());
             }
 
             @Restricted(DoNotUse.class)
@@ -474,10 +471,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Nonnull
             @Override
             public List<String> listAllNames(Openstack openstack) {
-                final Map<String, ?> images = openstack.getVolumeSnapshots();
-                final List<String> allNames = new ArrayList<>(images.size());
-                allNames.addAll(images.keySet());
-                return allNames;
+                return new ArrayList<>(openstack.getVolumeSnapshots().keySet());
             }
 
             @Restricted(DoNotUse.class)
