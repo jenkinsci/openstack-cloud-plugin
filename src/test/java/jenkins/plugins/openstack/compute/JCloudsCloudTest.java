@@ -46,11 +46,11 @@ import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.openstack.compute.domain.NovaServer;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -284,7 +284,7 @@ public class JCloudsCloudTest {
         final String actualUserData = toUnixEols(template.getUserData());
         assertEquals(expectedUserData, actualUserData);
 
-        BasicSSHUserPrivateKey creds = j.extractSshCredentials(to.getLauncherFactory());
+        BasicSSHUserPrivateKey creds = PluginTestRule.extractSshCredentials(to.getLauncherFactory());
         assertEquals("jenkins", creds.getUsername());
         final String expectedPrivateKey = toUnixEols(fileAsString("globalConfigMigrationFromV1/expected-private-key"));
         final String actualPrivateKey = toUnixEols(creds.getPrivateKey());
@@ -353,12 +353,9 @@ public class JCloudsCloudTest {
         final Openstack.FactoryEP factory = j.mockOpenstackFactory();
         final OSClient.OSClientV2 client = mock(OSClient.OSClientV2.class, RETURNS_DEEP_STUBS);
         final Cache<String, Openstack> cache = Openstack.FactoryEP.getCache();
-        when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
-            @Override
-            public Openstack answer(InvocationOnMock invocation) {
-                // create new instance every time we are called
-                return new Openstack(client);
-            }
+        when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer((Answer<Openstack>) invocation -> {
+            // create new instance every time we are called
+            return new Openstack(client);
         });
         final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
         final JCloudsCloud instance = new JCloudsCloud("name", "endPointUrl", false,"zone", defOpts, null, j.dummyCredentials());
@@ -394,12 +391,9 @@ public class JCloudsCloudTest {
         final JCloudsCloud i211 = new JCloudsCloud("211", ep2, false, zone1, defOpts, null, openstackCredential1.getId());
         final JCloudsCloud i121 = new JCloudsCloud("121",ep1, false, zone2, defOpts, null, openstackCredential1.getId());
         final JCloudsCloud i112 = new JCloudsCloud("112", ep1, false, zone1, defOpts, null, openstackCredential2.getId());
-        when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
-            @Override
-            public Openstack answer(InvocationOnMock invocation) {
-                // create new instance every time we are called
-                return new Openstack(client);
-            }
+        when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer((Answer<Openstack>) invocation -> {
+            // create new instance every time we are called
+            return new Openstack(client);
         });
         final Openstack e111 = i111.getOpenstack();
         final Openstack e211 = i211.getOpenstack();
@@ -444,12 +438,9 @@ public class JCloudsCloudTest {
         final int indexOfCredentials = openstackCredentials.indexOf(openstackCredentialWithOldPassword);
         final SlaveOptions defOpts = JCloudsCloud.DescriptorImpl.getDefaultOptions();
         final JCloudsCloud cloud = new JCloudsCloud("cloudName", ep, false, zone, defOpts, null, openstackCredentialWithOldPassword.getId());
-        when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer(new Answer<Openstack>() {
-            @Override
-            public Openstack answer(InvocationOnMock invocation) {
-                // create new instance every time we are called
-                return new Openstack(client);
-            }
+        when(factory.getOpenstack(any(String.class), any(boolean.class), any(OpenstackCredential.class), any(String.class))).thenAnswer((Answer<Openstack>) invocation -> {
+            // create new instance every time we are called
+            return new Openstack(client);
         });
         final Openstack original = cloud.getOpenstack();
 
@@ -485,7 +476,7 @@ public class JCloudsCloudTest {
         private final JCloudsCloud cloud;
         private final JCloudsSlaveTemplate template;
 
-        public DoProvision(JCloudsCloud cloud, JCloudsSlaveTemplate template) {
+        DoProvision(JCloudsCloud cloud, JCloudsSlaveTemplate template) {
             this.cloud = cloud;
             this.template = template;
         }
@@ -499,12 +490,13 @@ public class JCloudsCloudTest {
     private static class AclControllingJCloudsCloud extends PluginTestRule.MockJCloudsCloud {
         private final Permission authorized;
 
-        public AclControllingJCloudsCloud(JCloudsSlaveTemplate template, Permission authorized) {
+        AclControllingJCloudsCloud(JCloudsSlaveTemplate template, Permission authorized) {
             super(template);
             this.authorized = authorized;
         }
 
-        @Override public ACL getACL() {
+        @Override
+        public @Nonnull ACL getACL() {
             return new SidACL() {
                 @Override protected Boolean hasPermission(Sid p, Permission permission) {
                     return permission.equals(authorized);
@@ -530,7 +522,7 @@ public class JCloudsCloudTest {
 
         final String destination = j.getURL().toExternalForm() + "security808";
         final CredentialsCollectingPortal credentialsCollectingPortal = ExtensionList.lookup(CredentialsCollectingPortal.class).get(0);
-        try (ACLContext ctx = ACL.as(User.getOrCreateByIdOrFullName("user"))) {
+        try (ACLContext ignored = ACL.as(User.getOrCreateByIdOrFullName("user"))) {
             try {
                 desc.doTestConnection(true, c.getId(), destination, "");
                 fail();
@@ -540,10 +532,10 @@ public class JCloudsCloudTest {
             assertEquals(0, credentialsCollectingPortal.reqs.size());
         }
 
-        try (ACLContext ctx = ACL.as(User.getOrCreateByIdOrFullName("admin"))) {
+        try (ACLContext ignored = ACL.as(User.getOrCreateByIdOrFullName("admin"))) {
             desc.doTestConnection(true, c.getId(), destination, "");
             assertEquals(1, credentialsCollectingPortal.reqs.size());
-        };
+        }
     }
 
     @TestExtension("security808")

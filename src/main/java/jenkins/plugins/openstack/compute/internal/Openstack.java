@@ -795,12 +795,8 @@ public class Openstack {
                     + (auth instanceof PasswordCredentials ? ((PasswordCredentials) auth).getPassword().getEncryptedValue() + '\n' : "")
                     + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
-            final Callable<Openstack> cacheMissFunction = new Callable<Openstack>() {
-                @Override
-                public Openstack call() throws FormValidation {
-                    return ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
-                }
-            };
+            final Callable<Openstack> cacheMissFunction = () -> ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
+
             // Get an instance, creating a new one if necessary.
             try {
                 return ep.cache.get(fingerprint, cacheMissFunction);
