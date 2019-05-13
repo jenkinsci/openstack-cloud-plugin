@@ -58,8 +58,11 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -408,24 +411,38 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return;
         }
 
-        rsp.getWriter().println("<ok>Provisioning started</ok>");
-        provisionAsynchronouslyNotToBlockTheRequestThread(t);
-
+        try {
+            provisionAsynchronouslyNotToBlockTheRequestThread(t);
+            rsp.getWriter().println("<ok>Provisioning started</ok>");
+        } catch (Throwable ex) {
+            sendPlaintextError(ex.getMessage(), rsp);
+        }
     }
 
-    private void provisionAsynchronouslyNotToBlockTheRequestThread(JCloudsSlaveTemplate t) {
+    private void provisionAsynchronouslyNotToBlockTheRequestThread(JCloudsSlaveTemplate t) throws Throwable {
         Authentication auth = Jenkins.getAuthentication();
-        Runnable performProvisioning = () -> {
+        Callable<Void> performProvisioning = () -> {
             // Impersonate current identity inside the worker thread not to lose the owner info
-            try (ACLContext ctx = ACL.as(auth)) {
+            try (ACLContext ignored = ACL.as(auth)) {
                 try {
                     provisionSlaveExplicitly(t);
+                    return null;
                 } catch (Throwable ex) {
                     LOGGER.log(Level.WARNING, "Provisioning failed", ex);
+                    throw ex;
                 }
             }
         };
-        Timer.get().schedule(performProvisioning, 0, TimeUnit.SECONDS);
+        ScheduledFuture<?> schedule = Timer.get().schedule(performProvisioning, 0, TimeUnit.SECONDS);
+        // Wait for fast failures and present them to user on best effort basis
+        try {
+            schedule.get(3, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            // Fast failure
+            throw e.getCause();
+        } catch (TimeoutException e) {
+            // Expected - success or slow failure
+        }
     }
 
     // This is served by AJAX so we are stripping the html

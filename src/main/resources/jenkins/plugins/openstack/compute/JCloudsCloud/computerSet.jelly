@@ -1,5 +1,5 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
     <!--
         Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
         Using Item.CONFIGURE as users authorized to do so can provision via job execution.
@@ -10,7 +10,7 @@
 
         <tr>
             <td/>
-            <td colspan="${monitors.size()+2}">
+            <td colspan="${monitors.size()+2}" id="os-notifications">
 
                     <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenStack Cloud Plugin} - ${it.name}" name="${it.name}"/>
                     <st:once>
@@ -18,15 +18,18 @@
                             var templates = [];
                             Behaviour.register({
                                 ".jclouds-provision-button" : function (e) {
+                                    var notification = document.getElementById("os-notifications")
                                     var submitHandler = function(type, args, item) {
                                         new Ajax.Request("${rootURL}/cloud/"+item.value.cloud+"/provision", {
                                             parameters: { name: item.value.template },
                                             onFailure: function(obj) {
-                                                hoverNotification('Provisioning failed', item.element);
-                                                console.log(obj.status + " " + obj.statusText + ": " + obj.responseText)
+                                                alert('Provisioning failed: ' + obj.responseText, notification)
+                                                console.log('Provisioning failed: ' + obj.status + " " + obj.statusText + ": " + obj.responseText)
+                                            },
+                                            onSuccess: function(obj) {
+                                                hoverNotification('Provisioning started', notification);
                                             }
                                         });
-                                        hoverNotification('Provisioning started', item.element);
                                     };
                                     items = templates[e.name].map(function(template) {
                                         return { text: template, value: {template: template, cloud: e.name}, onclick: { fn: submitHandler } }
