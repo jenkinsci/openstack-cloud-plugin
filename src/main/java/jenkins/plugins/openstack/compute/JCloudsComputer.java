@@ -41,7 +41,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
     private volatile AtomicInteger used = new AtomicInteger(0);
-    private transient long connectionTime;
+    private transient long connectedTime;
 
     /**
      * Get all Openstack computers.
@@ -200,11 +200,19 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     public void setChannel(Channel channel, OutputStream launchLog, Channel.Listener listener) throws IOException, InterruptedException {
         super.setChannel(channel, launchLog, listener);
-        connectionTime = System.currentTimeMillis();
+        connectedTime = System.currentTimeMillis();
     }
 
-    public long getConnectionTime(){
-        return connectionTime;
+    public long getConnectedTime(){
+        return connectedTime;
+    }
+
+    public long getIdleSince(){
+        long iddleTime = super.getIdleStartMilliseconds();
+        if(connectedTime > iddleTime) {
+            return connectedTime;
+        }
+        return iddleTime;
     }
 
 
