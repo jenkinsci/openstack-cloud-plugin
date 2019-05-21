@@ -57,8 +57,8 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
         final int retentionTime = node.getSlaveOptions().getRetentionTime();
         if (retentionTime <= 0) return; // 0 is handled in JCloudsComputer, negative values needs no handling
-
-        final long idleSince = c.getIdleStartMilliseconds();
+        if(c.getConnectedTime() == 0) return; //channel is set but connection process is not fully finished.
+        final long idleSince = c.getIdleSince();
         final long idleMilliseconds = System.currentTimeMillis() - idleSince;
         if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
             if (JCloudsPreCreationThread.isNeededReadyComputer(node.getComputer())) {

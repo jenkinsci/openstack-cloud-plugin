@@ -164,6 +164,25 @@ public class JCloudsRetentionStrategyTest {
         }
     }
 
+    @Test
+    public void doNotRemoveSlaveShortlyAfterConnection() throws Exception {
+        Assume.assumeFalse(Functions.isWindows());
+        LauncherFactory launcherFactory = new TestCommandLauncherFactory("bash -c \"sleep 70 && java -jar '%s'\"");
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
+                "label"
+        )));
+
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        while(computer.getChannel() == null){
+            Thread.sleep(1000);
+        }
+        computer.getRetentionStrategy().check(computer);
+
+        assertFalse(computer.isPendingDelete());
+    }
+
     private JCloudsComputer waitForProvisionedComputer() throws InterruptedException {
         while (true) {
             List<JCloudsComputer> computers = JCloudsComputer.getAll();
