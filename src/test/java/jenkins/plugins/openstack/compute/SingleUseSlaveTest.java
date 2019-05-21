@@ -184,13 +184,7 @@ public class SingleUseSlaveTest {
 
             Stream<QueueTaskFuture<FreeStyleBuild>> scheduled = projects.map(p -> p.scheduleBuild2(0)).collect(Collectors.toList()).stream();
             Stream<FreeStyleBuild> built = scheduled
-                    .map(t -> {
-                        try {
-                            return t.get();
-                        } catch (InterruptedException | ExecutionException e) {
-                            throw new Error(e);
-                        }
-                    })
+                    .map(this::awaitBuild)
                     .collect(Collectors.toList()).stream();
 
             List<Node> nodes = built.map(AbstractBuild::getBuiltOn).collect(Collectors.toList());
@@ -198,6 +192,14 @@ public class SingleUseSlaveTest {
             assertThat(nodes.size(), equalTo(5));
         } finally {
             thread.interrupt();
+        }
+    }
+
+    private FreeStyleBuild awaitBuild(QueueTaskFuture<FreeStyleBuild> t) {
+        try {
+            return t.get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new Error(e);
         }
     }
 

@@ -9,7 +9,10 @@ import hudson.Proc;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Computer;
 import hudson.model.Label;
+import hudson.model.LoadStatistics;
+import hudson.model.Node;
 import hudson.model.TaskListener;
+import hudson.model.User;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Channel;
 import hudson.remoting.Which;
@@ -17,10 +20,13 @@ import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.ComputerListener;
 import hudson.slaves.NodeProvisioner;
+import hudson.slaves.NodeProvisioner.NodeProvisionerInvoker;
 import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
+import jenkins.model.NodeListener;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
@@ -64,6 +70,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
@@ -180,8 +187,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public void autoconnectJnlpSlaves() {
-        JnlpAutoConnect launcher = jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class);
-        launcher.rule = this;
+        jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class).rule = this;
     }
 
     /**
@@ -350,7 +356,7 @@ public final class PluginTestRule extends JenkinsRule {
                 }
             }
 
-            return null;
+            throw new NoSuchElementException("Does not exist");
         });
         doAnswer((Answer<Void>) invocation1 -> {
             Server server1 = (Server) invocation1.getArguments()[0];
@@ -513,20 +519,23 @@ public final class PluginTestRule extends JenkinsRule {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                NodeProvisioner.NodeProvisionerInvoker.INITIALDELAY = NodeProvisioner.NodeProvisionerInvoker.RECURRENCEPERIOD = 1000;
+                NodeProvisionerInvoker.INITIALDELAY = NodeProvisionerInvoker.RECURRENCEPERIOD = LoadStatistics.CLOCK = 1000;
                 try {
                     jenkinsRuleStatement.evaluate();
                 } finally {
                     for (Map.Entry<String, Proc> slave: slavesToKill.entrySet()) {
-                        Proc p = slave.getValue();
-                        while (p.isAlive()) {
-                            System.err.println("Killing agent " + p + " for " + slave.getKey());
-                            p.kill();
-                        }
+                        killJnlpAgentProcess(slave.getKey(), slave.getValue());
                     }
                 }
             }
         };
+    }
+
+    private void killJnlpAgentProcess(String name, Proc p) throws IOException, InterruptedException {
+        while (p.isAlive()) {
+            System.err.println("Killing agent " + p + " for " + name);
+            p.kill();
+        }
     }
 
     @Extension
