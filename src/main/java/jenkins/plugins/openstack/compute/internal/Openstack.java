@@ -438,7 +438,7 @@ public class Openstack {
     /**
      * Determine whether the server is considered occupied by openstack plugin.
      */
-    private static boolean isOccupied(@Nonnull Server server) {
+    public static boolean isOccupied(@Nonnull Server server) {
         switch (server.getStatus()) {
             case UNKNOWN:
             case MIGRATING:

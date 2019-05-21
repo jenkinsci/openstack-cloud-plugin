@@ -15,6 +15,7 @@ import hudson.model.Result;
 import hudson.slaves.OfflineCause;
 import jenkins.model.CauseOfInterruption;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -188,8 +189,10 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
             try { // Double check server does not exist before interrupting jobs
                 Server explicitLookup = cloud.getOpenstack().getServerById(id);
-                LOGGER.severe(getClass().getSimpleName() + " incorrectly detected orphaned computer for " + explicitLookup);
-                continue; // Do not kill it
+                if (Openstack.isOccupied(explicitLookup)) {
+                    LOGGER.severe(getClass().getSimpleName() + " incorrectly detected orphaned computer for " + explicitLookup);
+                    continue; // Do not kill it
+                }
             } catch (NoSuchElementException expected) {
                 // Gone as expected
             }
