@@ -30,6 +30,17 @@ public class JCloudsRetentionStrategyTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
+    private long checkAfter(JCloudsComputer computer, long milliseconds) {
+        JCloudsRetentionStrategy ret = new JCloudsRetentionStrategy() {
+            // Tweak the inner clock pretending the time has passed to speed things up
+            @Override long getNow() {
+                return System.currentTimeMillis() + milliseconds;
+            }
+        };
+
+        return ret.check(computer);
+    }
+
     @Test
     public void scheduleSlaveDelete() throws Exception {
         int retentionTime = 1; // minute
@@ -47,9 +58,8 @@ public class JCloudsRetentionStrategyTest {
         strategy.check(computer);
         assertFalse("Slave should not be scheduled for deletion right away", computer.isPendingDelete());
 
-        Thread.sleep(1000 * 61); // Wait for the slave to be idle long enough
+        checkAfter(computer, 1000 * 61);
 
-        strategy.check(computer);
         assertTrue("Slave should be scheduled for deletion", computer.isPendingDelete());
     }
 
@@ -66,9 +76,7 @@ public class JCloudsRetentionStrategyTest {
     @Test
     public void doNotDeleteTheSlaveWhileLaunching() throws Exception {
         JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(1) // disposable asap
-                        //.startTimeout(3000) // give up soon enough to speed the test up
-                        .build(),
+                j.defaultSlaveOptions().getBuilder().retentionTime(1 /*disposable asap*/).build(),
                 "label"
         )));
         cloud.provision(Label.get("label"), 1);
@@ -83,9 +91,7 @@ public class JCloudsRetentionStrategyTest {
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
 
-        Thread.sleep(60*1000); // Sleep long enough for retention time to expire
-
-        computer.getRetentionStrategy().check(computer);
+        checkAfter(computer, 70*1000);
 
         // Still connecting after retention strategy run
         computer = getNodeFor(node.getId());
@@ -135,9 +141,9 @@ public class JCloudsRetentionStrategyTest {
         assertEquals(userCause, computer.getOfflineCause());
 
         computer.setTemporarilyOffline(false, null);
-        Thread.sleep(60*1000); // Wait for shortest amount possible for retentions strategy
 
-        computer.getRetentionStrategy().check(computer);
+        checkAfter(computer, 60*1000);
+
         assertTrue(computer.isPendingDelete());
     }
 

@@ -57,9 +57,8 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
         final int retentionTime = node.getSlaveOptions().getRetentionTime();
         if (retentionTime <= 0) return; // 0 is handled in JCloudsComputer, negative values needs no handling
-        if(c.getConnectedTime() == 0) return; //channel is set but connection process is not fully finished.
-        final long idleSince = c.getIdleSince();
-        final long idleMilliseconds = System.currentTimeMillis() - idleSince;
+        final long idleSince = c.getIdleStart();
+        final long idleMilliseconds = getNow() - idleSince;
         if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
             if (JCloudsPreCreationThread.isNeededReadyComputer(node.getComputer())) {
                 LOGGER.info("Keeping " + c .getName() + " to meet minimum requirements");
@@ -77,6 +76,10 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
             }
             c.setPendingDelete(true);
         }
+    }
+
+    /*package for mocking*/ long getNow() {
+        return System.currentTimeMillis();
     }
 
     /**

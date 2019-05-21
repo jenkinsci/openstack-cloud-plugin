@@ -41,7 +41,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
     private final ProvisioningActivity.Id provisioningId;
     private volatile AtomicInteger used = new AtomicInteger(0);
-    private transient long connectedTime;
+    private transient long connectedSince;
 
     /**
      * Get all Openstack computers.
@@ -200,21 +200,22 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
     public void setChannel(Channel channel, OutputStream launchLog, Channel.Listener listener) throws IOException, InterruptedException {
         super.setChannel(channel, launchLog, listener);
-        connectedTime = System.currentTimeMillis();
+        connectedSince = System.currentTimeMillis();
     }
 
-    public long getConnectedTime(){
-        return connectedTime;
+    public long getConnectedSince(){
+        return connectedSince;
     }
 
-    public long getIdleSince(){
-        long iddleTime = super.getIdleStartMilliseconds();
-        if(connectedTime > iddleTime) {
-            return connectedTime;
-        }
-        return iddleTime;
+    /**
+     * Extend the semantics of {@link #getIdleStartMilliseconds()}} to consider launching as not being idle.
+     */
+    /*package*/ long getIdleStart() {
+        long idleStart = super.getIdleStartMilliseconds();
+        long ret = connectedSince > idleStart ? connectedSince : idleStart;
+        assert ret > 0;
+        return ret;
     }
-
 
     private static final class PendingTermination extends SimpleOfflineCause {
 
