@@ -106,10 +106,39 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             if (!comp.isIdle()) continue;
 
             final OfflineCause offlineCause = comp.getFatalOfflineCause();
-            if (comp.isPendingDelete() || offlineCause != null) {
+            if (comp.isPendingDelete()) {
                 LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                 deleteComputer(comp);
+            } else if (offlineCause != null) {
+                LOGGER.log(Level.WARNING, "Deleting broken node " + comp.getName() + " (" + getTerminalDiagnosis(comp) + "). Reason: " + comp.getOfflineCause());
+
+                deleteComputer(comp);
             }
+        }
+    }
+
+    private String getTerminalDiagnosis(JCloudsComputer comp) {
+        try {
+            JCloudsSlave node = comp.getNode();
+            if (node == null) return "Node is gone";
+
+            JCloudsCloud cloud;
+            try {
+                cloud = JCloudsCloud.getByName(comp.getId().getCloudName());
+            } catch (IllegalArgumentException e) {
+                return "Cloud no longer configured - cannot get more info";
+            }
+            Server server;
+            try {
+                server = cloud.getOpenstack().getServerById(node.getServerId());
+            } catch (NoSuchElementException e) {
+                return "Server does not exist in OpenStack";
+            }
+            return server.toString();
+            // TODO capturing server log might be useful
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Failed diagnosing computer failure", ex);
+            return "none";
         }
     }
 
