@@ -170,7 +170,7 @@ public class JCloudsRetentionStrategyTest {
         }
     }
 
-    @Test
+    @Test // Minimal positive retention time is 1 minute so we have to wait here more than that
     public void doNotRemoveSlaveShortlyAfterConnection() throws Exception {
         Assume.assumeFalse(Functions.isWindows());
         LauncherFactory launcherFactory = new TestCommandLauncherFactory("bash -c \"sleep 70 && java -jar '%s'\"");

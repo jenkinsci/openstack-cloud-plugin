@@ -42,6 +42,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.CheckForNull;
@@ -475,19 +476,22 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     /**
      * Get connected OpenStack client wrapper.
+     *
+     * @throws LoginFailure In case the details are incomplete or rejected by OpenStack.
      */
     @Restricted(NoExternalUse.class)
-    public @Nonnull Openstack getOpenstack() {
-        final Openstack os;
+    public @Nonnull Openstack getOpenstack() throws LoginFailure {
         try {
             OpenstackCredential credential = OpenstackCredentials.getCredential(getCredentialsId());
-            if (credential == null) throw new RuntimeException("No credential found for credential id '" + getCredentialsId() + "'");
-            os = Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone);
+            if (credential == null) {
+                throw new LoginFailure("No credentials found for cloud " + name + " (id=" + getCredentialsId() + ")");
+            }
+            return Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone);
+        } catch (AuthenticationException ex) {
+            throw new LoginFailure(name, ex);
         } catch (FormValidation ex) {
-            LOGGER.log(Level.SEVERE, "Openstack authentication invalid", ex);
-            throw new RuntimeException("Openstack authentication invalid", ex);
+            throw new LoginFailure(name, ex);
         }
-        return os;
     }
 
     public String getCredentialsId() {
@@ -600,6 +604,23 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
 
         public ProvisioningFailedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /*package*/ static final class LoginFailure extends RuntimeException {
+
+        private static final long serialVersionUID = 4085466675398031930L;
+
+        private LoginFailure(String name, FormValidation ex) {
+            super("Openstack authentication invalid fro cloud " + name + ": " + ex.getMessage(), ex);
+        }
+
+        private LoginFailure(String name, AuthenticationException ex) {
+            super("Failure to authenticate for cloud " + name + ": " + ex.toString());
+        }
+
+        private LoginFailure(String msg) {
             super(msg);
         }
     }
