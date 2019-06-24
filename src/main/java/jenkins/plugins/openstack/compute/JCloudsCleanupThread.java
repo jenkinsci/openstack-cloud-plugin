@@ -23,11 +23,13 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import hudson.Extension;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.TaskListener;
+import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.StatusCode;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.Nonnull;
+import javax.security.auth.login.LoginException;
 
 /**
  * Periodically ensure Jenkins and resources it manages in OpenStacks are not leaked.
@@ -55,13 +57,19 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public void execute(TaskListener listener) {
-        terminateNodesPendingDeletion();
+        try {
+            terminateNodesPendingDeletion();
 
-        @Nonnull HashMap<JCloudsCloud, List<Server>> runningServers = destroyServersOutOfScope();
+            @Nonnull HashMap<JCloudsCloud, List<Server>> runningServers = destroyServersOutOfScope();
 
-        terminatesNodesWithoutServers(runningServers);
+            terminatesNodesWithoutServers(runningServers);
 
-        cleanOrphanedFips();
+            cleanOrphanedFips();
+        } catch (JCloudsCloud.LoginFailure ex) {
+            LOGGER.log(Level.WARNING, "Unable to authenticate: " + ex.getMessage());
+        } catch (Throwable ex) {
+            LOGGER.log(Level.SEVERE, "Enable to perform the cleanup", ex);
+        }
     }
 
     private void cleanOrphanedFips() {
