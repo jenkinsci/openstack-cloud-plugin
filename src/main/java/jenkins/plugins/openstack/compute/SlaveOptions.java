@@ -37,6 +37,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.Serializable;
 
+import static java.lang.Boolean.TRUE;
+
 /**
  * Configured options for a slave to create.
  *
@@ -47,7 +49,7 @@ import java.io.Serializable;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false);
 
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
@@ -75,6 +77,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     // Slave attributes
     private final Integer retentionTime;
+    private final boolean oldestSlaveTermination;
 
     // Replaced by BootSource
     @Deprecated private transient @CheckForNull String imageId;
@@ -143,6 +146,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return retentionTime;
     }
 
+    public boolean getOldestSlaveTermination() { return oldestSlaveTermination; }
+
     public SlaveOptions(Builder b) {
         this(
                 b.bootSource,
@@ -160,7 +165,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.jvmOptions,
                 b.fsRoot,
                 b.launcherFactory,
-                b.retentionTime
+                b.retentionTime,
+                b.oldestSlaveTermination
         );
     }
 
@@ -181,7 +187,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             String jvmOptions,
             String fsRoot,
             LauncherFactory launcherFactory,
-            Integer retentionTime
+            Integer retentionTime,
+            boolean oldestSlaveTermination
     ) {
         this.bootSource = bootSource;
         this.hardwareId = Util.fixEmpty(hardwareId);
@@ -199,6 +206,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.fsRoot = Util.fixEmpty(fsRoot);
         this.launcherFactory = launcherFactory;
         this.retentionTime = retentionTime;
+        this.oldestSlaveTermination = TRUE.equals(oldestSlaveTermination);
     }
 
     private Object readResolve() {
@@ -230,6 +238,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .fsRoot(_override(this.fsRoot, o.fsRoot))
                 .launcherFactory(_override(this.launcherFactory, o.launcherFactory))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
+                .oldestSlaveTermination(_override(this.oldestSlaveTermination, o.oldestSlaveTermination))
                 .build()
         ;
     }
@@ -259,6 +268,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
                 .launcherFactory(_erase(this.launcherFactory, defaults.launcherFactory))
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
+                .oldestSlaveTermination(this.oldestSlaveTermination)
                 .build()
         ;
     }
@@ -289,6 +299,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("fsRoot", fsRoot)
                 .append("launcherFactory", launcherFactory)
                 .append("retentionTime", retentionTime)
+                .append("oldestSlaveTermination", oldestSlaveTermination)
                 .toString()
         ;
     }
@@ -361,6 +372,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .fsRoot(fsRoot)
                 .launcherFactory(launcherFactory)
                 .retentionTime(retentionTime)
+                .oldestSlaveTermination(oldestSlaveTermination)
         ;
     }
 
@@ -394,6 +406,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         private @CheckForNull LauncherFactory launcherFactory;
         private @CheckForNull Integer retentionTime;
+        private boolean oldestSlaveTermination;
 
         public Builder() {}
 
@@ -480,6 +493,12 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             this.retentionTime = retentionTime;
             return this;
         }
+
+        public @Nonnull Builder oldestSlaveTermination(boolean oldestSlaveTermination) {
+            this.oldestSlaveTermination = oldestSlaveTermination;
+            return this;
+        }
+
     }
 
     /**

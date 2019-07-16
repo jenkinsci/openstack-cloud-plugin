@@ -90,7 +90,7 @@ public class SlaveOptionsTest {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
                 null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null
-        );
+        , false);
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .hardwareId("")
                 .networkId("")
