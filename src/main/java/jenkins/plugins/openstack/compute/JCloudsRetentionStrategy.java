@@ -68,29 +68,27 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
             final int retentionTime = node.getSlaveOptions().getRetentionTime();
 
-            if ((retentionTime >= 0)) {// 0 is handled in JCloudsComputer, negative values needs no handling
-                final long idleSince = c.getIdleStart();
-                final long idleMilliseconds = getNow() - idleSince;
-                if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
-                    if (JCloudsPreCreationThread.isNeededReadyComputer(node.getComputer())) {
-                        LOGGER.info("Keeping " + c.getName() + " to meet minimum requirements");
-                        return;
-                    }
-                    LOGGER.info("Scheduling " + c.getName() + " for termination after " + retentionTime + " minutes as it was idle since " + new Date(idleSince));
-                    if (LOGGER.isLoggable(Level.FINE)) {
-                        try {
-                            ByteArrayOutputStream out = new ByteArrayOutputStream();
-                            Jenkins.XSTREAM2.toXMLUTF8(node, out);
-                            LOGGER.fine(out.toString("UTF-8"));
-                        } catch (IOException e) {
-                            LOGGER.log(Level.WARNING, "Failed to dump node config", e);
-                        }
-                    }
-                    c.setPendingDelete(true);
+            if ((retentionTime <= 0)) return;  // 0 is handled in JCloudsComputer, negative values needs no handling
+            final long idleSince = c.getIdleStart();
+            final long idleMilliseconds = getNow() - idleSince;
+            if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
+                if (JCloudsPreCreationThread.isNeededReadyComputer(node.getComputer())) {
+                    LOGGER.info("Keeping " + c.getName() + " to meet minimum requirements");
+                    return;
                 }
+                LOGGER.info("Scheduling " + c.getName() + " for termination after " + retentionTime + " minutes as it was idle since " + new Date(idleSince));
+                if (LOGGER.isLoggable(Level.FINE)) {
+                    try {
+                        ByteArrayOutputStream out = new ByteArrayOutputStream();
+                        Jenkins.XSTREAM2.toXMLUTF8(node, out);
+                        LOGGER.fine(out.toString("UTF-8"));
+                    } catch (IOException e) {
+                        LOGGER.log(Level.WARNING, "Failed to dump node config", e);
+                    }
+                }
+                c.setPendingDelete(true);
             }
         }
-
 
         //case where the checkbox is checked
         if ((oldestSlaveTermination == true)) {
