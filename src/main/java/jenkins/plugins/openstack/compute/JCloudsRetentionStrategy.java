@@ -55,20 +55,16 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
         final JCloudsSlave node = c.getNode();
         boolean oldestSlaveTermination = node.getSlaveOptions().getOldestSlaveTermination();
-        String templateName = c.getId().getTemplateName();
-        String cloudName = c.getId().getCloudName();
-        String oldestVmName = "";
 
         //case where the checkbox isn't checked
         if (oldestSlaveTermination == false) {
-            if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause)
-                return; // Occupied by user initiated activity
+            if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
 
             if (node == null) return; // Node is gone already
 
             final int retentionTime = node.getSlaveOptions().getRetentionTime();
 
-            if ((retentionTime <= 0)) return;  // 0 is handled in JCloudsComputer, negative values needs no handling
+            if (retentionTime <= 0) return;  // 0 is handled in JCloudsComputer, negative values needs no handling
             final long idleSince = c.getIdleStart();
             final long idleMilliseconds = getNow() - idleSince;
             if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
@@ -93,6 +89,9 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         //case where the checkbox is checked
         if ((oldestSlaveTermination == true)) {
 
+            String templateName = c.getId().getTemplateName();
+            String cloudName = c.getId().getCloudName();
+            String oldestVmName = "";
 
             //number of free executors in our VM template
             int numOfFreeExec = JCloudsPreCreationThread.getNumOfFreeExec(templateName);

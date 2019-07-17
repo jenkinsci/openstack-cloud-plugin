@@ -175,7 +175,7 @@ public class JCloudsRetentionStrategyTest {
         Assume.assumeFalse(Functions.isWindows());
         LauncherFactory launcherFactory = new TestCommandLauncherFactory("bash -c \"sleep 70 && java -jar '%s'\"");
         JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).oldestSlaveTermination(false).build(),
                 "label"
         )));
 
