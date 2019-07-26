@@ -24,7 +24,6 @@
 package jenkins.plugins.openstack.compute.slaveopts;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameListBoxModel;
 import com.trilead.ssh2.Connection;
@@ -35,6 +34,7 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.ItemGroup;
 import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.slaves.ComputerLauncher;
@@ -52,6 +52,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -62,7 +63,7 @@ import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.List;
+import java.util.Collections;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -102,43 +103,48 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
     public static final class SSH extends LauncherFactory {
         private static final long serialVersionUID = -1108865485314632255L;
 
-        private final String credentialsId;
-        private final String javaPath;
+        private final @Nonnull String credentialsId;
+        private final @CheckForNull String javaPath;
 
-        public String getCredentialsId() {
+        public @Nonnull String getCredentialsId() {
             return credentialsId;
         }
 
-        public String getJavaPath() {
+        public @CheckForNull String getJavaPath() {
             return javaPath;
         }
 
         @DataBoundConstructor
-        public SSH(String credentialsId, String javaPath) {
+        public SSH(@Nonnull String credentialsId, String javaPath) {
             this.credentialsId = credentialsId;
             this.javaPath = Util.fixEmptyAndTrim(javaPath);
         }
 
-        public SSH(String credentialsId) {
+        public SSH(@Nonnull String credentialsId) {
             this(credentialsId, null);
         }
 
         @Override
-        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
             int maxNumRetries = 5;
             int retryWaitTime = 15;
 
-            if (credentialsId == null) {
-                throw new JCloudsCloud.ProvisioningFailedException("No ssh credentials specified for " + slave.getNodeName());
-            }
-
-            String publicAddress = slave.getPublicAddressIpv4();
+            String publicAddress = slave.getPublicAddress();
 
             final SlaveOptions opts = slave.getSlaveOptions();
             Integer timeout = opts.getStartTimeout();
             timeout = timeout == null ? 0: (timeout / 1000); // Never propagate null - always set some timeout
 
-            return new SSHLauncher(publicAddress, 22, credentialsId, opts.getJvmOptions(), javaPath, "", "", timeout, maxNumRetries, retryWaitTime);
+            return new SSHLauncher(
+                    publicAddress, 22,
+                    credentialsId,
+                    opts.getJvmOptions(),
+                    javaPath,
+                    "", "",
+                    timeout,
+                    maxNumRetries, retryWaitTime,
+                    new NonVerifyingKeyVerificationStrategy()
+            );
         }
 
         @Override public boolean equals(Object o) {
@@ -173,7 +179,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
             String publicAddress;
             try {
-                publicAddress = slave.getPublicAddressIpv4();
+                publicAddress = slave.getPublicAddress();
             } catch (NoSuchElementException ex) {
                 throw new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex);
             }
@@ -201,21 +207,20 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             }
         }
 
-        @Symbol("ssh")
         @Extension
+        @Symbol("ssh")
         public static final class Desc extends Descriptor<LauncherFactory> {
             @Restricted(DoNotUse.class)
+            @RequirePOST
             public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-                if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
+                if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.get()).hasPermission(Computer.CONFIGURE)) {
                     return new ListBoxModel();
                 }
-                List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
-                        StandardUsernameCredentials.class, context, ACL.SYSTEM, SSHLauncher.SSH_SCHEME
-                );
+
                 return new StandardUsernameListBoxModel()
-                        .withMatching(SSHAuthenticator.matcher(Connection.class), credentials)
-                        .withEmptySelection()
-                ;
+                        .includeMatchingAs(ACL.SYSTEM, context, StandardUsernameCredentials.class,
+                                Collections.singletonList(SSHLauncher.SSH_SCHEME), SSHAuthenticator.matcher(Connection.class))
+                        .includeEmptyValue();
             }
         }
     }
@@ -228,14 +233,14 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
         public static final LauncherFactory JNLP = new JNLP();
 
-        //For the purposes of Declarative Pipeline functionality
+        //For the purposes of Declarative Pipeline functionality + Needed for JCasC
         @DataBoundConstructor
         public JNLP(){}
 
         @Override
         public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
-            Jenkins.getActiveInstance().addNode(slave);
-            return new JNLPLauncher();
+            Jenkins.get().addNode(slave);
+            return new JNLPLauncher(false);
         }
 
         @Override
@@ -258,11 +263,11 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             return JNLP; // Let's avoid creating instances where we can
         }
 
-        @Symbol("jnlp")
         @Extension
+        @Symbol("jnlp")
         public static final class Desc extends Descriptor<LauncherFactory> {
             @Override
-            public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+            public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
                 return JNLP; // Let's avoid creating instances where we can
             }
         }
@@ -271,12 +276,12 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
     /**
      * No slave type specified. This exists only as a field in UI dropdown to be read by stapler and converted to plain old null.
      */
-    // Therefore, noone refers to this as a symbol or tries to serialize it, ever.
+    // Therefore, no one refers to this as a symbol or tries to serialize it, ever.
     @SuppressWarnings({"unused", "serial"})
     public static final class Unspecified extends LauncherFactory {
         private Unspecified() {} // Never instantiate
 
-        @Override public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+        @Override public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
             throw new UnsupportedOperationException();
         }
 
@@ -290,7 +295,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
                 return "Inherit / Override later";
             }
 
-            @Override public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+            @Override public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
                 return null; // Make sure this is never instantiated and hence will be treated as absent
             }
         }

@@ -35,14 +35,14 @@ public class JCloudsBuildWrapperTest {
 
     @Test
     public void provisionSeveral() throws Exception {
-        final JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
+        final JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP("label");
         JCloudsSlaveTemplate template = cloud.getTemplates().get(0);
         final Openstack os = cloud.getOpenstack();
 
         final FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Arrays.asList(
-                new InstancesToRun(cloud.name, template.name, null, 2),
-                new InstancesToRun(cloud.name, template.name, null, 1)
+                new InstancesToRun(cloud.name, template.getName(), null, 2),
+                new InstancesToRun(cloud.name, template.getName(), null, 1)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
         p.getBuildersList().add(new TestBuilder() {
@@ -50,10 +50,10 @@ public class JCloudsBuildWrapperTest {
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
                 String[] ips = build.getEnvironment(TaskListener.NULL).get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
-                assertThat(ips, arrayContainingInAnyOrder("42.42.42.0", "42.42.42.1", "42.42.42.2"));
+                assertThat(ips, arrayContainingInAnyOrder("42.42.42.1", "42.42.42.2", "42.42.42.3"));
 
                 List<Server> runningNodes = os.getRunningNodes();
-                assertThat(runningNodes, Matchers.<Server>iterableWithSize(3));
+                assertThat(runningNodes, Matchers.iterableWithSize(3));
                 for (Server server : runningNodes) {
                     assertEquals("run:" + p.getFullName() + ":1", server.getMetadata().get(ServerScope.METADATA_KEY));
                 }
@@ -74,7 +74,7 @@ public class JCloudsBuildWrapperTest {
         JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
 
-        Server success = j.mockServer().name("provisioned").floatingIp("42.42.42.42").get();
+        Server success = j.mockServer().name("provisioned").withFloatingIpv4("42.42.42.42").get();
 
         // Fail the second invocation
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class)))
@@ -85,7 +85,7 @@ public class JCloudsBuildWrapperTest {
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Collections.singletonList(
-                new InstancesToRun(cloud.name, template.name, null, 2)
+                new InstancesToRun(cloud.name, template.getName(), null, 2)
         );
         p.getBuildWrappersList().add(new JCloudsBuildWrapper(instances));
 

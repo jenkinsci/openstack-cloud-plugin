@@ -43,6 +43,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
@@ -58,6 +59,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -70,6 +72,7 @@ import static jenkins.plugins.openstack.compute.SlaveOptionsDescriptor.REQUIRED;
 public abstract class BootSource extends AbstractDescribableImpl<BootSource> implements Serializable {
     private static final long serialVersionUID = -838838433829383008L;
     private static final Logger LOGGER = Logger.getLogger(BootSource.class.getName());
+    private static final String OPENSTACK_BOOTSOURCE_KEY = "jenkins-boot-source";
 
     /**
      * Configures the given {@link ServerCreateBuilder} to specify that the
@@ -85,6 +88,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
      */
     public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os)
             throws JCloudsCloud.ProvisioningFailedException {
+        builder.addMetadataItem(OPENSTACK_BOOTSOURCE_KEY, toString());
     }
 
     /**
@@ -128,10 +132,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return Arrays.asList("../..", "../../..");
         }
 
-        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialId, String zone) {
+        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialsId, String zone) {
             ListBoxModel m = new ListBoxModel();
             final String valueOrEmpty = Util.fixNull(existingValue);
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             m.add(new ListBoxModel.Option("None specified", "", valueOrEmpty.isEmpty()));
             try {
                 if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
@@ -153,13 +157,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return m;
         }
 
-        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl1, boolean ignoreSsl2, String credentialId1, String credentialId2, String zone1, String zone2) {
+        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl1, boolean ignoreSsl2, String credentialsId1, String credentialsId2, String zone1, String zone2) {
             if (Util.fixEmpty(value) == null)
                 return REQUIRED;
             final String endPointUrl = getDefault(endPointUrl1, endPointUrl2);
-            final String credentialId = getDefault(credentialId1,credentialId2);
+            final String credentialsId = getDefault(credentialsId1,credentialsId2);
             final boolean ignoreSsl = ignoreSsl1 || ignoreSsl2;
-            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialId);
+            OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             final String zone = getDefault(zone1, zone2);
             if (!haveAuthDetails(endPointUrl, openstackCredential, zone))
                 return FormValidation.ok();
@@ -192,6 +196,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
          *            Means of communicating with the OpenStack service.
          * @param nameOrId
          *            The user's selected name (or ID).
+         * @return A list of all the IDs matching the specified name.
          */
         public abstract @Nonnull List<String> findMatchingIds(Openstack openstack, String nameOrId);
 
@@ -201,17 +206,20 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
          * 
          * @param openstack
          *            Means of communicating with the OpenStack service.
+         * @return A list of all the names the user could choose from.
          */
         public abstract List<String> listAllNames(Openstack openstack);
     }
 
     public static class Image extends BootSource {
         private static final long serialVersionUID = -8309975034351235331L;
+        private static final String OPENSTACK_BOOTSOURCE_IMAGE_ID_KEY = "jenkins-boot-image-id";
 
         protected final @Nonnull String name;
 
         @DataBoundConstructor
         public Image(@Nonnull String name) {
+            Objects.requireNonNull(name, "Image name missing");
             this.name = name;
         }
 
@@ -224,10 +232,12 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         public void setServerBootSource(
                 @Nonnull ServerCreateBuilder builder, @Nonnull Openstack os
         ) throws JCloudsCloud.ProvisioningFailedException {
+            super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
 
             builder.image(id);
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_IMAGE_ID_KEY, id);
         }
 
         @Override
@@ -250,8 +260,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return name.hashCode();
         }
 
-        @Symbol("image")
         @Extension
+        @Symbol("image")
         public static class Desc extends BootSourceDescriptor {
             @Override
             public @Nonnull String getDisplayName() {
@@ -267,40 +277,40 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Nonnull
             @Override
             public List<String> listAllNames(Openstack openstack) {
-                final Map<String, ?> images = openstack.getImages();
-                final List<String> allNames = new ArrayList<>(images.size());
-                allNames.addAll(images.keySet());
-                return allNames;
+                return new ArrayList<>(openstack.getImages().keySet());
             }
 
             @Restricted(DoNotUse.class)
             @InjectOsAuth
+            @RequirePOST
             public ListBoxModel doFillNameItems(@QueryParameter String name,
                                                 @QueryParameter String endPointUrl,
                                                 @QueryParameter boolean ignoreSsl,
-                                                @QueryParameter String credentialId,
+                                                @QueryParameter String credentialsId,
                                                 @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialId, zone);
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
             }
 
             @Restricted(DoNotUse.class)
+            @RequirePOST
             public FormValidation doCheckName(@QueryParameter String value,
                     // authentication fields can be in two places relative to us.
                                               @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlCloud,
                                               @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
                                               @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
                                               @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
-                                              @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
-                                              @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
+                                              @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdCloud,
+                                              @RelativePath("../../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
                                               @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                                               @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }
 
     public static final class VolumeFromImage extends Image {
         private static final long serialVersionUID = 3932407339481241514L;
+        private static final String OPENSTACK_BOOTSOURCE_VOLUME_FROM_IMAGE_ID_KEY = "jenkins-boot-volumefromimage-id";
 
         private final int volumeSize;
 
@@ -311,11 +321,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         @DataBoundConstructor
         public VolumeFromImage(@Nonnull String name, int volumeSize) {
             super(name);
+            if (volumeSize <= 0) throw new IllegalArgumentException("Volume size must be positive, got " + volumeSize);
             this.volumeSize = volumeSize;
         }
 
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os) throws JCloudsCloud.ProvisioningFailedException {
+            super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
 
@@ -328,6 +340,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     .bootIndex(0)
             ;
             builder.blockDevice(volumeBuilder.build());
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUME_FROM_IMAGE_ID_KEY, id);
         }
 
         @Override
@@ -335,7 +348,23 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return "Volume from Image " + name + " (" + volumeSize + "GB)";
         }
 
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (!super.equals(o))
+                return false;
+            final VolumeFromImage that = (VolumeFromImage) o;
+            return this.volumeSize == that.volumeSize;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(volumeSize, super.hashCode());
+        }
+
         @Extension
+        @Symbol("volumeFromImage")
         public static final class VFIDesc extends Desc {
 
             @Override
@@ -347,10 +376,14 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
     public static final class VolumeSnapshot extends BootSource {
         private static final long serialVersionUID = 1629434277902240395L;
+        private static final String OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY = "jenkins-boot-volumesnapshot-id";
+        private static final String OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_DESC_KEY = "jenkins-boot-volumesnapshot-description";
+
         private final @Nonnull String name;
 
         @DataBoundConstructor
         public VolumeSnapshot(@Nonnull String name) {
+            Objects.requireNonNull(name, "Volume snapshot name missing");
             this.name = name;
         }
 
@@ -361,8 +394,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
 
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os) {
+            super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "VolumeSnapshots");
+            final String volumeSnapshotDescriptionOrNull = os.getVolumeSnapshotDescription(id);
             final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
                     .sourceType(BDMSourceType.SNAPSHOT)
                     .destinationType(BDMDestType.VOLUME)
@@ -370,6 +405,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     .deleteOnTermination(true)
                     .bootIndex(0);
             builder.blockDevice(volumeBuilder.build());
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY, id);
+            if (volumeSnapshotDescriptionOrNull != null && !volumeSnapshotDescriptionOrNull.isEmpty()) {
+                builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_DESC_KEY, volumeSnapshotDescriptionOrNull);
+            }
         }
 
         @Override
@@ -382,9 +421,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             final List<String> volumeIds = server.getOsExtendedVolumesAttached();
             final String instanceId = server.getId();
             final String instanceName = server.getName();
+            final Map<String, String> instanceMetaData = server.getMetadata();
+            final String instanceVolumeSnapshotId = instanceMetaData == null
+                    ? null
+                    : instanceMetaData.get(OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_ID_KEY);
             int i = 0;
             final String newVolumeDescription = "For " + instanceName + " (" + instanceId + "), from VolumeSnapshot "
-                    + name + ".";
+                    + name + (instanceVolumeSnapshotId == null ? "" : " (" + instanceVolumeSnapshotId + ")") + ".";
             for (final String volumeId : volumeIds) {
                 final String newVolumeName = instanceName + '[' + (i++) + ']';
                 openstack.setVolumeNameAndDescription(volumeId, newVolumeName, newVolumeDescription);
@@ -411,8 +454,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return name.hashCode();
         }
 
-        @Symbol("volumeSnapshot")
         @Extension
+        @Symbol("volumeSnapshot")
         public static final class Desc extends BootSourceDescriptor {
             @Override
             public @Nonnull String getDisplayName() {
@@ -428,19 +471,18 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Nonnull
             @Override
             public List<String> listAllNames(Openstack openstack) {
-                final Map<String, ?> images = openstack.getVolumeSnapshots();
-                final List<String> allNames = new ArrayList<>(images.size());
-                allNames.addAll(images.keySet());
-                return allNames;
+                return new ArrayList<>(openstack.getVolumeSnapshots().keySet());
             }
 
             @Restricted(DoNotUse.class)
             @OsAuthDescriptor.InjectOsAuth
-            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialId, @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialId, zone);
+            @RequirePOST
+            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialsId, @QueryParameter String zone) {
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
             }
 
             @Restricted(DoNotUse.class)
+            @RequirePOST
             public FormValidation doCheckName(@QueryParameter String value,
                     // authentication fields can be in two places relative to
                     // us.
@@ -448,11 +490,11 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     @RelativePath("../../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
                     @RelativePath("../..") @QueryParameter("ignoreSsl") boolean ignoreSslCloud,
                     @RelativePath("../../..") @QueryParameter("ignoreSsl") boolean ignoreSslTemplate,
-                    @RelativePath("../..") @QueryParameter("credentialId") String credentialIdCloud,
-                    @RelativePath("../../..") @QueryParameter("credentialId") String credentialIdTemplate,
+                    @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdCloud,
+                    @RelativePath("../../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
                     @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
                     @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialIdCloud, credentialIdTemplate, zoneCloud, zoneTemplate);
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate);
             }
         }
     }
@@ -461,7 +503,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
      * No boot source specified. This exists only as a field in UI dropdown to
      * be read by stapler and converted to plain old null.
      */
-    // Therefore, noone refers to this as a symbol or tries to serialize it,
+    // Therefore, no one refers to this as a symbol or tries to serialize it,
     // ever.
     @SuppressWarnings({"unused", "serial"})
     public static final class Unspecified extends BootSource {

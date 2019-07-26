@@ -73,6 +73,7 @@ public class OpenStackNodeStep extends Step implements Serializable{
                 this.networkId,
                 this.userDataId,
                 null,
+                null,
                 this.floatingIpPool,
                 this.securityGroups,
                 this.availabilityZone,

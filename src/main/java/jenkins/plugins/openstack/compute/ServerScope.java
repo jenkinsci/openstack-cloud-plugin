@@ -32,12 +32,12 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -149,33 +149,57 @@ public abstract class ServerScope {
      * Server marked as <tt>node:asdf</tt> will live only to support Jenkins node <tt>asdf</tt>.
      */
     public static final class Node extends ServerScope {
+        private final @Nonnull String name;
+        private final @CheckForNull Integer cloudStatsFingerprint;
 
-        public Node(String specifier) {
+        public Node(@Nonnull String specifier) {
             super("node", specifier);
+
+            String[] split = specifier.split(":");
+            switch (split.length) {
+                case 1:
+                    name = specifier;
+                    cloudStatsFingerprint = null;
+                break;
+                case 2:
+                    name = split[0];
+                    cloudStatsFingerprint = Integer.parseInt(split[1]);
+                break;
+                default: throw new IllegalArgumentException("Invalid node scope specifier " + specifier);
+            }
         }
 
-        public String getName() {
-            return specifier;
+        public Node(@Nonnull String serverName, @Nonnull ProvisioningActivity.Id id) {
+            super("node", serverName+":"+id.getFingerprint());
+            name = serverName;
+            cloudStatsFingerprint = id.getFingerprint();
+        }
+
+        @Nonnull public String getName() {
+            return name;
         }
 
         @Override
         public boolean isOutOfScope(@Nonnull Server server) {
-            if (Jenkins.getActiveInstance().getNode(specifier) != null) return false;
+            if (computerExists()) return false;
 
-            // The node may be provisioned or deleted at the moment - do not interfere
-            for (ProvisioningActivity pa : CloudStatistics.get().getActivities()) {
-                if (specifier.equals(pa.getName())) {
-                    switch (pa.getCurrentPhase()) {
-                        case PROVISIONING:
-                            return false; // Node not yet created
-                        case LAUNCHING:
-                        case OPERATING:
-                            LOGGER.warning("Node does not exist for " + pa.getCurrentPhase() + " " + specifier);
-                            return false;
-                        case COMPLETED:
-                            return true;
+            if (cloudStatsFingerprint != null) {
+                // The node may be provisioned or deleted at the moment - do not interfere
+                for (ProvisioningActivity pa : CloudStatistics.get().getActivities()) {
+                    // Note the node name might not have been assigned yet so using fingerprint instead
+                    if (pa.getId().getFingerprint() == cloudStatsFingerprint) {
+                        switch (pa.getCurrentPhase()) {
+                            case PROVISIONING:
+                                return false; // Node not yet created
+                            case LAUNCHING:
+                            case OPERATING:
+                                LOGGER.warning("Node does not exist for " + pa.getCurrentPhase() + " " + specifier);
+                                return false;
+                            case COMPLETED:
+                                return true;
+                        }
+                        assert false: "Unreachable";
                     }
-                    assert false: "Unreachable";
                 }
             }
 
@@ -190,6 +214,16 @@ public abstract class ServerScope {
             // Resolving activity by name is not reliable as they may not be assigned yet or the activity might already
             // be rotated when in completed state. In the latter case it should be treated as out of scope.
             return true;
+        }
+
+        private boolean computerExists() {
+            hudson.model.Node node = Jenkins.get().getNode(getName());
+            if (!(node instanceof JCloudsSlave)) return false; // Node does not exists or is not our node
+
+            if (cloudStatsFingerprint == null) return true; // CloudStats id not reported during provisioning - not deeper verification
+
+            final JCloudsSlave slave = ((JCloudsSlave) node);
+            return cloudStatsFingerprint == slave.getId().getFingerprint();
         }
     }
 
@@ -224,7 +258,7 @@ public abstract class ServerScope {
 
         @Override
         public boolean isOutOfScope(@Nonnull Server server) {
-            Job job = Jenkins.getActiveInstance().getItemByFullName(project, Job.class);
+            Job job = Jenkins.get().getItemByFullName(project, Job.class);
             if (job == null) return true; // Presuming it was deleted/renamed, either way the build do not need the server anymore
             hudson.model.Run run = job.getBuildByNumber(this.run);
             if (run == null) return true; // Presuming it was deleted already

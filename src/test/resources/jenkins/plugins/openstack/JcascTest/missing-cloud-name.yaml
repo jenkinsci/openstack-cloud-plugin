@@ -1,0 +1,5 @@
+jenkins:
+  clouds:
+    - openstack:
+        endPointUrl: "https://acme.com:5000"
+        credentialsId: "openstack_service_credentials"

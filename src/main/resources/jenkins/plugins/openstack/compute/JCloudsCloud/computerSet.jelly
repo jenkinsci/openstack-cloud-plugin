@@ -1,5 +1,5 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
     <!--
         Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
         Using Item.CONFIGURE as users authorized to do so can provision via job execution.
@@ -10,26 +10,44 @@
 
         <tr>
             <td/>
-            <td colspan="${monitors.size()+2}">
+            <td colspan="${monitors.size()+2}" id="os-notifications">
 
-                <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
-                    <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenStack Cloud Plugin} - ${it.name}"/>
-                    <select name="name">
-                        <j:forEach var="t" items="${it.templates}">
-                            <option value="${t.name}">${t.name}</option>
-                        </j:forEach>
-                    </select>
+                    <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenStack Cloud Plugin} - ${it.name}" name="${it.name}"/>
                     <st:once>
                         <script>
+                            var templates = [];
                             Behaviour.register({
                                 ".jclouds-provision-button" : function (e) {
-                                    new YAHOO.widget.Button(e, { type: "menu", menu: e.nextSibling });
+                                    var notification = document.getElementById("os-notifications")
+                                    var submitHandler = function(type, args, item) {
+                                        new Ajax.Request("${rootURL}/cloud/"+item.value.cloud+"/provision", {
+                                            parameters: { name: item.value.template },
+                                            onFailure: function(obj) {
+                                                alert('Provisioning failed: ' + obj.responseText, notification)
+                                                console.log('Provisioning failed: ' + obj.status + " " + obj.statusText + ": " + obj.responseText)
+                                            },
+                                            onSuccess: function(obj) {
+                                                hoverNotification('Provisioning started', notification);
+                                            }
+                                        });
+                                    };
+                                    items = templates[e.name].map(function(template) {
+                                        return { text: template, value: {template: template, cloud: e.name}, onclick: { fn: submitHandler } }
+                                    });
+                                    var menu = new YAHOO.widget.Button(e, { type: "menu", menu: items, name: "name" });
                                 }
                             });
                         </script>
                     </st:once>
-                </f:form>
+                    <script>
+                        templates["${it.name}"] = [
+                            <j:forEach var="t" items="${it.templates}">
+                                "${t.name}",
+                            </j:forEach>
+                        ];
+                    </script>
             </td>
         </tr>
     </j:if>
 </j:jelly>
+

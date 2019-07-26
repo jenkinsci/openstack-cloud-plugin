@@ -31,7 +31,13 @@ import org.openstack4j.model.compute.Server;
 
 import javax.annotation.Nonnull;
 import java.util.NoSuchElementException;
+import java.util.logging.Logger;
 
+/**
+ * Dispose OpenStack VM *without* cleaning up the Jenkins computer.
+ *
+ * See <tt>jenkins.plugins.openstack.compute.JCloudsSlave.RecordDisposal</tt> for the variant that does both.
+ */
 @Restricted(NoExternalUse.class)
 public final class DestroyMachine implements Disposable {
     private static final long serialVersionUID = 1L;
@@ -46,8 +52,17 @@ public final class DestroyMachine implements Disposable {
 
     @Override
     public @Nonnull State dispose() {
-        // Cannot be cached as it is scoped to thread
-        Openstack os = JCloudsCloud.getByName(cloudName).getOpenstack();
+        JCloudsCloud cloud;
+        try {
+            cloud = JCloudsCloud.getByName(cloudName);
+        } catch (IllegalArgumentException ex) {
+            // As a possible improvement, cloud can be identified by url and some project/account identifier not to loose
+            // the track of machine when cloud is renamed. (When deleted or reconfigured - there is nothing plugin can do).
+            throw new CloudGoneException("Cloud " + cloudName + " does no longer exists", ex);
+        }
+
+        // Openstack instance cannot be cached between invocations as it is scoped to thread
+        Openstack os = cloud.getOpenstack();
         Server server;
         try {
             server = os.getServerById(nodeId);
@@ -79,5 +94,17 @@ public final class DestroyMachine implements Disposable {
         int result = cloudName.hashCode();
         result = 31 * result + nodeId.hashCode();
         return result;
+    }
+
+    /**
+     * Thrown when the cloud the machine belongs to is no longer configured in Jenkins.
+     *
+     * There is no way to destroy the machine anymore.
+     */
+    public static final class CloudGoneException extends RuntimeException {
+        private static final long serialVersionUID = 2390778289323999027L;
+        public CloudGoneException(String message, IllegalArgumentException ex) {
+            super(message, ex);
+        }
     }
 }

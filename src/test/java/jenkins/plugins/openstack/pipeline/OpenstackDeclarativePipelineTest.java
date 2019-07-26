@@ -29,7 +29,7 @@ public class OpenstackDeclarativePipelineTest {
 
     @Before
     public void setup () {
-        cloud = j.configureSlaveLaunching(j.dummyCloud());
+        cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud());
         j.jenkins.clouds.add(cloud);
         openstack = cloud.getOpenstack();
     }

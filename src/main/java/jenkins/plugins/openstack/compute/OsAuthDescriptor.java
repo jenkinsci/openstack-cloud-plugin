@@ -23,7 +23,6 @@
  */
 package jenkins.plugins.openstack.compute;
 
-import com.google.common.base.Joiner;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
@@ -95,7 +94,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
 
         // Replace direct reference to references to possible relative paths
         if (method.getAnnotation(InjectOsAuth.class) != null) {
-            for (String attr: Arrays.asList("endPointUrl", "ignoreSsl", "credentialId", "zone")) {
+            for (String attr: Arrays.asList("endPointUrl", "ignoreSsl", "credentialsId", "zone")) {
                 deps.remove(attr);
                 for (String offset : getAuthFieldsOffsets()) {
                     deps.add(offset + "/" + attr);
@@ -104,12 +103,12 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
         }
 
         if (!deps.isEmpty()) {
-            attributes.put("fillDependsOn", Joiner.on(' ').join(deps));
+            attributes.put("fillDependsOn", String.join(" ", deps));
         }
     }
 
     protected static boolean haveAuthDetails(String endPointUrl, OpenstackCredential openstackCredential, String zone) {
-        return Util.fixEmpty(endPointUrl)!=null && openstackCredential !=null;
+        return Util.fixEmpty(endPointUrl)!=null && openstackCredential != null;
     }
 
     public static String getDefault(String d1, Object d2) {

@@ -7,15 +7,15 @@
     </parent>
 
     <artifactId>openstack-cloud</artifactId>
-    <version>2.35-SNAPSHOT</version>
+    <version>2.48-SNAPSHOT</version>
     <packaging>hpi</packaging>
-    <name>Openstack Cloud Plugin</name>
-    <description>Allows Jenkins to build Openstack Slaves</description>
+    <name>OpenStack Cloud Plugin</name>
+    <description>Allows Jenkins to build OpenStack Slaves</description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Openstack+Cloud+Plugin</url>
 
     <properties>
-        <jenkins.version>2.60.3</jenkins.version>
-        <jenkins-test-harness.version>2.38</jenkins-test-harness.version>
+        <jenkins.version>2.98</jenkins.version>
+        <jenkins-test-harness.version>2.27</jenkins-test-harness.version>
         <java.level>8</java.level>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
@@ -23,9 +23,9 @@
         <findbugs.excludeFilterFile>src/findbugs-exclude.xml</findbugs.excludeFilterFile>
         <hpi-plugin.version>2.2</hpi-plugin.version> <!-- https://github.com/jenkinsci/maven-hpi-plugin/pull/63 -->
 
-        <guava.version>18.0</guava.version> <!-- version compatible with openstack4j -->
+        <guava.version>20.0</guava.version> <!-- version compatible with openstack4j -->
         <jsr305.version>1.3.9</jsr305.version>
-        <openstack4j.version>3.1.0</openstack4j.version>
+        <openstack4j.version>3.2.0</openstack4j.version>
     </properties>
 
     <developers>
@@ -73,22 +73,27 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>ssh-slaves</artifactId>
-            <version>1.21</version>
+            <version>1.25</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>ssh-credentials</artifactId>
-            <version>1.13</version>
+            <version>1.14</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials</artifactId>
+            <version>2.1.18</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>2.7.5</version>
+            <version>3.5</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>0.14</version>
+            <version>0.21</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -104,7 +109,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>2.1.16</version>
+            <version>2.1.17</version>
         </dependency>
 
         <!-- Hardcoding upper-bound versions of dependencies -->
@@ -112,6 +117,11 @@
             <groupId>org.jenkins-ci</groupId>
             <artifactId>annotation-indexer</artifactId>
             <version>1.12</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci</groupId>
+            <artifactId>symbol-annotation</artifactId>
+            <version>1.17</version>
         </dependency>
         <dependency>
             <groupId>org.apache.ant</groupId>
@@ -127,6 +137,11 @@
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-classworlds</artifactId>
             <version>2.4.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.23</version>
         </dependency>
 
         <!-- Pipeline dependencies-->
@@ -211,7 +226,32 @@
             <groupId>org.jenkins-ci.modules</groupId>
             <artifactId>sshd</artifactId>
             <version>2.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>command-launcher</artifactId>
+            <version>1.3</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <artifactId>configuration-as-code</artifactId>
+            <groupId>io.jenkins</groupId>
+            <version>1.9</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>configuration-as-code-support</artifactId>
+            <groupId>io.jenkins.configuration-as-code</groupId>
+            <version>1.9</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>configuration-as-code</artifactId>
+            <groupId>io.jenkins</groupId>
+            <version>1.9</version>
+            <scope>test</scope>
+            <type>test-jar</type>
         </dependency>
     </dependencies>
 
@@ -221,23 +261,19 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>cobertura-maven-plugin</artifactId>
-                    <version>2.7</version> <!-- JDK 7 support -->
-                </plugin>
-                <plugin>
-                    <groupId>org.jenkins-ci.tools</groupId>
-                    <artifactId>maven-hpi-plugin</artifactId>
-                    <configuration>
-                        <pluginFirstClassLoader>true</pluginFirstClassLoader>
-                    </configuration>
+                    <version>2.7</version> <!-- JDK 7+ support -->
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.0.0</version>
                     <configuration>
-                        <argLine>-XX:MaxPermSize=256m</argLine>
+                        <additionalOptions>
+                            <option>-Xdoclint:all,-missing</option>
+                        </additionalOptions>
                     </configuration>
                 </plugin>
-            </plugins>
+                </plugins>
         </pluginManagement>
         <finalName>${project.artifactId}</finalName>
     </build>
@@ -249,28 +285,16 @@
         <tag>HEAD</tag>
     </scm>
 
-    <!-- Can be removed once moved to 2.6 parent pom -->
-    <distributionManagement>
-        <repository>
-            <id>maven.jenkins-ci.org</id>
-            <url>https://repo.jenkins-ci.org/releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>maven.jenkins-ci.org</id>
-            <url>https://repo.jenkins-ci.org/snapshots/</url>
-        </snapshotRepository>
-   </distributionManagement>
-
     <repositories>
         <repository>
             <id>repo.jenkins-ci.org</id>
-            <url>http://repo.jenkins-ci.org/public/</url>
+            <url>https://repo.jenkins-ci.org/public/</url>
         </repository>
     </repositories>
     <pluginRepositories>
         <pluginRepository>
             <id>repo.jenkins-ci.org</id>
-            <url>http://repo.jenkins-ci.org/public/</url>
+            <url>https://repo.jenkins-ci.org/public/</url>
         </pluginRepository>
     </pluginRepositories>
 </project>

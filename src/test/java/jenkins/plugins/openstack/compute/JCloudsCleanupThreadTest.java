@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.AbortException;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -27,8 +28,12 @@ import org.openstack4j.model.compute.Server;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.NoSuchElementException;
 
+import static hudson.model.Label.get;
+import static java.util.Collections.emptyList;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -53,8 +58,8 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void discardTemporarilyOfflineSlave() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
-        JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
@@ -67,8 +72,8 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void discardDisconnectedSlave() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
-        JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
@@ -82,8 +87,8 @@ public class JCloudsCleanupThreadTest {
 
     @Test @Issue("JENKINS-50313") @Ignore("Not jet fixed")
     public void doNotDiscardDisconnectedSlaveTemporarilyOfflineBySomeone() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
-        JCloudsComputer computer = (JCloudsComputer) j.provision(cloud, "label").getComputer();
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
         j.triggerOpenstackSlaveCleanup();
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
@@ -98,9 +103,9 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void doNotDeleteSlaveThatIsNotIdle() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.getComputer();
+        JCloudsComputer computer = slave.getComputer();
 
         final BuildBlocker blocker = new BuildBlocker();
 
@@ -163,11 +168,11 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void terminateNodeWithoutServer() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         Openstack os = cloud.getOpenstack();
 
         FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedLabel(Label.get("label"));
+        p.setAssignedLabel(get("label"));
         BuildBlocker blocker = new BuildBlocker();
         p.getBuildersList().add(blocker);
 
@@ -175,16 +180,48 @@ public class JCloudsCleanupThreadTest {
         blocker.enter.block();
         assertTrue(build.isBuilding());
 
-        when(os.getRunningNodes()).thenReturn(Collections.emptyList());
+        when(os.getRunningNodes()).thenReturn(emptyList());
         String serverId = JCloudsComputer.getAll().get(0).getNode().getServerId();
         doThrow(new NoSuchElementException()).when(os).getServerById(eq(serverId));
         j.triggerOpenstackSlaveCleanup();
 
-        j.assertBuildStatus(Result.ABORTED, build);
         j.waitUntilNoActivity();
+        j.assertBuildStatus(Result.ABORTED, build);
         assertThat(
                 build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
                 startsWith("OpenStack server (" + serverId + ") is not running for computer ")
+        );
+    }
+
+    @Test
+    public void terminateNodeWithShutoffServer() throws Exception {
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
+        Openstack os = cloud.getOpenstack();
+
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedLabel(get("label"));
+        BuildBlocker blocker = new BuildBlocker();
+        p.getBuildersList().add(blocker);
+
+        FreeStyleBuild build = p.scheduleBuild2(0).getStartCondition().get();
+        blocker.enter.block();
+        assertTrue(build.isBuilding());
+
+        List<Server> runningNodes = os.getRunningNodes();
+        assertEquals(1, runningNodes.size());
+        Server builtOn = runningNodes.get(0);
+
+        // Server shut off
+        when(os.getRunningNodes()).thenReturn(emptyList());
+        when(builtOn.getStatus()).thenReturn(Server.Status.SHUTOFF);
+
+        j.triggerOpenstackSlaveCleanup();
+
+        j.waitUntilNoActivity();
+        j.assertBuildStatus(Result.ABORTED, build);
+        assertThat(
+                build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
+                startsWith("OpenStack server (" + builtOn.getId() + ") is not running for computer ")
         );
     }
 
@@ -192,10 +229,10 @@ public class JCloudsCleanupThreadTest {
     public void doNotTerminateNodeThatIsBeingProvisioned() throws Exception {
         // Simulate node stuck launching
         SlaveOptions options = j.defaultSlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).instanceCap(1).build();
-        j.configureSlaveProvisioning(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+        j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
 
         FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedLabel(Label.get("label"));
+        p.setAssignedLabel(get("label"));
         p.scheduleBuild2(0);
 
         Thread.sleep(2000); // For cloud to kick the machine while build is enqueued

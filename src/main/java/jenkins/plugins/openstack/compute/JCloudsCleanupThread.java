@@ -12,32 +12,31 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import hudson.model.Executor;
 import hudson.model.Result;
-import hudson.slaves.Cloud;
 import hudson.slaves.OfflineCause;
 import jenkins.model.CauseOfInterruption;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import hudson.Extension;
 import hudson.model.AsyncPeriodicWork;
-import hudson.model.Computer;
 import hudson.model.TaskListener;
-import jenkins.model.Jenkins;
+import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.StatusCode;
 import org.openstack4j.model.compute.Server;
 
 import javax.annotation.Nonnull;
+import javax.security.auth.login.LoginException;
 
 /**
  * Periodically ensure Jenkins and resources it manages in OpenStacks are not leaked.
  *
  * Currently it ensures:
  *
- * - Node pending deletion get termionated with their servers
+ * - Node pending deletion get terminated with their servers.
  * - Servers that are running longer than declared are terminated.
  * - Nodes with server missing are terminated.
  */
@@ -58,13 +57,19 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public void execute(TaskListener listener) {
-        terminateNodesPendingDeletion();
+        try {
+            terminateNodesPendingDeletion();
 
-        @Nonnull HashMap<JCloudsCloud, List<Server>> runningServers = destroyServersOutOfScope();
+            @Nonnull HashMap<JCloudsCloud, List<Server>> runningServers = destroyServersOutOfScope();
 
-        terminatesNodesWithoutServers(runningServers);
+            terminatesNodesWithoutServers(runningServers);
 
-        cleanOrphanedFips();
+            cleanOrphanedFips();
+        } catch (JCloudsCloud.LoginFailure ex) {
+            LOGGER.log(Level.WARNING, "Unable to authenticate: " + ex.getMessage());
+        } catch (Throwable ex) {
+            LOGGER.log(Level.SEVERE, "Enable to perform the cleanup", ex);
+        }
     }
 
     private void cleanOrphanedFips() {
@@ -109,10 +114,39 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             if (!comp.isIdle()) continue;
 
             final OfflineCause offlineCause = comp.getFatalOfflineCause();
-            if (comp.isPendingDelete() || offlineCause != null) {
+            if (comp.isPendingDelete()) {
                 LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                 deleteComputer(comp);
+            } else if (offlineCause != null) {
+                LOGGER.log(Level.WARNING, "Deleting broken node " + comp.getName() + " (" + getTerminalDiagnosis(comp) + "). Reason: " + comp.getOfflineCause());
+
+                deleteComputer(comp);
             }
+        }
+    }
+
+    private String getTerminalDiagnosis(JCloudsComputer comp) {
+        try {
+            JCloudsSlave node = comp.getNode();
+            if (node == null) return "Node is gone";
+
+            JCloudsCloud cloud;
+            try {
+                cloud = JCloudsCloud.getByName(comp.getId().getCloudName());
+            } catch (IllegalArgumentException e) {
+                return "Cloud no longer configured - cannot get more info";
+            }
+            Server server;
+            try {
+                server = cloud.getOpenstack().getServerById(node.getServerId());
+            } catch (NoSuchElementException e) {
+                return "Server does not exist in OpenStack";
+            }
+            return server.toString();
+            // TODO capturing server log might be useful
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Failed diagnosing computer failure", ex);
+            return "none";
         }
     }
 
@@ -127,6 +161,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private void deleteComputer(JCloudsComputer comp, CauseOfInterruption coi) {
         try {
             for (Executor e : comp.getExecutors()) {
+                e.interrupt(Result.ABORTED, coi);
+            }
+            for(Executor e : comp.getOneOffExecutors()){
                 e.interrupt(Result.ABORTED, coi);
             }
             comp.deleteSlave();
@@ -160,7 +197,10 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private void terminatesNodesWithoutServers(@Nonnull HashMap<JCloudsCloud, List<Server>> runningServers) {
         Map<String, JCloudsComputer> jenkinsComputers = new HashMap<>();
         for (JCloudsComputer computer: JCloudsComputer.getAll()) {
-            jenkinsComputers.put(computer.getNode().getServerId(), computer);
+            JCloudsSlave node = computer.getNode();
+            if (node != null) {
+                jenkinsComputers.put(node.getServerId(), computer);
+            }
         }
 
         // Eliminate computers we have servers for
@@ -186,8 +226,10 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
             try { // Double check server does not exist before interrupting jobs
                 Server explicitLookup = cloud.getOpenstack().getServerById(id);
-                LOGGER.severe(getClass().getSimpleName() + " incorrectly detected orphaned computer for " + explicitLookup);
-                continue; // Do not kill it
+                if (Openstack.isOccupied(explicitLookup)) {
+                    LOGGER.severe(getClass().getSimpleName() + " incorrectly detected orphaned computer for " + explicitLookup);
+                    continue; // Do not kill it
+                }
             } catch (NoSuchElementException expected) {
                 // Gone as expected
             }
@@ -198,7 +240,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
     }
 
-    @Override protected Level getNormalLoggingLevel() { return Level.FINE; }
+    @Override protected Level getNormalLoggingLevel() { return Level.OFF; }
     @Override protected Level getSlowLoggingLevel() { return Level.INFO; }
 
     private static class MessageInterruption extends CauseOfInterruption {

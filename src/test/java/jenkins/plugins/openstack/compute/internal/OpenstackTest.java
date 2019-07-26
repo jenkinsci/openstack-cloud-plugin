@@ -4,9 +4,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyMapOf;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.*;
 
 import org.hamcrest.Matchers;
@@ -18,7 +15,7 @@ import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.compute.ext.ZoneService;
 import org.openstack4j.api.exceptions.ClientResponseException;
-import org.openstack4j.api.image.ImageService;
+import org.openstack4j.api.image.v2.ImageService;
 import org.openstack4j.api.storage.BlockVolumeSnapshotService;
 import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.compute.Fault;
@@ -26,7 +23,7 @@ import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
-import org.openstack4j.model.image.Image;
+import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
 import org.openstack4j.openstack.compute.domain.NovaFloatingIP;
@@ -72,24 +69,24 @@ public class OpenstackTest {
         final List images = Arrays.asList(mockImageNamedBar1, mockImageWithNullName, mockImageNamedBar2,
                 mockImageNamedFoo, mockImageNamedBar3);
         final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.images().listAll()).thenReturn(images);
+        when(mockClient.imagesV2().list(any())).thenReturn(images);
         final Collection<Image> images0 = new ArrayList<>(
                 Arrays.asList(mockImageNamedBar2, mockImageNamedBar3, mockImageNamedBar1));
         final Collection<Image> images1 = new ArrayList<>(Arrays.asList(mockImageNamedFoo));
         final Collection<Image> images2 = new ArrayList<>(Arrays.asList(mockImageWithNullName));
 
         final Openstack instance = new Openstack(mockClient);
-        final Map<String, Collection<Image>> actual = instance.getImages();
+        final Map<String, List<Image>> actual = instance.getImages();
 
         // Result keys should be in name order
-        final Iterator<Map.Entry<String, Collection<Image>>> iterator = actual.entrySet().iterator();
-        final Map.Entry<String, Collection<Image>> entry0 = iterator.next();
+        final Iterator<Map.Entry<String, List<Image>>> iterator = actual.entrySet().iterator();
+        final Map.Entry<String, List<Image>> entry0 = iterator.next();
         assertThat(entry0.getKey(), equalTo("Bar"));
         assertThat(new ArrayList<>(entry0.getValue()), equalTo(images0));
-        final Map.Entry<String, Collection<Image>> entry1 = iterator.next();
+        final Map.Entry<String, List<Image>> entry1 = iterator.next();
         assertThat(entry1.getKey(), equalTo("Foo"));
         assertThat(new ArrayList<>(entry1.getValue()), equalTo(images1));
-        final Map.Entry<String, Collection<Image>> entry2 = iterator.next();
+        final Map.Entry<String, List<Image>> entry2 = iterator.next();
         assertThat(entry2.getKey(), equalTo("mockImageWithNullNameId"));
         assertThat(new ArrayList<>(entry2.getValue()), equalTo(images2));
         assertThat(iterator.hasNext(), equalTo(false));
@@ -135,17 +132,17 @@ public class OpenstackTest {
                 Arrays.asList(mockVolumeSnapshotWithNullName));
 
         final Openstack instance = new Openstack(mockClient);
-        final Map<String, Collection<VolumeSnapshot>> actual = instance.getVolumeSnapshots();
+        final Map<String, List<VolumeSnapshot>> actual = instance.getVolumeSnapshots();
 
         // Result keys should be in name order
-        final Iterator<Map.Entry<String, Collection<VolumeSnapshot>>> iterator = actual.entrySet().iterator();
-        final Map.Entry<String, Collection<VolumeSnapshot>> entry0 = iterator.next();
+        final Iterator<Map.Entry<String, List<VolumeSnapshot>>> iterator = actual.entrySet().iterator();
+        final Map.Entry<String, List<VolumeSnapshot>> entry0 = iterator.next();
         assertThat(entry0.getKey(), equalTo("Bar"));
         assertThat(new ArrayList<>(entry0.getValue()), equalTo(volumeSnapshots0));
-        final Map.Entry<String, Collection<VolumeSnapshot>> entry1 = iterator.next();
+        final Map.Entry<String, List<VolumeSnapshot>> entry1 = iterator.next();
         assertThat(entry1.getKey(), equalTo("Foo"));
         assertThat(new ArrayList<>(entry1.getValue()), equalTo(volumeSnapshots1));
-        final Map.Entry<String, Collection<VolumeSnapshot>> entry2 = iterator.next();
+        final Map.Entry<String, List<VolumeSnapshot>> entry2 = iterator.next();
         assertThat(entry2.getKey(), equalTo("mockVolumeSnapshotWithNullNameId"));
         assertThat(new ArrayList<>(entry2.getValue()), equalTo(volumeSnapshots2));
         assertThat(iterator.hasNext(), equalTo(false));
@@ -170,11 +167,11 @@ public class OpenstackTest {
         when(mockImageNamedBar3.getCreatedAt()).thenReturn(new Date(1000));
         final ImageService mockIS = mock(ImageService.class);
         final List images = Arrays.asList(mockImageNamedBar1, mockImageNamedBar2, mockImageNamedBar3);
-        when(mockIS.listAll(anyMapOf(String.class, String.class))).thenReturn(images);
+        when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(images);
         final ArrayList<String> expected = new ArrayList<>(
                 Arrays.asList("mockImageNamedBar2Id", "mockImageNamedBar3Id", "mockImageNamedBar1Id"));
         final OSClient mockClient = mock(OSClient.class);
-        when(mockClient.images()).thenReturn(mockIS);
+        when(mockClient.imagesV2()).thenReturn(mockIS);
 
         final Openstack instance = new Openstack(mockClient);
         final List<String> actual = instance.getImageIdsFor("Bar");
@@ -182,7 +179,7 @@ public class OpenstackTest {
         final Map<String, String> expectedFilteringParams = new HashMap<>(2);
         expectedFilteringParams.put("name", "Bar");
         expectedFilteringParams.put("status", "active");
-        verify(mockIS).listAll(argThat(equalTo(expectedFilteringParams)));
+        verify(mockIS).list(argThat(equalTo(expectedFilteringParams)));
         verifyNoMoreInteractions(mockIS);
         assertThat(new ArrayList<>(actual), equalTo(expected));
     }
@@ -190,9 +187,9 @@ public class OpenstackTest {
     @Test
     public void getImageIdsForGivenUnknownThenReturnsEmpty() {
         final ImageService mockIS = mock(ImageService.class);
-        when(mockIS.listAll(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
+        when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
         final OSClient mockClient = mock(OSClient.class);
-        when(mockClient.images()).thenReturn(mockIS);
+        when(mockClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>();
 
         final Openstack instance = new Openstack(mockClient);
@@ -201,7 +198,7 @@ public class OpenstackTest {
         final Map<String, String> expectedFilteringParams = new HashMap<>(2);
         expectedFilteringParams.put("name", "NameNotFound");
         expectedFilteringParams.put("status", "active");
-        verify(mockIS).listAll(argThat(equalTo(expectedFilteringParams)));
+        verify(mockIS).list(argThat(equalTo(expectedFilteringParams)));
         verifyNoMoreInteractions(mockIS);
         assertThat(new ArrayList<>(actual), equalTo(expected));
     }
@@ -212,18 +209,18 @@ public class OpenstackTest {
         final String imageId = "cfd083b4-2422-4c5f-bf61-d975709375ab";
         when(mockImageNamedFoo.getId()).thenReturn(imageId);
         when(mockImageNamedFoo.getName()).thenReturn("Foo");
-        when(mockImageNamedFoo.getStatus()).thenReturn(Image.Status.ACTIVE);
+        when(mockImageNamedFoo.getStatus()).thenReturn(Image.ImageStatus.ACTIVE);
         final ImageService mockIS = mock(ImageService.class);
-        when(mockIS.listAll(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
+        when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
         when(mockIS.get(imageId)).thenReturn(mockImageNamedFoo);
         final OSClient mockClient = mock(OSClient.class);
-        when(mockClient.images()).thenReturn(mockIS);
+        when(mockClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList(mockImageNamedFoo.getId()));
 
         final Openstack instance = new Openstack(mockClient);
         final List<String> actual = instance.getImageIdsFor(imageId);
 
-        verify(mockIS).listAll(anyMapOf(String.class, String.class));
+        verify(mockIS).list(anyMapOf(String.class, String.class));
         verify(mockIS).get(imageId);
         verifyNoMoreInteractions(mockIS);
         assertThat(new ArrayList<>(actual), equalTo(expected));

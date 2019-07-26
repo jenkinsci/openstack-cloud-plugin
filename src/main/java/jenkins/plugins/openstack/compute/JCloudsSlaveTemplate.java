@@ -1,24 +1,22 @@
 package jenkins.plugins.openstack.compute;
 
 import au.com.bytecode.opencsv.CSVReader;
-import com.google.common.base.Charsets;
-import com.google.common.base.Strings;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
+import hudson.model.Failure;
 import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.remoting.Base64;
+import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.jenkinsci.lib.configprovider.ConfigProvider;
-import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
@@ -27,6 +25,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -34,15 +33,14 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 /**
  * @author Vijay Kiran
@@ -59,11 +57,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     private static final AtomicInteger nodeCounter = new AtomicInteger();
 
-    public final String name;
-    public final String labelString;
+    private final @Nonnull String name;
+    private final @Nonnull String labelString;
 
     // Difference compared to cloud
-    private /*final*/ SlaveOptions slaveOptions;
+    private /*final*/ @Nonnull SlaveOptions slaveOptions;
 
     private transient Set<LabelAtom> labelSet;
     private /*final*/ transient JCloudsCloud cloud;
@@ -84,12 +82,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private transient @Deprecated String availabilityZone;
 
     @DataBoundConstructor
-    public JCloudsSlaveTemplate(final String name, final String labelString, final SlaveOptions slaveOptions) {
+    public JCloudsSlaveTemplate(final @Nonnull String name, final @Nonnull String labels, final @CheckForNull SlaveOptions slaveOptions) {
+        this.name = Util.fixNull(name).trim();
+        this.labelString = Util.fixNull(labels).trim();
 
-        this.name = Util.fixEmptyAndTrim(name);
-        this.labelString = Util.fixNull(labelString);
-
-        this.slaveOptions = slaveOptions;
+        this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions;
 
         readResolve();
     }
@@ -122,7 +119,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 lf = LauncherFactory.JNLP.JNLP;
             }
 
-            slaveOptions = SlaveOptions.builder().bootSource(new BootSource.Image(imageId)).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
+            BootSource.Image bs = imageId == null ? null : new BootSource.Image(imageId);
+            slaveOptions = SlaveOptions.builder().bootSource(bs).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
                     .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
                     .launcherFactory(lf).availabilityZone(availabilityZone).build()
             ;
@@ -180,12 +178,21 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return labelSet;
     }
 
+    public @Nonnull String getName() {
+        return name;
+    }
+
+    @Restricted(NoExternalUse.class) // Jelly + tests
+    public @Nonnull String getLabels() {
+        return labelString;
+    }
+
     public boolean canProvision(final Label label) {
         return label == null || label.matches(labelSet);
     }
 
     /*package*/ boolean hasProvisioned(@Nonnull Server server) {
-        return name.equals(server.getMetadata().get(OPENSTACK_TEMPLATE_NAME_KEY));
+        return getName().equals(server.getMetadata().get(OPENSTACK_TEMPLATE_NAME_KEY));
     }
 
     /**
@@ -201,12 +208,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     ) throws JCloudsCloud.ProvisioningFailedException {
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
-        Server nodeMetadata = provision(cloud);
+        Server server = provisionServer(null, id);
 
         JCloudsSlave node = null;
         // Terminate node unless provisioned successfully
         try {
-            node = new JCloudsSlave(id, nodeMetadata, labelString, opts);
+            node = new JCloudsSlave(id, server, labelString, opts);
 
             String cause;
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
@@ -215,11 +222,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                     String timeoutMessage = String.format("Failed to connect agent %s within timeout (%d ms): %s", node.getNodeName(), timeout, cause);
                     Error errorQuerying = null;
                     try {
-                        Server freshServer = cloud.getOpenstack().getServerById(nodeMetadata.getId());
+                        Server freshServer = cloud.getOpenstack().getServerById(server.getId());
                         timeoutMessage += System.lineSeparator() + "Server state: " + freshServer;
                         // TODO attach instance log (or tail of) to cloud statistics
                     } catch (NoSuchElementException ex) {
-                        timeoutMessage += System.lineSeparator() + "Server does no longer exist: " + nodeMetadata.getId();
+                        timeoutMessage += System.lineSeparator() + "Server does no longer exist: " + server.getId();
                     } catch (Error ex) {
                         errorQuerying = ex;
                     }
@@ -238,7 +245,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         } catch (Throwable ex) {
             JCloudsCloud.ProvisioningFailedException cause = ex instanceof JCloudsCloud.ProvisioningFailedException
                     ? (JCloudsCloud.ProvisioningFailedException) ex
-                    : new JCloudsCloud.ProvisioningFailedException("Unable to provision node: " + ex.getMessage(), ex)
+                    : new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex)
             ;
 
             if (node != null) {
@@ -249,26 +256,19 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
-    /**
-     * Provision OpenStack machine.
-     *
-     * @throws Openstack.ActionFailed In case the provisioning failed.
-     * @see #provisionSlave(JCloudsCloud, ProvisioningActivity.Id)
-     */
-    /*package*/ @Nonnull Server provision(@Nonnull JCloudsCloud cloud) throws Openstack.ActionFailed {
-        return provision(cloud, null);
-    }
-
     @Restricted(NoExternalUse.class)
-    public @Nonnull Server provision(@Nonnull JCloudsCloud cloud, @CheckForNull ServerScope scope) throws Openstack.ActionFailed {
+    public @Nonnull Server provisionServer(@CheckForNull ServerScope scope, @CheckForNull ProvisioningActivity.Id id) throws Openstack.ActionFailed {
         final String serverName = getServerName();
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
 
-        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, name);
+        builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, getName());
         builder.addMetadataItem(OPENSTACK_CLOUD_NAME_KEY, cloud.name);
         if (scope == null) {
-            scope = new ServerScope.Node(serverName);
+            scope = id == null
+                    ? new ServerScope.Node(serverName)
+                    : new ServerScope.Node(serverName, id)
+            ;
         }
         builder.addMetadataItem(ServerScope.METADATA_KEY, scope.getValue());
 
@@ -279,27 +279,27 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         final Openstack openstack = cloud.getOpenstack();
         final BootSource bootSource = opts.getBootSource();
         if (bootSource == null) {
-            LOGGER.warning("No " + BootSource.class.getSimpleName() + " set for " + getClass().getSimpleName() + " with name='" + name + "'.");
+            LOGGER.warning("No " + BootSource.class.getSimpleName() + " set for " + getClass().getSimpleName() + " with name='" + getName() + "'.");
         } else {
             LOGGER.fine("Setting boot options to " + bootSource);
             bootSource.setServerBootSource(builder, openstack);
         }
 
         String hwid = opts.getHardwareId();
-        if (!Strings.isNullOrEmpty(hwid)) {
+        if (Util.fixEmpty(hwid) != null) {
             LOGGER.fine("Setting hardware Id to " + hwid);
             builder.flavor(hwid);
         }
 
         String nid = opts.getNetworkId();
-        if (!Strings.isNullOrEmpty(nid)) {
+        if (Util.fixEmpty(nid) != null) {
             List<String> networks = openstack.getNetworkIds(Arrays.asList(csvToArray(nid)));
             LOGGER.fine("Setting networks to " + networks);
             builder.networks(networks);
         }
 
         String securityGroups = opts.getSecurityGroups();
-        if (!Strings.isNullOrEmpty(securityGroups)) {
+        if (Util.fixEmpty(securityGroups) != null) {
             LOGGER.fine("Setting security groups to " + securityGroups);
             for (String sg: csvToArray(securityGroups)) {
                 builder.addSecurityGroup(sg);
@@ -307,24 +307,24 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         String kpn = opts.getKeyPairName();
-        if (!Strings.isNullOrEmpty(kpn)) {
+        if (Util.fixEmpty(kpn) != null) {
             LOGGER.fine("Setting keyPairName to " + kpn);
             builder.keypairName(kpn);
         }
 
         String az = opts.getAvailabilityZone();
-        if (!Strings.isNullOrEmpty(az)) {
+        if (Util.fixEmpty(az) != null) {
             LOGGER.fine("Setting availabilityZone to " + az);
             builder.availabilityZone(az);
         }
 
         @CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
-            String rootUrl = Jenkins.getActiveInstance().getRootUrl();
+            String rootUrl = Jenkins.get().getRootUrl();
             UserDataVariableResolver resolver = new UserDataVariableResolver(rootUrl, serverName, labelString, opts);
             String content = Util.replaceMacro(userDataText, resolver);
             LOGGER.fine("Sending user-data:\n" + content);
-            builder.userData(Base64.encode(content.getBytes(Charsets.UTF_8)));
+            builder.userData(Base64.encode(content.getBytes(StandardCharsets.UTF_8)));
         }
 
         Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
@@ -356,10 +356,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         CloudStatistics cs = CloudStatistics.get();
         next_number: for (;;) {
             // Using static counter to ensure colliding template names (between clouds) will not cause a clash
-            String nameCandidate = name + "-" + nodeCounter.getAndIncrement();
+            String nameCandidate = getName() + "-" + nodeCounter.getAndIncrement();
 
             // Collide with existing node - quite likely from this cloud
-            if (Jenkins.getInstance().getNode(nameCandidate) != null) continue;
+            if (Jenkins.get().getNode(nameCandidate) != null) continue;
 
             // Collide with node being provisioned (at this point this plugin does not assign final name before launch
             // is completed) or recently used name (just to avoid confusion).
@@ -383,50 +383,60 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {
-        UserDataConfig.UserDataConfigProvider userDataConfigProvider = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class);
-        if (userDataConfigProvider == null) throw new AssertionError("Openstack Config File Provider is not registered");
-        Config userData = userDataConfigProvider.getConfigById(getEffectiveSlaveOptions().getUserDataId());
-
-        return (userData == null || userData.content.isEmpty())
-                ? null
-                : userData.content
-        ;
+        return UserDataConfig.resolve(getEffectiveSlaveOptions().getUserDataId());
     }
 
     /*package for testing*/ List<? extends Server> getRunningNodes() {
         List<Server> tmplt = new ArrayList<>();
         for (Server server : cloud.getOpenstack().getRunningNodes()) {
-            Map<String, String> md = server.getMetadata();
-            if (name.equals(md.get(OPENSTACK_TEMPLATE_NAME_KEY))) {
+            if (hasProvisioned(server)) {
                 tmplt.add(server);
             }
         }
         return tmplt;
     }
 
+    /**
+     * Return the number of active nodes provisioned using this template.
+     */
+    /*package*/ int getAvailableNodesTotal() {
+        int totalServers = 0;
+
+        for (JCloudsComputer computer : JCloudsComputer.getAll()) {
+            ProvisioningActivity.Id cid = computer.getId();
+            // Not this template
+            if (!name.equals(cid.getTemplateName()) || !cloud.name.equals(cid.getCloudName())) continue;
+
+            // Not active
+            if (!computer.isIdle() || computer.isPendingDelete() || computer.getOfflineCause() instanceof OfflineCause.UserCause) continue;
+
+            totalServers++;
+        }
+        return totalServers;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public Descriptor<JCloudsSlaveTemplate> getDescriptor() {
-        return Jenkins.getActiveInstance().getDescriptor(getClass());
+        return Jenkins.get().getDescriptor(getClass());
     }
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
-        private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9][-a-zA-Z0-9]{0,79}");
-
         @Override
         public String getDisplayName() {
             return clazz.getSimpleName();
         }
 
         @Restricted(DoNotUse.class)
+        @RequirePOST
         public FormValidation doCheckName(@QueryParameter String value) {
-            if (NAME_PATTERN.matcher(value).find()) return FormValidation.ok();
-
-            return FormValidation.error(
-                    "Must be a lowercase string, from 1 to 80 characteres long, starting with letter or number"
-            );
+            try {
+                Jenkins.checkGoodName(value);
+                return FormValidation.ok();
+            } catch (Failure ex) {
+                return FormValidation.error(ex.getMessage());
+            }
         }
     }
-
 }

@@ -51,7 +51,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         return instancesToRun;
     }
 
-    // convert Jenkins staticy stuff into pojos; performing as little critical stuff here as
+    // convert Jenkins static stuff into pojos; performing as little critical stuff here as
     // possible, as this method is very hard to test due to static usage, etc.
     @Override
     public Environment setUp(final AbstractBuild build, Launcher launcher, final BuildListener listener) {
@@ -147,7 +147,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
         final List<String> ips = new ArrayList<>(instancesToRun.size());
         for (RunningNode node : runningNodes) {
-            String addr = Openstack.getPublicAddress(node.getNode());
+            String addr = Openstack.getAccessIpAddress(node.getNode());
             if (addr != null) {
                 ips.add(addr);
             } else {
@@ -203,7 +203,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         public String getTemplate() {
-            return template.name;
+            return template.getName();
         }
 
         public int getCount() {
@@ -211,15 +211,13 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         Callable<Server> getNodeSupplier() {
-            final JCloudsCloud cloud1 = cloud;
             final JCloudsSlaveTemplate template1 = template;
             return new Callable<Server>() {
-                private final @Nonnull JCloudsCloud cloud = cloud1;
                 private final @Nonnull JCloudsSlaveTemplate template = template1;
 
                 @Override
-                public Server call() throws Exception {
-                    return template.provision(cloud, scope);
+                public Server call() {
+                    return template.provisionServer(scope, null);
                 }
             };
         }

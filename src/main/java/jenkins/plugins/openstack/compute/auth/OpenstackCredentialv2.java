@@ -5,16 +5,15 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.NameWith;
 import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
 import hudson.util.Secret;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.openstack.OSFactory;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 @NameWith(value = OpenstackCredentialv2.NameProvider.class)
@@ -46,7 +45,7 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
         this.password = password;
     }
 
-    @NonNull
+    @Nonnull
     @Override
     public Secret getPassword() {
         return password;
@@ -81,9 +80,9 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
         /**
          * {@inheritDoc}
          */
-        @NonNull
+        @Nonnull
         @Override
-        public String getName(@NonNull OpenstackCredentialv2 c) {
+        public String getName(@Nonnull OpenstackCredentialv2 c) {
             String description = Util.fixEmptyAndTrim(c.getDescription());
             return c.getTenant() + ":" + c.getUsername() + "/******" + (description != null ? " (" + description + ")" : "");
         }
@@ -92,7 +91,7 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
     /**
      * {@inheritDoc}
      */
-    @Extension(ordinal = 1)
+    @Extension(ordinal = 1) @Symbol("openstackV2")
     public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
 
         /**
@@ -102,6 +101,5 @@ public class OpenstackCredentialv2 extends AbstractOpenstackCredential implement
         public @Nonnull String getDisplayName() {
             return "OpenStack auth v2";
         }
-
     }
 }

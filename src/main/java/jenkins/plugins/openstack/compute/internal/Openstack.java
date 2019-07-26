@@ -29,10 +29,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -45,11 +48,11 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
+import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.TreeMultimap;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
@@ -59,7 +62,6 @@ import hudson.Util;
 import hudson.remoting.Which;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.core.transport.Config;
@@ -70,7 +72,6 @@ import org.openstack4j.api.compute.ServerService;
 import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.ActionResponse;
-import org.openstack4j.model.common.BasicResource;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
@@ -81,7 +82,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.identity.v2.Access;
 import org.openstack4j.model.identity.v3.Token;
-import org.openstack4j.model.image.Image;
+import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.model.storage.block.Volume;
@@ -94,7 +95,7 @@ import jenkins.model.Jenkins;
 /**
  * Encapsulate {@link OSClient}.
  *
- * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting.
+ * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unit testing.
  *
  * For server manipulation, this implementation provides metadata fingerprinting
  * to identify machines started via this plugin from given instance so it will not
@@ -110,6 +111,18 @@ public class Openstack {
     private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
     public static final String FINGERPRINT_KEY = "jenkins-instance";
 
+    private static final Comparator<Date> ACCEPT_NULLS = Comparator.nullsLast(Comparator.naturalOrder());
+    private static final Comparator<Flavor> FLAVOR_COMPARATOR = Comparator.nullsLast(Comparator.comparing(Flavor::getName));
+    private static final Comparator<AvailabilityZone> AVAILABILITY_ZONES_COMPARATOR = Comparator.nullsLast(
+            Comparator.comparing(AvailabilityZone::getZoneName)
+    );
+    private static final Comparator<VolumeSnapshot> VOLUMESNAPSHOT_DATE_COMPARATOR = Comparator.nullsLast(
+            Comparator.comparing(VolumeSnapshot::getCreated, ACCEPT_NULLS).thenComparing(VolumeSnapshot::getId))
+    ;
+    private static final Comparator<Image> IMAGE_DATE_COMPARATOR = Comparator.nullsLast(
+            Comparator.comparing(Image::getUpdatedAt, ACCEPT_NULLS).thenComparing(Image::getCreatedAt, ACCEPT_NULLS).thenComparing(Image::getId)
+    );
+
     // Store the OS session token so clients can be created from it per all threads using this.
     private final ClientProvider clientProvider;
 
@@ -118,6 +131,8 @@ public class Openstack {
         final IOSClientBuilder<? extends OSClient<?>, ?> builder = auth.getBuilder(endPointUrl);
 
         Config config = Config.newConfig();
+        config.withConnectionTimeout(20_000);
+        config.withReadTimeout(20_000);
         if (ignoreSsl) {
             config.withSSLVerificationDisabled();
         }
@@ -128,8 +143,7 @@ public class Openstack {
                 .useRegion(region);
 
         clientProvider = ClientProvider.get(client, region, config);
-        debug("Openstack client created for \"{1}\", \"{2}\".", auth.toString(), region);
-
+        debug("Openstack client created for \"{0}\", \"{1}\".", auth.toString(), region);
     }
 
     /*exposed for testing*/
@@ -145,6 +159,13 @@ public class Openstack {
         };
     }
 
+    public static @Nonnull String getFlavorInfo(@Nonnull Flavor f) {
+        return String.format(
+                "%s (CPUs: %s, RAM: %sMB, Disk: %sGB, SWAP: %sMB, Ephemeral: %sGB)",
+                f.getName(), f.getVcpus(), f.getRam(), f.getDisk(), f.getSwap(), f.getEphemeral()
+        );
+    }
+
     /**
      * Get information about OpenStack deployment.
      */
@@ -152,23 +173,10 @@ public class Openstack {
         return clientProvider.getInfo();
     }
 
-    public @Nonnull Collection<? extends Network> getSortedNetworks() {
-        List<? extends Network> nets = _listNetworks();
-        Collections.sort(nets, RESOURCE_COMPARATOR);
-        return nets;
-    }
-
     @VisibleForTesting
     public  @Nonnull List<? extends Network> _listNetworks() {
         return clientProvider.get().networking().network().list();
     }
-
-    private static final Comparator<BasicResource> RESOURCE_COMPARATOR = new Comparator<BasicResource>() {
-        @Override
-        public int compare(BasicResource o1, BasicResource o2) {
-            return ObjectUtils.compare(o1.getName(), o2.getName());
-        }
-    };
 
     public @Nonnull List<String> getNetworkIds(@Nonnull List<String> nameOrIds) {
         if (nameOrIds.isEmpty()) return Collections.emptyList();
@@ -202,29 +210,43 @@ public class Openstack {
      *         name-collisions, the images for a given name are sorted by
      *         creation date.
      */
-    public @Nonnull Map<String, Collection<Image>> getImages() {
-        final List<? extends Image> list = clientProvider.get().images().listAll();
-        final TreeMultimap<String, Image> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, IMAGE_DATE_COMPARATOR);
-        for (Image o : list) {
-            final String name = Util.fixNull(o.getName());
-            final String nameOrId = name.isEmpty() ? o.getId() : name;
-            set.put(nameOrId, o);
+    public @Nonnull Map<String, List<Image>> getImages() {
+        final List<? extends Image> list = getAllImages();
+        TreeMap<String, List<Image>> data = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Image image : list) {
+            final String name = Util.fixNull(image.getName());
+            final String nameOrId = name.isEmpty() ? image.getId() : name;
+            List<Image> sameNamed = data.get(nameOrId);
+            if (sameNamed == null) {
+                sameNamed = new ArrayList<>();
+                data.putIfAbsent(nameOrId, sameNamed);
+
+            }
+            sameNamed.add(image);
         }
-        return set.asMap();
+        for (List<Image> sameNamed : data.values()) {
+            sameNamed.sort(IMAGE_DATE_COMPARATOR);
+        }
+
+        return data;
     }
 
-    private static final Comparator<Image> IMAGE_DATE_COMPARATOR = new Comparator<Image>() {
-        @Override
-        public int compare(Image o1, Image o2) {
-            int result;
-            result = ObjectUtils.compare(o1.getUpdatedAt(), o2.getUpdatedAt());
-            if (result != 0) return result;
-            result = ObjectUtils.compare(o1.getCreatedAt(), o2.getCreatedAt());
-            if (result != 0) return result;
-            result = ObjectUtils.compare(o1.getId(), o1.getId());
-            return result;
+    // Glance2 API does not have the listAll() pagination helper in the library so reimplementing it here
+    private @Nonnull List<Image> getAllImages() {
+        final int LIMIT = 100;
+        Map<String, String> params = new HashMap<>(2);
+        params.put("limit", Integer.toString(LIMIT));
+
+        List<? extends Image> page = clientProvider.get().imagesV2().list(params);
+        List<Image> all = new ArrayList<>(page);
+        while(page.size() == LIMIT) {
+            params.put("marker", page.get(LIMIT - 1).getId());
+            page = clientProvider.get().imagesV2().list(params);
+            all.addAll(page);
         }
-    };
+
+        return all;
+    }
 
     /**
      * Finds all {@link VolumeSnapshot}s that are {@link Status#AVAILABLE}.
@@ -234,43 +256,37 @@ public class Openstack {
      *         and, in the event of name-collisions, the volume snapshots for a
      *         given name are sorted by creation date.
      */
-    public @Nonnull Map<String, Collection<VolumeSnapshot>> getVolumeSnapshots() {
+    public @Nonnull Map<String, List<VolumeSnapshot>> getVolumeSnapshots() {
         final List<? extends VolumeSnapshot> list = clientProvider.get().blockStorage().snapshots().list();
-        final TreeMultimap<String, VolumeSnapshot> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, VOLUMESNAPSHOT_DATE_COMPARATOR);
-        for (VolumeSnapshot o : list) {
-            if (o.getStatus() != Status.AVAILABLE) {
+        TreeMap<String, List<VolumeSnapshot>> data = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        //final TreeMultimap<String, VolumeSnapshot> set = TreeMultimap.create(String.CASE_INSENSITIVE_ORDER, VOLUMESNAPSHOT_DATE_COMPARATOR);
+        for (VolumeSnapshot vs : list) {
+            if (vs.getStatus() != Status.AVAILABLE) {
                 continue;
             }
-            final String name = Util.fixNull(o.getName());
-            final String nameOrId = name.isEmpty() ? o.getId() : name;
-            set.put(nameOrId, o);
+            final String name = Util.fixNull(vs.getName());
+            final String nameOrId = name.isEmpty() ? vs.getId() : name;
+            List<VolumeSnapshot> sameNamed = data.get(nameOrId);
+            if (sameNamed == null) {
+                sameNamed = new ArrayList<>();
+                data.putIfAbsent(nameOrId, sameNamed);
+
+            }
+            sameNamed.add(vs);
         }
-        return set.asMap();
+        for (List<VolumeSnapshot> sameNamed : data.values()) {
+            sameNamed.sort(VOLUMESNAPSHOT_DATE_COMPARATOR);
+        }
+        return data;
     }
 
-    private static final Comparator<VolumeSnapshot> VOLUMESNAPSHOT_DATE_COMPARATOR = new Comparator<VolumeSnapshot>() {
-        @Override
-        public int compare(VolumeSnapshot o1, VolumeSnapshot o2) {
-            int result;
-            result = ObjectUtils.compare(o1.getCreated(), o2.getCreated());
-            if( result!=0 ) return result;
-            result = ObjectUtils.compare(o1.getId(), o1.getId());
-            return result;
-        }
-    };
 
     public @Nonnull Collection<? extends Flavor> getSortedFlavors() {
         List<? extends Flavor> flavors = clientProvider.get().compute().flavors().list();
-        Collections.sort(flavors, FLAVOR_COMPARATOR);
+        flavors.sort(FLAVOR_COMPARATOR);
         return flavors;
     }
 
-    private static final Comparator<Flavor> FLAVOR_COMPARATOR = new Comparator<Flavor>() {
-        @Override
-        public int compare(Flavor o1, Flavor o2) {
-            return ObjectUtils.compare(o1.getName(), o2.getName());
-        }
-    };
 
     public @Nonnull List<String> getSortedIpPools() {
         ComputeFloatingIPService ipService = getComputeFloatingIPService();
@@ -283,16 +299,10 @@ public class Openstack {
 
     public @Nonnull List<? extends AvailabilityZone> getAvailabilityZones() {
         final List<? extends AvailabilityZone> zones = clientProvider.get().compute().zones().list();
-        Collections.sort(zones, AVAILABILITY_ZONES_COMPARATOR);
+        zones.sort(AVAILABILITY_ZONES_COMPARATOR);
         return zones;
     }
 
-    private static final Comparator<AvailabilityZone> AVAILABILITY_ZONES_COMPARATOR = new Comparator<AvailabilityZone>() {
-        @Override
-        public int compare(AvailabilityZone o1, AvailabilityZone o2) {
-            return ObjectUtils.compare(o1.getZoneName(), o2.getZoneName());
-        }
-    };
 
     /**
      * @return null when user is not authorized to use the endpoint which is a valid use-case.
@@ -352,11 +362,11 @@ public class Openstack {
         final Map<String, String> query = new HashMap<>(2);
         query.put("name", nameOrId);
         query.put("status", "active");
-        final List<? extends Image> findByName = clientProvider.get().images().listAll(query);
+        final List<? extends Image> findByName = clientProvider.get().imagesV2().list(query);
         sortedObjects.addAll(findByName);
         if (nameOrId.matches("[0-9a-f-]{36}")) {
-            final Image findById = clientProvider.get().images().get(nameOrId);
-            if (findById != null && findById.getStatus() == Image.Status.ACTIVE) {
+            final Image findById = clientProvider.get().imagesV2().get(nameOrId);
+            if (findById != null && findById.getStatus() == Image.ImageStatus.ACTIVE) {
                 sortedObjects.add(findById);
             }
         }
@@ -378,7 +388,7 @@ public class Openstack {
     public @Nonnull List<String> getVolumeSnapshotIdsFor(String nameOrId) {
         final Collection<VolumeSnapshot> sortedObjects = new TreeSet<>(VOLUMESNAPSHOT_DATE_COMPARATOR);
         // OpenStack block-storage/v3 API doesn't allow us to filter by name, so fetch all and search.
-        final Map<String, Collection<VolumeSnapshot>> allVolumeSnapshots = getVolumeSnapshots();
+        final Map<String, List<VolumeSnapshot>> allVolumeSnapshots = getVolumeSnapshots();
         final Collection<VolumeSnapshot> findByName = allVolumeSnapshots.get(nameOrId);
         if (findByName != null) {
             sortedObjects.addAll(findByName);
@@ -394,6 +404,19 @@ public class Openstack {
             ids.add(i.getId());
         }
         return ids;
+    }
+
+    /**
+     * Gets the description of a {@link VolumeSnapshot}. This will be visible
+     * if a user looks at volume snapshots using the OpenStack command-line or WebUI
+     * and may well contain useful information.
+     *
+     * @param volumeSnapshotId
+     *            The ID of the volume snapshot whose description is to be retrieved.
+     * @return The description string, or null if there isn't one.
+     */
+    public @CheckForNull String getVolumeSnapshotDescription(String volumeSnapshotId) {
+        return clientProvider.get().blockStorage().snapshots().get(volumeSnapshotId).getDescription();
     }
 
     /**
@@ -415,7 +438,7 @@ public class Openstack {
     /**
      * Determine whether the server is considered occupied by openstack plugin.
      */
-    private static boolean isOccupied(@Nonnull Server server) {
+    public static boolean isOccupied(@Nonnull Server server) {
         switch (server.getStatus()) {
             case UNKNOWN:
             case MIGRATING:
@@ -440,7 +463,9 @@ public class Openstack {
      * @return Identifier to filter instances we control.
      */
     private @Nonnull String instanceFingerprint() {
-        return Jenkins.getActiveInstance().getRootUrl();
+        String rootUrl = Jenkins.get().getRootUrl();
+        if (rootUrl == null) throw new IllegalStateException("Jenkins instance URL is not configured");
+        return rootUrl;
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
@@ -490,7 +515,7 @@ public class Openstack {
                 }
                 throw err;
             }
-            debug("Machine started: " + server.getName());
+            debug("Machine started: {0}", server.getName());
             throwIfFailed(server);
             return server;
         } catch (ResponseException ex) {
@@ -526,7 +551,7 @@ public class Openstack {
                 if (nodeId.equals(ip.getInstanceId())) {
                     ActionResponse res = fipsService.deallocateIP(ip.getId());
                     if (res.isSuccess() || res.getCode() == 404) {
-                        debug("Deallocated Floating IP " + ip.getFloatingIpAddress());
+                        debug("Deallocated Floating IP {0}", ip.getFloatingIpAddress());
                     } else {
                         throw new ActionFailed(
                                 "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault() + "(" + res.getCode()  + ")"
@@ -539,13 +564,13 @@ public class Openstack {
         ServerService servers = clientProvider.get().compute().servers();
         server = servers.get(nodeId);
         if (server == null || server.getStatus() == Server.Status.DELETED) {
-            debug("Machine destroyed: " + nodeId);
+            debug("Machine destroyed: {0}", nodeId);
             return; // Deleted
         }
 
         ActionResponse res = servers.delete(nodeId);
         if (res.getCode() == 404) {
-            debug("Machine destroyed: " + nodeId);
+            debug("Machine destroyed: {0}", nodeId);
             return; // Deleted
         }
 
@@ -561,7 +586,7 @@ public class Openstack {
      * @param poolName Name of the FIP pool to use. If null, openstack default pool will be used.
      */
     public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) throws ActionFailed {
-        debug("Allocating floating IP for " + server.getName());
+        debug("Allocating floating IP for {0}", server.getName());
         ComputeFloatingIPService fips = clientProvider.get().compute().floatingIps(); // This throws when user is not authorized to manipulate FIPs
         FloatingIP ip;
         try {
@@ -570,9 +595,9 @@ public class Openstack {
             // TODO Grab some still IPs from JCloudsCleanupThread
             throw new ActionFailed(ex.getMessage() + " Allocating for " + server.getName(), ex);
         }
-        debug("Floating IP allocated " + ip.getFloatingIpAddress());
+        debug("Floating IP allocated {0}", ip.getFloatingIpAddress());
         try {
-            debug("Assigning floating IP to " + server.getName());
+            debug("Assigning floating IP to {0}", server.getName());
             ActionResponse res = fips.addFloatingIP(server, ip.getFloatingIpAddress());
             throwIfFailed(res);
             debug("Floating IP assigned");
@@ -600,66 +625,55 @@ public class Openstack {
     }
 
     /**
-     * Extract public address from server info.
+     * Extract public address from server.
      *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
+     * @return Preferring IPv4 over IPv6 and floating address over fixed.
+     * @throws IllegalArgumentException When address can not be understood.
+     * @throws NoSuchElementException When no suitable address is found.
      */
-    public static @CheckForNull Address getPublicAddressObject(@Nonnull Server server) {
-    	Address fixed = null;
-        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
+    public static @CheckForNull String getAccessIpAddress(@Nonnull Server server) throws IllegalArgumentException, NoSuchElementException {
+        String fixedIPv4 = null;
+        String fixedIPv6 = null;
+        String floatingIPv6 = null;
+        Collection<List<? extends Address>> addressMap = server.getAddresses().getAddresses().values();
+        for (List<? extends Address> addresses: addressMap) {
             for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr;
-                }
+                String type = addr.getType();
+                int version = addr.getVersion();
+                String address = addr.getAddr();
 
-                fixed = addr;
-            }
-        }
+                if (version != 4 && version != 6) throw new IllegalArgumentException(
+                        "Unknown or unsupported IP protocol version: " + version
+                );
 
-        // No floating IP found - use fixed
-        return fixed;
-    }
-
-    /**
-     * Extract public address from server info.
-     *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
-     */
-    public static @CheckForNull String getPublicAddress(@Nonnull Server server) {
-        String fixed = null;
-        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
-            for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr.getAddr();
-                }
-
-                fixed = addr.getAddr();
-            }
-        }
-
-        // No floating IP found - use fixed
-        return fixed;
-    }
-
-    /**
-     * Extract public address from server info.
-     *
-     * @return Floating IP, if there is none Fixed IP, null if there is none either.
-     */
-    public static @CheckForNull String getPublicAddressIpv4(@Nonnull Server server) {
-        String fixed = null;
-        for (List<? extends Address> addresses: server.getAddresses().getAddresses().values()) {
-            for (Address addr: addresses) {
-                if ("floating".equals(addr.getType())) {
-                    return addr.getAddr();
-                } else if (addr.getVersion()==4) {
-                	fixed = addr.getAddr();
+                if (Objects.equals(type, "floating")) {
+                    if (version == 4) {
+                        // The most favourable option so we can return early here
+                        return address;
+                    } else {
+                        if (floatingIPv6 == null) {
+                            floatingIPv6 = address;
+                        }
+                    }
+                } else  if (Objects.equals(type, "fixed")) {
+                    if (version == 4) {
+                        if (fixedIPv4 == null) {
+                            fixedIPv4 = address;
+                        }
+                    } else {
+                        if (fixedIPv6 == null) {
+                            fixedIPv6 = address;
+                        }
+                    }
                 }
             }
         }
 
-        // No floating IP found - use fixed
-        return fixed;
+        if (floatingIPv6 != null) return floatingIPv6;
+        if (fixedIPv4 != null) return fixedIPv4;
+        if (fixedIPv6 != null) return fixedIPv6;
+
+        throw new NoSuchElementException("No access IP address found for " + server.getName() + ": " + addressMap);
     }
 
     /**
@@ -739,6 +753,15 @@ public class Openstack {
         }
     }
 
+    /**
+     * Logs a message at {@link Level#FINE}.
+     * 
+     * @param msg
+     *            The message format, where '{0}' will be replaced by args[0],
+     *            '{1}' by args[1] etc.
+     * @param args
+     *            The arguments.
+     */
     private static void debug(@Nonnull String msg, @Nonnull String... args) {
         LOGGER.log(Level.FINE, msg, args);
     }
@@ -764,16 +787,16 @@ public class Openstack {
          * Instantiate Openstack client.
          */
         public static @Nonnull Openstack get(
-                @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @Nonnull final String region
+                @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @CheckForNull final String region
         ) throws FormValidation {
-            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n' + ignoreSsl + '\n' + auth.toString() + '\n' + region);
+            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n'
+                    + ignoreSsl + '\n'
+                    + auth.toString() + '\n'
+                    + (auth instanceof PasswordCredentials ? ((PasswordCredentials) auth).getPassword().getEncryptedValue() + '\n' : "")
+                    + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
-            final Callable<Openstack> cacheMissFunction = new Callable<Openstack>() {
-                @Override
-                public Openstack call() throws FormValidation {
-                    return ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
-                }
-            };
+            final Callable<Openstack> cacheMissFunction = () -> ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
+
             // Get an instance, creating a new one if necessary.
             try {
                 return ep.cache.get(fingerprint, cacheMissFunction);
@@ -905,7 +928,7 @@ public class Openstack {
         // jenkins deployed plugin have different classloader environments. Messing around with maven-hpi-plugin opts can
         // fix or break any of that and there is no regression test to catch that.
         try {
-            File path = Which.jarFile(Objects.ToStringHelper.class);
+            File path = Which.jarFile(MoreObjects.ToStringHelper.class);
             LOGGER.info("com.google.common.base.Objects loaded from " + path);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Unable to get source of com.google.common.base.Objects", e);

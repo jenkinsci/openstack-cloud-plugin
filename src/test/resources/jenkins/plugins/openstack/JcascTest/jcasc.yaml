@@ -1,0 +1,126 @@
+jenkins:
+  clouds:
+    - openstack:
+        name: "foo"
+        endPointUrl: "https://acme.com:5000"
+        credentialsId: "openstack_service_credentials"
+        ignoreSsl: true
+        zone: foo
+        slaveOptions:
+          bootSource:
+            image:
+              name: "Image Name"
+          hardwareId: "hid"
+          networkId: "net"
+          userDataId: "user-data-id"
+          instanceCap: 11
+          instancesMin: 1
+          floatingIpPool: "baz"
+          securityGroups: "s1,s2"
+          availabilityZone: "bax"
+          startTimeout: 15
+          keyPairName: "key"
+          numExecutors: 2
+          jvmOptions: "-Xmx1G"
+          fsRoot: "/tmp/foo"
+          launcherFactory:
+            ssh:
+              credentialsId: "openstack_ssh_key"
+              javaPath: "/bin/true"
+          retentionTime: 42
+        templates:
+          - name: "empty"
+            labels: "linux"
+          - name: "jnlp"
+            labels: "jnlp"
+            slaveOptions:
+              launcherFactory: "jnlp"
+          - name: "volumeSnapshot"
+            labels: "volume"
+            slaveOptions:
+              bootSource:
+                volumeSnapshot:
+                  name: "Volume name"
+          - name: "volumeFromImage"
+            labels: "volume from image"
+            slaveOptions:
+              bootSource:
+                volumeFromImage:
+                  name: "Volume name"
+                  volumeSize: 15
+
+unclassified:
+  globalConfigFiles:
+    configs:
+      - openstackUserData:
+          id: user-data-id
+          name: "My user data"
+          comment: "... with a comment"
+          content: >
+            #cloud-config
+            disable_root: 0
+            ssh_pwauth: True
+            chpasswd: { expire: False }
+
+            users:
+              - name: root
+                password: toor
+                lock-passwd: false
+                inactive: false
+                system: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - openstackV3:
+              scope: SYSTEM
+              id: "openstack_service_credentials"
+              description: "desc"
+              userName: "foo"
+              userDomain: "acme.com"
+              projectName: "casc"
+              projectDomain: "acme.com"
+              password: "bar" # Do not hardcode plaintext secrets for real world declarations!
+          - openstackV2:
+              scope: SYSTEM
+              id: "openstack_service_credentialsV2"
+              description: "desc"
+              username: "username"
+              password: "pwd" # Do not hardcode plaintext secrets for real world declarations!
+              tenant: "tnt"
+          - basicSSHUserPrivateKey:
+              scope: SYSTEM
+              id: "openstack_ssh_key"
+              username: "jenkins"
+              privateKeySource:
+                directEntry:
+                  # Do not hardcode plaintext secrets for real world declarations!
+                  privateKey: >
+                    -----BEGIN OPENSSH PRIVATE KEY-----
+                    b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
+                    NhAAAAAwEAAQAAAQEAleOyx/pWbWBWrKOXyDpXio33Y6jAXdAi2mqo1nKIcIX75U71WxcR
+                    2+i+IqlyVm85YcBQ3xKZ9KVxW9rCGn/KNJkQdQa+hGltJUHJNLPGCoZG0Qj5LLhXW3SSOQ
+                    3X2e8FMLTmrHeBqOZhFJr9ijlDX23Hbo5JENGs8MCXAfFBcthBViWWouaon2qgH1xncT19
+                    OVpQbAozwgqM1pl+6fL1yvBw89emAix+G+iy+r89fk+mb/5jwkikFsk9qhZrQIkrSsGS2h
+                    noH+LeRUtMyDcjXcqC214PtyI38hA+TxjIfqNBz8VF9juhAq28kOVFMPBNxoI8bW2F6/1h
+                    49Jkg9iLzQAAA8i2KKHJtiihyQAAAAdzc2gtcnNhAAABAQCV47LH+lZtYFaso5fIOleKjf
+                    djqMBd0CLaaqjWcohwhfvlTvVbFxHb6L4iqXJWbzlhwFDfEpn0pXFb2sIaf8o0mRB1Br6E
+                    aW0lQck0s8YKhkbRCPksuFdbdJI5DdfZ7wUwtOasd4Go5mEUmv2KOUNfbcdujkkQ0azwwJ
+                    cB8UFy2EFWJZai5qifaqAfXGdxPX05WlBsCjPCCozWmX7p8vXK8HDz16YCLH4b6LL6vz1+
+                    T6Zv/mPCSKQWyT2qFmtAiStKwZLaGegf4t5FS0zINyNdyoLbXg+3IjfyED5PGMh+o0HPxU
+                    X2O6ECrbyQ5UUw8E3GgjxtbYXr/WHj0mSD2IvNAAAAAwEAAQAAAQBJrcbZBFZtp3iTnkri
+                    8sLLaeOcinwc4U3wnZNm7p/g6AudeYWkBCAUQEEOWsrIcB39zgIy1Tr2hkjFxS+6xOxJlK
+                    ABVpJaFlS/hqn4DRKhY8X1xPpvICJY42FpSEO9bf/YJGRrjMcgljZMYa+VvXY/t3/b+Xcz
+                    HE5tfc3893GbmK9YUvFu6WdGg/3J3M/L3NvJVlPDfq7hQkx1EPVv/w5B+CNrVRayKypVRj
+                    3cV/akjVuSblOs227nFzEtt6WDFky7H0T7rwoJKT0Co+4gVheQGibzU726MdXgVI2W2SPo
+                    h3HcQfA74FLi6JeM1s/Fkl4UZctbxzXXrtW3v8ecEbEhAAAAgFc8FdBS7Jbo+ofOgfmTBE
+                    fCkvVU/TIvPrkz6KAJxuBaYYGpT+YtSoJwpmdjOn0M23KiDA/4i+1G/NVZXa/N22rUd9Gp
+                    uSikOImAwrhB3hjr5c/8lt+iC89fdWQBEZs2QsxLeHPIqNnjYlyDa6Rz0t4lQe54rmbtXR
+                    FYgMGGBglTAAAAgQDEYxhyBdzLMg1U8XTe6rQ41ikPuePdeUghP0JCjq7M5TzdTRCC1oDe
+                    vwREeLNFOvDLdl8sqYGJTegpdVM2FHIQBmbxamM2Ms0YSETsCMWUHJguh3mKvIx8ICPkoZ
+                    eNN2HlSxh2ug3unE9vANuJKZztAsnPMoafMPyKmH5XbL+F1QAAAIEAw2NZu/9a815Rwr7C
+                    JbAt3jdjyM6MIVAFb7BQS1wtGsitZCaeb0Pond+T4j7mOTbzMZhE0lstwsWWrDWlX9LkHV
+                    RsDHpCNTnxRfQeA1NL5LoTIW8OfjV2/NiGAa6INerBBURRKlIRJYdLmdi/IoNSzwBzC/mV
+                    kh2nsVg0sOMNkhkAAAAMb2dvbmR6YUBhcmNoAQIDBAUGBw==
+                    -----END OPENSSH PRIVATE KEY-----

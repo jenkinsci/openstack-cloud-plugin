@@ -3,13 +3,13 @@ package jenkins.plugins.openstack.compute;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.OfflineCause;
+import hudson.slaves.RetentionStrategy;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -20,14 +20,30 @@ import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.openstack4j.model.compute.Address;
+import org.openstack4j.model.compute.Addresses;
+import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -37,10 +53,19 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
 
+    /** metadata fields that aren't worth showing to the user. */
+    private static final List<String> HIDDEN_METADATA_VALUES = Arrays.asList(
+            Openstack.FINGERPRINT_KEY,
+            JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY,
+            JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY,
+            ServerScope.METADATA_KEY
+    );
+
     private final @Nonnull String cloudName;
     // Full/effective options
     private /*final*/ @Nonnull SlaveOptions options;
     private final @Nonnull ProvisioningActivity.Id provisioningId;
+    private transient @Nonnull Cache<String, Map<String, String>> cache;
 
     private /*final*/ @Nonnull String nodeId;
 
@@ -57,7 +82,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
     ) throws IOException, Descriptor.FormException {
         super(
-                metadata.getName(),
+                Objects.requireNonNull(metadata.getName()),
                 null,
                 slaveOptions.getFsRoot(),
                 slaveOptions.getNumExecutors(),
@@ -66,13 +91,14 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 null,
                 new JCloudsRetentionStrategy(),
                 Collections.singletonList(new EnvironmentVariablesNodeProperty(
-                        new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getPublicAddress(metadata))
+                        new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getAccessIpAddress(metadata))
                 ))
         );
         this.cloudName = id.getCloudName(); // TODO deprecate field
         this.provisioningId = id;
         this.options = slaveOptions;
         this.nodeId = metadata.getId();
+        this.cache = makeCache();
         setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
     }
 
@@ -82,6 +108,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     @SuppressFBWarnings({"RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", "The fields are non-null after readResolve"})
     protected Object readResolve() {
         super.readResolve();
+        cache = makeCache();
         if (options == null) {
             // Node options are not of override of anything so we need to ensure this fill all mandatory fields
             // We base the outdated config on current plugin defaults to increase the chance it will work.
@@ -115,6 +142,136 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return this;
     }
 
+    /** Creates a cache where data will be kept for a short duration before being discarded. */
+    private static @Nonnull <K, V> Cache<K, V> makeCache() {
+        return CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+    }
+
+    /**
+     * Gets most of the Server settings that were provided to Openstack
+     * when the slave was created by the plugin.
+     * Not all settings are interesting and any that are empty/null are omitted.
+     *
+     * @return A Map of option name to value. This will not be null or empty.
+     */
+    @Restricted(DoNotUse.class) // Jelly
+    public @Nonnull Map<String, String> getOpenstackSlaveData() {
+        final Map<String, String> result = new LinkedHashMap<>();
+        final SlaveOptions slaveOptions = getSlaveOptions();
+        putIfNotNullOrEmpty(result, "Network(s)", slaveOptions.getNetworkId());
+        putIfNotNullOrEmpty(result, "Floating Ip Pool", slaveOptions.getFloatingIpPool());
+        putIfNotNullOrEmpty(result, "Security Groups", slaveOptions.getSecurityGroups());
+        putIfNotNullOrEmpty(result, "Start Timeout (ms)", slaveOptions.getStartTimeout());
+        final Object launcherFactory = slaveOptions.getLauncherFactory();
+        putIfNotNullOrEmpty(result, "Launcher Factory",
+                launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
+        putIfNotNullOrEmpty(result, "JVM Options", slaveOptions.getJvmOptions());
+        return result;
+    }
+
+    /**
+     * Get settings from OpenStack about the Server for this slave.
+     *
+     * @return A Map of fieldName to value. This will not be null or empty.
+     */
+    @Restricted(DoNotUse.class) // Jelly
+    public @Nonnull Map<String, String> getLiveOpenstackServerDetails() {
+        return getCachableData("liveData", this::readLiveOpenstackServerDetails);
+    }
+
+    private @Nonnull Map<String, String> readLiveOpenstackServerDetails() {
+        final Map<String, String> result = new LinkedHashMap<>();
+        final Server s = readOpenstackServer();
+        if (s == null) {
+            return result;
+        }
+        final Addresses addresses = s.getAddresses();
+        if (addresses != null) {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, List<? extends Address>> e: addresses.getAddresses().entrySet()) {
+                String networkName = e.getKey();
+                for (Address address : e.getValue()) {
+                    if (sb.length() != 0) {
+                        sb.append(", ");
+                    }
+                    sb.append(address.getAddr()).append(" (").append(address.getType()).append(" in ").append(networkName).append(")");
+                }
+            }
+            putIfNotNullOrEmpty(result, "Addresses", sb.toString());
+        }
+        putIfNotNullOrEmpty(result, "Availability Zone", s.getAvailabilityZone());
+        putIfNotNullOrEmpty(result, "Config Drive", s.getConfigDrive());
+
+        final Flavor flavor = s.getFlavor();
+        if (flavor != null) {
+            putIfNotNullOrEmpty(result, "Flavor", Openstack.getFlavorInfo(flavor));
+        }
+        putIfNotNullOrEmpty(result, "Host", s.getHost());
+        putIfNotNullOrEmpty(result, "Instance Name", s.getInstanceName());
+        putIfNotNullOrEmpty(result, "Key Name", s.getKeyName());
+        List<String> volumes = s.getOsExtendedVolumesAttached();
+        if (volumes != null && !volumes.isEmpty()) {
+            putIfNotNullOrEmpty(result, "osExtendedVolumesAttached", volumes);
+        }
+        putIfNotNullOrEmpty(result, "Power State", s.getPowerState());
+        putIfNotNullOrEmpty(result, "Status", s.getStatus());
+        putIfNotNullOrEmpty(result, "Fault", s.getFault());
+
+        putIfNotNullOrEmpty(result, "Created", s.getCreated());
+        putIfNotNullOrEmpty(result, "Launched At", s.getLaunchedAt());
+        putIfNotNullOrEmpty(result, "Updated", s.getUpdated());
+        putIfNotNullOrEmpty(result, "Terminated At", s.getTerminatedAt());
+        final Map<String, String> metaDataOrNull = s.getMetadata();
+        if (metaDataOrNull != null) {
+            for (Map.Entry<String, String> e : metaDataOrNull.entrySet()) {
+                final String key = e.getKey();
+                if (HIDDEN_METADATA_VALUES.contains(key)) {
+                    continue;
+                }
+                putIfNotNullOrEmpty(result, "metadata." + key, e.getValue());
+            }
+        }
+        return result;
+    }
+
+    private Server readOpenstackServer() {
+        try {
+            return getOpenstack(cloudName).getServerById(nodeId);
+        } catch (NoSuchElementException ex) {
+            // just return empty
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING,
+                    "Unable to read details of server '" + nodeId + "' from cloud '" + cloudName + "'.", ex);
+        }
+        return null;
+    }
+
+    private static void putIfNotNullOrEmpty(
+            @Nonnull final Map<String, String> mapToBeAddedTo,
+            @Nonnull final String fieldName,
+            @CheckForNull final Object fieldValue
+    ) {
+        if (fieldValue != null) {
+            final String valueString = Util.fixEmptyAndTrim(fieldValue.toString());
+            if (valueString != null) {
+                mapToBeAddedTo.put(fieldName, valueString);
+            }
+        }
+    }
+
+    /** Gets something from the cache, loading it into the cache if necessary. */
+    private @Nonnull Map<String, String> getCachableData(@Nonnull final String key, @Nonnull final Callable<Map<String, String>> dataloader) {
+        try {
+            return cache.get(key, dataloader);
+        } catch (ExecutionException e) {
+            final Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * Get public IP address of the server.
      *
@@ -122,16 +279,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      * but there is no way to prevent external machine deletion.
      */
     public @CheckForNull String getPublicAddress() throws NoSuchElementException {
-    	
-        return Openstack.getPublicAddress(getOpenstack(cloudName).getServerById(nodeId));
-    }
-    /**
-     * Get public IP address of the server.
-     */
-    @Restricted(NoExternalUse.class)
-    public @CheckForNull String getPublicAddressIpv4() throws NoSuchElementException {
-    	
-        return Openstack.getPublicAddressIpv4(getOpenstack(cloudName).getServerById(nodeId));
+
+        return Openstack.getAccessIpAddress(getOpenstack(cloudName).getServerById(nodeId));
     }
 
     /**
@@ -147,8 +296,15 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return lf == null ? LauncherFactory.JNLP.JNLP : lf;
     }
 
-    // Exposed for testing
-    /*package*/ @Nonnull String getServerId() {
+    @Override
+    @SuppressWarnings("unchecked") // Parent signature is type-unsafe, let's handle it here instead of in all clients
+    public RetentionStrategy<JCloudsComputer> getRetentionStrategy() {
+        return ((RetentionStrategy<JCloudsComputer>) super.getRetentionStrategy());
+    }
+
+    // Exposed for testing and Jelly
+    @Restricted(NoExternalUse.class)
+    public @Nonnull String getServerId() {
         return nodeId;
     }
 
@@ -165,6 +321,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     public long getCreatedTime() {
         return created;
+    }
+
+    @Override public JCloudsComputer getComputer() {
+        return (JCloudsComputer) super.getComputer();
     }
 
     @Extension
@@ -205,15 +365,21 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     private @CheckForNull OfflineCause getFatalOfflineCause() {
-        Computer computer = toComputer();
+        JCloudsComputer computer = getComputer();
         if (computer == null) return null;
-        return ((JCloudsComputer) computer).getFatalOfflineCause();
+        return computer.getFatalOfflineCause();
     }
+
 
     private static Openstack getOpenstack(String cloudName) {
         return JCloudsCloud.getByName(cloudName).getOpenstack();
     }
 
+    /**
+     * Second layer disposable to track removal of Jenkins slave.
+     *
+     * @see DestroyMachine
+     */
     private final static class RecordDisposal implements Disposable {
         private static final long serialVersionUID = -3623764445481732365L;
 
@@ -238,6 +404,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                     );
                     statistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, attachment);
                 }
+
+                // Log the problem once and then stop tracking it
+                if (ex instanceof DestroyMachine.CloudGoneException) return State.PURGED;
+
                 throw ex;
             }
         }
@@ -260,9 +430,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
         @Override
         public int hashCode() {
-            int result = inner.hashCode();
-            result = 31 * result + provisioningId.hashCode();
-            return result;
+            return Objects.hash(inner.hashCode(), provisioningId.hashCode());
         }
     }
 }

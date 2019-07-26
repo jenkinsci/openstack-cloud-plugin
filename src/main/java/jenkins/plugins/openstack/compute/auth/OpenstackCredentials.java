@@ -3,7 +3,6 @@ package jenkins.plugins.openstack.compute.auth;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.security.ACL;
 import jenkins.model.Jenkins;
 
@@ -15,14 +14,17 @@ import java.util.List;
 
 public class OpenstackCredentials {
 
-    public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialId) {
-        if (credentialId == null) return null;
+    /**
+     * @return null when the credentials are not found.
+     */
+    public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialsId) {
+        if (credentialsId == null) return null;
 
         List<OpenstackCredential> credentials = CredentialsProvider.lookupCredentials(
-                        OpenstackCredential.class, Jenkins.getInstance(), ACL.SYSTEM,
-                        Collections.<DomainRequirement>emptyList()
+                        OpenstackCredential.class, Jenkins.get(), ACL.SYSTEM,
+                        Collections.emptyList()
         );
-        return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialId));
+        return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialsId));
     }
 
     public static void add(@Nonnull OpenstackCredential openstackCredential) {

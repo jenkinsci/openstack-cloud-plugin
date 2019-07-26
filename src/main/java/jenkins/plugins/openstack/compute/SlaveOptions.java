@@ -47,7 +47,7 @@ import java.io.Serializable;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
@@ -55,6 +55,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final @CheckForNull String networkId; // csv list of networkIds, in fact
     private final @CheckForNull String userDataId;
     private final Integer instanceCap;
+    private final Integer instancesMin;
     private final @CheckForNull String floatingIpPool;
     private final String securityGroups;
     private final @CheckForNull String availabilityZone;
@@ -102,6 +103,10 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return instanceCap;
     }
 
+    public Integer getInstancesMin() {
+        return instancesMin;
+    }
+
     public @CheckForNull String getFloatingIpPool() {
         return floatingIpPool;
     }
@@ -145,6 +150,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.networkId,
                 b.userDataId,
                 b.instanceCap,
+                b.instancesMin,
                 b.floatingIpPool,
                 b.securityGroups,
                 b.availabilityZone,
@@ -165,6 +171,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             String networkId,
             String userDataId,
             Integer instanceCap,
+            Integer instancesMin,
             String floatingIpPool,
             String securityGroups,
             String availabilityZone,
@@ -181,6 +188,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.networkId = Util.fixEmpty(networkId);
         this.userDataId = Util.fixEmpty(userDataId);
         this.instanceCap = instanceCap;
+        this.instancesMin = instancesMin;
         this.floatingIpPool = Util.fixEmpty(floatingIpPool);
         this.securityGroups = Util.fixEmpty(securityGroups);
         this.availabilityZone = Util.fixEmpty(availabilityZone);
@@ -211,6 +219,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .networkId(_override(this.networkId, o.networkId))
                 .userDataId(_override(this.userDataId, o.userDataId))
                 .instanceCap(_override(this.instanceCap, o.instanceCap))
+                .instancesMin(_override(this.instancesMin, o.instancesMin))
                 .floatingIpPool(_override(this.floatingIpPool, o.floatingIpPool))
                 .securityGroups(_override(this.securityGroups, o.securityGroups))
                 .availabilityZone(_override(this.availabilityZone, o.availabilityZone))
@@ -239,6 +248,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .networkId(_erase(this.networkId, defaults.networkId))
                 .userDataId(_erase(this.userDataId, defaults.userDataId))
                 .instanceCap(_erase(this.instanceCap, defaults.instanceCap))
+                .instancesMin(_erase(this.instancesMin, defaults.instancesMin))
                 .floatingIpPool(_erase(this.floatingIpPool, defaults.floatingIpPool))
                 .securityGroups(_erase(this.securityGroups, defaults.securityGroups))
                 .availabilityZone(_erase(this.availabilityZone, defaults.availabilityZone))
@@ -268,6 +278,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("networkId", networkId)
                 .append("userDataId", userDataId)
                 .append("instanceCap", instanceCap)
+                .append("instancesMin", instancesMin)
                 .append("floatingIpPool", floatingIpPool)
                 .append("securityGroups", securityGroups)
                 .append("availabilityZone", availabilityZone)
@@ -294,6 +305,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         if (networkId != null ? !networkId.equals(that.networkId) : that.networkId != null) return false;
         if (userDataId != null ? !userDataId.equals(that.userDataId) : that.userDataId != null) return false;
         if (instanceCap != null ? !instanceCap.equals(that.instanceCap) : that.instanceCap != null) return false;
+        if (instancesMin != null ? !instancesMin.equals(that.instancesMin) : that.instancesMin != null) return false;
         if (floatingIpPool != null ? !floatingIpPool.equals(that.floatingIpPool) : that.floatingIpPool != null) return false;
         if (securityGroups != null ? !securityGroups.equals(that.securityGroups) : that.securityGroups != null) return false;
         if (availabilityZone != null ? !availabilityZone.equals(that.availabilityZone) : that.availabilityZone != null) return false;
@@ -314,6 +326,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         result = 31 * result + (networkId != null ? networkId.hashCode() : 0);
         result = 31 * result + (userDataId != null ? userDataId.hashCode() : 0);
         result = 31 * result + (instanceCap != null ? instanceCap.hashCode() : 0);
+        result = 31 * result + (instancesMin != null ? instancesMin.hashCode() : 0);
         result = 31 * result + (floatingIpPool != null ? floatingIpPool.hashCode() : 0);
         result = 31 * result + (securityGroups != null ? securityGroups.hashCode() : 0);
         result = 31 * result + (availabilityZone != null ? availabilityZone.hashCode() : 0);
@@ -337,6 +350,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .networkId(networkId)
                 .userDataId(userDataId)
                 .instanceCap(instanceCap)
+                .instancesMin(instancesMin)
                 .floatingIpPool(floatingIpPool)
                 .securityGroups(securityGroups)
                 .availabilityZone(availabilityZone)
@@ -367,6 +381,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         private @CheckForNull String networkId;
         private @CheckForNull String userDataId;
         private @CheckForNull Integer instanceCap;
+        private @CheckForNull Integer instancesMin;
         private @CheckForNull String floatingIpPool;
         private @CheckForNull String securityGroups;
         private @CheckForNull String availabilityZone;
@@ -408,6 +423,11 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         public @Nonnull Builder instanceCap(Integer instanceCap) {
             this.instanceCap = instanceCap;
+            return this;
+        }
+
+        public @Nonnull Builder instancesMin(Integer instancesMin) {
+            this.instancesMin = instancesMin;
             return this;
         }
 
@@ -485,6 +505,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     @Override
     public SlaveOptionsDescriptor getDescriptor() {
-        return (SlaveOptionsDescriptor) Jenkins.getActiveInstance().getDescriptorOrDie(getClass());
+        return (SlaveOptionsDescriptor) Jenkins.get().getDescriptorOrDie(getClass());
     }
 }

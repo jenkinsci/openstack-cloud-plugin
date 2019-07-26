@@ -41,7 +41,7 @@ public class JCloudsLauncher extends DelegatingComputerLauncher implements Seria
         long timeout = node.getCreatedTime() + configuredTimeout;
         do {
             launcher(computer).launch(computer, listener);
-            if (computer.isOnline()) return;
+            if (computer.getChannel() != null) return;
 
             listener.getLogger().println("Launcher failed to bring the node online. Retrying ...");
 
@@ -84,7 +84,7 @@ public class JCloudsLauncher extends DelegatingComputerLauncher implements Seria
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
 
         return launcher = slave == null
-                ? new JNLPLauncher() // Return something harmless to prevent NPE
+                ? new JNLPLauncher(false) // Return something harmless to prevent NPE
                 : slave.getLauncherFactory().createLauncher(slave)
         ;
     }

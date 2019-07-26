@@ -1,26 +1,24 @@
 package jenkins.plugins.openstack.compute;
 
 import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebRequest;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import hudson.model.Computer;
+import com.gargoylesoftware.htmlunit.xml.XmlPage;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.Slave;
 import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.slaves.OfflineCause;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.PluginTestRule.NetworkAddress;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
@@ -30,18 +28,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.mockito.ArgumentCaptor;
-import org.mockito.internal.util.reflection.Whitebox;
-import org.openstack4j.model.compute.BDMDestType;
-import org.openstack4j.model.compute.BDMSourceType;
-import org.openstack4j.model.compute.BlockDeviceMappingCreate;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -51,9 +43,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.iterableWithSize;
@@ -62,7 +54,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -71,52 +62,20 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * @author ogondza.
- */
 public class ProvisioningTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
     @Test
-    public void manuallyProvisionAndKill() throws Exception {
-        CloudStatistics cs = CloudStatistics.get();
-        assertThat(cs.getActivities(), Matchers.iterableWithSize(0));
-
-        JCloudsCloud cloud = j.createCloudLaunchingDummySlaves("label");
-        JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
-        computer.waitUntilOnline();
-        assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith("42.42.42."));
-        assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
-
-        assertThat(cs.getActivities(), Matchers.iterableWithSize(1));
-        ProvisioningActivity activity = cs.getActivities().get(0);
-
-        waitForCloudStatistics(activity, ProvisioningActivity.Phase.OPERATING);
-        assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
-
-        Server server = cloud.getOpenstack().getServerById(computer.getNode().getServerId());
-        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
-
-        computer.doDoDelete();
-        assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
-        waitForCloudStatistics(activity, ProvisioningActivity.Phase.COMPLETED);
-        assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
-    }
-
-    @Test
     public void provisionSlaveOnDemand() throws Exception {
         j.jenkins.setNumExecutors(0);
-        Computer[] originalComputers = j.jenkins.getComputers();
-        assertThat(originalComputers, arrayWithSize(1)); // Only master expected
+        assertThat(JCloudsComputer.getAll(), emptyIterable());
 
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("custom").build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts,"label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts,"label")));
 
         FreeStyleProject p = j.createFreeStyleProject();
         // Provision with label
@@ -124,11 +83,15 @@ public class ProvisioningTest {
         Node node = j.buildAndAssertSuccess(p).getBuiltOn();
         assertThat(node, Matchers.instanceOf(JCloudsSlave.class));
 
-        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) node).getServerId());
-        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+        JCloudsSlave s = (JCloudsSlave) node;
+        Server server = cloud.getOpenstack().getServerById(s.getServerId());
+        assertEquals("node:" + server.getName() + ":" + s.getId().getFingerprint(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         node.toComputer().doDoDelete();
-        assertEquals("Slave is discarded", null, j.jenkins.getComputer(node.getNodeName()));
+        if (j.jenkins.getComputer(node.getNodeName()) != null) {
+            Thread.sleep(100);
+        }
+        assertNull("Slave is discarded", j.jenkins.getComputer(node.getNodeName()));
 
         // Provision without label
         p.setAssignedLabel(null);
@@ -143,59 +106,6 @@ public class ProvisioningTest {
 
         List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
         assertThat(activities, Matchers.iterableWithSize(2));
-    }
-
-    @Test
-    public void doNotProvisionOnceInstanceCapReached() throws Exception {
-        SlaveOptions init = j.defaultSlaveOptions();
-        JCloudsSlaveTemplate restrictedTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
-        JCloudsSlaveTemplate openTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
-        JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(4).build(), restrictedTmplt, openTmplt);
-        j.configureSlaveLaunching(cloud);
-
-        Label restricted = Label.get("restricted");
-        Label open = Label.get("open");
-
-        // Template quota exceeded
-        assertProvisioned(1, cloud.provision(restricted, 2));
-        assertEquals(1, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-
-        assertProvisioned(0, cloud.provision(restricted, 1));
-        assertEquals(1, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-
-        // Cloud quota exceeded
-        assertProvisioned(2, cloud.provision(open, 2));
-        assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(2, openTmplt.getRunningNodes().size());
-
-        assertProvisioned(1, cloud.provision(open, 2));
-        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(3, openTmplt.getRunningNodes().size());
-
-        // Both exceeded
-        assertProvisioned(0, cloud.provision(restricted, 1));
-        assertProvisioned(0, cloud.provision(open, 1));
-        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-        assertEquals(3, openTmplt.getRunningNodes().size());
-
-        cloud.getOpenstack().destroyServer(openTmplt.getRunningNodes().get(0));
-        assertEquals(3, cloud.getOpenstack().getRunningNodes().size());
-
-        // Choose the available one when multiple options
-        assertProvisioned(1, cloud.provision(Label.get("common"), 1));
-        assertEquals(4, cloud.getOpenstack().getRunningNodes().size());
-        assertEquals(1, restrictedTmplt.getRunningNodes().size());
-        assertEquals(3, openTmplt.getRunningNodes().size());
-    }
-
-    private void assertProvisioned(int expectedCount, Collection<NodeProvisioner.PlannedNode> nodes) throws Exception {
-        assertEquals(expectedCount, nodes.size());
-        for (NodeProvisioner.PlannedNode node : nodes) {
-            node.future.get();
-        }
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
@@ -215,24 +125,6 @@ public class ProvisioningTest {
         verify(os, atLeastOnce()).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
     }
 
-    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
-    public void failToProvisionManuallyWhenOpenstackFails() throws Exception {
-        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        final JCloudsCloud cloud = j.dummyCloud(template);
-        Openstack os = cloud.getOpenstack();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
-
-        JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
-        Page page = wc.getPage(wc.addCrumb(new WebRequest(
-                new URL(wc.getContextPath() + "cloud/openstack/provision?name=" + template.name),
-                HttpMethod.POST
-        )));
-
-        assertThat(page.getWebResponse().getContentAsString(), containsString("It is broken, alright!"));
-
-        verify(os, times(1)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
-    }
-
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/37")
     public void detectBootTimingOut() {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
@@ -244,7 +136,7 @@ public class ProvisioningTest {
         when(os.updateInfo(eq(server))).thenReturn(server);
 
         try {
-            template.provision(cloud);
+            template.provisionServer(null, null);
             fail();
         } catch (Openstack.ActionFailed ex) {
             assertThat(ex.getMessage(), containsString("Failed to boot server provisioned in time"));
@@ -256,9 +148,9 @@ public class ProvisioningTest {
 
     @Test
     public void verifyOptionsPropagatedToLauncher() throws Exception {
-        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("credid"), "java");
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredentials("credid"), "java");
         SlaveOptions expected = j.defaultSlaveOptions().getBuilder().launcherFactory(slaveType).retentionTime(10).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
                 expected,
                 j.dummySlaveTemplate("label"),
                 j.dummySlaveTemplate(expected.getBuilder().retentionTime(42).build(), "retention")
@@ -282,43 +174,54 @@ public class ProvisioningTest {
     public void doProvision() throws Exception {
         JCloudsSlaveTemplate constrained = j.dummySlaveTemplate(j.defaultSlaveOptions().getBuilder().instanceCap(1).build(), "label");
         JCloudsSlaveTemplate free = j.dummySlaveTemplate("free");
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
                 j.defaultSlaveOptions().getBuilder().instanceCap(2).build(),
                 constrained, free
         ));
 
         JenkinsRule.WebClient wc = j.createWebClientAllowingFailures();
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision").getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision").getWebResponse().getContentAsString(),
                 containsString("The slave template name query parameter is missing")
         );
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision?name=no_such_template").getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=no_such_template").getWebResponse().getContentAsString(),
                 containsString("No such slave template with name : no_such_template")
         );
 
         // Exceed template quota
-        HtmlPage provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name);
+        XmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.getName());
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        String slaveName = extractNodeNameFomUrl(provision);
-        assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
+        while (Jenkins.get().getNodes().size() == 0) {
+            Thread.sleep(500);
+        }
+        String slaveName = j.jenkins.getNodes().get(0).getNodeName();
 
-        Server server = cloud.getOpenstack().getServerById(((JCloudsSlave) j.jenkins.getNode(slaveName)).getServerId());
-        assertEquals("node:" + server.getName(), server.getMetadata().get(ServerScope.METADATA_KEY));
+        JCloudsSlave slave = (JCloudsSlave) j.jenkins.getNode(slaveName);
+        Server server = cloud.getOpenstack().getServerById(slave.getServerId());
+        assertEquals("node:" + server.getName() + ":" + slave.getId().getFingerprint(), server.getMetadata().get(ServerScope.METADATA_KEY));
 
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision?name=" + constrained.name).getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=" + constrained.getName()).getWebResponse().getContentAsString(),
                 containsString("Instance cap for this template (openstack/template0) is now reached: 1")
         );
 
         // Exceed global quota
-        provision = wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name);
+        provision = invokeProvisioning(cloud, wc, "/provision?name=" + free.getName());
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        slaveName = extractNodeNameFomUrl(provision);
+        while (Jenkins.get().getNodes().size() == 1) {
+            Thread.sleep(500);
+        }
+        slaveName = null;
+        for (Node node : j.jenkins.getNodes()) {
+            if (!node.getNodeName().equals(slaveName)) {
+                slaveName = node.getNodeName();
+            }
+        }
         assertNotNull("Slave " +  slaveName+ " should exist", j.jenkins.getNode(slaveName));
 
         assertThat(
-                wc.goTo("cloud/" + cloud.name + "/provision?name=" + free.name).getWebResponse().getContentAsString(),
+                invokeProvisioning(cloud, wc, "/provision?name=" + free.getName()).getWebResponse().getContentAsString(),
                 containsString("Instance cap of openstack is now reached: 2")
         );
 
@@ -328,48 +231,39 @@ public class ProvisioningTest {
             waitForCloudStatistics(pa, ProvisioningActivity.Phase.OPERATING);
             assertNotNull(pa.getPhaseExecution(ProvisioningActivity.Phase.OPERATING));
             assertNull(pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED));
-            assertNotNull(j.jenkins.getComputer(pa.getName()));
             assertEquals(cloud.name, pa.getId().getCloudName());
         }
     }
 
-    private String extractNodeNameFomUrl(HtmlPage provision) throws MalformedURLException {
-        return provision.getFullyQualifiedUrl("").toExternalForm().replaceAll("^.*/(.*)/$", "$1");
+    @Test
+    public void doProvisionShouldPreserveCreator() throws Exception {
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
+
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.login("foo", "foo");
+        invokeProvisioning(cloud, wc, "/provision?name=" + template.getName());
+        Thread.sleep(500);
+
+        assertEquals("foo", ((Slave) j.jenkins.getNodes().get(0)).getUserId());
     }
 
-    @Test
-    public void useSeveralTemplatesToProvisionInOneBatchWhenTemplateInstanceCapExceeded() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().instanceCap(1).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(
-                j.dummySlaveTemplate(opts, "label 1"),
-                j.dummySlaveTemplate(opts, "label 2"),
-                j.dummySlaveTemplate(opts, "label 3")
-        ));
-
-
-        Collection<NodeProvisioner.PlannedNode> plan = cloud.provision(Label.get("label"), 4);
-        assertEquals(3, plan.size());
-
-        int cntr = 1;
-        for (NodeProvisioner.PlannedNode pn: plan) {
-            LabelAtom expectedLabel = LabelAtom.get(String.valueOf(cntr));
-
-            Set<LabelAtom> assignedLabels = pn.future.get().getAssignedLabels();
-            assertTrue(assignedLabels.toString(), assignedLabels.contains(expectedLabel));
-            cntr++;
-        }
+    private XmlPage invokeProvisioning(JCloudsCloud cloud, JenkinsRule.WebClient wc, String s) throws IOException {
+        URL configureUrl = new URL(wc.getContextPath() + "cloud/" + cloud.name + s);
+        return wc.getPage(wc.addCrumb(new WebRequest(configureUrl, HttpMethod.POST)));
     }
 
     @Test
     public void destroyTheServerWhenFipAllocationFails() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool("my_pool").build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
         when(os.assignFloatingIp(any(Server.class), any(String.class))).thenThrow(new Openstack.ActionFailed("Unable to assign"));
 
         try {
-            template.provision(cloud);
+            template.provisionServer(null, null);
             fail();
         } catch (Openstack.ActionFailed ex) {
             assertThat(ex.getMessage(), containsString("Unable to assign"));
@@ -377,20 +271,52 @@ public class ProvisioningTest {
 
         waitForAsyncResourceDisposer();
 
-        verify(os).destroyServer(any(Server.class));
+        verify(os, atLeastOnce()).destroyServer(any(Server.class));
+    }
+
+    @Test
+    public void reflectCloudDeletionInDisposable() throws Exception {
+        AsyncResourceDisposer ard = AsyncResourceDisposer.get();
+        CloudStatistics cs = CloudStatistics.get();
+
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP("foo");
+        JCloudsSlave foo = j.provision(cloud, "foo");
+
+        j.jenkins.clouds.remove(cloud);
+        j.jenkins.save();
+
+        foo.toComputer().doDoDelete();
+
+        assertCloudMissingReportedOnce(cs, ard, foo);
+
+        ard.reschedule();
+        Thread.sleep(1000);
+
+        assertCloudMissingReportedOnce(cs, ard, foo);
+    }
+
+    private void assertCloudMissingReportedOnce(CloudStatistics cs, AsyncResourceDisposer ard, JCloudsSlave foo) {
+        final ProvisioningActivity activity = cs.getActivityFor(foo.getId());
+        assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
+        final List<PhaseExecutionAttachment> attachments = activity.getCurrentPhaseExecution().getAttachments();
+        assertThat(attachments, iterableWithSize(1));
+        assertThat(attachments.get(0).getDisplayName(), equalTo("Cloud openstack does no longer exists"));
+        assertThat(attachments.get(0).getStatus(), equalTo(ProvisioningActivity.Status.WARN));
+
+        assertThat(ard.getBacklog().size(), equalTo(0));
     }
 
     @Test
     public void correctMetadataSet() throws Exception {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
 
-        Server server = template.provision(cloud);
+        Server server = template.provisionServer(null, null);
         Map<String, String> m = server.getMetadata();
 
         assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
         assertEquals(cloud.name, m.get(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY));
-        assertEquals(template.name, m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
+        assertEquals(template.getName(), m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
         assertEquals(new ServerScope.Node(server.getName()).getValue(), m.get(ServerScope.METADATA_KEY));
     }
 
@@ -423,10 +349,9 @@ public class ProvisioningTest {
     @Test
     public void timeoutLaunching() throws Exception {
         final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
         final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
-        final Matcher<Iterable<NodeProvisioner.PlannedNode>> hasOnlyOneElement = iterableWithSize(1);
-        assertThat(pns, hasOnlyOneElement);
+        assertThat(pns, iterableWithSize(1));
         final PlannedNode pn = pns.iterator().next();
         final Future<Node> pnf = pn.future;
 
@@ -441,15 +366,20 @@ public class ProvisioningTest {
             assertThat("Server details are printed", msg, containsString("Server state: Mock for "));
         }
 
+        // Wait for the server to be dereflleted
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        while (!disposer.getBacklog().isEmpty()) {
+            Thread.sleep(1000);
+        }
         verify(cloud.getOpenstack()).destroyServer(any(Server.class));
     }
 
     @Test
     public void reportOfflineCauseInCloudStats() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate("label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/Fake/it", 42));
-        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+        slave.getComputer().deleteSlave();
 
         ProvisioningActivity pa = CloudStatistics.get().getActivityFor(slave);
         List<PhaseExecutionAttachment> attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
@@ -459,7 +389,7 @@ public class ProvisioningTest {
 
         slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new OfflineCause.ChannelTermination(new RuntimeException("Broken alright")));
-        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+        slave.getComputer().deleteSlave();
 
         pa = CloudStatistics.get().getActivityFor(slave);
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
@@ -469,13 +399,72 @@ public class ProvisioningTest {
 
         slave = j.provision(cloud, "label");
         slave.toComputer().disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
-        ((JCloudsComputer) slave.toComputer()).deleteSlave();
+        slave.getComputer().deleteSlave();
 
         pa = CloudStatistics.get().getActivityFor(slave);
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         att = attachments.get(0);
         assertThat(att.getTitle(), startsWith("Connection was broken: java.io.IOException: Broken badly"));
+    }
+
+    @Test
+    public void preferFloatingIpv4() throws Exception {
+        verifyPreferredAddressUsed("42.42.42.", Arrays.asList(
+                NetworkAddress.FIXED_4, NetworkAddress.FIXED_6, NetworkAddress.FLOATING_4, NetworkAddress.FLOATING_6
+        ));
+    }
+
+    @Test
+    public void preferFloatingIpv6() throws Exception {
+        verifyPreferredAddressUsed("4242:", Arrays.asList(
+                NetworkAddress.FIXED_4, NetworkAddress.FIXED_6, NetworkAddress.FLOATING_6
+        ));
+    }
+
+    @Test
+    public void preferFixedIpv4() throws Exception {
+        verifyPreferredAddressUsed("43.43.43.", Arrays.asList(
+                NetworkAddress.FIXED_6, NetworkAddress.FIXED_4
+        ));
+    }
+
+    @Test
+    public void failIfNoAccessIpFound() {
+        try {
+            verifyPreferredAddressUsed("Muahaha", Collections.emptyList());
+            fail();
+        } catch (Exception ex) {
+            assertThat(ex.getMessage(), containsString("No access IP address found for "));
+        }
+    }
+
+    private void verifyPreferredAddressUsed(String expectedAddress, Collection<NetworkAddress> addresses) throws Exception {
+        CloudStatistics cs = CloudStatistics.get();
+        assertThat(cs.getActivities(), Matchers.iterableWithSize(0));
+
+        j.autoconnectJnlpSlaves();
+        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate("label")), addresses);
+
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = slave.getComputer();
+        computer.waitUntilOnline();
+        assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith(expectedAddress));
+        assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
+
+        assertThat(cs.getActivities(), Matchers.iterableWithSize(1));
+        ProvisioningActivity activity = cs.getActivities().get(0);
+
+        waitForCloudStatistics(activity, ProvisioningActivity.Phase.OPERATING);
+        assertThat(activity.getPhaseExecutions().toString(), activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.OPERATING));
+
+        Server server = cloud.getOpenstack().getServerById(computer.getNode().getServerId());
+        assertEquals("node:" + server.getName() + ":" + computer.getId().getFingerprint(), server.getMetadata().get(ServerScope.METADATA_KEY));
+
+        computer.doDoDelete();
+        assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
+        waitForCloudStatistics(activity, ProvisioningActivity.Phase.COMPLETED);
+        assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
     }
 
     /**
@@ -486,7 +475,7 @@ public class ProvisioningTest {
     private static void waitForCloudStatistics(ProvisioningActivity activityToWaitFor,
             ProvisioningActivity.Phase expectedPhase) throws InterruptedException {
         final int millisecondsToWaitBetweenPolls = 100;
-        final int maxTimeToWaitInMilliseconds = 5000;
+        final int maxTimeToWaitInMilliseconds = 10000;
         final long timestampBeforeWaiting = System.nanoTime();
         while (true) {
             final Object actual = activityToWaitFor.getPhaseExecution(expectedPhase);

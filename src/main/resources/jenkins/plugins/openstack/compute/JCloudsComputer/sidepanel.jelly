@@ -34,7 +34,7 @@ THE SOFTWARE.
     <l:side-panel>
         <l:tasks>
             <l:task contextMenu="false" href="${rootURL}/${it.url}" icon="icon-search icon-md" title="${%Status}"/>
-            <l:task href="${rootURL}/${it.url}scheduleTermination" icon="icon-edit-delete icon-md" permission="${it.DISCONNECT}" title="${%Schedule Termination}"/>
+            <l:task href="${rootURL}/${it.url}scheduleTermination" icon="icon-edit-delete icon-md" permission="${it.DISCONNECT}" title="${%Schedule Termination}" post="true"/>
             <l:task href="${rootURL}/${it.url}builds" icon="icon-notepad icon-md" title="${%Build History}"/>
             <l:task href="${rootURL}/${it.url}load-statistics" icon="icon-monitor icon-md" title="${%Load Statistics}"/>
             <l:task icon="icon-clipboard icon-md" href="${rootURL}/${it.url}log" title="${%Log}" permission="${it.CONNECT}" />

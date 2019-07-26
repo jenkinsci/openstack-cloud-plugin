@@ -1,7 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
-import static org.junit.Assert.*;
-
+import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.TaskListener;
@@ -11,17 +10,36 @@ import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestExtension;
 
-import java.io.IOException;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 public class JCloudsRetentionStrategyTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
+
+    private long checkAfter(JCloudsComputer computer, long milliseconds) {
+        JCloudsRetentionStrategy ret = new JCloudsRetentionStrategy() {
+            // Tweak the inner clock pretending the time has passed to speed things up
+            @Override long getNow() {
+                return System.currentTimeMillis() + milliseconds;
+            }
+        };
+
+        return ret.check(computer);
+    }
 
     @Test
     public void scheduleSlaveDelete() throws Exception {
@@ -31,18 +49,17 @@ public class JCloudsRetentionStrategyTest {
                 "template", "label", SlaveOptions.builder().retentionTime(retentionTime).build()
         );
 
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         assertEquals(1, (int) slave.getSlaveOptions().getRetentionTime());
 
         JCloudsRetentionStrategy strategy = (JCloudsRetentionStrategy) slave.getRetentionStrategy();
         strategy.check(computer);
         assertFalse("Slave should not be scheduled for deletion right away", computer.isPendingDelete());
 
-        Thread.sleep(1000 * 61); // Wait for the slave to be idle long enough
+        checkAfter(computer, 1000 * 61);
 
-        strategy.check(computer);
         assertTrue("Slave should be scheduled for deletion", computer.isPendingDelete());
     }
 
@@ -58,25 +75,23 @@ public class JCloudsRetentionStrategyTest {
      */
     @Test
     public void doNotDeleteTheSlaveWhileLaunching() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0) // disposable immediately
-                        //.startTimeout(3000) // give up soon enough to speed the test up
-                        .build(),
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1 /*disposable asap*/).build(),
                 "label"
         )));
         cloud.provision(Label.get("label"), 1);
 
         do {
             Thread.sleep(500);
-        } while(Jenkins.getInstance().getNodes().isEmpty());
+        } while(Jenkins.get().getNodes().isEmpty());
 
-        JCloudsSlave node = (JCloudsSlave) Jenkins.getInstance().getNodes().get(0);
-        JCloudsComputer computer = (JCloudsComputer) node.toComputer();
+        JCloudsSlave node = (JCloudsSlave) Jenkins.get().getNodes().get(0);
+        JCloudsComputer computer = node.getComputer();
         assertSame(computer, j.jenkins.getComputer(node.getNodeName()));
         assertFalse(computer.isPendingDelete());
         assertTrue(computer.isConnecting());
 
-        computer.getRetentionStrategy().check(computer);
+        checkAfter(computer, 70*1000);
 
         // Still connecting after retention strategy run
         computer = getNodeFor(node.getId());
@@ -104,29 +119,85 @@ public class JCloudsRetentionStrategyTest {
     public static class LaunchBlocker extends ComputerListener {
         private static OneShotEvent unlock = new OneShotEvent();
         @Override
-        public void preLaunch(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
+        public void preLaunch(Computer c, TaskListener taskListener) throws InterruptedException {
             unlock.block();
         }
     }
 
     @Test
     public void doNotDeleteSlavePutOfflineByUser() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(
-                // no retention to make the slave disposable w.r.t retention time
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).build(),
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).build(),
                 "label"
         )));
         JCloudsSlave slave = j.provision(cloud, "label");
-        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
-        computer.setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Offline"));
+        OfflineCause.UserCause userCause = new OfflineCause.UserCause(User.current(), "Offline");
+        computer.setTemporarilyOffline(true, userCause);
 
         computer.getRetentionStrategy().check(computer);
         assertFalse(computer.isPendingDelete());
+        assertEquals(userCause, computer.getOfflineCause());
 
         computer.setTemporarilyOffline(false, null);
 
-        computer.getRetentionStrategy().check(computer);
+        checkAfter(computer, 60*1000);
+
         assertTrue(computer.isPendingDelete());
     }
+
+    @Test
+    public void doNotScheduleForTerminationDuringLaunch() throws Exception {
+        Assume.assumeFalse(Functions.isWindows());
+        LauncherFactory launcherFactory = new TestCommandLauncherFactory("bash -c \"sleep 70 && java -jar '%s'\"");
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
+                "label"
+        )));
+        j.provision(cloud, "label");
+
+        while (true) {
+            JCloudsComputer computer = waitForProvisionedComputer();
+            computer.getRetentionStrategy().check(computer);
+            computer.waitUntilOnline();
+            // TODO current implementation prevents node to go offline during launch but the idle time still involves launch time
+            if (computer.getChannel() != null) {
+                break;
+            }
+            assertNull(computer.getOfflineCause());
+            Thread.sleep(5000);
+        }
+    }
+
+    @Test // Minimal positive retention time is 1 minute so we have to wait here more than that
+    public void doNotRemoveSlaveShortlyAfterConnection() throws Exception {
+        Assume.assumeFalse(Functions.isWindows());
+        LauncherFactory launcherFactory = new TestCommandLauncherFactory("bash -c \"sleep 70 && java -jar '%s'\"");
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
+                j.defaultSlaveOptions().getBuilder().retentionTime(1).launcherFactory(launcherFactory).build(),
+                "label"
+        )));
+
+        JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = (JCloudsComputer) slave.toComputer();
+        while(computer.getChannel() == null){
+            Thread.sleep(1000);
+        }
+        computer.getRetentionStrategy().check(computer);
+
+        assertFalse(computer.isPendingDelete());
+    }
+
+    private JCloudsComputer waitForProvisionedComputer() throws InterruptedException {
+        while (true) {
+            List<JCloudsComputer> computers = JCloudsComputer.getAll();
+            switch (computers.size()) {
+                case 0: Thread.sleep(5_000); break;
+                case 1: return computers.get(0);
+                default: throw new AssertionError("More computers than expected " + computers);
+            }
+        }
+    }
+
 }

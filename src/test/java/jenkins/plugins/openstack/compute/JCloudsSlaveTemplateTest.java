@@ -8,6 +8,7 @@ import java.util.Properties;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import hudson.remoting.Base64;
+import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -27,14 +28,13 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
+import static jenkins.model.Jenkins.get;
 import static jenkins.plugins.openstack.PluginTestRule.dummySlaveOptions;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
 
 public class JCloudsSlaveTemplateTest {
@@ -42,8 +42,14 @@ public class JCloudsSlaveTemplateTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    private final String TEMPLATE_PROPERTIES = "name,labelString";
-    private final String CLOUD_PROPERTIES = "name,credentialId,zone";
+    private static final String TEMPLATE_PROPERTIES = "name,labels";
+
+    @Test
+    public void doCheckTemplateName() {
+        JCloudsSlaveTemplate.DescriptorImpl d = get().getDescriptorByType(JCloudsSlaveTemplate.DescriptorImpl.class);
+        assertEquals(FormValidation.Kind.OK, d.doCheckName("foo").kind);
+        assertEquals(FormValidation.Kind.ERROR, d.doCheckName("#1").kind);
+    }
 
     @Test
     public void configRoundtrip() throws Exception {
@@ -52,16 +58,16 @@ public class JCloudsSlaveTemplateTest {
                 "jnlp-template", "openstack-slave-type1 openstack-type2", dummySlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).build()
         );
 
-        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredential("sshid"), "mypath");
+        LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredentials("sshid"), "mypath");
         JCloudsSlaveTemplate sshTemplate = new JCloudsSlaveTemplate(
                 "ssh-template", "openstack-slave-type1 openstack-type2", dummySlaveOptions().getBuilder().launcherFactory(slaveType).build()
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(
-                "my-openstack", "endPointUrl", false,"zone",
+                "my-openstack", "endPointUrl", false, "zone",
                 SlaveOptions.empty(),
                 Arrays.asList(jnlpTemplate, sshTemplate),
-                j.dummyCredential()
+                j.dummyCredentials()
         );
 
         j.jenkins.clouds.add(originalCloud);
@@ -71,7 +77,7 @@ public class JCloudsSlaveTemplateTest {
         j.submit(form);
 
         final JCloudsCloud actualCloud = JCloudsCloud.getByName("my-openstack");
-        j.assertEqualBeans(originalCloud, actualCloud, CLOUD_PROPERTIES);
+        j.assertEqualBeans(originalCloud, actualCloud, "name,credentialsId,zone");
         assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 
@@ -97,10 +103,10 @@ public class JCloudsSlaveTemplateTest {
         );
 
         JCloudsCloud cloud = new JCloudsCloud(
-                "my-openstack", "credential", false,"zone",
+                "my-openstack", "credential", false, "zone",
                 cloudOpts,
                 Collections.singletonList(template),
-                j.dummyCredential()
+                j.dummyCredentials()
         );
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());
@@ -111,10 +117,10 @@ public class JCloudsSlaveTemplateTest {
     public void replaceUserData() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
 
-        template.provision(cloud);
+        template.provisionServer(null, null);
 
         ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(os).bootAndWaitActive(captor.capture(), anyInt());
@@ -132,10 +138,10 @@ public class JCloudsSlaveTemplateTest {
     public void noFloatingPoolId() {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().floatingIpPool(null).build();
         JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts,"a");
-        JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         Openstack os = cloud.getOpenstack();
 
-        template.provision(cloud);
+        template.provisionServer(null, null);
 
         verify(os).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
         verify(os, never()).assignFloatingIp(any(Server.class), any(String.class));
@@ -145,7 +151,7 @@ public class JCloudsSlaveTemplateTest {
     public void bootWithMultipleNetworks() {
         final SlaveOptions opts = dummySlaveOptions().getBuilder().networkId("foo,BAR").build();
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(instance));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
         when(mockOs.getNetworkIds(any())).thenCallRealMethod();
 
@@ -153,7 +159,7 @@ public class JCloudsSlaveTemplateTest {
         Network n2 = mock(Network.class); when(n2.getName()).thenReturn("BAR"); when(n2.getId()).thenReturn("bar");
         doReturn(Arrays.asList(n1, n2)).when(mockOs)._listNetworks();
 
-        instance.provision(cloud);
+        instance.provisionServer(null, null);
 
         ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(mockOs, times(1)).bootAndWaitActive(captor.capture(), any(Integer.class));
@@ -169,7 +175,7 @@ public class JCloudsSlaveTemplateTest {
         final String volumeSnapshotId = "vs-123-id";
         final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(instance));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
         when(mockOs.getVolumeSnapshotIdsFor(volumeSnapshotName)).thenReturn(Collections.singletonList(volumeSnapshotId));
 
@@ -177,7 +183,7 @@ public class JCloudsSlaveTemplateTest {
         final ArgumentCaptor<String> vnCaptor = ArgumentCaptor.forClass(String.class);
         final ArgumentCaptor<String> vdCaptor = ArgumentCaptor.forClass(String.class);
 
-        final Server actual = instance.provision(cloud);
+        final Server actual = instance.provisionServer(null, null);
 
         final String actualServerName = actual.getName();
         verify(mockOs, times(1)).bootAndWaitActive(scbCaptor.capture(), anyInt());
@@ -211,10 +217,10 @@ public class JCloudsSlaveTemplateTest {
     public void bootFromImageVolume() {
         final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new BootSource.VolumeFromImage("src_img_id", 42)).build();
         final JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
-        final JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(template));
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         final Openstack os = cloud.getOpenstack();
 
-        template.provision(cloud);
+        template.provisionServer(null, null);
 
         ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         verify(os, times(1)).bootAndWaitActive(captor.capture(), any(Integer.class));
@@ -231,7 +237,7 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void allowToUseImageNameAsWellAsId() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.Image("image-id")).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
         // simulate same image resolved to different ids
@@ -251,7 +257,7 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void allowToUseVolumeSnapshotNameAsWellAsId() throws Exception {
         SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new VolumeSnapshot("vs-id")).build();
-        JCloudsCloud cloud = j.configureSlaveLaunching(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
         // simulate same snapshot resolved to different ids

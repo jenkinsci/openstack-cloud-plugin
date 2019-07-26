@@ -4,17 +4,16 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Descriptor;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
-import hudson.util.TimeUnit2;
+import jenkins.model.Jenkins;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import jenkins.model.Jenkins;
-import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * @author Vijay Kiran
@@ -57,21 +56,30 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         if (node == null) return; // Node is gone already
 
         final int retentionTime = node.getSlaveOptions().getRetentionTime();
-        if (retentionTime < 0) return; // Keep forever
-
-        final long idleSince = c.getIdleStartMilliseconds();
-        final long idleMilliseconds = System.currentTimeMillis() - idleSince;
-        if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(retentionTime)) {
-            LOGGER.info("Scheduling " + c .getName() + " for termination as it was idle since " + new Date(idleSince));
-            try {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                Jenkins.XSTREAM2.toXMLUTF8(node, out);
-                LOGGER.fine(out.toString("UTF-8"));
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING,"Failed to dump node config", e);
+        if (retentionTime <= 0) return; // 0 is handled in JCloudsComputer, negative values needs no handling
+        final long idleSince = c.getIdleStart();
+        final long idleMilliseconds = getNow() - idleSince;
+        if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
+            if (JCloudsPreCreationThread.isNeededReadyComputer(node.getComputer())) {
+                LOGGER.info("Keeping " + c .getName() + " to meet minimum requirements");
+                return;
+            }
+            LOGGER.info("Scheduling " + c .getName() + " for termination after " +  retentionTime+ " minutes as it was idle since " + new Date(idleSince));
+            if (LOGGER.isLoggable(Level.FINE)) {
+                try {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    Jenkins.XSTREAM2.toXMLUTF8(node, out);
+                    LOGGER.fine(out.toString("UTF-8"));
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, "Failed to dump node config", e);
+                }
             }
             c.setPendingDelete(true);
         }
+    }
+
+    /*package for mocking*/ long getNow() {
+        return System.currentTimeMillis();
     }
 
     /**

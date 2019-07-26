@@ -23,7 +23,7 @@ public class InstancesToRunTest {
         assertThat(desc.doFillTemplateNameItems(""), emptyIterable());
         assertThat(desc.doFillTemplateNameItems(null), emptyIterable());
 
-        j.createCloudLaunchingDummySlaves("l");
+        j.configureSlaveLaunchingWithFloatingIP("l");
 
         assertThat(desc.doFillCloudNameItems().size(), equalTo(1));
         assertThat(desc.doFillCloudNameItems().get(0).value, equalTo("openstack"));

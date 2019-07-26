@@ -5,17 +5,16 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.NameWith;
 import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
 import hudson.util.Secret;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.model.common.Identifier;
 import org.openstack4j.openstack.OSFactory;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 @NameWith(value = OpenstackCredentialv3.NameProvider.class)
@@ -33,26 +32,26 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
     @SuppressWarnings("unused")
     public OpenstackCredentialv3(@CheckForNull CredentialsScope scope,
                                  @CheckForNull String id, @CheckForNull String description,
-                                 @Nonnull String username,
+                                 @Nonnull String userName,
                                  @Nonnull String userDomain, @Nonnull String projectName,
                                  @Nonnull String projectDomain, @Nonnull String password) {
-        this(scope,id,description,username, userDomain, projectName, projectDomain, Secret.fromString(password));
+        this(scope,id,description,userName, userDomain, projectName, projectDomain, Secret.fromString(password));
     }
 
     @SuppressWarnings("unused")
     public OpenstackCredentialv3(@CheckForNull CredentialsScope scope,
                                  @CheckForNull String id, @CheckForNull String description,
-                                 @Nonnull String username, @Nonnull String userDomain, @Nonnull String projectName,
+                                 @Nonnull String userName, @Nonnull String userDomain, @Nonnull String projectName,
                                  @Nonnull String projectDomain, @Nonnull Secret password) {
         super(scope,id,description);
-        this.username = username;
+        this.username = userName;
         this.userDomain = userDomain;
         this.projectName = projectName;
         this.projectDomain = projectDomain;
         this.password = password;
     }
 
-    @NonNull
+    @Nonnull
     @Override
     public Secret getPassword() {
         return password;
@@ -84,6 +83,11 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         return username;
     }
 
+    // Jelly only
+    public @Nonnull String getUserName() {
+        return username;
+    }
+
     public String getUserDomain() {
         return userDomain;
     }
@@ -102,9 +106,9 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         /**
          * {@inheritDoc}
          */
-        @NonNull
+        @Nonnull
         @Override
-        public String getName(@NonNull OpenstackCredentialv3 c) {
+        public String getName(@Nonnull OpenstackCredentialv3 c) {
             String description = Util.fixEmptyAndTrim(c.getDescription());
             return c.getProjectDomain() + ":"
                     + c.getProjectName() + ":"
@@ -117,7 +121,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
     /**
      * {@inheritDoc}
      */
-    @Extension(ordinal = 1)
+    @Extension(ordinal = 1) @Symbol("openstackV3")
     public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
 
         /**

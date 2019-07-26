@@ -1,8 +1,64 @@
 package jenkins.plugins.openstack;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import hudson.Extension;
+import hudson.Launcher.LocalLauncher;
+import hudson.Proc;
+import hudson.model.AsyncPeriodicWork;
+import hudson.model.Computer;
+import hudson.model.Label;
+import hudson.model.LoadStatistics;
+import hudson.model.Node;
+import hudson.model.TaskListener;
+import hudson.model.User;
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.remoting.Channel;
+import hudson.remoting.Which;
+import hudson.slaves.Cloud;
+import hudson.slaves.CloudProvisioningListener;
+import hudson.slaves.ComputerListener;
+import hudson.slaves.NodeProvisioner;
+import hudson.slaves.NodeProvisioner.NodeProvisionerInvoker;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.slaves.OfflineCause;
+import hudson.util.FormValidation;
+import hudson.util.StreamTaskListener;
+import jenkins.model.Jenkins;
+import jenkins.model.NodeListener;
+import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
+import jenkins.plugins.openstack.compute.JCloudsCloud;
+import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
+import jenkins.plugins.openstack.compute.JCloudsSlave;
+import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
+import jenkins.plugins.openstack.compute.SlaveOptions;
+import jenkins.plugins.openstack.compute.UserDataConfig;
+import jenkins.plugins.openstack.compute.auth.AbstractOpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
+import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.slaveopts.BootSource;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import org.hamcrest.Matchers;
+import org.hamcrest.TypeSafeMatcher;
+import org.jenkinsci.plugins.configfiles.GlobalConfigFiles;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.mockito.stubbing.Answer;
+import org.openstack4j.api.OSClient;
+import org.openstack4j.api.client.IOSClientBuilder;
+import org.openstack4j.api.exceptions.AuthenticationException;
+import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.ServerCreate;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.openstack.compute.domain.NovaAddresses;
+import org.openstack4j.openstack.compute.domain.NovaAddresses.NovaAddress;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -14,62 +70,20 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import hudson.slaves.Cloud;
-import hudson.slaves.CloudProvisioningListener;
-import hudson.slaves.NodeProvisioner;
-import hudson.util.FormValidation;
-import jenkins.model.Jenkins;
-import jenkins.plugins.openstack.compute.SlaveOptions;
-import jenkins.plugins.openstack.compute.UserDataConfig;
-import jenkins.plugins.openstack.compute.auth.AbstractOpenstackCredential;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
-import jenkins.plugins.openstack.compute.slaveopts.BootSource;
-import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.jenkinsci.lib.configprovider.ConfigProvider;
-import org.jenkinsci.lib.configprovider.model.Config;
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.openstack4j.api.OSClient;
-import org.openstack4j.api.client.IOSClientBuilder;
-import org.openstack4j.api.exceptions.AuthenticationException;
-import org.openstack4j.model.compute.Server;
-import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.openstack.compute.domain.NovaAddresses;
-import org.openstack4j.openstack.compute.domain.NovaAddresses.NovaAddress;
-
-import hudson.Extension;
-import hudson.Launcher.LocalLauncher;
-import hudson.Proc;
-import hudson.model.AsyncPeriodicWork;
-import hudson.model.Computer;
-import hudson.model.Label;
-import hudson.model.TaskListener;
-import hudson.remoting.Channel;
-import hudson.remoting.Which;
-import hudson.slaves.ComputerListener;
-import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.StreamTaskListener;
-import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
-import jenkins.plugins.openstack.compute.JCloudsCloud;
-import jenkins.plugins.openstack.compute.JCloudsSlave;
-import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
-import jenkins.plugins.openstack.compute.internal.Openstack;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * Test utils for plugin functional testing.
@@ -95,20 +109,20 @@ public final class PluginTestRule extends JenkinsRule {
      * Reusable options instance guaranteed not to collide with defaults
      */
     public static SlaveOptions dummySlaveOptions() {
-        if (Jenkins.getInstance() != null) {
+        if (Jenkins.getInstanceOrNull() != null) {
             dummyUserData("dummyUserDataId");
         }
         return new SlaveOptions(
-                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, "pool", "sg", "az", 1, null, 10,
+                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, 2, "pool", "sg", "az", 1, null, 10,
                 "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 1
         );
     }
 
-    public static class DummyOpenstackCredential extends AbstractOpenstackCredential {
+    public static class DummyOpenstackCredentials extends AbstractOpenstackCredential {
         private static final long serialVersionUID = -6458476198187349017L;
 
-        private DummyOpenstackCredential() {
-            super(CredentialsScope.SYSTEM, "my-id", "testCredential");
+        private DummyOpenstackCredentials() {
+            super(CredentialsScope.SYSTEM, "my-id", "testCredentials");
         }
 
         @Override
@@ -117,8 +131,8 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    public String dummyCredential() {
-        DummyOpenstackCredential c = new DummyOpenstackCredential();
+    public String dummyCredentials() {
+        DummyOpenstackCredentials c = new DummyOpenstackCredentials();
         OpenstackCredentials.add(c);
         return c.getId();
     }
@@ -152,12 +166,12 @@ public final class PluginTestRule extends JenkinsRule {
                 "SLAVE_LABELS: ${SLAVE_LABELS}\n" +
                 "DO_NOT_REPLACE_THIS: ${unknown} ${VARIABLE}"
         ;
-        ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).save(
-                new Config(id, "Fake", "It is a fake", userData)
+        GlobalConfigFiles.get().save(
+                new UserDataConfig(id, "Fake", "It is a fake", userData)
         );
     }
 
-    public String dummySshCredential(String id) {
+    public String dummySshCredentials(String id) {
         SystemCredentialsProvider.getInstance().getCredentials().add(
                 new BasicSSHUserPrivateKey(
                         CredentialsScope.SYSTEM, id, "john " + id, null, null, "Description " + id
@@ -166,9 +180,14 @@ public final class PluginTestRule extends JenkinsRule {
         return id;
     }
 
+    public static BasicSSHUserPrivateKey extractSshCredentials(LauncherFactory lf) {
+        assertThat(lf, Matchers.instanceOf(LauncherFactory.SSH.class));
+        LauncherFactory.SSH sshlf = (LauncherFactory.SSH) lf;
+        return (BasicSSHUserPrivateKey) SSHLauncher.lookupSystemCredentials(sshlf.getCredentialsId());
+    }
+
     public void autoconnectJnlpSlaves() {
-        JnlpAutoConnect launcher = jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class);
-        launcher.rule = this;
+        jenkins.getExtensionList(ComputerListener.class).get(JnlpAutoConnect.class).rule = this;
     }
 
     /**
@@ -231,6 +250,13 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
+    /**
+     * Force slave pre-creation now.
+     */
+    public void triggerSlavePreCreation() {
+        JCloudsPreCreationThread.all().get(JCloudsPreCreationThread.class).execute(TaskListener.NULL);
+    }
+
     public JCloudsSlaveTemplate dummySlaveTemplate(String labels) {
         return dummySlaveTemplate(SlaveOptions.empty(), labels);
     }
@@ -252,73 +278,92 @@ public final class PluginTestRule extends JenkinsRule {
         return cloud;
     }
 
-    public JCloudsCloud createCloudLaunchingDummySlaves(String labels) {
-        return configureSlaveLaunching(dummyCloud(dummySlaveTemplate(labels)));
+    public JCloudsCloud configureSlaveLaunchingWithFloatingIP(String labels) {
+        return configureSlaveLaunchingWithFloatingIP(dummyCloud(dummySlaveTemplate(labels)));
     }
 
-    public JCloudsCloud configureSlaveLaunching(JCloudsCloud cloud) {
+    public JCloudsCloud configureSlaveLaunchingWithFloatingIP(JCloudsCloud cloud) {
         autoconnectJnlpSlaves();
-        return configureSlaveProvisioning(cloud);
+        return configureSlaveProvisioningWithFloatingIP(cloud);
+    }
+
+    // Addresses with 42 as floating while those with 43 are fixed
+    public enum NetworkAddress {
+        FLOATING_4 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFloatingIpv4("42.42.42." + cnt.incrementAndGet());
+            }
+        },
+        FLOATING_6 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFloatingIpv6("4242::" + cnt.incrementAndGet());
+            }
+        },
+        FIXED_4 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFixedIPv4("43.43.43." + cnt.incrementAndGet());
+            }
+        },
+        FIXED_6 {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFixedIPv6("4343::" + cnt.incrementAndGet());
+            }
+        };
+
+        public abstract void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger sequence);
     }
 
     /**
      * The provisioning future will never complete as it will wait for launch.
      */
-    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud) {
-        /* Removed for to bypass template creation when using Declarative Pipeline approach
+    public JCloudsCloud configureSlaveProvisioningWithFloatingIP(final JCloudsCloud cloud) {
+        return configureSlaveProvisioning(cloud, Collections.singletonList(NetworkAddress.FLOATING_4));
+    }
+
+    public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud, Collection<NetworkAddress> networks) {
+/* Removed for to bypass template creation when using Declarative Pipeline approach
         if (cloud.getTemplates().size() == 0) throw new Error("Unable to provision - no templates provided");  */
-
         final List<Server> running = new ArrayList<>();
-
         Openstack os = cloud.getOpenstack();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer(new Answer<Server>() {
-            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
-                int num = slaveCount.getAndIncrement();
-                Server machine = mockServer()
-                        .name(builder.build().getName())
-                        .floatingIp("42.42.42." + num)
-                        .metadata(builder.build().getMetaData())
-                        .get()
-                ;
-                synchronized (running) {
-                    running.add(machine);
-                }
-                return machine;
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer((Answer<Server>) invocation -> {
+            ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
+
+            ServerCreate create = builder.build();
+            MockServerBuilder serverBuilder = mockServer().name(create.getName()).metadata(create.getMetaData());
+            for (NetworkAddress network : networks) {
+                network.apply(serverBuilder, slaveCount);
+            }
+            Server machine = serverBuilder.get();
+
+            synchronized (running) {
+                running.add(machine);
+            }
+            return machine;
+        });
+        when(os.updateInfo(any(Server.class))).thenAnswer((Answer<Server>) invocation1 -> (Server) invocation1.getArguments()[0]);
+        when(os.getRunningNodes()).thenAnswer((Answer<List<Server>>) invocation1 -> {
+            synchronized (running) {
+                return new ArrayList<>(running);
             }
         });
-        when(os.updateInfo(any(Server.class))).thenAnswer(new Answer<Server>() {
-            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                return (Server) invocation.getArguments()[0];
-            }
-        });
-        when(os.getRunningNodes()).thenAnswer(new Answer<List<Server>>() {
-            @Override public List<Server> answer(InvocationOnMock invocation) throws Throwable {
-                synchronized (running) {
-                    return new ArrayList<>(running);
-                }
-            }
-        });
-        when(os.getServerById(any(String.class))).thenAnswer(new Answer<Server>() {
-            @Override public Server answer(InvocationOnMock invocation) throws Throwable {
-                String expected = (String) invocation.getArguments()[0];
-                synchronized (running) {
-                    for (Server s: running) {
-                        if (expected.equals(s.getId())) {
-                            return s;
-                        }
+        when(os.getServerById(any(String.class))).thenAnswer((Answer<Server>) invocation1 -> {
+            String expected = (String) invocation1.getArguments()[0];
+            synchronized (running) {
+                for (Server s: running) {
+                    if (expected.equals(s.getId())) {
+                        return s;
                     }
                 }
+            }
 
-                return null;
-            }
+            throw new NoSuchElementException("Does not exist");
         });
-        doAnswer(new Answer<Void>() {
-            @Override public Void answer(InvocationOnMock invocation) throws Throwable {
-                Server server = (Server) invocation.getArguments()[0];
-                running.remove(server);
-                return null;
+        doAnswer((Answer<Void>) invocation1 -> {
+            Server server1 = (Server) invocation1.getArguments()[0];
+            synchronized (running) {
+                running.remove(server1);
             }
+            return null;
         }).when(os).destroyServer(any(Server.class));
         return cloud;
     }
@@ -346,15 +391,17 @@ public final class PluginTestRule extends JenkinsRule {
             }
             throw new AssertionError("Computer not created in time");
         } catch (Throwable ex) {
+            // Unwrap ExecutionException as NodeProvisioner does it too
+            Throwable problem = (ex instanceof ExecutionException) ? ex.getCause(): ex;
             for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
-                cl.onFailure(plannedNode, ex);
+                cl.onFailure(plannedNode, problem);
             }
             throw ex;
         }
     }
 
     public JCloudsSlave provisionDummySlave(String labels) throws InterruptedException, ExecutionException, IOException {
-        JCloudsCloud cloud = createCloudLaunchingDummySlaves(labels);
+        JCloudsCloud cloud = configureSlaveLaunchingWithFloatingIP(labels);
         return provision(cloud, labels);
     }
 
@@ -362,20 +409,18 @@ public final class PluginTestRule extends JenkinsRule {
         return fakeOpenstackFactory(mock(Openstack.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS).serializable()));
     }
 
-    @SuppressWarnings("deprecation")
     public Openstack fakeOpenstackFactory(final Openstack os) {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
             @Override
             public @Nonnull Openstack getOpenstack(
                     @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
-            ) throws FormValidation {
+            ) {
                 return os;
             }
         });
         return os;
     }
 
-    @SuppressWarnings("deprecation")
     public Openstack.FactoryEP mockOpenstackFactory() {
         // Yes. We are wrapping mock into a real instance on purpose. We need an not-mocked instance so the 'cache' instance
         // field is initialized properly as we are referring to it form the factory method. But, as we need to mock/verify
@@ -422,10 +467,27 @@ public final class PluginTestRule extends JenkinsRule {
             return this;
         }
 
-        public MockServerBuilder floatingIp(String ip) {
+        public MockServerBuilder withFloatingIpv4(String ip) {
+            return withAddress(ip, 4, "floating");
+        }
+
+        public MockServerBuilder withFloatingIpv6(String ip) {
+            return withAddress(ip, 6, "floating");
+        }
+
+        public MockServerBuilder withFixedIPv4(String ip) {
+            return withAddress(ip, 4, "fixed");
+        }
+
+        public MockServerBuilder withFixedIPv6(String ip) {
+            return withAddress(ip, 6, "fixed");
+        }
+
+        public MockServerBuilder withAddress(String ip, int i, String fixed) {
             NovaAddress addr = mock(NovaAddress.class, withSettings().serializable());
-            when(addr.getType()).thenReturn("floating");
+            when(addr.getVersion()).thenReturn(i);
             when(addr.getAddr()).thenReturn(ip);
+            when(addr.getType()).thenReturn(fixed);
 
             server.getAddresses().add(String.valueOf(rnd.nextInt()), addr);
             return this;
@@ -457,20 +519,23 @@ public final class PluginTestRule extends JenkinsRule {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                NodeProvisioner.NodeProvisionerInvoker.INITIALDELAY = NodeProvisioner.NodeProvisionerInvoker.RECURRENCEPERIOD = 1000;
+                NodeProvisionerInvoker.INITIALDELAY = NodeProvisionerInvoker.RECURRENCEPERIOD = LoadStatistics.CLOCK = 1000;
                 try {
                     jenkinsRuleStatement.evaluate();
                 } finally {
                     for (Map.Entry<String, Proc> slave: slavesToKill.entrySet()) {
-                        Proc p = slave.getValue();
-                        while (p.isAlive()) {
-                            System.err.println("Killing agent " + p + " for " + slave.getKey());
-                            p.kill();
-                        }
+                        killJnlpAgentProcess(slave.getKey(), slave.getValue());
                     }
                 }
             }
         };
+    }
+
+    private void killJnlpAgentProcess(String name, Proc p) throws IOException, InterruptedException {
+        while (p.isAlive()) {
+            System.err.println("Killing agent " + p + " for " + name);
+            p.kill();
+        }
     }
 
     @Extension
@@ -510,7 +575,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack", "endPointUrl", false,"zone", opts, Arrays.asList(templates), "credentialId");
+            super("openstack", "endPointUrl", false,"zone", opts, Arrays.asList(templates), "credentialsId");
         }
 
         @Override
@@ -536,5 +601,43 @@ public final class PluginTestRule extends JenkinsRule {
                 return "";
             }
         }
+    }
+
+    public TypeSafeMatcher<FormValidation> validateAs(final FormValidation.Kind kind, final String msg) {
+        return new TypeSafeMatcher<FormValidation>() {
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                description.appendText(kind.toString() + ": " + msg);
+            }
+
+            @Override
+            protected void describeMismatchSafely(FormValidation item, org.hamcrest.Description mismatchDescription) {
+                mismatchDescription.appendText(item.kind + ": " + item.getMessage());
+            }
+
+            @Override
+            protected boolean matchesSafely(FormValidation item) {
+                return kind.equals(item.kind) && Objects.equals(item.getMessage(), msg);
+            }
+        };
+    }
+
+    public TypeSafeMatcher<FormValidation> validateAs(final FormValidation expected) {
+        return new TypeSafeMatcher<FormValidation>() {
+            @Override
+            public void describeTo(org.hamcrest.Description description) {
+                description.appendText(expected.kind.toString() + ": " + expected.getMessage());
+            }
+
+            @Override
+            protected void describeMismatchSafely(FormValidation item, org.hamcrest.Description mismatchDescription) {
+                mismatchDescription.appendText(item.kind + ": " + item.getMessage());
+            }
+
+            @Override
+            protected boolean matchesSafely(FormValidation item) {
+                return expected.kind.equals(item.kind) && Objects.equals(item.getMessage(), expected.getMessage());
+            }
+        };
     }
 }

@@ -16,6 +16,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -100,10 +101,11 @@ public class OpenStackMachineStep extends Step {
             return "Cloud instances provisioning";
         }
 
+        @RequirePOST
         public ListBoxModel doFillCloudItems() {
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
-            Jenkins.CloudList clouds = jenkins.model.Jenkins.getActiveInstance().clouds;
+            Jenkins.CloudList clouds = jenkins.model.Jenkins.get().clouds;
             for (Cloud cloud: clouds) {
                 if (cloud instanceof JCloudsCloud) {
                     r.add(cloud.getDisplayName(), cloud.getDisplayName());
@@ -112,13 +114,14 @@ public class OpenStackMachineStep extends Step {
             return r;
         }
 
+        @RequirePOST
         public ListBoxModel doFillTemplateItems(@QueryParameter String cloud) {
             cloud = Util.fixEmpty(cloud);
             ListBoxModel r = new ListBoxModel();
-            for (Cloud cl : jenkins.model.Jenkins.getActiveInstance().clouds) {
+            for (Cloud cl : jenkins.model.Jenkins.get().clouds) {
                 if (cl.getDisplayName().equals(cloud) && (cl instanceof JCloudsCloud)) {
                     for (JCloudsSlaveTemplate template : ((JCloudsCloud) cl).getTemplates()) {
-                       r.add(template.name);
+                       r.add(template.getName());
                     }
                 }
             }

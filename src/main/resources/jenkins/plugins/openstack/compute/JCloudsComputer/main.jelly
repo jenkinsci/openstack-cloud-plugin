@@ -1,0 +1,35 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
+  <h2>OpenStack details</h2>
+  <j:choose>
+    <j:when test="${it.node==null}">
+      ${%No data}
+    </j:when>
+    <j:otherwise>
+      <j:choose>
+        <j:when test="${empty(it.node.liveOpenstackServerDetails)}">
+          <b>${%Warning}:</b> ${%Live data unavailable.}
+        </j:when>
+      </j:choose>
+      <table class="pane bigtable" style="text-align: left;">
+        <tr>
+          <th>Server Id</th>
+          <td>${it.node.serverId}</td>
+        </tr>
+        <j:forEach var="e" items="${it.node.liveOpenstackServerDetails.entrySet()}">
+          <tr>
+            <th>${e.key}</th>
+            <td>${e.value}</td>
+          </tr>
+        </j:forEach>
+        <j:forEach var="e" items="${it.node.openstackSlaveData.entrySet()}">
+          <tr>
+            <th>${e.key}</th>
+            <td>${e.value}</td>
+          </tr>
+        </j:forEach>
+      </table>
+    </j:otherwise>
+  </j:choose>
+
+</j:jelly>

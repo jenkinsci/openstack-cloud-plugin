@@ -53,7 +53,7 @@ public class PersistenceMigrationTest {
 
     @Test @LocalData
     public void loadConfigFromV18() throws Exception {
-        j.dummySshCredential("2040d591-062a-4ccf-8f36-0a3340a1c51b");
+        j.dummySshCredentials("2040d591-062a-4ccf-8f36-0a3340a1c51b");
         // Node persisted
         JCloudsSlave s = (JCloudsSlave) j.jenkins.getNode("cloud-slave");
         assertEquals("2235b04d-267c-4487-908f-e55d2e81c0a9", s.getServerId());
@@ -102,11 +102,11 @@ public class PersistenceMigrationTest {
         JCloudsCloud v2Cloud = JCloudsCloud.getByName("v2");
         JCloudsCloud v3Cloud = JCloudsCloud.getByName("v3");
 
-        OpenstackCredentialv2 v2 = (OpenstackCredentialv2) OpenstackCredentials.getCredential(v2Cloud.getCredentialId());
+        OpenstackCredentialv2 v2 = (OpenstackCredentialv2) OpenstackCredentials.getCredential(v2Cloud.getCredentialsId());
         assertEquals("tenant:user/******",CredentialsNameProvider.name(v2));
         assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v2.getPassword().getPlainText());
 
-        OpenstackCredentialv3 v3 = (OpenstackCredentialv3) OpenstackCredentials.getCredential(v3Cloud.getCredentialId());
+        OpenstackCredentialv3 v3 = (OpenstackCredentialv3) OpenstackCredentials.getCredential(v3Cloud.getCredentialsId());
         assertEquals("domain:project:domain:user/******",CredentialsNameProvider.name(v3));
         assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v3.getPassword().getPlainText());
     }
@@ -117,7 +117,7 @@ public class PersistenceMigrationTest {
         JCloudsSlave slave = mock(JCloudsSlave.class);
         when(slave.getNodeName()).thenReturn("fake");
         when(slave.getSlaveOptions()).thenReturn(options);
-        when(slave.getPublicAddressIpv4()).thenReturn("42.42.42.42");
+        when(slave.getPublicAddress()).thenReturn("42.42.42.42");
 
         LauncherFactory launcherFactory = options.getLauncherFactory();
         assertNotNull(launcherFactory);
