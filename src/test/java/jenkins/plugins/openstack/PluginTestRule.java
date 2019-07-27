@@ -308,6 +308,11 @@ public final class PluginTestRule extends JenkinsRule {
             @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
                 serverBuilder.withFixedIPv6("4343::" + cnt.incrementAndGet());
             }
+        },
+        FIXED_4_NO_EXPLICIT_TYPE {
+            @Override public void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger cnt) {
+                serverBuilder.withFixedIPv4WithoutExplicitType("43.43.43." + cnt.incrementAndGet());
+            }
         };
 
         public abstract void apply(@Nonnull MockServerBuilder serverBuilder, @Nonnull AtomicInteger sequence);
@@ -481,6 +486,10 @@ public final class PluginTestRule extends JenkinsRule {
 
         public MockServerBuilder withFixedIPv6(String ip) {
             return withAddress(ip, 6, "fixed");
+        }
+
+        public MockServerBuilder withFixedIPv4WithoutExplicitType(String ip) {
+            return withAddress(ip, 4, null);
         }
 
         public MockServerBuilder withAddress(String ip, int i, String fixed) {
