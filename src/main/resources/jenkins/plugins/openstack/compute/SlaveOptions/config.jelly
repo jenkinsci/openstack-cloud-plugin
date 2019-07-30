@@ -63,6 +63,9 @@
                     <f:entry title="Retention Time" field="retentionTime">
                         <f:number checkMethod="post"/>
                     </f:entry>
+                    <f:entry title="Oldest slave termination" field="oldestSlaveTermination" description="If checked, when we will have to much free executors, the oldest VM will goes to schedule for termination state">
+                        <f:checkbox />
+                    </f:entry>
                     <f:dropdownDescriptorSelector field="launcherFactory" title="Connection type"/>
                 </f:section>
 

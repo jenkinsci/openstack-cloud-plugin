@@ -30,9 +30,9 @@
 
     <developers>
         <developer>
-          <id>olivergondza</id>
-          <name>Oliver Gondža</name>
-          <email>ogondza@gmail.com</email>
+            <id>olivergondza</id>
+            <name>Oliver Gondža</name>
+            <email>ogondza@gmail.com</email>
         </developer>
     </developers>
 
@@ -233,7 +233,7 @@
                         </additionalOptions>
                     </configuration>
                 </plugin>
-                </plugins>
+            </plugins>
         </pluginManagement>
         <finalName>${project.artifactId}</finalName>
     </build>
@@ -258,3 +258,4 @@
         </pluginRepository>
     </pluginRepositories>
 </project>
+
