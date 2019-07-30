@@ -430,6 +430,13 @@ public class ProvisioningTest {
     }
 
     @Test
+    public void findFixedIpv4WhenNoExplicitTypeIsGiven() throws Exception {
+        verifyPreferredAddressUsed("43.43.43.", Arrays.asList(
+                NetworkAddress.FIXED_4_NO_EXPLICIT_TYPE
+        ));
+    }
+
+    @Test
     public void failIfNoAccessIpFound() {
         try {
             verifyPreferredAddressUsed("Muahaha", Collections.emptyList());

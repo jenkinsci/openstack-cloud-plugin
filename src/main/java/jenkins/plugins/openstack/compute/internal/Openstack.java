@@ -655,7 +655,7 @@ public class Openstack {
                             floatingIPv6 = address;
                         }
                     }
-                } else  if (Objects.equals(type, "fixed")) {
+                } else {
                     if (version == 4) {
                         if (fixedIPv4 == null) {
                             fixedIPv4 = address;
