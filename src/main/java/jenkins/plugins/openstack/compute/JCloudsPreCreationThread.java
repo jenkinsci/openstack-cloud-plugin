@@ -99,8 +99,10 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
      */
     /*package*/ static boolean isNeededReadyComputer(JCloudsComputer computer) {
         if (computer == null) return false;
+        JCloudsSlave node = computer.getNode();
+        if (node == null) return false;
 
-        Integer instancesMin = computer.getNode().getSlaveOptions().getInstancesMin();
+        Integer instancesMin = node.getSlaveOptions().getInstancesMin();
         if (instancesMin > 0) {
             JCloudsCloud cloud = JCloudsCloud.getByName(computer.getId().getCloudName());
             String templateName = computer.getId().getTemplateName();
