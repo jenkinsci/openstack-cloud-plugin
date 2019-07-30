@@ -212,9 +212,11 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
      */
     /*package*/ long getIdleStart() {
         long idleStart = super.getIdleStartMilliseconds();
-        long ret = connectedSince > idleStart ? connectedSince : idleStart;
-        assert ret > 0;
-        return ret;
+        if (connectedSince == 0) {
+            // Not launched yet so make sure not to return time in the past - which idleStart quite likely is
+            return System.currentTimeMillis();
+        }
+        return Math.max(connectedSince, idleStart);
     }
 
     private static final class PendingTermination extends SimpleOfflineCause {
