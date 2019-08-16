@@ -27,11 +27,12 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.RelativePath;
 import hudson.Util;
-
+import hudson.slaves.NodePropertyDescriptor;
 import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.JCloudsSlave.JCloudsSlaveDescriptor;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -482,5 +483,19 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
      */
     private @Nonnull String def(@CheckForNull Object val) {
         return val == null ? "" : ("Inherited value: " + val);
+    }
+
+    /**
+     * Returns the list of {@link NodePropertyDescriptor} appropriate for the
+     * {@link JCloudsSlave}s that are created from these options.
+     *
+     * @return the filtered list
+     */
+    @Nonnull
+    @Restricted(NoExternalUse.class) // used by Jelly EL only
+    public List<NodePropertyDescriptor> getNodePropertiesDescriptors() {
+        final Jenkins j = Jenkins.get();
+        final JCloudsSlaveDescriptor jcsd = (JCloudsSlaveDescriptor) j.getDescriptor(JCloudsSlave.class);
+        return jcsd.nodePropertyDescriptors(null);
     }
 }

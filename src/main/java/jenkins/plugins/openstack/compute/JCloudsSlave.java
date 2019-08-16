@@ -1,13 +1,16 @@
 package jenkins.plugins.openstack.compute;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Descriptor;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
+import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
@@ -29,12 +32,12 @@ import org.openstack4j.model.compute.Server;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,9 +93,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 labelString,
                 null,
                 new JCloudsRetentionStrategy(),
-                Collections.singletonList(new EnvironmentVariablesNodeProperty(
-                        new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", Openstack.getAccessIpAddress(metadata))
-                ))
+                mkNodeProperties(Openstack.getAccessIpAddress(metadata), slaveOptions.getNodeProperties())
         );
         this.cloudName = id.getCloudName(); // TODO deprecate field
         this.provisioningId = id;
@@ -100,6 +101,41 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.nodeId = metadata.getId();
         this.cache = makeCache();
         setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
+    }
+
+    private static @Nonnull List<NodeProperty<? extends Node>> mkNodeProperties(@CheckForNull String vmIpAddressOrNull,
+            @CheckForNull final List<? extends NodeProperty<?>> templateNPsOrNull) {
+        final String vmIpAddressOrEmpty = Util.fixNull(vmIpAddressOrNull);
+        final EnvironmentVariablesNodeProperty.Entry ipAddressEnvVar = new EnvironmentVariablesNodeProperty.Entry(
+                "OPENSTACK_PUBLIC_IP", vmIpAddressOrEmpty);
+        final List<? extends NodeProperty<?>> templateNPsOrEmpty = Util.fixNull(templateNPsOrNull);
+        final List<NodeProperty<? extends Node>> result = mergeNodeProperties(templateNPsOrEmpty, ipAddressEnvVar);
+        return result;
+    }
+
+    private static @Nonnull List<NodeProperty<? extends Node>> mergeNodeProperties(
+            @Nonnull List<? extends NodeProperty<?>> templateNPs,
+            @Nonnull EnvironmentVariablesNodeProperty.Entry... extraEnvVarEntries) {
+        final EnvironmentVariablesNodeProperty envVarsNP = new EnvironmentVariablesNodeProperty(extraEnvVarEntries);
+        final ImmutableList.Builder<NodeProperty<? extends Node>> b = ImmutableList.builder();
+        boolean envVarsAdded = false;
+        for (final NodeProperty<?> templateNP : templateNPs) {
+            if (envVarsAdded == false && templateNP instanceof EnvironmentVariablesNodeProperty) {
+                final EnvironmentVariablesNodeProperty templateEnvVarNP = (EnvironmentVariablesNodeProperty) templateNP;
+                final EnvVars templateEnvVars = templateEnvVarNP.getEnvVars();
+                final EnvVars extraEnvVars = envVarsNP.getEnvVars();
+                extraEnvVars.putAll(templateEnvVars);
+                b.add(envVarsNP);
+                envVarsAdded = true;
+            } else {
+                b.add(templateNP);
+            }
+        }
+        if (!envVarsAdded && extraEnvVarEntries.length != 0) {
+            b.add(envVarsNP);
+        }
+        final List<NodeProperty<? extends Node>> nodePropertiesList = b.build();
+        return nodePropertiesList;
     }
 
     // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.

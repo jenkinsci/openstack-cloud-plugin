@@ -25,6 +25,7 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.Util;
 import hudson.model.Describable;
+import hudson.slaves.NodeProperty;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -33,9 +34,13 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import com.google.common.collect.Lists;
+
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Configured options for a slave to create.
@@ -47,7 +52,7 @@ import java.io.Serializable;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
@@ -67,6 +72,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
     private /*final*/ LauncherFactory launcherFactory;
+    private /*final*/ List<NodeProperty<?>> nodeProperties;
 
     // Moved into LauncherFactory. Converted to string for the ease of conversion. Note that due to inheritance implemented,
     // the migration needs to be implemented by the holder so this is package protected.
@@ -139,6 +145,10 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return launcherFactory;
     }
 
+    public List<NodeProperty<?>> getNodeProperties() {
+        return nodeProperties;
+    }
+
     public Integer getRetentionTime() {
         return retentionTime;
     }
@@ -160,6 +170,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.jvmOptions,
                 b.fsRoot,
                 b.launcherFactory,
+                b.nodeProperties,
                 b.retentionTime
         );
     }
@@ -181,6 +192,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             String jvmOptions,
             String fsRoot,
             LauncherFactory launcherFactory,
+            @CheckForNull List<? extends NodeProperty<?>> nodeProperties,
             Integer retentionTime
     ) {
         this.bootSource = bootSource;
@@ -198,6 +210,10 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.jvmOptions = Util.fixEmpty(jvmOptions);
         this.fsRoot = Util.fixEmpty(fsRoot);
         this.launcherFactory = launcherFactory;
+        this.nodeProperties = Lists.newArrayList();
+        if( nodeProperties!=null ) {
+            this.nodeProperties.addAll(nodeProperties);
+        }
         this.retentionTime = retentionTime;
     }
 
@@ -206,6 +222,9 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             bootSource = new BootSource.Image(imageId);
         }
         imageId = null;
+        if (nodeProperties==null ) {
+            nodeProperties = Lists.newArrayList();
+        }
         return this;
     }
 
@@ -229,9 +248,14 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .jvmOptions(_override(this.jvmOptions, o.jvmOptions))
                 .fsRoot(_override(this.fsRoot, o.fsRoot))
                 .launcherFactory(_override(this.launcherFactory, o.launcherFactory))
+                .nodeProperties(_overrideC(this.nodeProperties, o.nodeProperties))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
                 .build()
         ;
+    }
+
+    private @CheckForNull <T extends Collection<?>> T _overrideC(@CheckForNull T base, @CheckForNull T override) {
+        return override == null || override.isEmpty() ? base : override;
     }
 
     private @CheckForNull <T> T _override(@CheckForNull T base, @CheckForNull T override) {
@@ -258,6 +282,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .jvmOptions(_erase(this.jvmOptions, defaults.jvmOptions))
                 .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
                 .launcherFactory(_erase(this.launcherFactory, defaults.launcherFactory))
+                .nodeProperties(_eraseC(this.nodeProperties, defaults.nodeProperties))
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
                 .build()
         ;
@@ -266,6 +291,13 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     /** Returns null if our <tt>base</tt> value is the same as the <tt>def</tt>ault value. */
     private @CheckForNull <T> T _erase(@CheckForNull T base, @CheckForNull T def) {
         if (def == null) return base;
+        if (def.equals(base)) return null;
+        return base;
+    }
+
+    /** Returns null if our <tt>base</tt> value is the same as the <tt>def</tt>ault value. */
+    private @CheckForNull <T extends Collection<?>> T _eraseC(@CheckForNull T base, @CheckForNull T def) {
+        if (def == null || def.isEmpty()) return base;
         if (def.equals(base)) return null;
         return base;
     }
@@ -288,6 +320,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("jvmOptions", jvmOptions)
                 .append("fsRoot", fsRoot)
                 .append("launcherFactory", launcherFactory)
+                .append("nodeProperties", nodeProperties)
                 .append("retentionTime", retentionTime)
                 .toString()
         ;
@@ -315,6 +348,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         if (jvmOptions != null ? !jvmOptions.equals(that.jvmOptions) : that.jvmOptions != null) return false;
         if (fsRoot != null ? !fsRoot.equals(that.fsRoot) : that.fsRoot != null) return false;
         if (launcherFactory != null ? !launcherFactory.equals(that.launcherFactory) : that.launcherFactory != null) return false;
+        if (nodeProperties != null ? !nodeProperties.equals(that.nodeProperties) : that.nodeProperties != null) return false;
         return retentionTime != null ? retentionTime.equals(that.retentionTime) : that.retentionTime == null;
 
     }
@@ -336,6 +370,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         result = 31 * result + (jvmOptions != null ? jvmOptions.hashCode() : 0);
         result = 31 * result + (fsRoot != null ? fsRoot.hashCode() : 0);
         result = 31 * result + (launcherFactory != null ? launcherFactory.hashCode() : 0);
+        result = 31 * result + (nodeProperties != null ? nodeProperties.hashCode() : 0);
         result = 31 * result + (retentionTime != null ? retentionTime.hashCode() : 0);
         return result;
     }
@@ -360,6 +395,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .jvmOptions(jvmOptions)
                 .fsRoot(fsRoot)
                 .launcherFactory(launcherFactory)
+                .nodeProperties(nodeProperties)
                 .retentionTime(retentionTime)
         ;
     }
@@ -393,6 +429,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         private @CheckForNull String fsRoot;
 
         private @CheckForNull LauncherFactory launcherFactory;
+        private @CheckForNull List<? extends NodeProperty<?>> nodeProperties;
         private @CheckForNull Integer retentionTime;
 
         public Builder() {}
@@ -473,6 +510,11 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         public @Nonnull Builder launcherFactory(LauncherFactory launcherFactory) {
             this.launcherFactory = launcherFactory;
+            return this;
+        }
+
+        public @Nonnull Builder nodeProperties(List<? extends NodeProperty<?>> nodeProperties) {
+            this.nodeProperties = nodeProperties;
             return this;
         }
 

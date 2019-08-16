@@ -64,6 +64,10 @@
                         <f:number checkMethod="post"/>
                     </f:entry>
                     <f:dropdownDescriptorSelector field="launcherFactory" title="Connection type"/>
+                    <f:entry title="Node Properties">
+                        <f:repeatableHeteroProperty field="nodeProperties" oneEach="true" hasHeader="true"
+                                                    addCaption="Add Node Property" deleteCaption="Delete Node Property"/>
+                    </f:entry>
                 </f:section>
 
                 <f:class-entry descriptor="${descriptor}"/>
