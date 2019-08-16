@@ -42,11 +42,11 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.net.URISyntaxException;
-import java.util.Collections;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
@@ -105,6 +105,7 @@ public class JcascTest {
             assertEquals("/tmp/foo", co.getFsRoot());
             assertEquals(((Integer) 42), co.getRetentionTime());
             LauncherFactory.SSH lf = (LauncherFactory.SSH) co.getLauncherFactory();
+            assertThat(co.getNodeProperties(), empty());
             assertEquals("/bin/true", lf.getJavaPath());
             assertEquals("openstack_ssh_key", lf.getCredentialsId());
             BasicSSHUserPrivateKey sshcreds = PluginTestRule.extractSshCredentials(lf);

@@ -60,6 +60,7 @@ import java.util.concurrent.Callable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
@@ -150,10 +151,10 @@ public class JCloudsCloudTest {
         String openstackAuth = j.dummyCredentials();
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
-                new BootSource.Image("iid"), "hw", "nw", "ud", 1, 0, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 4
+                new BootSource.Image("iid"), "hw", "nw", "ud", 1, 0, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, null, 4
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "endPointUrl", false,"zone", new SlaveOptions(
-                new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, 4, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), 9
+                new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, 4, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), null, 9
         ), Collections.singletonList(template),openstackAuth);
         j.jenkins.clouds.add(cloud);
 
@@ -276,6 +277,7 @@ public class JCloudsCloudTest {
         assertEquals("/tmp/jenkins", to.getFsRoot());
         assertEquals("jenkins-testing", to.getKeyPairName());
         assertThat(to.getLauncherFactory(), instanceOf(LauncherFactory.SSH.class));
+        assertThat(to.getNodeProperties(), empty());
         assertEquals("default", to.getSecurityGroups());
         assertEquals("zone", to.getAvailabilityZone());
         assertEquals("jenkins.plugins.openstack.compute.UserDataConfig.1455188317989", to.getUserDataId());

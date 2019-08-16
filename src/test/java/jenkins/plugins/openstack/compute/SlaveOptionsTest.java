@@ -15,7 +15,8 @@ public class SlaveOptionsTest {
 
     @Test // instanceCap is a subject of different overriding rules
     public void defaultOverrides() {
-        SlaveOptions unmodified = PluginTestRule.dummySlaveOptions().override(SlaveOptions.empty());
+        SlaveOptions dummySlaveOptions = PluginTestRule.dummySlaveOptions();
+        SlaveOptions unmodified = dummySlaveOptions.override(SlaveOptions.empty());
 
         assertEquals(new BootSource.VolumeSnapshot("id"), unmodified.getBootSource());
         assertEquals("hw", unmodified.getHardwareId());
@@ -32,6 +33,7 @@ public class SlaveOptionsTest {
         assertEquals("fsRoot", unmodified.getFsRoot());
         assertEquals(null, unmodified.getKeyPairName());
         assertEquals(LauncherFactory.JNLP.JNLP, unmodified.getLauncherFactory());
+        assertEquals(dummySlaveOptions.getNodeProperties(), unmodified.getNodeProperties());
         assertEquals(1, (int) unmodified.getRetentionTime());
 
         SlaveOptions override = SlaveOptions.builder()
@@ -50,6 +52,7 @@ public class SlaveOptionsTest {
                 .fsRoot("FSROOT")
                 .keyPairName("KPN")
                 .launcherFactory(new LauncherFactory.SSH(""))
+                .nodeProperties(PluginTestRule.mkListOfNodeProperties(3))
                 .retentionTime(3)
                 .build()
         ;
@@ -70,6 +73,7 @@ public class SlaveOptionsTest {
         assertEquals("FSROOT", overridden.getFsRoot());
         assertEquals("KPN", overridden.getKeyPairName());
         assertThat(overridden.getLauncherFactory(), instanceOf(LauncherFactory.SSH.class));
+        assertEquals(PluginTestRule.mkListOfNodeProperties(3), overridden.getNodeProperties());
         assertEquals(3, (int) overridden.getRetentionTime());
     }
 
@@ -89,7 +93,7 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null
+                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .hardwareId("")
