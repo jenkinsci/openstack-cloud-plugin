@@ -27,6 +27,9 @@ jenkins:
             ssh:
               credentialsId: "openstack_ssh_key"
               javaPath: "/bin/true"
+          nodeProperties:
+            - nodePropertyOne
+            - nodePropertyThree
           retentionTime: 42
         templates:
           - name: "empty"
@@ -48,6 +51,11 @@ jenkins:
                 volumeFromImage:
                   name: "Volume name"
                   volumeSize: 15
+          - name: "customNodeProperties"
+            labels: "templateWithItsOwnNodeProperties"
+            slaveOptions:
+              nodeProperties:
+                - nodePropertyTwo
 
 unclassified:
   globalConfigFiles:
