@@ -4,19 +4,15 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Server;
@@ -24,24 +20,15 @@ import org.openstack4j.model.compute.Server;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import hudson.ExtensionList;
-import hudson.model.Hudson;
-import hudson.model.LabelFinder;
 import hudson.model.Node;
-import hudson.model.labels.LabelAtom;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
-import jenkins.model.Jenkins;
-import jenkins.model.Nodes;
-import jenkins.model.TestJenkins;
+import jenkins.plugins.openstack.PluginTestRule;
 
 public class JCloudsSlaveTest {
     private static final String EXPECTED_IP_ADDRESS_ENV_VAR_NAME = "OPENSTACK_PUBLIC_IP";
-
-    @After
-    public void tearDown() {
-        TestJenkins.setJenkinsInstance(null);
-    }
+    @Rule
+    public PluginTestRule j = new PluginTestRule();
 
     @Test
     public void constructorGivenNoNodePropertiesThenProvidesIPAddressAsEnvVar() throws Exception {
@@ -56,8 +43,6 @@ public class JCloudsSlaveTest {
         when(mockSlaveOptions.getNodeProperties()).thenReturn(null);
         final Map<String, String> expectedEnvVars = ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
                 expectedIpAddress);
-        final Jenkins mockJenkins = mockJenkins();
-        stubExtensionList(mockJenkins, LabelFinder.class);
 
         // When
         JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
@@ -88,8 +73,6 @@ public class JCloudsSlaveTest {
         when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfMockNodeProperties);
         final Map<String, String> expectedEnvVars = ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
                 expectedIpAddress);
-        final Jenkins mockJenkins = mockJenkins();
-        stubExtensionList(mockJenkins, LabelFinder.class);
 
         // When
         JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
@@ -128,8 +111,6 @@ public class JCloudsSlaveTest {
         when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfMockNodeProperties);
         final Map<String, String> expectedEnvVars = ImmutableMap.of(envVar1Name, envVar1Value, envVar2Name,
                 envVar2Value, EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
-        final Jenkins mockJenkins = mockJenkins();
-        stubExtensionList(mockJenkins, LabelFinder.class);
 
         // When
         JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
@@ -164,30 +145,6 @@ public class JCloudsSlaveTest {
         when(mockMetadata.getName()).thenReturn(nameToReturn);
         when(mockMetadata.getAddresses()).thenReturn(mockAddresses);
         return mockMetadata;
-    }
-
-    private static Jenkins mockJenkins() {
-        final Jenkins mockJenkins = mock(Hudson.class);
-        final Nodes mockNodes = mock(Nodes.class);
-        TestJenkins.setJenkinsInstance(mockJenkins);
-        when(mockJenkins.getNodesObject()).thenReturn(mockNodes);
-        when(mockJenkins.getLabelAtom(anyString())).thenAnswer(new Answer<LabelAtom>() {
-            @Override
-            public LabelAtom answer(InvocationOnMock invocation) throws Throwable {
-                final String label = (String) invocation.getArguments()[0];
-                return new LabelAtom(label);
-            }
-        });
-        return mockJenkins;
-    }
-
-    private static <T> void stubExtensionList(Jenkins mockJenkins, Class<T> type) {
-        final ExtensionList<T> stubLabelFinderList = new ExtensionList<T>(mockJenkins, type) {
-            public Iterator<T> iterator() {
-                return ImmutableList.<T>of().iterator();
-            }
-        };
-        when(mockJenkins.getExtensionList(type)).thenReturn(stubLabelFinderList);
     }
 
     @SuppressWarnings("unchecked")

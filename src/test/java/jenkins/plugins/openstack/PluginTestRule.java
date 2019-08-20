@@ -41,6 +41,8 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.plugins.openstack.nodeproperties.NodePropertyOne;
+import jenkins.plugins.openstack.nodeproperties.NodePropertyThree;
+import jenkins.plugins.openstack.nodeproperties.NodePropertyTwo;
 
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -133,9 +135,9 @@ public final class PluginTestRule extends JenkinsRule {
         case 1:
             return new NodePropertyOne();
         case 2:
-            return new NodePropertyOne();
+            return new NodePropertyTwo();
         case 3:
-            return new NodePropertyOne();
+            return new NodePropertyThree();
         default:
             throw new IllegalArgumentException("Need 1, 2 or 3: Got " + number);
         }
