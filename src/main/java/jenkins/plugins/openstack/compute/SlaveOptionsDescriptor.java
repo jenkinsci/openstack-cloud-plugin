@@ -495,7 +495,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @Restricted(NoExternalUse.class) // used by Jelly EL only
     public List<NodePropertyDescriptor> getNodePropertiesDescriptors() {
         final Jenkins j = Jenkins.get();
-        final JCloudsSlaveDescriptor jcsd = (JCloudsSlaveDescriptor) j.getDescriptor(JCloudsSlave.class);
+        final JCloudsSlaveDescriptor jcsd = (JCloudsSlaveDescriptor) j.getDescriptorOrDie(JCloudsSlave.class);
         return jcsd.nodePropertyDescriptors(null);
     }
 }
