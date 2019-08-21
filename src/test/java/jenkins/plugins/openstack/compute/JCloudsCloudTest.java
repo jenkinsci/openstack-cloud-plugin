@@ -277,7 +277,7 @@ public class JCloudsCloudTest {
         assertEquals("/tmp/jenkins", to.getFsRoot());
         assertEquals("jenkins-testing", to.getKeyPairName());
         assertThat(to.getLauncherFactory(), instanceOf(LauncherFactory.SSH.class));
-        assertThat(to.getNodeProperties(), empty());
+        assertEquals(null, to.getNodeProperties());
         assertEquals("default", to.getSecurityGroups());
         assertEquals("zone", to.getAvailabilityZone());
         assertEquals("jenkins.plugins.openstack.compute.UserDataConfig.1455188317989", to.getUserDataId());

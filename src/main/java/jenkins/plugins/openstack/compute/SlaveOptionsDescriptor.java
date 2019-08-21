@@ -36,12 +36,14 @@ import jenkins.plugins.openstack.compute.JCloudsSlave.JCloudsSlaveDescriptor;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import net.sf.json.JSONObject;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.api.exceptions.ConnectionException;
@@ -50,6 +52,7 @@ import org.openstack4j.model.compute.ext.AvailabilityZone;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -497,5 +500,22 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         final Jenkins j = Jenkins.get();
         final JCloudsSlaveDescriptor jcsd = (JCloudsSlaveDescriptor) j.getDescriptorOrDie(JCloudsSlave.class);
         return jcsd.nodePropertyDescriptors(null);
+    }
+
+    @Override
+    @Restricted(NoExternalUse.class) // Stapler
+    public SlaveOptions newInstance(@Nullable StaplerRequest req, @Nonnull JSONObject formData) throws FormException {
+        // Permit null and empty nodeProperties:
+        // f:optionalBlock does not adhere to its documented contract when inline=true. The expected behavior here is
+        // nodeProperties=null when the block is collapsed (no matter what is in). However, it is being sent even when
+        // collapsed so SlaveOptions constructor is forced to consult the dummy property to tell null from value on the
+        // real property making the API awful. When inline=false, the field is always wrapped in extra level of json object forcing extra
+        // describable to be created (between SlaveOptions and properties list) making the API awful again.
+        // Therefore, nodeProperties is only propagated to @DBC when hasNodeProperties is true and hasNodeProperties is only processed here.
+        if (!formData.optBoolean("hasNodeProperties")) {
+            formData.remove("nodeProperties");
+        }
+        formData.remove("hasNodeProperties");
+        return super.newInstance(req, formData);
     }
 }

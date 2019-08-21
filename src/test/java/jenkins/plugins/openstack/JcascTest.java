@@ -25,6 +25,8 @@ package jenkins.plugins.openstack;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import hudson.Functions;
+import hudson.model.Node;
+import hudson.slaves.NodeProperty;
 import io.jenkins.plugins.casc.ConfigurationAsCode;
 import io.jenkins.plugins.casc.ConfiguratorException;
 import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
@@ -42,6 +44,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.net.URISyntaxException;
+import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -83,6 +86,7 @@ public class JcascTest {
             assertEquals("tnt", cv2.getTenant());
         }
 
+        final List<NodeProperty<Node>> expectedCloudNPs = PluginTestRule.mkListOfNodeProperties(1,3);
         { // Slave options
             SlaveOptions co = c.getRawSlaveOptions();
             assertEquals("Image Name", ((BootSource.Image) co.getBootSource()).getName());
@@ -104,7 +108,7 @@ public class JcascTest {
             assertEquals("/tmp/foo", co.getFsRoot());
             assertEquals(((Integer) 42), co.getRetentionTime());
             LauncherFactory.SSH lf = (LauncherFactory.SSH) co.getLauncherFactory();
-            assertEquals(PluginTestRule.mkListOfNodeProperties(1,3), co.getNodeProperties());
+            assertEquals(expectedCloudNPs, co.getNodeProperties());
             assertEquals("/bin/true", lf.getJavaPath());
             assertEquals("openstack_ssh_key", lf.getCredentialsId());
             BasicSSHUserPrivateKey sshcreds = PluginTestRule.extractSshCredentials(lf);
@@ -127,8 +131,18 @@ public class JcascTest {
         assertEquals("Volume name", vfi.getName());
         assertEquals(15, vfi.getVolumeSize());
 
+        final List<NodeProperty<Node>> expectedCustomNPs = PluginTestRule.mkListOfNodeProperties(2);
         JCloudsSlaveTemplate templateWithCustomNodeProperties = c.getTemplate("customNodeProperties");
-        assertEquals(PluginTestRule.mkListOfNodeProperties(2), templateWithCustomNodeProperties.getRawSlaveOptions().getNodeProperties());
+        assertEquals(expectedCustomNPs, templateWithCustomNodeProperties.getRawSlaveOptions().getNodeProperties());
+
+        final List<NodeProperty<Node>> expectedNoNPs = PluginTestRule.mkListOfNodeProperties();
+        JCloudsSlaveTemplate templateWithNoNodeProperties = c.getTemplate("noNodeProperties");
+        assertEquals(expectedNoNPs, templateWithNoNodeProperties.getRawSlaveOptions().getNodeProperties());
+
+        assertEquals(expectedCloudNPs, c.getEffectiveSlaveOptions().getNodeProperties());
+        assertEquals(expectedCloudNPs, t.getEffectiveSlaveOptions().getNodeProperties());
+        assertEquals(expectedCustomNPs, templateWithCustomNodeProperties.getEffectiveSlaveOptions().getNodeProperties());
+        assertEquals(expectedNoNPs, templateWithNoNodeProperties.getEffectiveSlaveOptions().getNodeProperties());
     }
 
     @Test

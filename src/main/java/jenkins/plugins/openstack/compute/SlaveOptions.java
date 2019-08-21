@@ -39,7 +39,6 @@ import com.google.common.collect.Lists;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -72,7 +71,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
     private /*final*/ LauncherFactory launcherFactory;
-    private /*final*/ List<NodeProperty<?>> nodeProperties;
+    private /*final*/ @CheckForNull List<NodeProperty<?>> nodeProperties;
 
     // Moved into LauncherFactory. Converted to string for the ease of conversion. Note that due to inheritance implemented,
     // the migration needs to be implemented by the holder so this is package protected.
@@ -145,7 +144,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return launcherFactory;
     }
 
-    public List<NodeProperty<?>> getNodeProperties() {
+    public @CheckForNull List<NodeProperty<?>> getNodeProperties() {
         return nodeProperties;
     }
 
@@ -210,9 +209,10 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.jvmOptions = Util.fixEmpty(jvmOptions);
         this.fsRoot = Util.fixEmpty(fsRoot);
         this.launcherFactory = launcherFactory;
-        this.nodeProperties = Lists.newArrayList();
         if( nodeProperties!=null ) {
-            this.nodeProperties.addAll(nodeProperties);
+            this.nodeProperties = Lists.newArrayList(nodeProperties);
+        } else {
+            this.nodeProperties = null;
         }
         this.retentionTime = retentionTime;
     }
@@ -222,9 +222,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             bootSource = new BootSource.Image(imageId);
         }
         imageId = null;
-        if (nodeProperties==null ) {
-            nodeProperties = Lists.newArrayList();
-        }
         return this;
     }
 
@@ -248,14 +245,10 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .jvmOptions(_override(this.jvmOptions, o.jvmOptions))
                 .fsRoot(_override(this.fsRoot, o.fsRoot))
                 .launcherFactory(_override(this.launcherFactory, o.launcherFactory))
-                .nodeProperties(_overrideC(this.nodeProperties, o.nodeProperties))
+                .nodeProperties(_override(this.nodeProperties, o.nodeProperties))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
                 .build()
         ;
-    }
-
-    private @CheckForNull <T extends Collection<?>> T _overrideC(@CheckForNull T base, @CheckForNull T override) {
-        return override == null || override.isEmpty() ? base : override;
     }
 
     private @CheckForNull <T> T _override(@CheckForNull T base, @CheckForNull T override) {
@@ -282,7 +275,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .jvmOptions(_erase(this.jvmOptions, defaults.jvmOptions))
                 .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
                 .launcherFactory(_erase(this.launcherFactory, defaults.launcherFactory))
-                .nodeProperties(_eraseC(this.nodeProperties, defaults.nodeProperties))
+                .nodeProperties(_erase(this.nodeProperties, defaults.nodeProperties))
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
                 .build()
         ;
@@ -291,13 +284,6 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     /** Returns null if our <tt>base</tt> value is the same as the <tt>def</tt>ault value. */
     private @CheckForNull <T> T _erase(@CheckForNull T base, @CheckForNull T def) {
         if (def == null) return base;
-        if (def.equals(base)) return null;
-        return base;
-    }
-
-    /** Returns null if our <tt>base</tt> value is the same as the <tt>def</tt>ault value. */
-    private @CheckForNull <T extends Collection<?>> T _eraseC(@CheckForNull T base, @CheckForNull T def) {
-        if (def == null || def.isEmpty()) return base;
         if (def.equals(base)) return null;
         return base;
     }

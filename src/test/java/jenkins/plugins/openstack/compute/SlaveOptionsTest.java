@@ -3,10 +3,15 @@ package jenkins.plugins.openstack.compute;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
+import java.util.List;
+
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Test;
+
+import hudson.model.Node;
+import hudson.slaves.NodeProperty;
 
 /**
  * @author ogondza.
@@ -118,10 +123,52 @@ public class SlaveOptionsTest {
         assertEquals(null, emptyStrings.getJvmOptions());
         assertEquals(null, emptyStrings.getFsRoot());
         assertEquals(null, emptyStrings.getKeyPairName());
+        assertEquals(null, emptyStrings.getNodeProperties());
     }
 
     @Test
     public void modifyThroughBuilder() {
         assertEquals(PluginTestRule.dummySlaveOptions(), PluginTestRule.dummySlaveOptions().getBuilder().build());
+    }
+
+    @Test
+    public void emptyNodePropertiesOverride() {
+        // Given
+        List<NodeProperty<Node>> expected = PluginTestRule.mkListOfNodeProperties();
+        List<NodeProperty<Node>> unexpected = PluginTestRule.mkListOfNodeProperties(2, 3);
+        SlaveOptions baseOptions = SlaveOptions.builder().nodeProperties(unexpected).build();
+        SlaveOptions overridingOptions = SlaveOptions.builder().nodeProperties(expected).build();
+        // When
+        SlaveOptions effectiveOptions = baseOptions.override(overridingOptions);
+        List<NodeProperty<?>> actual = effectiveOptions.getNodeProperties();
+        // Then
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    public void nonEmptyNodePropertiesOverride() {
+        // Given
+        List<NodeProperty<Node>> expected = PluginTestRule.mkListOfNodeProperties(1, 2);
+        List<NodeProperty<Node>> unexpected = PluginTestRule.mkListOfNodeProperties(2, 3);
+        SlaveOptions baseOptions = SlaveOptions.builder().nodeProperties(unexpected).build();
+        SlaveOptions overridingOptions = SlaveOptions.builder().nodeProperties(expected).build();
+        // When
+        SlaveOptions effectiveOptions = baseOptions.override(overridingOptions);
+        List<NodeProperty<?>> actual = effectiveOptions.getNodeProperties();
+        // Then
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    public void nullNodePropertiesDoNotOverride() {
+        // Given
+        List<NodeProperty<Node>> expected = PluginTestRule.mkListOfNodeProperties(1, 2);
+        SlaveOptions baseOptions = SlaveOptions.builder().nodeProperties(expected).build();
+        SlaveOptions overridingOptions = SlaveOptions.builder().build();
+        // When
+        SlaveOptions effectiveOptions = baseOptions.override(overridingOptions);
+        List<NodeProperty<?>> actual = effectiveOptions.getNodeProperties();
+        // Then
+        assertEquals(expected, actual);
     }
 }

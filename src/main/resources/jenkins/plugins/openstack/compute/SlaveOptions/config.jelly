@@ -64,10 +64,16 @@
                         <f:number checkMethod="post"/>
                     </f:entry>
                     <f:dropdownDescriptorSelector field="launcherFactory" title="Connection type"/>
-                    <f:entry title="Node Properties">
-                        <f:repeatableHeteroProperty field="nodeProperties" oneEach="true" hasHeader="true"
-                                                    addCaption="Add Node Property" deleteCaption="Delete Node Property"/>
-                    </f:entry>
+                    <f:block>
+                        <table style="width:100%">
+                            <f:optionalBlock name="hasNodeProperties" checked="${instance.nodeProperties != null}" title="Node Properties" inline="true">
+                                <f:entry>
+                                    <f:repeatableHeteroProperty field="nodeProperties" oneEach="true" hasHeader="true"
+                                                                addCaption="Add Node Property" deleteCaption="Delete Node Property"/>
+                                </f:entry>
+                            </f:optionalBlock>
+                        </table>
+                    </f:block>
                 </f:section>
 
                 <f:class-entry descriptor="${descriptor}"/>
