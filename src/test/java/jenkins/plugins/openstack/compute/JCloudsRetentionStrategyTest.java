@@ -142,7 +142,7 @@ public class JCloudsRetentionStrategyTest {
 
         computer.setTemporarilyOffline(false, null);
 
-        checkAfter(computer, 60*1000);
+        checkAfter(computer, 61*1000);
 
         assertTrue(computer.isPendingDelete());
     }
