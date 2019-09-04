@@ -130,7 +130,7 @@ public final class PluginTestRule extends JenkinsRule {
         return b.build();
     }
 
-    private static NodeProperty<Node> mkNodeProperty(int number) {
+    public static NodeProperty<Node> mkNodeProperty(int number) {
         switch (number) {
         case 1:
             return new NodePropertyOne();

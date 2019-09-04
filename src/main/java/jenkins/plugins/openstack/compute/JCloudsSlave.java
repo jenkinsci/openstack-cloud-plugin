@@ -13,6 +13,7 @@ import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
+import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -128,7 +129,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 b.add(envVarsNP);
                 envVarsAdded = true;
             } else {
-                b.add(templateNP);
+                final NodeProperty<?> copyOfTemplateNP = makeCopy(templateNP);
+                b.add(copyOfTemplateNP);
             }
         }
         if (!envVarsAdded && extraEnvVarEntries.length != 0) {
@@ -136,6 +138,13 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         }
         final List<NodeProperty<? extends Node>> nodePropertiesList = b.build();
         return nodePropertiesList;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T makeCopy(final T original) {
+        final String xml = Jenkins.XSTREAM.toXML(original);
+        final Object copy = Jenkins.XSTREAM.fromXML(xml);
+        return (T) copy;
     }
 
     // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.

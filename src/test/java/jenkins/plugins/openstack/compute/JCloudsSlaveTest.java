@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
@@ -67,10 +68,10 @@ public class JCloudsSlaveTest {
         final String labelString = "foo bar";
         final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
         when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
-        final NodeProperty<Node> mockNP1 = mockNodeProperty();
-        final NodeProperty<Node> mockNP2 = mockNodeProperty();
-        final List<NodeProperty<?>> listOfMockNodeProperties = ImmutableList.of(mockNP1, mockNP2);
-        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfMockNodeProperties);
+        final NodeProperty<Node> stubNP1 = PluginTestRule.mkNodeProperty(1);
+        final NodeProperty<Node> stubNP2 = PluginTestRule.mkNodeProperty(2);
+        final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(stubNP1, stubNP2);
+        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
         final Map<String, String> expectedEnvVars = ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
                 expectedIpAddress);
 
@@ -81,9 +82,9 @@ public class JCloudsSlaveTest {
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
         assertThat(actualNPs.size(), equalTo(3));
         final NodeProperty<?> actualNP1 = actualNPs.get(0);
-        assertThat(actualNP1, sameInstance(mockNP1));
+        assertThat(actualNP1, equalTo(stubNP1));
         final NodeProperty<?> actualNP2 = actualNPs.get(1);
-        assertThat(actualNP2, sameInstance(mockNP2));
+        assertThat(actualNP2, equalTo(stubNP2));
         final NodeProperty<?> actualNP3 = actualNPs.get(2);
         assertIsEnvVarNPContaining(actualNP3, expectedEnvVars);
     }
@@ -98,7 +99,7 @@ public class JCloudsSlaveTest {
         final String labelString = "thing";
         final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
         when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
-        final NodeProperty<Node> mockNP1 = mockNodeProperty();
+        final NodeProperty<Node> stubNP1 = PluginTestRule.mkNodeProperty(1);
         final String envVar1Name = "VarName1";
         final String envVar1Value = "Value1";
         final String envVar2Name = "VarName2";
@@ -106,9 +107,9 @@ public class JCloudsSlaveTest {
         final EnvironmentVariablesNodeProperty envVarNP = new EnvironmentVariablesNodeProperty(
                 new EnvironmentVariablesNodeProperty.Entry(envVar1Name, envVar1Value),
                 new EnvironmentVariablesNodeProperty.Entry(envVar2Name, envVar2Value));
-        final NodeProperty<Node> mockNP3 = mockNodeProperty();
-        final List<NodeProperty<?>> listOfMockNodeProperties = ImmutableList.of(mockNP1, envVarNP, mockNP3);
-        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfMockNodeProperties);
+        final NodeProperty<Node> stubNP3 = PluginTestRule.mkNodeProperty(3);
+        final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(stubNP1, envVarNP, stubNP3);
+        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
         final Map<String, String> expectedEnvVars = ImmutableMap.of(envVar1Name, envVar1Value, envVar2Name,
                 envVar2Value, EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
@@ -119,11 +120,44 @@ public class JCloudsSlaveTest {
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
         assertThat(actualNPs.size(), equalTo(3));
         final NodeProperty<?> actualNP1 = actualNPs.get(0);
-        assertThat(actualNP1, sameInstance(mockNP1));
+        assertThat(actualNP1, equalTo(stubNP1));
         final NodeProperty<?> actualNP2 = actualNPs.get(1);
         assertIsEnvVarNPContaining(actualNP2, expectedEnvVars);
         final NodeProperty<?> actualNP3 = actualNPs.get(2);
-        assertThat(actualNP3, sameInstance(mockNP3));
+        assertThat(actualNP3, equalTo(stubNP3));
+    }
+
+    @Test
+    public void constructorGivenSomeNodePropertiesThenCreatesCopiesOfThoseNodeProperties() throws Exception {
+        // Given
+        final String expectedIpAddress = "4.5.6.7";
+        final ProvisioningActivity.Id stubId = new ProvisioningActivity.Id("id4");
+        final String nodeName = "name4";
+        final Server mockMetadata = mockServer(nodeName, expectedIpAddress);
+        final String labelString = "";
+        final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
+        when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
+        final NodeProperty<Node> templateNP1 = PluginTestRule.mkNodeProperty(1);
+        final NodeProperty<Node> templateNP2 = PluginTestRule.mkNodeProperty(2);
+        final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(templateNP1, templateNP2);
+        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
+        final Map<String, String> expectedEnvVars = ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
+                expectedIpAddress);
+
+        // When
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+
+        // Then
+        final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
+        assertThat(actualNPs.size(), equalTo(3));
+        final NodeProperty<?> actualNP1 = actualNPs.get(0);
+        assertThat(actualNP1, equalTo(templateNP1));
+        assertThat(actualNP1, not(sameInstance(templateNP1)));
+        final NodeProperty<?> actualNP2 = actualNPs.get(1);
+        assertThat(actualNP2, equalTo(templateNP2));
+        assertThat(actualNP1, not(sameInstance(templateNP2)));
+        final NodeProperty<?> actualNP3 = actualNPs.get(2);
+        assertIsEnvVarNPContaining(actualNP3, expectedEnvVars);
     }
 
     private static void assertIsEnvVarNPContaining(final NodeProperty<?> actual,
@@ -145,10 +179,5 @@ public class JCloudsSlaveTest {
         when(mockMetadata.getName()).thenReturn(nameToReturn);
         when(mockMetadata.getAddresses()).thenReturn(mockAddresses);
         return mockMetadata;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Node> NodeProperty<T> mockNodeProperty() {
-        return mock(NodeProperty.class);
     }
 }
