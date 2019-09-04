@@ -3,6 +3,9 @@ package jenkins.plugins.openstack;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
+
 import hudson.Extension;
 import hudson.Launcher.LocalLauncher;
 import hudson.Proc;
@@ -12,21 +15,18 @@ import hudson.model.Label;
 import hudson.model.LoadStatistics;
 import hudson.model.Node;
 import hudson.model.TaskListener;
-import hudson.model.User;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Channel;
 import hudson.remoting.Which;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.ComputerListener;
-import hudson.slaves.NodeProvisioner;
+import hudson.slaves.NodeProperty;
 import hudson.slaves.NodeProvisioner.NodeProvisionerInvoker;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
-import jenkins.model.NodeListener;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
@@ -40,6 +40,10 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
+import jenkins.plugins.openstack.nodeproperties.NodePropertyOne;
+import jenkins.plugins.openstack.nodeproperties.NodePropertyThree;
+import jenkins.plugins.openstack.nodeproperties.NodePropertyTwo;
+
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.jenkinsci.plugins.configfiles.GlobalConfigFiles;
@@ -114,8 +118,29 @@ public final class PluginTestRule extends JenkinsRule {
         }
         return new SlaveOptions(
                 new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, 2, "pool", "sg", "az", 1, null, 10,
-                "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, 1
+                "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, mkListOfNodeProperties(1, 2), 1
         );
+    }
+
+    public static List<NodeProperty<Node>> mkListOfNodeProperties(int... npTypes) {
+        final Builder<NodeProperty<Node>> b = ImmutableList.builder();
+        for (int number : npTypes) {
+            b.add(mkNodeProperty(number));
+        }
+        return b.build();
+    }
+
+    public static NodeProperty<Node> mkNodeProperty(int number) {
+        switch (number) {
+        case 1:
+            return new NodePropertyOne();
+        case 2:
+            return new NodePropertyTwo();
+        case 3:
+            return new NodePropertyThree();
+        default:
+            throw new IllegalArgumentException("Need 1, 2 or 3: Got " + number);
+        }
     }
 
     public static class DummyOpenstackCredentials extends AbstractOpenstackCredential {
