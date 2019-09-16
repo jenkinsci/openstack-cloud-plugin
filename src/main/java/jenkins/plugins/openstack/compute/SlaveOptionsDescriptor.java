@@ -300,6 +300,20 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         return getUserDataLink(value, "View file");
     }
 
+    @Restricted(DoNotUse.class)
+    @RequirePOST
+    public ListBoxModel doFillConfigDriveItems(
+            @QueryParameter String value,
+            @RelativePath("../../slaveOptions") @QueryParameter("configDrive") String def
+    ) {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        ListBoxModel m = new ListBoxModel();
+        m.add("Inherited / Override later", "");
+        m.add("True", "true");
+        m.add("False", "false");
+        return m;
+    }
+
     private FormValidation getUserDataLink(String id, String name) {
         return FormValidation.okWithMarkup(
                 "<a target='_blank' href='" + Jenkins.get().getRootUrl() + "configfiles/editConfig?id=" + Util.escape(id) + "'>" + Util.escape(name) + "</a>"

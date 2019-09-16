@@ -74,6 +74,9 @@
                             </f:optionalBlock>
                         </table>
                     </f:block>
+                    <f:entry title="Config drive" field="configDrive">
+                        <f:select checkMethod="post"/>
+                    </f:entry>
                 </f:section>
 
                 <f:class-entry descriptor="${descriptor}"/>

@@ -51,7 +51,7 @@ import java.util.List;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
@@ -80,6 +80,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     // Slave attributes
     private final Integer retentionTime;
+
+    private final @CheckForNull  Boolean configDrive;
 
     // Replaced by BootSource
     @Deprecated private transient @CheckForNull String imageId;
@@ -152,6 +154,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return retentionTime;
     }
 
+    public @CheckForNull  Boolean getConfigDrive() { return configDrive; }
+
     public SlaveOptions(Builder b) {
         this(
                 b.bootSource,
@@ -170,7 +174,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.fsRoot,
                 b.launcherFactory,
                 b.nodeProperties,
-                b.retentionTime
+                b.retentionTime,
+                b.configDrive
         );
     }
 
@@ -192,7 +197,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             String fsRoot,
             LauncherFactory launcherFactory,
             @CheckForNull List<? extends NodeProperty<?>> nodeProperties,
-            Integer retentionTime
+            Integer retentionTime,
+            Boolean configDrive
     ) {
         this.bootSource = bootSource;
         this.hardwareId = Util.fixEmpty(hardwareId);
@@ -215,6 +221,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             this.nodeProperties = null;
         }
         this.retentionTime = retentionTime;
+        this.configDrive = configDrive;
     }
 
     private Object readResolve() {
@@ -247,6 +254,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .launcherFactory(_override(this.launcherFactory, o.launcherFactory))
                 .nodeProperties(_override(this.nodeProperties, o.nodeProperties))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
+                .configDrive(_override(this.configDrive, o.configDrive))
                 .build()
         ;
     }
@@ -277,6 +285,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .launcherFactory(_erase(this.launcherFactory, defaults.launcherFactory))
                 .nodeProperties(_erase(this.nodeProperties, defaults.nodeProperties))
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
+                .configDrive(_erase(this.configDrive, defaults.configDrive))
                 .build()
         ;
     }
@@ -308,6 +317,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("launcherFactory", launcherFactory)
                 .append("nodeProperties", nodeProperties)
                 .append("retentionTime", retentionTime)
+                .append("configDrive", configDrive)
                 .toString()
         ;
     }
@@ -335,8 +345,8 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         if (fsRoot != null ? !fsRoot.equals(that.fsRoot) : that.fsRoot != null) return false;
         if (launcherFactory != null ? !launcherFactory.equals(that.launcherFactory) : that.launcherFactory != null) return false;
         if (nodeProperties != null ? !nodeProperties.equals(that.nodeProperties) : that.nodeProperties != null) return false;
-        return retentionTime != null ? retentionTime.equals(that.retentionTime) : that.retentionTime == null;
-
+        if (retentionTime != null ? !retentionTime.equals(that.retentionTime) : that.retentionTime != null) return false;
+        return configDrive != null ? configDrive.equals(that.configDrive) : that.configDrive==null;
     }
 
     @Override
@@ -358,6 +368,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         result = 31 * result + (launcherFactory != null ? launcherFactory.hashCode() : 0);
         result = 31 * result + (nodeProperties != null ? nodeProperties.hashCode() : 0);
         result = 31 * result + (retentionTime != null ? retentionTime.hashCode() : 0);
+        result = 31 * result + (configDrive != null ? configDrive.hashCode() : 0);
         return result;
     }
 
@@ -383,6 +394,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .launcherFactory(launcherFactory)
                 .nodeProperties(nodeProperties)
                 .retentionTime(retentionTime)
+                .configDrive(configDrive)
         ;
     }
 
@@ -417,6 +429,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         private @CheckForNull LauncherFactory launcherFactory;
         private @CheckForNull List<? extends NodeProperty<?>> nodeProperties;
         private @CheckForNull Integer retentionTime;
+        private @CheckForNull Boolean configDrive;
 
         public Builder() {}
 
@@ -506,6 +519,11 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         public @Nonnull Builder retentionTime(Integer retentionTime) {
             this.retentionTime = retentionTime;
+            return this;
+        }
+
+        public @Nonnull Builder configDrive(Boolean configDrive) {
+            this.configDrive = configDrive;
             return this;
         }
     }

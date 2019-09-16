@@ -327,6 +327,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             builder.userData(Base64.encode(content.getBytes(StandardCharsets.UTF_8)));
         }
 
+        if (opts.getConfigDrive() != null) {
+            builder.configDrive(opts.getConfigDrive());
+        }
+        
         Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
 
         try {
