@@ -98,7 +98,7 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null, null
+                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null, null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .hardwareId("")
