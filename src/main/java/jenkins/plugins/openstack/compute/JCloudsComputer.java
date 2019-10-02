@@ -104,6 +104,10 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         ;
     }
 
+    /*package*/ boolean isUserOffline() {
+        return getOfflineCause() instanceof OfflineCause.UserCause;
+    }
+
     @Override // Overridden for type safety only
     public JCloudsRetentionStrategy getRetentionStrategy() {
         RetentionStrategy<?> rs = super.getRetentionStrategy();
@@ -148,7 +152,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
         // If the retention time for this computer is zero, this means it
         // should not be re-used: mark the node as "pending delete".
-        if (getRetentionTime() == 0 && !(getOfflineCause() instanceof OfflineCause.UserCause)) {
+        if (getRetentionTime() == 0 && !isUserOffline()) {
             setPendingDelete(true);
         }
     }

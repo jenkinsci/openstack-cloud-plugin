@@ -412,7 +412,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             if (!name.equals(cid.getTemplateName()) || !cloud.name.equals(cid.getCloudName())) continue;
 
             // Not active
-            if (!computer.isIdle() || computer.isPendingDelete() || computer.getOfflineCause() instanceof OfflineCause.UserCause) continue;
+            if (!computer.isIdle() || computer.isPendingDelete() || computer.isUserOffline()) continue;
 
             totalServers++;
         }

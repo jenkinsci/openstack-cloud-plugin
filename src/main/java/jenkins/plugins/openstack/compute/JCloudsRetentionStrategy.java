@@ -2,7 +2,6 @@ package jenkins.plugins.openstack.compute;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Descriptor;
-import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -50,7 +49,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     private void doCheck(JCloudsComputer c) {
         if (c.isPendingDelete()) return; // No need to do it again
         if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
-        if (!c.isIdle() || c.getOfflineCause() instanceof OfflineCause.UserCause) return; // Occupied by user initiated activity
+        if (!c.isIdle() || c.isUserOffline()) return; // Occupied by user initiated activity
 
         final JCloudsSlave node = c.getNode();
         if (node == null) return; // Node is gone already

@@ -1,12 +1,10 @@
 package jenkins.plugins.openstack.compute;
 
-import hudson.AbortException;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
-import hudson.model.Label;
 import hudson.model.Result;
 import hudson.model.User;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
@@ -33,7 +31,6 @@ import java.util.NoSuchElementException;
 
 import static hudson.model.Label.get;
 import static java.util.Collections.emptyList;
-import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
