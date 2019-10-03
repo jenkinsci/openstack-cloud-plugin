@@ -38,7 +38,9 @@ import org.jvnet.hudson.test.LoggerRule;
 import org.openstack4j.model.compute.Server;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -94,13 +96,16 @@ public class InstanceCapacityTest {
         lr.record(JCloudsCloud.class, Level.INFO);
 
         assertEquals(0, cloud.provision(Label.get("restricted"), 1).size());
-        assertThat(lr.getMessages(), hasItem("Instance cap exceeded for cloud openstack while provisioning for label restricted"));
-        assertThat(lr.getMessages(), hasSize(1));
+        List<String> restrictedMessages = lr.getMessages();
+        assertThat(restrictedMessages, hasItem("Instance cap exceeded for cloud openstack while provisioning for label restricted"));
+        assertThat(restrictedMessages, hasSize(1));
 
-        lr.getMessages().clear();
+
         assertEquals(1, cloud.provision(Label.get("open||open"), 3).size());
-        assertThat(lr.getMessages(), hasItem("Instance cap exceeded for cloud openstack while provisioning for label open||open"));
-        assertThat(lr.getMessages(), hasSize(1));
+        List<String> openMessages = new ArrayList<>(lr.getMessages());
+        openMessages.removeAll(restrictedMessages);
+        assertThat(openMessages, hasItem("Instance cap exceeded for cloud openstack while provisioning for label open||open"));
+        assertThat(openMessages, hasSize(1));
     }
 
     @Test

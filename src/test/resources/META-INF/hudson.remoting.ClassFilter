@@ -1,0 +1,2 @@
+# Permit deserializing old slaves with obsolete persistence format
+org.openstack4j.openstack.compute.domain.NovaServer

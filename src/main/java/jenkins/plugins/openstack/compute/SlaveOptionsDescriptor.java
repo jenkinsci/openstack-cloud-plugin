@@ -65,7 +65,7 @@ import java.util.logging.Logger;
 public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions> {
     private static final Logger LOGGER = Logger.getLogger(SlaveOptionsDescriptor.class.getName());
     public static final FormValidation OK = FormValidation.ok();
-    public static final FormValidation REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
+    public static final FormValidation REQUIRED = FormValidation.error("Required");
 
     public SlaveOptionsDescriptor() {
         super(SlaveOptions.class);
