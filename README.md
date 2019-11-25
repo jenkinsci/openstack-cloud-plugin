@@ -1,3 +1,5 @@
+# OpenStack Cloud plugin for Jenkins
+
 Provision nodes from OpenStack on demand.
   
 [![Build Status](https://ci.jenkins.io/job/Plugins/job/openstack-cloud-plugin/job/master/badge/icon)](https://ci.jenkins.io/job/Plugins/job/openstack-cloud-plugin/job/master/)
