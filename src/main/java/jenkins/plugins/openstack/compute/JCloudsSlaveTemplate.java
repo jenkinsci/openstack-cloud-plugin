@@ -10,7 +10,6 @@ import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.remoting.Base64;
-import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
@@ -67,19 +66,19 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private /*final*/ transient JCloudsCloud cloud;
 
     // Backward compatibility
-    private transient @Deprecated String imageId;
-    private transient @Deprecated String hardwareId;
-    private transient @Deprecated String userDataId;
-    private transient @Deprecated String numExecutors;
-    private transient @Deprecated String jvmOptions;
-    private transient @Deprecated String fsRoot;
-    private transient @Deprecated Integer overrideRetentionTime;
-    private transient @Deprecated String keyPairName;
-    private transient @Deprecated String networkId;
-    private transient @Deprecated String securityGroups;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String imageId;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String hardwareId;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String userDataId;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String numExecutors;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String jvmOptions;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String fsRoot;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") Integer overrideRetentionTime;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String keyPairName;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String networkId;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String securityGroups;
     private transient @Deprecated String credentialsId;
-    private transient @Deprecated String slaveType; // Converted to string long after deprecated while converting enum to describable
-    private transient @Deprecated String availabilityZone;
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String slaveType; // Converted to string long after deprecated while converting enum to describable
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String availabilityZone;
 
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final @Nonnull String name, final @Nonnull String labels, final @CheckForNull SlaveOptions slaveOptions) {
@@ -91,7 +90,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         readResolve();
     }
 
-    @SuppressWarnings({"deprecation", "UnusedReturnValue"})
+    @SuppressWarnings({"deprecation", "UnusedReturnValue", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"})
     private Object readResolve() {
         // Initializes data structure that we don't persist.
         labelSet = Label.parse(labelString);
@@ -111,6 +110,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         // Migrate from 2.0 to 2.1
+        //noinspection ConstantConditions
         if (slaveOptions == null) {
             LauncherFactory lf = null;
             if ("SSH".equals(slaveType) || credentialsId != null) {
@@ -320,15 +320,17 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         @CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
-            String rootUrl = Jenkins.get().getRootUrl();
+            String rootUrl = Util.fixNull(Jenkins.get().getRootUrl());
             UserDataVariableResolver resolver = new UserDataVariableResolver(rootUrl, serverName, labelString, opts);
             String content = Util.replaceMacro(userDataText, resolver);
+            assert content != null;
             LOGGER.fine("Sending user-data:\n" + content);
             builder.userData(Base64.encode(content.getBytes(StandardCharsets.UTF_8)));
         }
 
-        if (opts.getConfigDrive() != null) {
-            builder.configDrive(opts.getConfigDrive());
+        Boolean configDrive = opts.getConfigDrive();
+        if (configDrive != null) {
+            builder.configDrive(configDrive);
         }
         
         Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());

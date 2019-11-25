@@ -39,7 +39,9 @@ import com.google.common.collect.Lists;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Configured options for a slave to create.
@@ -71,20 +73,20 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
     private /*final*/ LauncherFactory launcherFactory;
-    private /*final*/ @CheckForNull List<NodeProperty<?>> nodeProperties;
+    private /*final*/ @CheckForNull ArrayList<NodeProperty<?>> nodeProperties;
 
     // Moved into LauncherFactory. Converted to string for the ease of conversion. Note that due to inheritance implemented,
     // the migration needs to be implemented by the holder so this is package protected.
-    /*package*/ @Deprecated transient String slaveType;
+    /*package*/ @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") transient String slaveType;
     /*package*/ @Deprecated transient String credentialsId;
 
     // Slave attributes
     private final Integer retentionTime;
 
-    private final @CheckForNull  Boolean configDrive;
+    private final @CheckForNull Boolean configDrive;
 
     // Replaced by BootSource
-    @Deprecated private transient @CheckForNull String imageId;
+    @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") private transient @CheckForNull String imageId;
 
     public @CheckForNull String getFsRoot() {
         return fsRoot;
@@ -154,7 +156,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return retentionTime;
     }
 
-    public @CheckForNull  Boolean getConfigDrive() { return configDrive; }
+    public @CheckForNull Boolean getConfigDrive() { return configDrive; }
 
     public SlaveOptions(Builder b) {
         this(
@@ -181,7 +183,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     @DataBoundConstructor @Restricted(NoExternalUse.class)
     public SlaveOptions(
-            BootSource bootSource,
+            @CheckForNull BootSource bootSource,
             String hardwareId,
             String networkId,
             String userDataId,
@@ -198,7 +200,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             LauncherFactory launcherFactory,
             @CheckForNull List<? extends NodeProperty<?>> nodeProperties,
             Integer retentionTime,
-            Boolean configDrive
+            @CheckForNull Boolean configDrive
     ) {
         this.bootSource = bootSource;
         this.hardwareId = Util.fixEmpty(hardwareId);
@@ -215,7 +217,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.jvmOptions = Util.fixEmpty(jvmOptions);
         this.fsRoot = Util.fixEmpty(fsRoot);
         this.launcherFactory = launcherFactory;
-        if( nodeProperties!=null ) {
+        if (nodeProperties != null) {
             this.nodeProperties = Lists.newArrayList(nodeProperties);
         } else {
             this.nodeProperties = null;
@@ -329,24 +331,24 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         SlaveOptions that = (SlaveOptions) o;
 
-        if (bootSource != null ? !bootSource.equals(that.bootSource) : that.bootSource != null) return false;
-        if (hardwareId != null ? !hardwareId.equals(that.hardwareId) : that.hardwareId != null) return false;
-        if (networkId != null ? !networkId.equals(that.networkId) : that.networkId != null) return false;
-        if (userDataId != null ? !userDataId.equals(that.userDataId) : that.userDataId != null) return false;
-        if (instanceCap != null ? !instanceCap.equals(that.instanceCap) : that.instanceCap != null) return false;
-        if (instancesMin != null ? !instancesMin.equals(that.instancesMin) : that.instancesMin != null) return false;
-        if (floatingIpPool != null ? !floatingIpPool.equals(that.floatingIpPool) : that.floatingIpPool != null) return false;
-        if (securityGroups != null ? !securityGroups.equals(that.securityGroups) : that.securityGroups != null) return false;
-        if (availabilityZone != null ? !availabilityZone.equals(that.availabilityZone) : that.availabilityZone != null) return false;
-        if (startTimeout != null ? !startTimeout.equals(that.startTimeout) : that.startTimeout != null) return false;
-        if (keyPairName != null ? !keyPairName.equals(that.keyPairName) : that.keyPairName != null) return false;
-        if (numExecutors != null ? !numExecutors.equals(that.numExecutors) : that.numExecutors != null) return false;
-        if (jvmOptions != null ? !jvmOptions.equals(that.jvmOptions) : that.jvmOptions != null) return false;
-        if (fsRoot != null ? !fsRoot.equals(that.fsRoot) : that.fsRoot != null) return false;
-        if (launcherFactory != null ? !launcherFactory.equals(that.launcherFactory) : that.launcherFactory != null) return false;
-        if (nodeProperties != null ? !nodeProperties.equals(that.nodeProperties) : that.nodeProperties != null) return false;
-        if (retentionTime != null ? !retentionTime.equals(that.retentionTime) : that.retentionTime != null) return false;
-        return configDrive != null ? configDrive.equals(that.configDrive) : that.configDrive==null;
+        if (!Objects.equals(bootSource, that.bootSource)) return false;
+        if (!Objects.equals(hardwareId, that.hardwareId)) return false;
+        if (!Objects.equals(networkId, that.networkId)) return false;
+        if (!Objects.equals(userDataId, that.userDataId)) return false;
+        if (!Objects.equals(instanceCap, that.instanceCap)) return false;
+        if (!Objects.equals(instancesMin, that.instancesMin)) return false;
+        if (!Objects.equals(floatingIpPool, that.floatingIpPool)) return false;
+        if (!Objects.equals(securityGroups, that.securityGroups)) return false;
+        if (!Objects.equals(availabilityZone, that.availabilityZone)) return false;
+        if (!Objects.equals(startTimeout, that.startTimeout)) return false;
+        if (!Objects.equals(keyPairName, that.keyPairName)) return false;
+        if (!Objects.equals(numExecutors, that.numExecutors)) return false;
+        if (!Objects.equals(jvmOptions, that.jvmOptions)) return false;
+        if (!Objects.equals(fsRoot, that.fsRoot)) return false;
+        if (!Objects.equals(launcherFactory, that.launcherFactory)) return false;
+        if (!Objects.equals(nodeProperties, that.nodeProperties)) return false;
+        if (!Objects.equals(retentionTime, that.retentionTime)) return false;
+        return Objects.equals(configDrive, that.configDrive);
     }
 
     @Override
