@@ -10,8 +10,8 @@
     <version>2.51-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>OpenStack Cloud Plugin</name>
-    <description>Allows Jenkins to build OpenStack Slaves</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/Openstack+Cloud+Plugin</url>
+    <description>Allows Jenkins to build on OpenStack nodes</description>
+    <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
         <jenkins.version>2.121</jenkins.version>
