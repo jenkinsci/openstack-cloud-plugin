@@ -4,6 +4,7 @@ Provision nodes from OpenStack on demand.
 
 ## Essentials
 
+<a href="https://raw.githubusercontent.com/jenkinsci/openstack-cloud-plugin/master/docs/config.png"><img align="right" width="300" src="https://raw.githubusercontent.com/jenkinsci/openstack-cloud-plugin/master/docs/config.png"></a>
 In order to provision new nodes when Jenkins load goes high,
 administrator needs to configure *Cloud* and one or more *Templates* on
 global configuration page. Cloud represents connection to particular
@@ -19,6 +20,7 @@ supposed to use the same key-pair there is no need to state it in every
 template, it can be configured on cloud level and leave the filed blank
 in the templates.
 
+<a href="https://raw.githubusercontent.com/jenkinsci/openstack-cloud-plugin/master/docs/options.png"><img align="right" width="300" src="https://raw.githubusercontent.com/jenkinsci/openstack-cloud-plugin/master/docs/options.png"></a>
 Aside from machine/node attributes, every template require name and
 labels to be configured. Name will serve both as an identifier of the
 template as well as a name prefix for Jenkins node and OpenStack machine
