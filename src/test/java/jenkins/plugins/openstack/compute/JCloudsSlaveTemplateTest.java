@@ -3,8 +3,11 @@ package jenkins.plugins.openstack.compute;
 import java.io.ByteArrayInputStream;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import hudson.remoting.Base64;
@@ -28,9 +31,14 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.compute.domain.NovaBlockDeviceMappingCreate;
 
+import static java.util.Collections.singletonList;
 import static jenkins.model.Jenkins.get;
 import static jenkins.plugins.openstack.PluginTestRule.dummySlaveOptions;
+
+import static jenkins.plugins.openstack.compute.JCloudsSlaveTemplate.parseSecurityGroups;
+import static jenkins.plugins.openstack.compute.JCloudsSlaveTemplate.selectNetworkIds;
 import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -105,7 +113,7 @@ public class JCloudsSlaveTemplateTest {
         JCloudsCloud cloud = new JCloudsCloud(
                 "my-openstack", "credential", false, "zone",
                 cloudOpts,
-                Collections.singletonList(template),
+                singletonList(template),
                 j.dummyCredentials()
         );
 
@@ -153,11 +161,14 @@ public class JCloudsSlaveTemplateTest {
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
-        when(mockOs.getNetworkIds(any())).thenCallRealMethod();
+        //when(mockOs.getNetworks(any())).thenCallRealMethod();
 
         Network n1 = mock(Network.class); when(n1.getName()).thenReturn("FOO"); when(n1.getId()).thenReturn("foo");
         Network n2 = mock(Network.class); when(n2.getName()).thenReturn("BAR"); when(n2.getId()).thenReturn("bar");
-        doReturn(Arrays.asList(n1, n2)).when(mockOs)._listNetworks();
+        Map<String, Network> nets = new HashMap<>();
+        nets.put(n1.getId(), n1);
+        nets.put(n2.getId(), n2);
+        doReturn(nets).when(mockOs).getNetworks(any());
 
         instance.provisionServer(null, null);
 
@@ -177,7 +188,7 @@ public class JCloudsSlaveTemplateTest {
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
-        when(mockOs.getVolumeSnapshotIdsFor(volumeSnapshotName)).thenReturn(Collections.singletonList(volumeSnapshotId));
+        when(mockOs.getVolumeSnapshotIdsFor(volumeSnapshotName)).thenReturn(singletonList(volumeSnapshotId));
 
         final ArgumentCaptor<ServerCreateBuilder> scbCaptor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
         final ArgumentCaptor<String> vnCaptor = ArgumentCaptor.forClass(String.class);
@@ -241,7 +252,7 @@ public class JCloudsSlaveTemplateTest {
 
         Openstack os = cloud.getOpenstack();
         // simulate same image resolved to different ids
-        when(os.getImageIdsFor(eq("image-id"))).thenReturn(Collections.singletonList("image-id")).thenReturn(Collections.singletonList("something-else"));
+        when(os.getImageIdsFor(eq("image-id"))).thenReturn(singletonList("image-id")).thenReturn(singletonList("something-else"));
 
         j.provision(cloud, "label"); j.provision(cloud, "label");
 
@@ -261,7 +272,7 @@ public class JCloudsSlaveTemplateTest {
 
         Openstack os = cloud.getOpenstack();
         // simulate same snapshot resolved to different ids
-        when(os.getVolumeSnapshotIdsFor(eq("vs-id"))).thenReturn(Collections.singletonList("vs-id")).thenReturn(Collections.singletonList("something-else"));
+        when(os.getVolumeSnapshotIdsFor(eq("vs-id"))).thenReturn(singletonList("vs-id")).thenReturn(singletonList("something-else"));
 
         j.provision(cloud, "label"); j.provision(cloud, "label");
 
@@ -286,5 +297,133 @@ public class JCloudsSlaveTemplateTest {
         assertEquals(BDMSourceType.SNAPSHOT, device.source_type);
         assertEquals(BDMDestType.VOLUME, device.destination_type);
         return device.uuid;
+    }
+
+    @Test
+    public void securityGroups() {
+        assertEquals(singletonList("foo"), parseSecurityGroups("foo"));
+        assertEquals(Arrays.asList("foo", "bar"), parseSecurityGroups("foo,bar"));
+        try {
+            parseSecurityGroups("foo,,bar");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            parseSecurityGroups(",");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            parseSecurityGroups("");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            //noinspection ConstantConditions
+            parseSecurityGroups(null);
+            fail();
+        } catch (IllegalArgumentException expected) {}
+    }
+
+    @Test
+    public void selectNetworks() {
+        JCloudsSlaveTemplate t = j.dummySlaveTemplate("foo");
+        JCloudsCloud c = j.dummyCloud(t);
+        j.configureSlaveProvisioning(c, Collections.emptyList());
+
+        Network fullNet = mockNetwork("full");
+        Network emptyNet = mockNetwork("empty");
+        Network loadedNet = mockNetwork("loaded");
+        Map<String, Network> networkMap = new HashMap<>();
+        Stream.of(fullNet, emptyNet, loadedNet).forEach(n -> {
+            networkMap.put(n.getId(), n );
+            networkMap.put(n.getName(), n);
+        });
+
+        Openstack os = c.getOpenstack();
+        doAnswer(i -> {
+            Map<String, Network> ret = new HashMap<>();
+
+            for (String netSpec : ((List<String>) i.getArguments()[0])) {
+                Network n = networkMap.get(netSpec);
+                ret.put(n.getId(), n);
+            }
+            return ret;
+        }).when(os).getNetworks(any());
+        doAnswer(i -> {
+            Map<String, Network> requestedNets = (Map<String, Network>) i.getArguments()[0];
+
+            Map<Network, Integer> ret = new HashMap<>();
+            if (requestedNets.containsKey(fullNet.getId())) {
+                ret.put(fullNet, 0);
+            }
+            if (requestedNets.containsKey(emptyNet.getId())) {
+                ret.put(emptyNet, 10);
+            }
+            if (requestedNets.containsKey(loadedNet.getId())) {
+                ret.put(loadedNet, 5);
+            }
+            return ret;
+        }).when(os).getNetworksCapacity(any());
+
+        try {
+            selectNetworkIds(os, "foo,,bar");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            selectNetworkIds(os, "foo||bar");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            selectNetworkIds(os, ",");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            selectNetworkIds(os, "|");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            selectNetworkIds(os, ",|");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            selectNetworkIds(os, "");
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        try {
+            selectNetworkIds(os, null);
+            fail();
+        } catch (IllegalArgumentException expected) {}
+
+        assertEquals(singletonList("uuid-empty"), selectNetworkIds(os, "empty"));
+        assertEquals(singletonList("uuid-loaded"), selectNetworkIds(os, "loaded"));
+        assertEquals(singletonList("uuid-full"), selectNetworkIds(os, "full"));
+        assertEquals(singletonList("uuid-empty"), selectNetworkIds(os, "uuid-empty"));
+        assertEquals(singletonList("uuid-loaded"), selectNetworkIds(os, "uuid-loaded"));
+        assertEquals(singletonList("uuid-full"), selectNetworkIds(os, "uuid-full"));
+        assertEquals(Arrays.asList("uuid-empty", "uuid-full", "uuid-loaded"), selectNetworkIds(os, "empty,uuid-full,loaded"));
+        assertEquals(Arrays.asList("uuid-empty", "uuid-empty", "uuid-empty"), selectNetworkIds(os, "empty,uuid-empty,empty"));
+
+        assertEquals(singletonList("uuid-empty"), selectNetworkIds(os, "empty|full"));
+        assertEquals(singletonList("uuid-empty"), selectNetworkIds(os, "empty|loaded"));
+        assertEquals(singletonList("uuid-loaded"), selectNetworkIds(os, "loaded|full"));
+        assertEquals(singletonList("uuid-empty"), selectNetworkIds(os, "empty|loaded|full"));
+        assertEquals(singletonList("uuid-empty"), selectNetworkIds(os, "full|loaded|empty"));
+
+        assertEquals(Arrays.asList("uuid-empty", "uuid-full", "uuid-empty", "uuid-empty"), selectNetworkIds(os, "empty|full,full,loaded|empty,empty"));
+        assertEquals(Arrays.asList("uuid-empty", "uuid-loaded", "uuid-empty"), selectNetworkIds(os, "empty|empty,loaded|loaded,empty|empty"));
+    }
+
+    private Network mockNetwork(String name) {
+        Network n = mock(Network.class);
+        when(n.getId()).thenReturn("uuid-" + name);
+        when(n.getName()).thenReturn(name);
+        return n;
     }
 }

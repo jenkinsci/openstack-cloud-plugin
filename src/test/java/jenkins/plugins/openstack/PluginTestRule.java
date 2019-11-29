@@ -55,9 +55,11 @@ import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.exceptions.AuthenticationException;
+import org.openstack4j.model.common.IdEntity;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.ServerCreate;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.model.network.Network;
 import org.openstack4j.openstack.compute.domain.NovaAddresses;
 import org.openstack4j.openstack.compute.domain.NovaAddresses.NovaAddress;
 
@@ -80,6 +82,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Matchers.any;
@@ -355,6 +358,19 @@ public final class PluginTestRule extends JenkinsRule {
 
         final List<Server> running = new ArrayList<>();
         Openstack os = cloud.getOpenstack();
+        when(os.getNetworks(any())).thenAnswer(invocation -> {
+            List<String> netNames = (List<String>) invocation.getArguments()[0];
+            return netNames.stream().map(n -> {
+                Network net = mock(Network.class);
+                when(net.getName()).thenReturn(n);
+                when(net.getId()).thenReturn(n);
+                return net;
+            }).collect(Collectors.toMap(Network::getId, n -> n));
+        });
+        when(os.getNetworksCapacity(any())).thenAnswer(invocation -> {
+            Map<String, Network> nets = (Map<String, Network>) invocation.getArguments()[0];
+            return nets.values().stream().collect(Collectors.toMap(n -> n, b -> 100));
+        });
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer((Answer<Server>) invocation -> {
             ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
 

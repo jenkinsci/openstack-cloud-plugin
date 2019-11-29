@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
@@ -85,6 +86,7 @@ import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
+import org.openstack4j.model.network.ext.NetworkIPAvailability;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.Volume.Status;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
@@ -178,28 +180,49 @@ public class Openstack {
         return clientProvider.get().networking().network().list();
     }
 
-    public @Nonnull List<String> getNetworkIds(@Nonnull List<String> nameOrIds) {
-        if (nameOrIds.isEmpty()) return Collections.emptyList();
+    /**
+     * List all requested network details.
+     *
+     * @param nameOrIds List of network names/IDs.
+     * @return Map of ID and network.
+     */
+    public @Nonnull Map<String, Network> getNetworks(@Nonnull List<String> nameOrIds) {
+        if (nameOrIds.isEmpty()) return Collections.emptyMap();
 
-        Map<String, String> name2id = new HashMap<>();
-        for (Network network : _listNetworks()) {
-            name2id.put(network.getName(), network.getId());
+        nameOrIds = new ArrayList<>(nameOrIds); // Not to modify the argument
+
+        Map<String, Network> ret = new HashMap<>();
+        List<? extends Network> networks = _listNetworks();
+        for (Network n: networks) {
+            if (nameOrIds.contains(n.getName())) {
+                ret.put(n.getId(), n);
+                nameOrIds.removeAll(Collections.singletonList(n.getName()));
+            } else if (nameOrIds.contains(n.getId())) {
+                ret.put(n.getId(), n);
+                nameOrIds.removeAll(Collections.singletonList(n.getId()));
+            }
+            if (nameOrIds.isEmpty()) break;
         }
 
-        ArrayList<String> networks = new ArrayList<>();
-        for (String requiredNetwork : nameOrIds) {
-            if (name2id.containsValue(requiredNetwork)) {
-                networks.add(requiredNetwork);
-                continue;
-            }
-            String id = name2id.get(requiredNetwork);
-            if (id != null) {
-                networks.add(id);
-                continue;
-            }
-            LOGGER.warning("No such network: " + requiredNetwork);
-        }
-        return networks;
+        if (!nameOrIds.isEmpty()) throw new NoSuchElementException("Unable to find networks for: " + nameOrIds);
+
+        return ret;
+    }
+
+    /**
+     * For every network requested, return mapping of network and number of available fixed addresses.
+     */
+    public Map<Network, Integer> getNetworksCapacity(Map<String, Network> declaredNetworks) {
+        List<String> declaredIds = declaredNetworks.values().stream().map(Network::getId).collect(Collectors.toList());
+
+        List<? extends NetworkIPAvailability> networkIPAvailabilities = clientProvider.get().networking().networkIPAvailability().get();
+
+        return networkIPAvailabilities.stream().filter( // Those we care for
+                n -> declaredIds.contains(n.getNetworkId())
+        ).collect(Collectors.toMap( // network -> capacity
+                n -> declaredNetworks.get(n.getNetworkId()),
+                n -> n.getTotalIps().subtract(n.getUsedIps()).intValue()
+        ));
     }
 
     /**

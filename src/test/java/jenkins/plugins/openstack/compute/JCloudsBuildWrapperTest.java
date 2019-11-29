@@ -16,6 +16,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.TestBuilder;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.model.network.Network;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -82,6 +83,10 @@ public class JCloudsBuildWrapperTest {
                 .thenThrow(new Openstack.ActionFailed("It is broken, alright!"))
         ;
         when(os.updateInfo(any(Server.class))).thenReturn(success);
+        Network network = mock(Network.class);
+        String networkId = opts.getNetworkId();
+        when(network.getId()).thenReturn(networkId); when(network.getName()).thenReturn("netname");
+        when(os.getNetworks(any())).thenReturn(Collections.singletonMap(networkId, network));
 
         FreeStyleProject p = j.createFreeStyleProject();
         List<InstancesToRun> instances = Collections.singletonList(
