@@ -58,7 +58,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
-    private static final char SEPARATOR_CHAR = ',';
 
     private static final AtomicInteger nodeCounter = new AtomicInteger();
 
@@ -423,16 +422,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         };
 
         // Do not even consult capacity when there are no alternatives declared
-        Optional<List<String>> alternativesChunk = declared.stream().filter(altList -> altList.size() > 1).findFirst();
-        if (!alternativesChunk.isPresent()) {
-            // Resolve potential names to IDs
+        if (!spec.contains("|")) {
             return allDeclaredNetworks.stream().map(RESOLVE_NAMES_TO_IDS).collect(Collectors.toList());
         }
 
-        // consider capacity only when there are alternatives declared
         Map<Network, Integer> capacities = openstack.getNetworksCapacity(osNetworksById);
 
-        ArrayList<String> ret = new ArrayList<>(declared.size());
+        ArrayList<Network> ret = new ArrayList<>(declared.size());
         for (List<String> alternativeList : declared) { // All networks to connect to
 
             Optional<Network> emptiest = alternativeList.stream().map(RESOLVE_NAMES_TO_IDS).map(osNetworksById::get).min((l, r) -> {
@@ -444,9 +440,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             assert emptiest.isPresent(): "Alternative set empty";
 
             Network network = emptiest.get();
-            ret.add(network.getId());
-
-            // TODO warn if the capacity is low or 0
+            ret.add(network);
         }
 
         Map<String, Integer> userTokenBasedCapacities = capacities.keySet().stream().collect(Collectors.toMap(
@@ -455,7 +449,23 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         ));
         LOGGER.fine("Resolving network spec '" + spec + "' to '" + ret + " given free capacity " + userTokenBasedCapacities);
 
-        return ret;
+        // Report shortage
+        Map<String, Long> exhaustedPools = ret.stream().collect(
+                // Group selected networks by requested capacity
+                Collectors.groupingBy(n -> n, Collectors.counting())
+        ).entrySet().stream().filter(
+                // Filter those with insufficient capacity
+                nle -> capacities.get(nle.getKey()) > nle.getValue()
+        ).collect(Collectors.toMap(
+                // ID -> capacity
+                nle -> nle.getKey().getId(),
+                Map.Entry::getValue
+        ));
+        if (!exhaustedPools.isEmpty()) {
+            LOGGER.warning("Not enough fixed IP capacity for for " + spec + " in " + exhaustedPools);
+        }
+
+        return ret.stream().map(Network::getId).collect(Collectors.toList());
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {
