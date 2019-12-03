@@ -455,14 +455,14 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 Collectors.groupingBy(n -> n, Collectors.counting())
         ).entrySet().stream().filter(
                 // Filter those with insufficient capacity
-                nle -> capacities.get(nle.getKey()) > nle.getValue()
+                nle -> capacities.get(nle.getKey()) < nle.getValue()
         ).collect(Collectors.toMap(
-                // ID -> capacity
-                nle -> nle.getKey().getId(),
+                // name -> capacity
+                nle -> nle.getKey().getName() + "/" + nle.getKey().getId(),
                 Map.Entry::getValue
         ));
         if (!exhaustedPools.isEmpty()) {
-            LOGGER.warning("Not enough fixed IP capacity for for " + spec + " in " + exhaustedPools);
+            LOGGER.warning("Not enough fixed IPs for " + spec + " with capacity " + exhaustedPools);
         }
 
         return ret.stream().map(Network::getId).collect(Collectors.toList());
