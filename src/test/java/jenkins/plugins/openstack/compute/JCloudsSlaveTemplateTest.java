@@ -161,7 +161,6 @@ public class JCloudsSlaveTemplateTest {
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
-        //when(mockOs.getNetworks(any())).thenCallRealMethod();
 
         Network n1 = mock(Network.class); when(n1.getName()).thenReturn("FOO"); when(n1.getId()).thenReturn("foo");
         Network n2 = mock(Network.class); when(n2.getName()).thenReturn("BAR"); when(n2.getId()).thenReturn("bar");
