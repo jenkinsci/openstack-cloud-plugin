@@ -443,11 +443,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             ret.add(network);
         }
 
+        Function<Network, String> DESCRIBE_NETWORK = n -> n.getName() + "/" + n.getId();
         Map<String, Integer> userTokenBasedCapacities = capacities.keySet().stream().collect(Collectors.toMap(
-                n -> n.getName() + "/" + n.getId(),
+                DESCRIBE_NETWORK,
                 capacities::get
         ));
-        LOGGER.fine("Resolving network spec '" + spec + "' to '" + ret + " given free capacity " + userTokenBasedCapacities);
+        List<String> networks = ret.stream().map(DESCRIBE_NETWORK).collect(Collectors.toList());
+        LOGGER.fine("Resolving network spec '" + spec + "' to '" + networks + " given free capacity " + userTokenBasedCapacities);
 
         // Report shortage
         Map<String, Long> exhaustedPools = ret.stream().collect(
