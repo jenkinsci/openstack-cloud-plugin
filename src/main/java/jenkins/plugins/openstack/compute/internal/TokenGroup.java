@@ -58,7 +58,7 @@ public class TokenGroup {
      * Get list of lists of tokens separated by delimiters.
      *
      * The inner lists are never empty and contain tokens delimited by delim2. The outer list contains list on the inner
-     * lists that ware separated by delim1. IOW, it turns "foo<D1>bar<D2>baz<D1>bax" into "((foo),(bar,baz),(bax))"
+     * lists that ware separated by delim1. IOW, it turns "foo&lt;D1&gt;bar&lt;D2&gt;baz&lt;D1&gt;bax" into "((foo),(bar,baz),(bax))"
      */
     public static @Nonnull List<List<String>> from(@Nonnull final String csv, char delim1, char delim2) {
         ArrayList<List<String>> ret = new ArrayList<>();
