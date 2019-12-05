@@ -1,0 +1,9 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core">
+  <div>
+    Maximal number of instances to be maintained.
+    When specified as a global option, it will limit the total number of servers the cloud can run at one time. When specified
+    on a template level it constrains the number of servers per given template. Note both the values are in effect simultaneously
+    so new node will not be provisioned provided it would exceed one or the other limit.
+  </div>
+</j:jelly>
