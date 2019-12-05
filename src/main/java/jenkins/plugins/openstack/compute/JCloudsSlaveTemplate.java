@@ -1,6 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
-import au.com.bytecode.opencsv.CSVReader;
+import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
@@ -14,6 +14,7 @@ import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.internal.TokenGroup;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
@@ -28,18 +29,23 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.model.network.Network;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * @author Vijay Kiran
@@ -52,7 +58,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
-    private static final char SEPARATOR_CHAR = ',';
 
     private static final AtomicInteger nodeCounter = new AtomicInteger();
 
@@ -293,7 +298,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         String nid = opts.getNetworkId();
         if (Util.fixEmpty(nid) != null) {
-            List<String> networks = openstack.getNetworkIds(Arrays.asList(csvToArray(nid)));
+            List<String> networks = selectNetworkIds(openstack, nid);
             LOGGER.fine("Setting networks to " + networks);
             builder.networks(networks);
         }
@@ -301,7 +306,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         String securityGroups = opts.getSecurityGroups();
         if (Util.fixEmpty(securityGroups) != null) {
             LOGGER.fine("Setting security groups to " + securityGroups);
-            for (String sg: csvToArray(securityGroups)) {
+            for (String sg: parseSecurityGroups(securityGroups)) {
                 builder.addSecurityGroup(sg);
             }
         }
@@ -332,7 +337,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         if (configDrive != null) {
             builder.configDrive(configDrive);
         }
-        
+
         Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
 
         try {
@@ -378,14 +383,91 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
-    private static @Nonnull String[] csvToArray(final String csv) {
-        try {
-            final CSVReader reader = new CSVReader(new StringReader(csv), SEPARATOR_CHAR);
-            final String[] line = reader.readNext();
-            return (line != null) ? line : new String[0];
-        } catch (Exception e) {
-            return new String[0];
+    @VisibleForTesting
+    /*package*/ static @Nonnull List<String> parseSecurityGroups(@Nonnull String securityGroups) {
+        if (securityGroups == null || securityGroups.isEmpty()) throw new IllegalArgumentException();
+
+        List<String> from = TokenGroup.from(securityGroups, ',');
+        if (from.isEmpty() || from.contains("")) {
+            throw new IllegalArgumentException("Security group declaration contains blank '" + securityGroups + "'");
         }
+        return from;
+    }
+
+    /**
+     * Transform networks spec into a list of IDs to actually use.
+     *
+     * @return List of network IDs to connect to.
+     */
+    @VisibleForTesting
+    /*package*/ static @Nonnull List<String> selectNetworkIds(@Nonnull Openstack openstack, @Nonnull String spec) {
+        if (spec == null || spec.isEmpty()) throw new IllegalArgumentException();
+
+        List<List<String>> declared = TokenGroup.from(spec, ',', '|');
+
+        List<String> allDeclaredNetworks = declared.stream().flatMap(Collection::stream).collect(Collectors.toList());
+
+        if (declared.isEmpty() || declared.contains(Collections.emptyList()) || allDeclaredNetworks.contains("")) {
+            throw new IllegalArgumentException("Networks declaration contains blank '" + declared + "'");
+        }
+
+        Map<String, Network> osNetworksById = openstack.getNetworks(allDeclaredNetworks);
+        Map<String, Network> osNetworksByName = osNetworksById.values().stream().collect(Collectors.toMap(Network::getName, n -> n));
+
+        final Function<String, String> RESOLVE_NAMES_TO_IDS = n -> {
+            if (osNetworksById.containsKey(n)) return n;
+            Network network = osNetworksByName.getOrDefault(n, null);
+            if (network != null) return network.getId();
+            throw new IllegalArgumentException("No network '" + n + "' found for " + spec);
+        };
+
+        // Do not even consult capacity when there are no alternatives declared
+        if (!spec.contains("|")) {
+            return allDeclaredNetworks.stream().map(RESOLVE_NAMES_TO_IDS).collect(Collectors.toList());
+        }
+
+        Map<Network, Integer> capacities = openstack.getNetworksCapacity(osNetworksById);
+
+        ArrayList<Network> ret = new ArrayList<>(declared.size());
+        for (List<String> alternativeList : declared) { // All networks to connect to
+
+            Optional<Network> emptiest = alternativeList.stream().map(RESOLVE_NAMES_TO_IDS).map(osNetworksById::get).min((l, r) -> {
+                Integer lCap = capacities.get(l);
+                Integer rCap = capacities.get(r);
+                return rCap.compareTo(lCap);
+            });
+
+            assert emptiest.isPresent(): "Alternative set empty";
+
+            Network network = emptiest.get();
+            ret.add(network);
+        }
+
+        Function<Network, String> DESCRIBE_NETWORK = n -> n.getName() + "/" + n.getId();
+        Map<String, Integer> userTokenBasedCapacities = capacities.keySet().stream().collect(Collectors.toMap(
+                DESCRIBE_NETWORK,
+                capacities::get
+        ));
+        List<String> networks = ret.stream().map(DESCRIBE_NETWORK).collect(Collectors.toList());
+        LOGGER.fine("Resolving network spec '" + spec + "' to '" + networks + " given free capacity " + userTokenBasedCapacities);
+
+        // Report shortage
+        Map<String, Long> exhaustedPools = ret.stream().collect(
+                // Group selected networks by requested capacity
+                Collectors.groupingBy(n -> n, Collectors.counting())
+        ).entrySet().stream().filter(
+                // Filter those with insufficient capacity
+                nle -> capacities.get(nle.getKey()) < nle.getValue()
+        ).collect(Collectors.toMap(
+                // name -> capacity
+                nle -> nle.getKey().getName() + "/" + nle.getKey().getId(),
+                Map.Entry::getValue
+        ));
+        if (!exhaustedPools.isEmpty()) {
+            LOGGER.warning("Not enough fixed IPs for " + spec + " with capacity " + exhaustedPools);
+        }
+
+        return ret.stream().map(Network::getId).collect(Collectors.toList());
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {

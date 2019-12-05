@@ -55,6 +55,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -258,13 +259,39 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckNetworkId(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("networkId") String def
+            @RelativePath("../../slaveOptions") @QueryParameter("networkId") String def,
+            // authentication fields can be in two places relative to us.
+            @RelativePath("..") @QueryParameter("endPointUrl") String endPointUrlCloud,
+            @RelativePath("..") @QueryParameter("ignoreSsl") boolean ignoreSsl,
+            @RelativePath("../..") @QueryParameter("endPointUrl") String endPointUrlTemplate,
+            @RelativePath("..") @QueryParameter("credentialsId") String credentialsIdCloud,
+            @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
+            @RelativePath("..") @QueryParameter("zone") String zoneCloud,
+            @RelativePath("../..") @QueryParameter("zone") String zoneTemplate
     ) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getNetworkId());
             if (d != null) return FormValidation.ok(def(d));
             return OK;
+        }
+
+        final String endPointUrl = getDefault(endPointUrlCloud, endPointUrlTemplate);
+        final String credentialsId = getDefault(credentialsIdCloud, credentialsIdTemplate);
+        final OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
+        final String zone = getDefault(zoneCloud, zoneTemplate);
+        if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
+            try {
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
+                List<String> nids = JCloudsSlaveTemplate.selectNetworkIds(openstack, value);
+                return FormValidation.ok("Will connect to " + nids.size() + " network(s). Ex.: " + nids);
+            } catch (IllegalArgumentException | NoSuchElementException ex) {
+                return FormValidation.warning(ex.getMessage());
+            } catch (AuthenticationException | FormValidation | ConnectionException ex) {
+                LOGGER.log(Level.FINEST, "Openstack call failed", ex);
+            } catch (Exception ex) {
+                LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+            }
         }
         return OK;
     }
