@@ -10,12 +10,12 @@ Provision nodes from OpenStack on demand.
 In order to provision new nodes when Jenkins load goes high,
 administrator needs to configure *Cloud* and one or more *Templates* on
 global configuration page. Cloud represents connection to particular
-OpenStack tenant (project). In order to use several openstack instances
-or tenants, it is necessary to configure several Clouds in Jenkins.
+OpenStack project (tenant). In order to use several openstack instances
+or projects, it is necessary to configure several Clouds in Jenkins.
 Template can be seen as a definition of particular *kind* of node.
 Template is the primary holder of all the attributes for OpenStack
 machine to be provisioned (image, flavor, etc.) as well as for Jenkins
-node (number of executors, etc.). Note that the same set of attributes
+node (number of executors, etc.). Note the attributes
 can be configured on Cloud level as well. Such configuration will be
 then used as default for its templates. For example, if all nodes are
 supposed to use the same key-pair there is no need to state it in every
@@ -27,25 +27,29 @@ Aside from machine/node attributes, every template require name and
 labels to be configured. Name will serve both as an identifier of the
 template as well as a name prefix for Jenkins node and OpenStack machine
 (that is why some limitations apply here). Labels field expects a set of
-Jenkins labels that will be assigned to all nodes given template
-provision. It will also be used to determine which cloud and template to
+Jenkins labels that will be assigned to all nodes that the template
+provisions. It will also be used to determine which cloud and template to
 use to process Jenkins load. When there is a build with no label
-requirements (*Restrict where this project can be run* on job page), any
+requirements, any
 template can be used to provision the node. Build with label restriction
 can trigger provisioning only on templates with matching label set. The
 attributes at template level will inherit all global values (the value
-in effect is printed under the field). In case required field do not
-have a default nor current value, it will be reported.
+in effect is printed under the field on hte config page). In case required
+field do not have a default nor current value, it will be reported.
+
+The exception is here is the *Instance Cap* field that determines the maximal
+ammount of maches to be running either per whole cloud or per template. This is
+so one can limit the total number and number per individual template at the same time.
 
 ### User data
 
 Every template can declare user-data script to be passed to
-[CloudInit](https://help.ubuntu.com/community/CloudInit) to customize
+[cloud-init](https://cloudinit.readthedocs.io/en/latest/index.html) to customize
 the machine that is provisioned. Note that the image needs to support
 cloud init explicitly.
 
 Before the script is sent to OpenStack, plugin injects several values
-using `${VARIABLE_NAME`} syntax:
+using `${VARIABLE_NAME}` syntax:
 
 -   **`JENKINS_URL`**: The URL of the Jenkins instance
 -   **`SLAVE_JAR_URL`**: URL of the slave.jar - the agent executable
@@ -63,13 +67,11 @@ using `${VARIABLE_NAME`} syntax:
 
 ### Reporting
 
-Openstack plugin utilizes that captures failures and time trends of past
-provisioning attempts.
+Openstack plugin utilizes [Cloud Statistics](https://plugins.jenkins.io/cloud-stats) that captures failures and time trends of past provisioning attempts.
 
 ### Configuration As Code
 
-Since version 2.46, [JCasC](https://jenkins.io/projects/jcasc/) is
-supported. Example:
+Since version 2.46, [JCasC](https://jenkins.io/projects/jcasc/) is supported. Example:
 
 ```yaml
 jenkins:
@@ -205,15 +207,6 @@ credentials:
 
 -   User can manually provision slave from particular cloud/template on
     *Manage Jenkins \> Manage Nodes.*
--   Deleting slave provisioned by OpenStack plugin will merely put it
-    temporarily offline, the actual disposal of the slave and machine is
-    performed with delay. That means that user have the possibility to
-    abort that operation putting the slave back online. But most
-    importantly, user can suggest plugin to discard the slave while
-    still occupied by running build this way.
-
-&nbsp;
-
 -   Plugin identifies OpenStack image/snapshot to provision by its name.
     The image can be updated/replaced in openstack and the plugin will
     not require update provided its name have not changed.
@@ -230,11 +223,8 @@ credentials:
     that plugin failed to delete. In case the instance get leaked,
     please report that as a bug with all relevant FINE level logs
     attached.
-
-&nbsp;
-
 -   On every slave provisioned by the plugin, there is an environment
-    variable `OPENSTACK_PUBLIC_IP` declared with the IP address
+    variable `OPENSTACK_PUBLIC_IP` declared with the public IP address
     allocated for the machine.
 
 ### Troubleshooting
