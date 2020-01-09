@@ -430,7 +430,17 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     + name + (instanceVolumeSnapshotId == null ? "" : " (" + instanceVolumeSnapshotId + ")") + ".";
             for (final String volumeId : volumeIds) {
                 final String newVolumeName = instanceName + '[' + (i++) + ']';
-                openstack.setVolumeNameAndDescription(volumeId, newVolumeName, newVolumeDescription);
+                try {
+                    openstack.setVolumeNameAndDescription(volumeId, newVolumeName, newVolumeDescription);
+                } catch (Openstack.ActionFailed ex) {
+                    /*
+                     * Some versions of OpenStack work better than others. Not all will accept this
+                     * operation. However, a failure to set the name and description is purely
+                     * cosmetic and does not affect our ability to use the instance, so we log the
+                     * problem and carry on.
+                     */
+                    LOGGER.warning("Unable to set volume " + volumeId + " name and description: " + ex.getMessage());
+                }
             }
         }
 
