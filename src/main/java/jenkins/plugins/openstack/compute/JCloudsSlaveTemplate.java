@@ -205,6 +205,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     public boolean canProvision(final Label label) {
+        if ( getDisabled().isDisabled() ) {
+            return false;
+        }
         return label == null || label.matches(labelSet);
     }
 
@@ -219,10 +222,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      *
      * @throws Openstack.ActionFailed Provisioning failed.
      * @throws JCloudsCloud.ProvisioningFailedException Provisioning failed.
+     * @throws IllegalStateException Provisioning refused because the cloud or template is disabled.
      */
     public @Nonnull JCloudsSlave provisionSlave(
             @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id
     ) throws JCloudsCloud.ProvisioningFailedException {
+        cloud.getDisabled().throwIfDisabled("Cloud is disabled ");
+        getDisabled().throwIfDisabled("Template is disabled ");
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
         Server server = provisionServer(null, id);

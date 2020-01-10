@@ -5,6 +5,7 @@ import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlElement;
@@ -60,11 +61,11 @@ import java.util.concurrent.Callable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -347,6 +348,49 @@ public class JCloudsCloudTest {
         } catch (AccessDeniedException ex) {
             // Expected
         }
+
+        final JCloudsCloud cloudProvisionButDisabled = getCloudWhereUserIsAuthorizedTo(Cloud.PROVISION, template);
+        final SectionDisabled cloudDisabled = cloudProvisionButDisabled.getDisabled();
+        cloudDisabled.setDisabledByChoice(true);
+        cloudProvisionButDisabled.setDisabled(cloudDisabled);
+        try {
+            j.executeOnServer(new DoProvision(cloudProvisionButDisabled, template));
+            fail("Expected 'FailingHttpStatusCodeException' exception hasn't been thrown");
+        } catch (FailingHttpStatusCodeException ex) {
+            // Expected
+            final String contentAsString = ex.getResponse().getContentAsString();
+            assertThat(contentAsString, containsString("disabled"));
+        }
+    }
+
+    @Test
+    public void canProvision() throws Exception {
+        // Given
+        final String myLabelString = "label";
+        final String differentLabelString = "NotMyLabel";
+        final JCloudsSlaveTemplate template = j.dummySlaveTemplate(myLabelString);
+        final SectionDisabled templateDisabled = template.getDisabled();
+        template.setDisabled(templateDisabled);
+        final JCloudsCloud cloud = getCloudWhereUserIsAuthorizedTo(Cloud.PROVISION, template);
+        final SectionDisabled cloudDisabled = cloud.getDisabled();
+        cloud.setDisabled(cloudDisabled);
+        final Label label = Label.parseExpression(myLabelString);
+        final Label differentLabel = Label.parseExpression(differentLabelString);
+
+        // When
+        final boolean canProvisionLabelNotMatchingTemplate = cloud.canProvision(differentLabel);
+        templateDisabled.setDisabledByChoice(true);
+        final boolean canProvisionLabelMatchingDisabledTemplate = cloud.canProvision(label);
+        templateDisabled.setDisabledByChoice(false);
+        final boolean canProvisionLabelMatchingTemplate = cloud.canProvision(label);
+        cloudDisabled.setDisabledByChoice(true);
+        final boolean canProvisionLabelMatchingTemplateButCloudDisabled = cloud.canProvision(label);
+
+        // Then
+        assertFalse(canProvisionLabelNotMatchingTemplate);
+        assertFalse(canProvisionLabelMatchingDisabledTemplate);
+        assertTrue(canProvisionLabelMatchingTemplate);
+        assertFalse(canProvisionLabelMatchingTemplateButCloudDisabled);
     }
 
     @Test @Issue("JENKINS-46541")

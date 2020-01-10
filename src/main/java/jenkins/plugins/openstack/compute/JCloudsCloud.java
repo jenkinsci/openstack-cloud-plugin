@@ -329,6 +329,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
+        if (getDisabled().isDisabled()) {
+            return plannedNodeList; // this cloud is disabled - no need to proceed any further
+        }
         while (excessWorkload > 0 && !Jenkins.get().isQuietingDown() && !Jenkins.get().isTerminating()) {
 
             final JCloudsSlaveTemplate template = templateProvider.poll();
@@ -377,6 +380,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @Override
     public boolean canProvision(final Label label) {
+        if (getDisabled().isDisabled()) {
+            return false;
+        }
         for (JCloudsSlaveTemplate t : templates)
             if (t.canProvision(label))
                 return true;
@@ -414,6 +420,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         if (name == null) {
             sendPlaintextError("The slave template name query parameter is missing", rsp);
+            return;
+        }
+        final String currentDisabledReason = getDisabled().toString();
+        if (!SectionDisabled.NOT_DISABLED.equals(currentDisabledReason)) {
+            sendPlaintextError("This cloud is disabled " + currentDisabledReason, rsp);
             return;
         }
         JCloudsSlaveTemplate t = getTemplate(name);
