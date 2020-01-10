@@ -72,6 +72,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     private void cleanOrphanedFips() {
         for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+            if (cloud.getDisabled().isDisabled()) {
+                continue; // skip any cloud that's disabled.
+            }
             List<String> cloudStillFips = getStillFipsForCloud(cloud);
 
             List<String> leaked = new ArrayList<>(cloud.getOpenstack().getFreeFipIds());
@@ -176,6 +179,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private @Nonnull HashMap<JCloudsCloud, List<Server>> destroyServersOutOfScope() {
         HashMap<JCloudsCloud, List<Server>> runningServers = new HashMap<>();
         for (JCloudsCloud jc : JCloudsCloud.getClouds()) {
+            if (jc.getDisabled().isDisabled()) {
+                continue; // skip any cloud that's disabled.
+            }
             runningServers.put(jc, new ArrayList<>());
             List<Server> servers = jc.getOpenstack().getRunningNodes();
             for (Server server : servers) {
