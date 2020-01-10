@@ -269,6 +269,23 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     /**
+     * Calculates the duration (in milliseconds) we should stop for when an
+     * error happens. If the user has not configured a duration then the default
+     * of {@value #ERROR_DURATION_DEFAULT_SECONDS} seconds will be used.
+     * 
+     * @return duration, in milliseconds, to be passed to
+     *         {@link SectionDisabled#disableBySystem(String, long, Throwable)}.
+     */
+    @Restricted(NoExternalUse.class)
+    long getEffectiveErrorDurationInMilliseconds() {
+        final Integer configuredDurationOrNull = getErrorDuration();
+        if (configuredDurationOrNull != null) {
+            return TimeUnit.SECONDS.toMillis(configuredDurationOrNull);
+        }
+        return TimeUnit.SECONDS.toMillis(ERROR_DURATION_DEFAULT_SECONDS);
+    }
+
+    /**
      * Get a queue of templates to be used to provision slaves of label.
      *
      * The queue contains the same template in as many instances as is the number of machines that can be safely
@@ -366,10 +383,28 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Override
         public Node call() {
+            try {
+                return makeNewSlaveNode();
+            } catch (RuntimeException|Error ex) {
+                recordTemplateProvisioningFailure(ex);
+                throw ex;
+            }
+        }
+
+        private Node makeNewSlaveNode() {
             JCloudsSlave jcloudsSlave = template.provisionSlave(cloud, id);
 
             LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
             return jcloudsSlave;
+        }
+
+        private void recordTemplateProvisioningFailure(Throwable ex) {
+            final long milliseconds = cloud.getEffectiveErrorDurationInMilliseconds();
+            if (milliseconds > 0L && !(ex instanceof SectionDisabled.DisabledException) ) {
+                final SectionDisabled templateDisabled = template.getDisabled();
+                templateDisabled.disableBySystem("Cloud provisioning failure", milliseconds, ex);
+                template.setDisabled(templateDisabled);
+            }
         }
     }
 
@@ -526,6 +561,20 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      */
     @Restricted(NoExternalUse.class)
     public @Nonnull Openstack getOpenstack() throws LoginFailure {
+        try {
+            return getOpenstackInternal();
+        } catch (RuntimeException|Error ex) {
+            final long milliseconds = getEffectiveErrorDurationInMilliseconds();
+            if (milliseconds > 0L) {
+                final SectionDisabled templateDisabled = getDisabled();
+                templateDisabled.disableBySystem("Login failure", milliseconds, ex);
+                setDisabled(templateDisabled);
+            }
+            throw ex;
+        }
+    }
+
+    private Openstack getOpenstackInternal() throws LoginFailure {
         try {
             OpenstackCredential credential = OpenstackCredentials.getCredential(getCredentialsId());
             if (credential == null) {
