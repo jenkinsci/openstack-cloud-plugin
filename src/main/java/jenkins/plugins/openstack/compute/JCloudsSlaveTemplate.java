@@ -24,6 +24,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
@@ -66,6 +67,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     // Difference compared to cloud
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
+
+    private @CheckForNull SectionDisabled disabled;
 
     private transient Set<LabelAtom> labelSet;
     private /*final*/ transient JCloudsCloud cloud;
@@ -177,6 +180,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public @Nonnull SlaveOptions getRawSlaveOptions() {
         if (cloud == null) throw new IllegalStateException("Owner not set properly");
         return slaveOptions;
+    }
+
+    public SectionDisabled getDisabled() {
+        return disabled == null ? new SectionDisabled() : disabled;
+    }
+
+    @DataBoundSetter
+    public void setDisabled(SectionDisabled disabled) {
+        this.disabled = disabled;
     }
 
     public Set<LabelAtom> getLabelSet() {

@@ -38,6 +38,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -79,6 +80,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
+    /**
+     * Default value for {@link #getEffectiveErrorDurationInMilliseconds()}
+     * used when {@link #errorDuration} is null.
+     */
+    @Restricted(NoExternalUse.class)
+    private static final int ERROR_DURATION_DEFAULT_SECONDS = 300; // 5min
+
     private final @Nonnull String endPointUrl;
 
     private final boolean ignoreSsl;
@@ -91,6 +99,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
     private /*final*/ @Nonnull String credentialId; // Name differs from property name not to break the persistence
+
+    private @CheckForNull SectionDisabled disabled;
+    /** Length of time, in seconds, that {@link #disabled} should auto-disable for if we encounter an error. */
+    private @CheckForNull Integer errorDuration;
 
     // Backward compatibility
     private transient @Deprecated Integer instanceCap;
@@ -232,6 +244,28 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public @CheckForNull String getZone() {
         return zone;
+    }
+
+    public SectionDisabled getDisabled() {
+        return disabled == null ? new SectionDisabled() : disabled;
+    }
+
+    @DataBoundSetter
+    public void setDisabled(SectionDisabled disabled) {
+        this.disabled = disabled;
+    }
+
+    @CheckForNull
+    public Integer getErrorDuration() {
+        if (errorDuration != null && errorDuration < 0) {
+            return null; // negative is the same as unset = use default.
+        }
+        return errorDuration;
+    }
+
+    @DataBoundSetter
+    public void setErrorDuration(Integer errorDuration) {
+        this.errorDuration = errorDuration;
     }
 
     /**
