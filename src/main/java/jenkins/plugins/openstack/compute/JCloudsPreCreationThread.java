@@ -51,7 +51,13 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
     public void execute(TaskListener listener) {
         HashMap<JCloudsSlaveTemplate, JCloudsCloud> requiredCapacity = new HashMap<>();
         for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+            if (cloud.getDisabled().isDisabled()) {
+                continue;
+            }
             for (JCloudsSlaveTemplate template : cloud.getTemplates()) {
+                if (template.getDisabled().isDisabled()) {
+                    continue;
+                }
                 SlaveOptions to = template.getEffectiveSlaveOptions();
                 if (to.getInstancesMin() > 0) {
                     requiredCapacity.put(template, cloud);
