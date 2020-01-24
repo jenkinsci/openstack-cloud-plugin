@@ -191,6 +191,27 @@ public class JCloudsSlaveTemplateTest {
     }
 
     @Test
+    public void bootFromVolumeSnapshotDoesNotNPEIfCantFindVolumeSnapshot() {
+        /*
+         * Openstack.getVolumeSnapshotDescription will throw NullPointerException if
+         * there is no volume snapshot matching the given id. We need our code to
+         * survive the NPE so that the user (later) gets a much better
+         * "there's no volume snapshot with that id" error rather than a NPE.
+         */
+        final String volumeSnapshotName = "MyNonexistentVolumeSnapshot";
+        final String volumeSnapshotId = volumeSnapshotName;
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
+        final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "b");
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
+        final Openstack mockOs = cloud.getOpenstack();
+        doThrow(new NullPointerException("Mock NPE getting description of volumesnapshot")).when(mockOs).getVolumeSnapshotDescription(volumeSnapshotId);
+        testBootFromVolumeSnapshot(volumeSnapshotName, volumeSnapshotId, instance, mockOs);
+        // Note: In reality, OpenStack should then reject the request for the new
+        // instance with a nice informative "there's no volume snapshot of that id"
+        // error, which makes a lot more sense than a NPE.
+    }
+
+    @Test
     public void bootFromVolumeSnapshotStillPossibleEvenIfCantSetVolumeNameAndDescription() {
         /*
          * openstack4j can throw fail with the error:
