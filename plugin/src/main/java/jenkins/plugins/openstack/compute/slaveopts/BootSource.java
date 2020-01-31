@@ -397,7 +397,19 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             super.setServerBootSource(builder, os);
             final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
             final String id = selectIdFromListAndLogProblems(matchingIds, name, "VolumeSnapshots");
-            final String volumeSnapshotDescriptionOrNull = os.getVolumeSnapshotDescription(id);
+            String volumeSnapshotDescriptionOrNull = null;
+            try {
+                volumeSnapshotDescriptionOrNull = os.getVolumeSnapshotDescription(id);
+            } catch (RuntimeException ex) {
+                /*
+                 * This can throw, e.g. a NPE there is no VolumeSnapshot with that id. However,
+                 * a failure to get the description is purely cosmetic and a failure to find the
+                 * VolumeSnapshot would be better logged later on with a
+                 * "there's no volume snapshot of that name" error, so we log any exception we
+                 * get here and carry on, letting actual problems throw later.
+                 */
+                LOGGER.warning("Unable to get volume " + id + " description: " + ex.getMessage());
+            }
             final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
                     .sourceType(BDMSourceType.SNAPSHOT)
                     .destinationType(BDMDestType.VOLUME)
@@ -430,7 +442,17 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     + name + (instanceVolumeSnapshotId == null ? "" : " (" + instanceVolumeSnapshotId + ")") + ".";
             for (final String volumeId : volumeIds) {
                 final String newVolumeName = instanceName + '[' + (i++) + ']';
-                openstack.setVolumeNameAndDescription(volumeId, newVolumeName, newVolumeDescription);
+                try {
+                    openstack.setVolumeNameAndDescription(volumeId, newVolumeName, newVolumeDescription);
+                } catch (Openstack.ActionFailed ex) {
+                    /*
+                     * Some versions of OpenStack work better than others. Not all will accept this
+                     * operation. However, a failure to set the name and description is purely
+                     * cosmetic and does not affect our ability to use the instance, so we log the
+                     * problem and carry on.
+                     */
+                    LOGGER.warning("Unable to set volume " + volumeId + " name and description: " + ex.getMessage());
+                }
             }
         }
 

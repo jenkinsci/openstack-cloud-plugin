@@ -187,6 +187,53 @@ public class JCloudsSlaveTemplateTest {
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
+        testBootFromVolumeSnapshot(volumeSnapshotName, volumeSnapshotId, instance, mockOs);
+    }
+
+    @Test
+    public void bootFromVolumeSnapshotDoesNotNPEIfCantFindVolumeSnapshot() {
+        /*
+         * Openstack.getVolumeSnapshotDescription will throw NullPointerException if
+         * there is no volume snapshot matching the given id. We need our code to
+         * survive the NPE so that the user (later) gets a much better
+         * "there's no volume snapshot with that id" error rather than a NPE.
+         */
+        final String volumeSnapshotName = "MyNonexistentVolumeSnapshot";
+        final String volumeSnapshotId = volumeSnapshotName;
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
+        final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "b");
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
+        final Openstack mockOs = cloud.getOpenstack();
+        doThrow(new NullPointerException("Mock NPE getting description of volumesnapshot")).when(mockOs).getVolumeSnapshotDescription(volumeSnapshotId);
+        testBootFromVolumeSnapshot(volumeSnapshotName, volumeSnapshotId, instance, mockOs);
+        // Note: In reality, OpenStack should then reject the request for the new
+        // instance with a nice informative "there's no volume snapshot of that id"
+        // error, which makes a lot more sense than a NPE.
+    }
+
+    @Test
+    public void bootFromVolumeSnapshotStillPossibleEvenIfCantSetVolumeNameAndDescription() {
+        /*
+         * openstack4j can throw fail with the error:
+         * "ActionResponse{success=false, fault=Invalid input for field/attribute volume.
+         * Value: {u'description': u'...', u'display_name': u'...', u'name': u'...',
+         * u'os-vol-mig-status-attr:migstat': u'none', u'display_description': u'...'}.
+         * Additional properties are not allowed (u'os-vol-mig-status-attr:migstat' was
+         * unexpected), code=400}".
+         * We need our code to survive this and not treat it as a fatal error.
+         */
+        final String volumeSnapshotName = "MyOtherVolumeSnapshot";
+        final String volumeSnapshotId = "vs-345-id";
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
+        final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "b");
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
+        final Openstack mockOs = cloud.getOpenstack();
+        doThrow(new Openstack.ActionFailed("Mock OpenStack error setting volume name and description")).when(mockOs).setVolumeNameAndDescription(anyString(), anyString(), anyString());
+        testBootFromVolumeSnapshot(volumeSnapshotName, volumeSnapshotId, instance, mockOs);
+    }
+
+    private void testBootFromVolumeSnapshot(final String volumeSnapshotName, final String volumeSnapshotId,
+            final JCloudsSlaveTemplate instance, final Openstack mockOs) {
         when(mockOs.getVolumeSnapshotIdsFor(volumeSnapshotName)).thenReturn(singletonList(volumeSnapshotId));
 
         final ArgumentCaptor<ServerCreateBuilder> scbCaptor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
