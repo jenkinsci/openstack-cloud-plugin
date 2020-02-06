@@ -427,6 +427,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         Map<Network, Integer> capacities = openstack.getNetworksCapacity(osNetworksById);
+        if (capacities.isEmpty()) {
+            LOGGER.warning("OpenStack network-ip-availability endpoint is inaccessible, unable to balance the load for " + spec);
+            // Return first of the alternatives
+            return declared.stream().map(l -> l.get(0)).map(RESOLVE_NAMES_TO_IDS).collect(Collectors.toList());
+        }
 
         ArrayList<Network> ret = new ArrayList<>(declared.size());
         for (List<String> alternativeList : declared) { // All networks to connect to

@@ -472,4 +472,35 @@ public class JCloudsSlaveTemplateTest {
         when(n.getName()).thenReturn(name);
         return n;
     }
+
+    @Test
+    public void selectNetworksWhenUtilizationApiDisabled() {
+        JCloudsSlaveTemplate t = j.dummySlaveTemplate("foo");
+        JCloudsCloud c = j.dummyCloud(t);
+        j.configureSlaveProvisioning(c, Collections.emptyList());
+
+        Network fullNet = mockNetwork("full");
+        Network emptyNet = mockNetwork("empty");
+        Network loadedNet = mockNetwork("loaded");
+        Map<String, Network> networkMap = new HashMap<>();
+        Stream.of(fullNet, emptyNet, loadedNet).forEach(n -> {
+            networkMap.put(n.getId(), n);
+            networkMap.put(n.getName(), n);
+        });
+
+        Openstack os = c.getOpenstack();
+        doAnswer(i -> {
+            Map<String, Network> ret = new HashMap<>();
+
+            for (String netSpec : ((List<String>) i.getArguments()[0])) {
+                Network n = networkMap.get(netSpec);
+                ret.put(n.getId(), n);
+            }
+            return ret;
+        }).when(os).getNetworks(any());
+        doReturn(Collections.emptyMap()).when(os).getNetworksCapacity(any());
+
+        // If we have not utilization info, result will likely be suboptimal
+        assertEquals(Arrays.asList("uuid-empty", "uuid-full", "uuid-loaded", "uuid-empty"), selectNetworkIds(os, "empty|full,full,loaded|empty,empty"));
+    }
 }
