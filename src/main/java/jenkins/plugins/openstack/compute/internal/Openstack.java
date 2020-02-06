@@ -211,8 +211,14 @@ public class Openstack {
 
     /**
      * For every network requested, return mapping of network and number of available fixed addresses.
+     *
+     * Note the network-ip-availability is usually available for admins only so the method may return <tt>null</tt> in that case.
+     *
+     * @return Map of requested networks and their free capacity. Might be empty.
      */
-    public Map<Network, Integer> getNetworksCapacity(Map<String, Network> declaredNetworks) {
+    public @Nonnull Map<Network, Integer> getNetworksCapacity(@Nonnull Map<String, Network> declaredNetworks) {
+        if (declaredNetworks.isEmpty()) throw new IllegalArgumentException("No request networks provided");
+
         List<String> declaredIds = declaredNetworks.values().stream().map(Network::getId).collect(Collectors.toList());
 
         List<? extends NetworkIPAvailability> networkIPAvailabilities = clientProvider.get().networking().networkIPAvailability().get();
