@@ -17,6 +17,11 @@
     </f:entry>
     <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,ignoreSsl,credentialsId,zone"/>
 
+    <f:property field="disabled"/>
+    <f:entry title="${%Error Duration}" field="errorDuration">
+        <f:number />
+    </f:entry>
+
     <f:advanced title="Default slave options">
         <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>
         <j:set var="instance" value="${instance.rawSlaveOptions}"/>

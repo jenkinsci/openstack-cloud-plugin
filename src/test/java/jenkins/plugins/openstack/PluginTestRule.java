@@ -626,6 +626,7 @@ public final class PluginTestRule extends JenkinsRule {
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
             super("openstack", "endPointUrl", false,"zone", opts, Arrays.asList(templates), "credentialsId");
+            setErrorDuration(0); // don't want the auto back-off functionality except during tests where we really want this set
         }
 
         @Override

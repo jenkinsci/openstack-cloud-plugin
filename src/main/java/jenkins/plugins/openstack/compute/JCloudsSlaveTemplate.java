@@ -24,6 +24,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
@@ -66,6 +67,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     // Difference compared to cloud
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
+
+    private @CheckForNull SectionDisabled disabled;
 
     private transient Set<LabelAtom> labelSet;
     private /*final*/ transient JCloudsCloud cloud;
@@ -179,6 +182,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return slaveOptions;
     }
 
+    public SectionDisabled getDisabled() {
+        return disabled == null ? new SectionDisabled() : disabled;
+    }
+
+    @DataBoundSetter
+    public void setDisabled(SectionDisabled disabled) {
+        this.disabled = disabled;
+    }
+
     public Set<LabelAtom> getLabelSet() {
         return labelSet;
     }
@@ -193,6 +205,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     public boolean canProvision(final Label label) {
+        if ( getDisabled().isDisabled() ) {
+            return false;
+        }
         return label == null || label.matches(labelSet);
     }
 
@@ -207,10 +222,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      *
      * @throws Openstack.ActionFailed Provisioning failed.
      * @throws JCloudsCloud.ProvisioningFailedException Provisioning failed.
+     * @throws IllegalStateException Provisioning refused because the cloud or template is disabled.
      */
     public @Nonnull JCloudsSlave provisionSlave(
             @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id
     ) throws JCloudsCloud.ProvisioningFailedException {
+        cloud.getDisabled().throwIfDisabled("Cloud is disabled ");
+        getDisabled().throwIfDisabled("Template is disabled ");
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
         Server server = provisionServer(null, id);

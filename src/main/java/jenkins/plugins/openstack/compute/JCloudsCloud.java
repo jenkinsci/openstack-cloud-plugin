@@ -38,6 +38,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -79,6 +80,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
+    /**
+     * Default value for {@link #getEffectiveErrorDurationInMilliseconds()}
+     * used when {@link #errorDuration} is null.
+     */
+    @Restricted(NoExternalUse.class)
+    private static final int ERROR_DURATION_DEFAULT_SECONDS = 300; // 5min
+
     private final @Nonnull String endPointUrl;
 
     private final boolean ignoreSsl;
@@ -91,6 +99,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
     private /*final*/ @Nonnull String credentialId; // Name differs from property name not to break the persistence
+
+    private @CheckForNull SectionDisabled disabled;
+    /** Length of time, in seconds, that {@link #disabled} should auto-disable for if we encounter an error. */
+    private @CheckForNull Integer errorDuration;
 
     // Backward compatibility
     private transient @Deprecated Integer instanceCap;
@@ -234,6 +246,45 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return zone;
     }
 
+    public SectionDisabled getDisabled() {
+        return disabled == null ? new SectionDisabled() : disabled;
+    }
+
+    @DataBoundSetter
+    public void setDisabled(SectionDisabled disabled) {
+        this.disabled = disabled;
+    }
+
+    @CheckForNull
+    public Integer getErrorDuration() {
+        if (errorDuration != null && errorDuration < 0) {
+            return null; // negative is the same as unset = use default.
+        }
+        return errorDuration;
+    }
+
+    @DataBoundSetter
+    public void setErrorDuration(Integer errorDuration) {
+        this.errorDuration = errorDuration;
+    }
+
+    /**
+     * Calculates the duration (in milliseconds) we should stop for when an
+     * error happens. If the user has not configured a duration then the default
+     * of {@value #ERROR_DURATION_DEFAULT_SECONDS} seconds will be used.
+     * 
+     * @return duration, in milliseconds, to be passed to
+     *         {@link SectionDisabled#disableBySystem(String, long, Throwable)}.
+     */
+    @Restricted(NoExternalUse.class)
+    long getEffectiveErrorDurationInMilliseconds() {
+        final Integer configuredDurationOrNull = getErrorDuration();
+        if (configuredDurationOrNull != null) {
+            return TimeUnit.SECONDS.toMillis(configuredDurationOrNull);
+        }
+        return TimeUnit.SECONDS.toMillis(ERROR_DURATION_DEFAULT_SECONDS);
+    }
+
     /**
      * Get a queue of templates to be used to provision slaves of label.
      *
@@ -295,6 +346,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
+        if (getDisabled().isDisabled()) {
+            return plannedNodeList; // this cloud is disabled - no need to proceed any further
+        }
         while (excessWorkload > 0 && !Jenkins.get().isQuietingDown() && !Jenkins.get().isTerminating()) {
 
             final JCloudsSlaveTemplate template = templateProvider.poll();
@@ -329,10 +383,28 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Override
         public Node call() {
+            try {
+                return makeNewSlaveNode();
+            } catch (RuntimeException|Error ex) {
+                recordTemplateProvisioningFailure(ex);
+                throw ex;
+            }
+        }
+
+        private Node makeNewSlaveNode() {
             JCloudsSlave jcloudsSlave = template.provisionSlave(cloud, id);
 
             LOGGER.fine(String.format("Slave %s launched successfully", jcloudsSlave.getDisplayName()));
             return jcloudsSlave;
+        }
+
+        private void recordTemplateProvisioningFailure(Throwable ex) {
+            final long milliseconds = cloud.getEffectiveErrorDurationInMilliseconds();
+            if (milliseconds > 0L && !(ex instanceof SectionDisabled.DisabledException) ) {
+                final SectionDisabled templateDisabled = template.getDisabled();
+                templateDisabled.disableBySystem("Cloud provisioning failure", milliseconds, ex);
+                template.setDisabled(templateDisabled);
+            }
         }
     }
 
@@ -343,6 +415,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @Override
     public boolean canProvision(final Label label) {
+        if (getDisabled().isDisabled()) {
+            return false;
+        }
         for (JCloudsSlaveTemplate t : templates)
             if (t.canProvision(label))
                 return true;
@@ -380,6 +455,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         if (name == null) {
             sendPlaintextError("The slave template name query parameter is missing", rsp);
+            return;
+        }
+        final String currentDisabledReason = getDisabled().toString();
+        if (!SectionDisabled.NOT_DISABLED.equals(currentDisabledReason)) {
+            sendPlaintextError("This cloud is disabled " + currentDisabledReason, rsp);
             return;
         }
         JCloudsSlaveTemplate t = getTemplate(name);
@@ -481,6 +561,20 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      */
     @Restricted(NoExternalUse.class)
     public @Nonnull Openstack getOpenstack() throws LoginFailure {
+        try {
+            return getOpenstackInternal();
+        } catch (RuntimeException|Error ex) {
+            final long milliseconds = getEffectiveErrorDurationInMilliseconds();
+            if (milliseconds > 0L) {
+                final SectionDisabled templateDisabled = getDisabled();
+                templateDisabled.disableBySystem("Login failure", milliseconds, ex);
+                setDisabled(templateDisabled);
+            }
+            throw ex;
+        }
+    }
+
+    private Openstack getOpenstackInternal() throws LoginFailure {
         try {
             OpenstackCredential credential = OpenstackCredentials.getCredential(getCredentialsId());
             if (credential == null) {

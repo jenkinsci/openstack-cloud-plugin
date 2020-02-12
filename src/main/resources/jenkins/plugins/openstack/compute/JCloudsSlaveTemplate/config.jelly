@@ -8,6 +8,7 @@
       <f:entry title="Labels" field="labels">
         <f:textbox/>
       </f:entry>
+      <f:property field="disabled"/>
     </f:section>
 
     <f:advanced title="Provisioning details">
