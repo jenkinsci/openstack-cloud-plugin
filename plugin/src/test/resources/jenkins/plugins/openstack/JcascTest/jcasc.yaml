@@ -108,7 +108,7 @@ credentials:
               privateKeySource:
                 directEntry:
                   # Do not hardcode plaintext secrets for real world declarations!
-                  privateKey: >
+                  privateKey: |
                     -----BEGIN OPENSSH PRIVATE KEY-----
                     b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
                     NhAAAAAwEAAQAAAQEAleOyx/pWbWBWrKOXyDpXio33Y6jAXdAi2mqo1nKIcIX75U71WxcR
