@@ -6,6 +6,7 @@ import hudson.slaves.RetentionStrategy;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import javax.annotation.Nonnull;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Date;
@@ -26,12 +27,12 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
     }
 
     @Override
-    public long check(JCloudsComputer c) {
+    public long check(@Nonnull JCloudsComputer c) {
         if (disabled) {
             LOGGER.fine("Skipping check - disabled");
             return 1;
         }
-        LOGGER.fine("Checking");
+        LOGGER.finest("Checking");
 
         if (!checkLock.tryLock()) {
             LOGGER.info("Failed to acquire retention lock - skipping");
