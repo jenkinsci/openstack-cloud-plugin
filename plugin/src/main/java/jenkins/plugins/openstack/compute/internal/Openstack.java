@@ -65,10 +65,12 @@ import hudson.util.FormValidation;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.openstack4j.api.Builders;
+import org.openstack4j.api.networking.NetFloatingIPService;
+import org.openstack4j.api.networking.NetworkingService;
 import org.openstack4j.core.transport.Config;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
-import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.compute.ServerService;
 import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.ResponseException;
@@ -76,7 +78,6 @@ import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Flavor;
-import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Keypair;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -86,7 +87,9 @@ import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
+import org.openstack4j.model.network.Port;
 import org.openstack4j.model.network.ext.NetworkIPAvailability;
+import org.openstack4j.model.network.options.PortListOptions;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.Volume.Status;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
@@ -318,12 +321,8 @@ public class Openstack {
 
 
     public @Nonnull List<String> getSortedIpPools() {
-        ComputeFloatingIPService ipService = getComputeFloatingIPService();
-        if (ipService == null) return Collections.emptyList();
-
-        List<String> names = new ArrayList<>(ipService.getPoolNames());
-        Collections.sort(names);
-        return names;
+        List<? extends Network> nets = clientProvider.get().networking().network().list();
+        return nets.stream().map(Network::getName).sorted().collect(Collectors.toList());
     }
 
     public @Nonnull List<? extends AvailabilityZone> getAvailabilityZones() {
@@ -332,14 +331,14 @@ public class Openstack {
         return zones;
     }
 
-
     /**
      * @return null when user is not authorized to use the endpoint which is a valid use-case.
      */
-    private @CheckForNull ComputeFloatingIPService getComputeFloatingIPService() {
+    private @CheckForNull NetFloatingIPService getComputeFloatingIPService() {
         try {
-            return clientProvider.get().compute().floatingIps();
+            return clientProvider.get().networking().floatingip();
         } catch (ClientResponseException ex) {
+            // Not sure if this is still valid after replacing compute FIP service for networking FIP service
             // https://github.com/jenkinsci/openstack-cloud-plugin/issues/128
             if (ex.getStatus() == 403) return null;
             throw ex;
@@ -574,74 +573,60 @@ public class Openstack {
     public void destroyServer(@Nonnull Server server) throws ActionFailed {
         String nodeId = server.getId();
 
-        ComputeFloatingIPService fipsService = getComputeFloatingIPService();
-        if (fipsService != null) {
-            for (FloatingIP ip : fipsService.list()) {
-                if (nodeId.equals(ip.getInstanceId())) {
-                    ActionResponse res = fipsService.deallocateIP(ip.getId());
-                    if (res.isSuccess() || res.getCode() == 404) {
-                        debug("Deallocated Floating IP {0}", ip.getFloatingIpAddress());
-                    } else {
-                        throw new ActionFailed(
-                                "Floating IP deallocation failed for " + ip.getFloatingIpAddress() + ": " + res.getFault() + "(" + res.getCode()  + ")"
-                        );
-                    }
-                }
-            }
-        }
+        NetFloatingIPService fipService = clientProvider.get().networking().floatingip();
+        List<String> portIds = getServerPorts(server).stream().map(Port::getId).collect(Collectors.toList());
+        List<? extends NetFloatingIP> associatedFips = fipService.list().stream().filter(
+                fip -> portIds.contains(fip.getPortId())
+        ).collect(Collectors.toList());
 
         ServerService servers = clientProvider.get().compute().servers();
         server = servers.get(nodeId);
         if (server == null || server.getStatus() == Server.Status.DELETED) {
             debug("Machine destroyed: {0}", nodeId);
-            return; // Deleted
         }
 
-        ActionResponse res = servers.delete(nodeId);
-        if (res.getCode() == 404) {
+        ActionResponse serverDelete = servers.delete(nodeId);
+        if (serverDelete.getCode() == 404) {
             debug("Machine destroyed: {0}", nodeId);
-            return; // Deleted
+        } else {
+            throwIfFailed(serverDelete);
         }
 
-        throwIfFailed(res);
+        for (NetFloatingIP fip : associatedFips) {
+            ActionResponse fipDelete = fipService.delete(fip.getId());
+            if (fipDelete.getCode() == 404) {
+                debug("Fip destroyed: {0}", fip.getId());
+                continue;
+            }
+
+            throwIfFailed(fipDelete);
+        }
     }
 
     /**
      * Assign floating ip address to the server.
      *
      * Note that after the successful assignment, the Server instance becomes outdated as it does not contain the IP details.
-     *
      * @param server Server to assign FIP
-     * @param poolName Name of the FIP pool to use. If null, openstack default pool will be used.
+     * @param poolName Name of the FIP pool to use.
      */
-    public @Nonnull FloatingIP assignFloatingIp(@Nonnull Server server, @CheckForNull String poolName) throws ActionFailed {
-        debug("Allocating floating IP for {0}", server.getName());
-        ComputeFloatingIPService fips = clientProvider.get().compute().floatingIps(); // This throws when user is not authorized to manipulate FIPs
-        FloatingIP ip;
+    public @Nonnull NetFloatingIP assignFloatingIp(@Nonnull Server server, @Nonnull String poolName) throws ActionFailed {
+        debug("Allocating floating IP for {0} in {1}", server.getName(), server.getName());
+        NetworkingService networking = clientProvider.get().networking();
+
+        Port port = getServerPorts(server).get(0);
+        Network network = networking.network().list(Collections.singletonMap("name", poolName)).get(0);
         try {
-            ip = fips.allocateIP(poolName);
+            NetFloatingIP fip = Builders.netFloatingIP().floatingNetworkId(network.getId()).portId(port.getId()).build();
+            return networking.floatingip().create(fip);
         } catch (ResponseException ex) {
             // TODO Grab some still IPs from JCloudsCleanupThread
             throw new ActionFailed(ex.getMessage() + " Allocating for " + server.getName(), ex);
         }
-        debug("Floating IP allocated {0}", ip.getFloatingIpAddress());
-        try {
-            debug("Assigning floating IP to {0}", server.getName());
-            ActionResponse res = fips.addFloatingIP(server, ip.getFloatingIpAddress());
-            throwIfFailed(res);
-            debug("Floating IP assigned");
-        } catch (Throwable _ex) {
-            ActionFailed ex = _ex instanceof ActionFailed
-                    ? (ActionFailed) _ex
-                    : new ActionFailed("Unable to assign floating IP for " + server.getName(), _ex)
-            ;
+    }
 
-            ActionResponse res = fips.deallocateIP(ip.getId());
-            logIfFailed(res);
-            throw ex;
-        }
-
-        return ip;
+    private List<? extends Port> getServerPorts(@Nonnull Server server) {
+        return clientProvider.get().networking().port().list(PortListOptions.create().deviceId(server.getId()));
     }
 
     public void destroyFip(String fip) {
@@ -761,9 +746,9 @@ public class Openstack {
         // access them and JVM trusts their SSL cert.
         try {
             OSClient<?> client = clientProvider.get();
-            client.networking().network().list().size();
+            client.networking().network().list();
             client.images().listMembers("");
-            client.compute().listExtensions().size();
+            client.compute().flavors().list();
         } catch (Throwable ex) {
             return ex;
         }
@@ -842,10 +827,10 @@ public class Openstack {
             }
         }
 
+        @SuppressWarnings("deprecation")
         public static @Nonnull FactoryEP replace(@Nonnull FactoryEP factory) {
             ExtensionList<Openstack.FactoryEP> lookup = ExtensionList.lookup(Openstack.FactoryEP.class);
             lookup.clear();
-            //noinspection deprecation
             lookup.add(factory);
             return factory;
         }

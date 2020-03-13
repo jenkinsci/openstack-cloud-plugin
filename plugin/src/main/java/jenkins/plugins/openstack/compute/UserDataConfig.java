@@ -36,7 +36,7 @@ public class UserDataConfig extends Config {
     public static @CheckForNull String resolve(@CheckForNull String userDataId) {
         if (userDataId == null) return null;
 
-        Config userData = ConfigFiles.getByIdOrNull(Jenkins.getInstance(), userDataId);
+        Config userData = ConfigFiles.getByIdOrNull(Jenkins.get(), userDataId);
         if (userData == null) throw new IllegalArgumentException("Unable to locate OpenStack user-data named '" + userDataId + "'");
         if (!(userData instanceof UserDataConfig)) throw new IllegalArgumentException(
                 "The config file used for user-data is not of the correct type: " + userData.getClass()
@@ -68,7 +68,7 @@ public class UserDataConfig extends Config {
         }
 
         // used for migration only
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings({"unchecked", "deprecation"})
         @Override
         public Config convert(Config config) {
             return new UserDataConfig(config.id, config.name, config.comment, config.content);
