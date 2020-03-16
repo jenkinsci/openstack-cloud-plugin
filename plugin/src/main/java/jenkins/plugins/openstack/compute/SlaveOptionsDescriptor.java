@@ -39,6 +39,7 @@ import jenkins.plugins.openstack.compute.internal.Openstack;
 import net.sf.json.JSONObject;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.configfiles.ConfigFiles;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -302,8 +303,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
-        ConfigProvider provider = getConfigProvider();
-        for (Config config : provider.getAllConfigs()) {
+        for (Config config : ConfigFiles.getConfigsInContext(Jenkins.get(), UserDataConfig.UserDataConfigProvider.class)) {
             m.add(config.name, config.id);
         }
         return m;
@@ -319,8 +319,10 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getUserDataId());
             if (d != null) {
-                String name = getConfigProvider().getConfigById(d).name;
-                return getUserDataLink(d, def(name));
+                Config config = ConfigFiles.getByIdOrNull(Jenkins.get(), d);
+                if (config == null) return FormValidation.error("No such config for ID " + d);
+
+                return getUserDataLink(d, def(config.name));
             }
             return OK;
         }
@@ -345,12 +347,6 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         return FormValidation.okWithMarkup(
                 "<a target='_blank' href='" + Jenkins.get().getRootUrl() + "configfiles/editConfig?id=" + Util.escape(id) + "'>" + Util.escape(name) + "</a>"
         );
-    }
-
-    private ConfigProvider getConfigProvider() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-        ExtensionList<ConfigProvider> providers = ConfigProvider.all();
-        return providers.get(UserDataConfig.UserDataConfigProvider.class);
     }
 
     @Restricted(DoNotUse.class)

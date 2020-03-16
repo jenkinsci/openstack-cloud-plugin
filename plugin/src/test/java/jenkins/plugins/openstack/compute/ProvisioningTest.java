@@ -289,7 +289,7 @@ public class ProvisioningTest {
 
         assertCloudMissingReportedOnce(cs, ard, foo);
 
-        ard.reschedule();
+        reschedule(ard);
         Thread.sleep(1000);
 
         assertCloudMissingReportedOnce(cs, ard, foo);
@@ -513,8 +513,7 @@ public class ProvisioningTest {
         final int millisecondsToWaitBetweenPolls = 100;
         final int maxTimeToWaitInMilliseconds = 5000;
         final AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-        //noinspection deprecation
-        disposer.reschedule();
+        reschedule(disposer);
         final long timestampBeforeWaiting = System.nanoTime();
         while (true) {
             final Set<?> actual = disposer.getBacklog();
@@ -533,5 +532,10 @@ public class ProvisioningTest {
                     timeToWaitRemainingInMilliseconds);
             Thread.sleep(timeToWaitNowInMilliseconds);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void reschedule(AsyncResourceDisposer disposer) {
+        disposer.reschedule();
     }
 }
