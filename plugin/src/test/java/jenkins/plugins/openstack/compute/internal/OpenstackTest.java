@@ -6,27 +6,27 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
-import org.jvnet.hudson.test.Issue;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
-import org.openstack4j.api.compute.ComputeFloatingIPService;
 import org.openstack4j.api.compute.ext.ZoneService;
-import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.image.v2.ImageService;
+import org.openstack4j.api.networking.NetFloatingIPService;
+import org.openstack4j.api.networking.PortService;
 import org.openstack4j.api.storage.BlockVolumeSnapshotService;
 import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.compute.Fault;
-import org.openstack4j.model.compute.FloatingIP;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.image.v2.Image;
+import org.openstack4j.model.network.NetFloatingIP;
+import org.openstack4j.model.network.Port;
+import org.openstack4j.model.network.options.PortListOptions;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
-import org.openstack4j.openstack.compute.domain.NovaFloatingIP;
+import org.openstack4j.openstack.networking.domain.NeutronFloatingIP;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -364,11 +364,6 @@ public class OpenstackTest {
         assertThat(new ArrayList<>(actual), equalTo(expected));
     }
 
-    public static final ClientResponseException CLIENT_RESPONSE_FIP_DISALLOWED = new ClientResponseException(
-            "Policy doesn't allow compute_extension:floating_ip_pools to be performed",
-            403
-    );
-
     @Test
     public void deleteAfterFailedBoot() {
         Openstack os = mock(Openstack.class, CALLS_REAL_METHODS);
@@ -409,58 +404,42 @@ public class OpenstackTest {
 
         when(client.compute().servers().delete(server.getId())).thenAnswer(sequencer.deleteServer());
 
-        ComputeFloatingIPService fips = client.compute().floatingIps();
+        NetFloatingIPService fips = client.networking().floatingip();
         when(fips.list()).thenAnswer(sequencer.getAllFips());
-        when(fips.deallocateIP(any(String.class))).thenAnswer(sequencer.deleteFip());
+        when(fips.delete(any(String.class))).thenAnswer(sequencer.deleteFip());
+        PortService ports = client.networking().port();
+        when(ports.list(any(PortListOptions.class))).thenAnswer(sequencer.getAllPorts());
 
         Openstack os = new Openstack(client);
         os.destroyServer(server);
 
         verify(client.compute().servers()).delete(server.getId());
-        verify(fips).deallocateIP("release-me");
-        verify(fips, never()).deallocateIP("keep-me");
-    }
-
-    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/128")
-    public void doNotFailPopulatingFipPools() throws Exception {
-        OSClient client = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(client.compute().floatingIps()).thenThrow(CLIENT_RESPONSE_FIP_DISALLOWED);
-
-        Openstack os = new Openstack(client);
-        assertThat(os.getSortedIpPools(), Matchers.emptyIterable());
-    }
-
-    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/128")
-    public void allocatingFipShouldFailIfFipsDisallowed() throws Exception {
-        OSClient client = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(client.compute().floatingIps()).thenThrow(CLIENT_RESPONSE_FIP_DISALLOWED);
-
-        Server server = mock(Server.class);
-        when(server.getId()).thenReturn("instance-id");
-
-        Openstack os = new Openstack(client);
-        try {
-            os.assignFloatingIp(server, "A1");
-            fail();
-        } catch (ClientResponseException ex) {
-            assertThat(ex.getStatus(), equalTo(403));
-        }
+        verify(fips).delete("release-me");
+        verify(fips, never()).delete("keep-me");
     }
 
     /**
      * Track the state of the openstack to be manifested by different client calls;
      */
-    private class DeleteMachineSequencer {
+    private static class DeleteMachineSequencer {
         private volatile Server server;
-        private final List<FloatingIP> fips = new ArrayList<>(Arrays.asList(
-                NovaFloatingIP.builder().id("keep-me").instanceId("someone-elses").floatingIpAddress("0.0.0.0").build(),
-                NovaFloatingIP.builder().id("release-me").instanceId("instance-id").floatingIpAddress("1.1.1.1").build()
+        private final List<NetFloatingIP> fips = new ArrayList<>(Arrays.asList(
+                fip("keep-me", "someone-elses", "0.0.0.0"),
+                fip("release-me", "port-id", "1.1.1.1")
         ));
         private ActionResponse success = ActionResponse.actionSuccess();
         private ActionResponse failure = ActionResponse.actionFailed("fake", 500);
 
         private DeleteMachineSequencer(Server server) {
             this.server = server;
+        }
+
+        private static NeutronFloatingIP fip(String id, String portId, String fipAddr) {
+            NeutronFloatingIP fip = mock(NeutronFloatingIP.class);
+            when(fip.getId()).thenReturn(id);
+            when(fip.getPortId()).thenReturn(portId);
+            when(fip.getFloatingIpAddress()).thenReturn(fipAddr);
+            return fip;
         }
 
         private Answer<Server> getServer() {
@@ -480,9 +459,9 @@ public class OpenstackTest {
             };
         }
 
-        private Answer<List<FloatingIP>> getAllFips() {
-            return new Answer<List<FloatingIP>>() {
-                @Override public List<FloatingIP> answer(InvocationOnMock invocation) throws Throwable {
+        private Answer<List<NetFloatingIP>> getAllFips() {
+            return new Answer<List<NetFloatingIP>>() {
+                @Override public List<NetFloatingIP> answer(InvocationOnMock invocation) throws Throwable {
                     return new ArrayList<>(fips); // Defensive copy so deleteFip can modify this
                 }
             };
@@ -492,15 +471,25 @@ public class OpenstackTest {
             return new Answer<ActionResponse>() {
                 @Override public ActionResponse answer(InvocationOnMock invocation) throws Throwable {
                     String id = (String) invocation.getArguments()[0];
-                    Iterator<FloatingIP> iter = fips.iterator();
+                    Iterator<NetFloatingIP> iter = fips.iterator();
                     while (iter.hasNext()) {
-                        FloatingIP fip = iter.next();
+                        NetFloatingIP fip = iter.next();
                         if (fip.getId().equals(id)) {
                             iter.remove();
                             return success;
                         }
                     }
                     return failure;
+                }
+            };
+        }
+
+        public Answer<List<? extends Port>> getAllPorts() {
+            return new Answer<List<? extends Port>>() {
+                @Override public List<? extends Port> answer(InvocationOnMock invocation) throws Throwable {
+                    Port port = mock(Port.class);
+                    when(port.getId()).thenReturn("port-id");
+                    return Collections.singletonList(port);
                 }
             };
         }
