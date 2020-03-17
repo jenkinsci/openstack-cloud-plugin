@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -86,6 +87,7 @@ import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
+import org.openstack4j.model.network.Router;
 import org.openstack4j.model.network.ext.NetworkIPAvailability;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.Volume.Status;
@@ -318,12 +320,20 @@ public class Openstack {
 
 
     public @Nonnull List<String> getSortedIpPools() {
-        ComputeFloatingIPService ipService = getComputeFloatingIPService();
-        if (ipService == null) return Collections.emptyList();
+        List<? extends Router> routers = clientProvider.get().networking().router().list();
+        List<? extends Network> networks = clientProvider.get().networking().network().list();
 
-        List<String> names = new ArrayList<>(ipService.getPoolNames());
-        Collections.sort(names);
-        return names;
+        // There can be multiple router->subnet connection for the same network
+        HashSet<Network> applicablePublicNetworks = new HashSet<>();
+        for (Router r: routers) {
+            for (Network n: networks) {
+                if (Objects.equals(r.getExternalGatewayInfo().getNetworkId(), n.getId())) {
+                    applicablePublicNetworks.add(n);
+                }
+            }
+        }
+
+        return applicablePublicNetworks.stream().map(Network::getName).sorted().collect(Collectors.toList());
     }
 
     public @Nonnull List<? extends AvailabilityZone> getAvailabilityZones() {
