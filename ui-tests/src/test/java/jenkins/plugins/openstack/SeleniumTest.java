@@ -88,6 +88,9 @@ public class SeleniumTest extends AbstractJUnitTest {
     public static String OS_KEY_NAME = System.getenv("OS_KEY_NAME");
     public static String OS_FIP_POOL_NAME = System.getenv("OS_FIP_POOL_NAME");
 
+    // Set only when the execution environment is known to be reachable from OS so JNLP can connect successfully
+    public static boolean OS_REACHABLE = Boolean.getBoolean(System.getenv("OS_REACHABLE"));
+
     @BeforeClass
     public static void statiSetUp() {
         assumeThat("OS_AUTH_URL missing", OS_AUTH_URL, notNullValue());
@@ -147,9 +150,6 @@ public class SeleniumTest extends AbstractJUnitTest {
     @Test
     @WithCredentials(credentialType = WithCredentials.USERNAME_PASSWORD, values = {MACHINE_USERNAME, "ath"}, id = SSH_CRED_ID)
     public void provisionSshSlaveWithPasswdAuth() {
-        boolean isReachableFromOs = Boolean.getBoolean(System.getProperty("SeleniumTest.REACHABLE_FROM_OS"));
-        assumeTrue("Skipping JNLP test as the test host is not reachable from OS. Set SeleniumTest.REACHABLE_FROM_OS in case it is.", isReachableFromOs);
-
         configureCloudInit("cloud-init");
         configureProvisioning("SSH", "label");
 
@@ -173,11 +173,12 @@ public class SeleniumTest extends AbstractJUnitTest {
         job.scheduleBuild().waitUntilFinished(PROVISIONING_TIMEOUT).shouldSucceed();
     }
 
-    // The test will fail when test host is not reachable from openstack machine for obvious reasons
     @Test
     // TODO: JENKINS-30784 Do not bother with credentials for jnlp slaves
     @WithCredentials(credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY, values = {MACHINE_USERNAME, SSH_KEY_PATH}, id = SSH_CRED_ID)
     public void provisionJnlpSlave() {
+        assumeTrue("Skipping JNLP test as the test host is not reachable from OS. Set OS_REACHABLE in case it is.", OS_REACHABLE);
+
         configureCloudInit("cloud-init-jnlp");
         configureProvisioning("JNLP", "label");
 
