@@ -89,7 +89,7 @@ public class SeleniumTest extends AbstractJUnitTest {
     public static String OS_FIP_POOL_NAME = System.getenv("OS_FIP_POOL_NAME");
 
     // Set only when the execution environment is known to be reachable from OS so JNLP can connect successfully
-    public static boolean OS_REACHABLE = Boolean.getBoolean(System.getenv("OS_REACHABLE"));
+    public static boolean OS_REACHABLE = Boolean.parseBoolean(System.getenv("OS_REACHABLE"));
 
     @BeforeClass
     public static void statiSetUp() {
