@@ -43,6 +43,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -153,14 +154,12 @@ public class JCloudsCleanupThreadTest {
     public void deleteLeakedFip() {
         JCloudsCloud cloud = j.dummyCloud();
         Openstack os = cloud.getOpenstack();
-        when(os.getFreeFipIds()).thenReturn(Arrays.asList("busy1", "leaked")).thenReturn(Arrays.asList("leaked", "busy2"));
+        when(os.getFreeFipIds()).thenReturn(Arrays.asList("leaked1", "leaked2"));
 
         j.triggerOpenstackSlaveCleanup();
-        j.triggerOpenstackSlaveCleanup();
 
-        verify(os).destroyFip("leaked");
-        verify(os, never()).destroyFip("busy1");
-        verify(os, never()).destroyFip("busy2");
+        verify(os).destroyFip("leaked1");
+        verify(os).destroyFip("leaked2");
     }
 
     @Test

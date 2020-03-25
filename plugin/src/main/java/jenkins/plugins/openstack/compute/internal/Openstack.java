@@ -73,7 +73,6 @@ import org.openstack4j.core.transport.Config;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.compute.ServerService;
-import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.ResponseException;
 import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.compute.Address;
@@ -345,20 +344,6 @@ public class Openstack {
         return zones;
     }
 
-    /**
-     * @return null when user is not authorized to use the endpoint which is a valid use-case.
-     */
-    private @CheckForNull NetFloatingIPService getComputeFloatingIPService() {
-        try {
-            return clientProvider.get().networking().floatingip();
-        } catch (ClientResponseException ex) {
-            // Not sure if this is still valid after replacing compute FIP service for networking FIP service
-            // https://github.com/jenkinsci/openstack-cloud-plugin/issues/128
-            if (ex.getStatus() == 403) return null;
-            throw ex;
-        }
-    }
-
     public @Nonnull List<Server> getRunningNodes() {
         List<Server> running = new ArrayList<>();
 
@@ -373,14 +358,21 @@ public class Openstack {
         return running;
     }
 
-    public List<String> getFreeFipIds() {
-        ArrayList<String> free = new ArrayList<>();
+    /**
+     * Get list of Floating IPs created for this Jenkins instance that are not connected to any server.
+     */
+    public @Nonnull List<String> getFreeFipIds() {
+        List<String> freeIps = new ArrayList<>();
         for (NetFloatingIP ip : clientProvider.get().networking().floatingip().list()) {
-            if (ip.getFixedIpAddress() == null) {
-                free.add(ip.getId());
-            }
+            if (ip.getFixedIpAddress() != null) continue; // Used
+
+            String serverId = FipScope.getServerId(instanceFingerprint(), ip.getDescription());
+            if (serverId == null) continue; // Not ours
+
+            freeIps.add(ip.getId());
         }
-        return free;
+
+        return freeIps;
     }
 
     public @Nonnull List<String> getSortedKeyPairNames() {
@@ -621,6 +613,10 @@ public class Openstack {
      * Assign floating ip address to the server.
      *
      * Note that after the successful assignment, the Server instance becomes outdated as it does not contain the IP details.
+     *
+     * The IP description will contain fingerprint linking it back to server it was created for. It is guaranteed it will
+     * be created after the server so any IP found without its server running is a leaked one.
+     *
      * @param server Server to assign FIP
      * @param poolName Name of the FIP pool to use.
      */
@@ -628,10 +624,12 @@ public class Openstack {
         debug("Allocating floating IP for {0} in {1}", server.getName(), server.getName());
         NetworkingService networking = clientProvider.get().networking();
 
+        String desc = FipScope.getDescription(instanceFingerprint(), server);
+
         Port port = getServerPorts(server).get(0);
         Network network = networking.network().list(Collections.singletonMap("name", poolName)).get(0);
+        NetFloatingIP fip = Builders.netFloatingIP().floatingNetworkId(network.getId()).portId(port.getId()).description(desc).build();
         try {
-            NetFloatingIP fip = Builders.netFloatingIP().floatingNetworkId(network.getId()).portId(port.getId()).build();
             return networking.floatingip().create(fip);
         } catch (ResponseException ex) {
             // TODO Grab some still IPs from JCloudsCleanupThread

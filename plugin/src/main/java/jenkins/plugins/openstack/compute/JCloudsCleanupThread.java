@@ -42,8 +42,6 @@ import javax.annotation.Nonnull;
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(JCloudsCleanupThread.class.getName());
 
-    private final @Nonnull ListMultimap<String, String> stillFips = ArrayListMultimap.create();
-
     public JCloudsCleanupThread() {
         super("OpenStack slave cleanup");
     }
@@ -72,38 +70,20 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     private void cleanOrphanedFips() {
         for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
-            List<String> cloudStillFips = getStillFipsForCloud(cloud);
+            Openstack openstack = cloud.getOpenstack();
 
-            List<String> leaked = new ArrayList<>(cloud.getOpenstack().getFreeFipIds());
-            List<String> freed = new ArrayList<>(leaked);
-            leaked.retainAll(cloudStillFips); // Free on 2 checks
-            freed.removeAll(leaked); // Just freed
+            List<String> leaked = openstack.getFreeFipIds();
+            if (leaked.isEmpty()) return;
 
-            synchronized (stillFips) {
-                cloudStillFips.clear();
-                cloudStillFips.addAll(freed);
-            }
+            LOGGER.info("Cleaning up floating IPs leaked from cloud " + cloud.name + ": " + leaked);
 
             for (String fip : leaked) {
                 try {
-                    cloud.getOpenstack().destroyFip(fip);
-                } catch (ClientResponseException ex) {
-                    // The tenant is probably reusing pre-allocated FIPs without permission to (de)allocate new.
-                    // https://github.com/jenkinsci/openstack-cloud-plugin/issues/66#issuecomment-207296059
-                    if (ex.getStatusCode() == StatusCode.FORBIDDEN) {
-                        continue;
-                    }
-                    LOGGER.log(Level.WARNING, "Unable to release leaked floating IP", ex);
+                    openstack.destroyFip(fip);
                 } catch (Exception ex) {
-                    LOGGER.log(Level.WARNING, "Unable to release leaked floating IP", ex);
+                    LOGGER.log(Level.WARNING, "Unable to release floating IP " + fip + " leaked from cloud " + cloud.name, ex);
                 }
             }
-        }
-    }
-
-    private List<String> getStillFipsForCloud(JCloudsCloud cloud) {
-        synchronized (stillFips) {
-            return stillFips.get(cloud.name);
         }
     }
 
