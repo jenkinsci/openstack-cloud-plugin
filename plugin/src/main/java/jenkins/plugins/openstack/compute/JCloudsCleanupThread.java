@@ -66,7 +66,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         } catch (JCloudsCloud.LoginFailure ex) {
             LOGGER.log(Level.WARNING, "Unable to authenticate: " + ex.getMessage());
         } catch (Throwable ex) {
-            LOGGER.log(Level.SEVERE, "Enable to perform the cleanup", ex);
+            LOGGER.log(Level.SEVERE, "Unable to perform the cleanup", ex);
         }
     }
 
