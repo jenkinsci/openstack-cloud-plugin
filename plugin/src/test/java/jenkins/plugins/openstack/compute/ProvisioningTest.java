@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -287,11 +288,12 @@ public class ProvisioningTest {
 
         foo.toComputer().doDoDelete();
 
+        Thread.sleep(1000);
         assertCloudMissingReportedOnce(cs, ard, foo);
 
         reschedule(ard);
-        Thread.sleep(1000);
 
+        Thread.sleep(1000);
         assertCloudMissingReportedOnce(cs, ard, foo);
     }
 
@@ -485,8 +487,8 @@ public class ProvisioningTest {
         final int maxTimeToWaitInMilliseconds = 10000;
         final long timestampBeforeWaiting = System.nanoTime();
         while (true) {
-            final Object actual = activityToWaitFor.getPhaseExecution(expectedPhase);
-            if (actual != null) {
+            ProvisioningActivity.Phase current = activityToWaitFor.getCurrentPhase();
+            if (Objects.equals(current, expectedPhase)) {
                 return; // cloud statistics have updated
             }
             final long timestampNow = System.nanoTime();
@@ -494,9 +496,9 @@ public class ProvisioningTest {
             final long timeSpentWaitingInMilliseconds = timeSpentWaitingInNanoseconds / 1000000L;
             final long timeToWaitRemainingInMilliseconds = maxTimeToWaitInMilliseconds - timeSpentWaitingInMilliseconds;
             if (timeToWaitRemainingInMilliseconds <= 0L) {
-                assertNotNull("After waiting " + timeSpentWaitingInMilliseconds + " milliseconds, calling "
-                        + ProvisioningActivity.class.getSimpleName() + ".getPhaseExecution(" + expectedPhase + ") on "
-                        + activityToWaitFor + " still returned null", actual);
+                fail("Timed out waiting " + timeSpentWaitingInMilliseconds + " milliseconds, for " + activityToWaitFor
+                        + " to get into " + expectedPhase + " phase. Actually in " + current
+                );
             }
             final long timeToWaitNowInMilliseconds = Math.min(millisecondsToWaitBetweenPolls,
                     timeToWaitRemainingInMilliseconds);

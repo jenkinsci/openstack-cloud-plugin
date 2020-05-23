@@ -24,11 +24,14 @@ import hudson.slaves.ComputerListener;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodeProvisioner.NodeProvisionerInvoker;
 import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
+import hudson.util.ProcessTree;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
+import jenkins.plugins.openstack.compute.JCloudsComputer;
 import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
 import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
@@ -55,7 +58,6 @@ import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.api.exceptions.AuthenticationException;
-import org.openstack4j.model.common.IdEntity;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.ServerCreate;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -69,6 +71,7 @@ import java.io.File;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -564,19 +567,26 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     @Override
-    public Statement apply(Statement base, Description description) {
-        final Statement jenkinsRuleStatement = super.apply(base, description);
+    public Statement apply(final Statement base, Description description) {
+        final Statement inner = new Statement() {
+            @Override public void evaluate() throws Throwable {
+                base.evaluate();
+
+                // ProcessTree is expected to be called from Remoting thread so we set the result here to prevent failure in detecting
+                Field vetoersExist = ProcessTree.class.getDeclaredField("vetoersExist");
+                vetoersExist.setAccessible(true);
+                vetoersExist.set(null, Boolean.FALSE);
+                for (Map.Entry<String, Proc> slave: slavesToKill.entrySet()) {
+                    killJnlpAgentProcess(slave.getKey(), slave.getValue());
+                }
+            }
+        };
+        final Statement jenkinsRuleStatement = super.apply(inner, description);
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 NodeProvisionerInvoker.INITIALDELAY = NodeProvisionerInvoker.RECURRENCEPERIOD = LoadStatistics.CLOCK = 1000;
-                try {
-                    jenkinsRuleStatement.evaluate();
-                } finally {
-                    for (Map.Entry<String, Proc> slave: slavesToKill.entrySet()) {
-                        killJnlpAgentProcess(slave.getKey(), slave.getValue());
-                    }
-                }
+                jenkinsRuleStatement.evaluate();
             }
         };
     }
