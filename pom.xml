@@ -16,6 +16,21 @@
         <module>ui-tests</module>
     </modules>
 
+    <scm>
+        <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openstack-cloud-plugin.git</developerConnection>
+        <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <id>olivergondza</id>
+            <name>Oliver Gondža</name>
+            <email>ogondza@gmail.com</email>
+        </developer>
+    </developers>
+
     <build>
         <plugins>
             <!-- Do not deploy anything except for the plugin -->
