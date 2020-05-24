@@ -30,6 +30,7 @@ import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv3;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -510,8 +511,8 @@ public class JCloudsCloudTest {
     @Test @Issue("SECURITY-808")
     public void security808() throws Exception {
         j.jenkins.setCrumbIssuer(null);
-        OpenstackCredentialv2 c = new OpenstackCredentialv2(
-                CredentialsScope.SYSTEM, "foo", "", "tenant", "username", "SHHH!"
+        OpenstackCredentialv3 c = new OpenstackCredentialv3(
+                CredentialsScope.SYSTEM, "foo", "", "username", "userdomain", "prjectname", "projectdomain", "SHHH!"
         );
         OpenstackCredentials.add(c);
         DescriptorImpl desc = j.getCloudDescriptor();
