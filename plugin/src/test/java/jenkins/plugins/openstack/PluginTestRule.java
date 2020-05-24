@@ -237,7 +237,7 @@ public final class PluginTestRule extends JenkinsRule {
         Proc proc = new LocalLauncher(listener).launch()
                 .cmds(java, "-jar", "-DstartedBy=" + getTestDescription(), jar.getAbsolutePath(), "-jnlpUrl", url)
                 .stderr(new DecoratingOutputStream(System.err, slaveName + " err: "))
-                .stdout(new DecoratingOutputStream(System.out, slaveName + " out: "))
+                .stdout(new DecoratingOutputStream(System.err, slaveName + " out: "))
                 .start()
         ;
         slavesToKill.put(slaveName, proc);
@@ -605,7 +605,7 @@ public final class PluginTestRule extends JenkinsRule {
         @Override
         public void preLaunch(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
             if (rule == null) return;
-            System.out.println("Autolaunching agent for slave: " + c.getDisplayName());
+            System.err.println("Autolaunching agent for slave: " + c.getDisplayName());
             rule.connectJnlpSlave(c.getDisplayName());
         }
 

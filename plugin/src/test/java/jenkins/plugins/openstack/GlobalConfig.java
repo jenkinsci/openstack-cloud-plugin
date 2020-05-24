@@ -85,7 +85,6 @@ public class GlobalConfig {
             String xpathExpr = wrapper + "//input[@name='_." + name + "']";
             HtmlInput input = page.getFirstByXPath(xpathExpr);
             if (input != null) {
-                //System.out.println(page.getParentNode().getTextContent());
                 xpathExpr += "/../../following-sibling::tr[@class='validation-error-area']/td/div";
                 HtmlDivision validation = page.getFirstByXPath(xpathExpr);
                 return new Element(
