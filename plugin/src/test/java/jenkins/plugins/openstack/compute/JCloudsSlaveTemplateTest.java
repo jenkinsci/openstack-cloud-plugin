@@ -62,13 +62,19 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void configRoundtrip() throws Exception {
 
+        SlaveOptions jnlpOpts = dummySlaveOptions().getBuilder()
+                .launcherFactory(LauncherFactory.JNLP.JNLP)
+                .nodeProperties(Collections.emptyList()) // Distinguish empty from null
+                .build()
+        ;
         JCloudsSlaveTemplate jnlpTemplate = new JCloudsSlaveTemplate(
-                "jnlp-template", "openstack-slave-type1 openstack-type2", dummySlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).build()
+                "jnlp-template", "openstack-slave-type1 openstack-type2", jnlpOpts
         );
 
         LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredentials("sshid"), "mypath");
+        SlaveOptions sshOpts = dummySlaveOptions().getBuilder().launcherFactory(slaveType).build();
         JCloudsSlaveTemplate sshTemplate = new JCloudsSlaveTemplate(
-                "ssh-template", "openstack-slave-type1 openstack-type2", dummySlaveOptions().getBuilder().launcherFactory(slaveType).build()
+                "ssh-template", "openstack-slave-type1 openstack-type2", sshOpts
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(

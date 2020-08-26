@@ -55,6 +55,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
@@ -549,10 +550,14 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         // real property making the API awful. When inline=false, the field is always wrapped in extra level of json object forcing extra
         // describable to be created (between SlaveOptions and properties list) making the API awful again.
         // Therefore, nodeProperties is only propagated to @DBC when hasNodeProperties is true and hasNodeProperties is only processed here.
-        if (!formData.optBoolean("hasNodeProperties")) {
-            formData.remove("nodeProperties");
+        final String NODE_PROPERTIES = "nodeProperties";
+        final String HAS_NODE_PROPERTIES = "hasNodeProperties";
+        if (!formData.optBoolean(HAS_NODE_PROPERTIES)) {
+            formData.remove(NODE_PROPERTIES);
+        } else if (!formData.has(NODE_PROPERTIES)) { // Submitted empty
+            formData.put(NODE_PROPERTIES, Collections.emptyList());
         }
-        formData.remove("hasNodeProperties");
+        formData.remove(HAS_NODE_PROPERTIES);
         return super.newInstance(req, formData);
     }
 }
