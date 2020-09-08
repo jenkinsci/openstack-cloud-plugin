@@ -536,8 +536,8 @@ public class JCloudsCloudTest {
         }
 
         try (ACLContext ignored = ACL.as(User.getOrCreateByIdOrFullName("admin"))) {
-            desc.doTestConnection(true, c.getId(), destination, "");
-            assertEquals(1, credentialsCollectingPortal.reqs.size());
+            FormValidation formValidation = desc.doTestConnection(true, c.getId(), destination, "");
+            assertEquals(formValidation.getMessage(), 1, credentialsCollectingPortal.reqs.size());
         }
     }
 
