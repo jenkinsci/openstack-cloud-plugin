@@ -237,7 +237,7 @@ sufficient to print these. To configure OpenStack plugin logging in
 Jenkins UI go to *Manage Jenkins \> System Log \> New Log Recorder* and
 use `jenkins.plugins.openstack.compute` as the logger name.
 
-#### Access openstack client from groovy console
+#### Access openstack client from [groovy console](https://www.jenkins.io/doc/book/managing/script-console/)
 
 Use `Jenkins.instance.clouds[0].openstack.@clientProvider.get()` to
 access the openstack4j client. Users are discouraged to use this
