@@ -10,6 +10,7 @@ import hudson.model.TaskListener;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Matchers;
+import org.hamcrest.collection.ArrayMatching;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -24,9 +25,8 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.arrayWithSize;
-import static org.hamcrest.collection.IsArrayContainingInAnyOrder.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.*;
 
 public class JCloudsBuildWrapperTest {
@@ -51,7 +51,7 @@ public class JCloudsBuildWrapperTest {
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
                 String[] ips = build.getEnvironment(TaskListener.NULL).get("JCLOUDS_IPS").split(",");
                 assertThat(ips, arrayWithSize(3));
-                assertThat(ips, arrayContainingInAnyOrder("42.42.42.1", "42.42.42.2", "42.42.42.3"));
+                assertThat(ips, ArrayMatching.arrayContainingInAnyOrder("42.42.42.1", "42.42.42.2", "42.42.42.3"));
 
                 List<Server> runningNodes = os.getRunningNodes();
                 assertThat(runningNodes, Matchers.iterableWithSize(3));
