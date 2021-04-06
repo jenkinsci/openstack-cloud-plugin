@@ -236,20 +236,6 @@ public class ProvisioningTest {
         }
     }
 
-    @Test
-    public void doProvisionShouldPreserveCreator() throws Exception {
-        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
-        JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
-
-        JenkinsRule.WebClient wc = j.createWebClient();
-        wc.login("foo", "foo");
-        invokeProvisioning(cloud, wc, "/provision?name=" + template.getName());
-        Thread.sleep(500);
-
-        assertEquals("foo", ((Slave) j.jenkins.getNodes().get(0)).getUserId());
-    }
-
     private XmlPage invokeProvisioning(JCloudsCloud cloud, JenkinsRule.WebClient wc, String s) throws IOException {
         URL configureUrl = new URL(wc.getContextPath() + "cloud/" + cloud.name + s);
         return wc.getPage(wc.addCrumb(new WebRequest(configureUrl, HttpMethod.POST)));
@@ -387,7 +373,7 @@ public class ProvisioningTest {
         List<PhaseExecutionAttachment> attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         PhaseExecutionAttachment att = attachments.get(0);
-        assertEquals("Disk space is too low. Only 0.000GB left on /Fake/it.", att.getTitle());
+        assertEquals("0.000GB left on /Fake/it.", att.getTitle());
 
         slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new OfflineCause.ChannelTermination(new RuntimeException("Broken alright")));

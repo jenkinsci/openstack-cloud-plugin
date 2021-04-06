@@ -7,7 +7,7 @@
     <version>2.57-SNAPSHOT</version>
 
     <properties>
-        <jenkins.version>2.150.3</jenkins.version>
+        <jenkins.version>2.222.4</jenkins.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

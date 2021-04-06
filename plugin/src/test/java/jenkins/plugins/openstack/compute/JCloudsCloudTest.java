@@ -118,9 +118,8 @@ public class JCloudsCloudTest {
     public void testConfigurationUI() throws Exception {
         j.recipeLoadCurrentPlugin();
         j.configRoundtrip();
-        HtmlPage page = j.createWebClient().goTo("configure");
-        final String pageText = page.asText();
-        assertTrue("Cloud Section must be present in the global configuration ", pageText.contains("Cloud"));
+
+        HtmlPage page = j.createWebClient().goTo("configureClouds/");
 
         final HtmlForm configForm = page.getFormByName("config");
         final HtmlButton buttonByCaption = HtmlFormUtil.getButtonByCaption(configForm, "Add a new cloud");
