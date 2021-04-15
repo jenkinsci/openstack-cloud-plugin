@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
@@ -9,7 +10,6 @@ import hudson.model.Failure;
 import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
-import hudson.remoting.Base64;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
@@ -96,6 +96,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     @SuppressWarnings({"deprecation", "UnusedReturnValue", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"})
+    @SuppressFBWarnings({"deprecation", "UnusedReturnValue", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"})
     private Object readResolve() {
         // Initializes data structure that we don't persist.
         labelSet = Label.parse(labelString);
@@ -115,7 +116,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         // Migrate from 2.0 to 2.1
-        //noinspection ConstantConditions
         if (slaveOptions == null) {
             LauncherFactory lf = null;
             if ("SSH".equals(slaveType) || credentialsId != null) {
@@ -329,8 +329,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             UserDataVariableResolver resolver = new UserDataVariableResolver(rootUrl, serverName, labelString, opts);
             String content = Util.replaceMacro(userDataText, resolver);
             assert content != null;
+
             LOGGER.fine("Sending user-data:\n" + content);
-            builder.userData(Base64.encode(content.getBytes(StandardCharsets.UTF_8)));
+            byte[] binaryData = content.getBytes(StandardCharsets.UTF_8);
+            String result = java.util.Base64.getEncoder().encodeToString(binaryData);
+            builder.userData(result);
         }
 
         Boolean configDrive = opts.getConfigDrive();
@@ -350,10 +353,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 openstack.assignFloatingIp(server, poolName);
                 // Make sure address information is reflected in metadata
                 server = openstack.updateInfo(server);
-                LOGGER.info("Amended server: " + server.toString());
+                LOGGER.info("Amended server: " + server);
             }
 
-            LOGGER.info("Provisioned: " + server.toString());
+            LOGGER.info("Provisioned: " + server);
             return server;
         } catch (Throwable ex) {
             // Do not leak the server as we are aborting the provisioning

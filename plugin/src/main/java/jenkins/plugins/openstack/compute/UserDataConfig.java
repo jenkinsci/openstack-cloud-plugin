@@ -48,6 +48,7 @@ public class UserDataConfig extends Config {
     @Extension(ordinal = 70) @Symbol("openstackUserData")
     public static class UserDataConfigProvider extends AbstractConfigProviderImpl {
 
+        @SuppressWarnings("deprecation") // https://github.com/jenkinsci/config-file-provider-plugin/pull/114
         public UserDataConfigProvider() {
             load();
         }

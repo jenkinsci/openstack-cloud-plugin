@@ -162,7 +162,8 @@ public class ProvisioningTest {
         SSHLauncher launcher = (SSHLauncher) ((JCloudsLauncher) slave.getLauncher()).getLauncher();
         assertEquals(slave.getPublicAddress(), launcher.getHost());
         assertEquals("credid", launcher.getCredentialsId());
-        assertEquals("java", launcher.getJavaPath());
+        //noinspection deprecation
+        assertEquals("java", launcher.getJavaPath()); // https://github.com/jenkinsci/ssh-slaves-plugin/commit/9d25b12b1340e00d63a069f54c1b2361f745b6fc#commitcomment-49501649
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
         assertEquals(10, (int) slave.getSlaveOptions().getRetentionTime());
 

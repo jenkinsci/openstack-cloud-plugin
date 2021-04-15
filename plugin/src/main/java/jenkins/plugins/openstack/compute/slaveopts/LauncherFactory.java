@@ -129,11 +129,11 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             int maxNumRetries = 5;
             int retryWaitTime = 15;
 
-            String publicAddress = slave.getPublicAddress();
+            @Nonnull String publicAddress = Objects.requireNonNull(slave.getPublicAddress());
 
             final SlaveOptions opts = slave.getSlaveOptions();
             Integer timeout = opts.getStartTimeout();
-            timeout = timeout == null ? 0: (timeout / 1000); // Never propagate null - always set some timeout
+            timeout = timeout == null ? 0 : (timeout / 1000); // Never propagate null - always set some timeout
 
             return new SSHLauncher(
                     publicAddress, 22,

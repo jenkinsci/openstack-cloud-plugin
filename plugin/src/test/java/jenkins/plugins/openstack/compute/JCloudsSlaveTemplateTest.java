@@ -10,7 +10,6 @@ import java.util.Properties;
 import java.util.stream.Stream;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import hudson.remoting.Base64;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 
@@ -140,7 +139,14 @@ public class JCloudsSlaveTemplateTest {
         verify(os).bootAndWaitActive(captor.capture(), anyInt());
 
         Properties actual = new Properties();
-        actual.load(new ByteArrayInputStream(Base64.decode(captor.getValue().build().getUserData())));
+        byte[] result = null;
+        String encoded = captor.getValue().build().getUserData();
+
+        if (encoded != null) {
+            result = java.util.Base64.getDecoder().decode(encoded);
+        }
+
+        actual.load(new ByteArrayInputStream(result));
         assertEquals(opts.getFsRoot(), actual.getProperty("SLAVE_JENKINS_HOME"));
         assertEquals(opts.getJvmOptions(), actual.getProperty("SLAVE_JVM_OPTIONS"));
         assertEquals(j.getURL().toExternalForm(), actual.getProperty("JENKINS_URL"));

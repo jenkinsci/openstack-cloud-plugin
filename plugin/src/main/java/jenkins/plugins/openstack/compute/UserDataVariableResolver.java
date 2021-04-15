@@ -23,10 +23,9 @@
  */
 package jenkins.plugins.openstack.compute;
 
-import hudson.Functions;
 import hudson.Util;
 import hudson.util.VariableResolver;
-import jenkins.slaves.JnlpSlaveAgentProtocol;
+import jenkins.slaves.JnlpAgentReceiver;
 
 import javax.annotation.Nonnull;
 import java.util.LinkedHashMap;
@@ -71,7 +70,7 @@ import java.util.Map;
         stub(
                 "SLAVE_JNLP_SECRET",
                 "The JNLP 'secret' key. This key authorizes to connect Jenkins agent process to a Jenkins computer. Note that referencing this in server user-data (and then using it to launch agent process) makes it exposed to any user or automation permitted to access the Jenkins agent (including running builds). Also, when OpenStack deployment uses metadata service, which it often does, it must be deployed in a way this is guaranteed not to leak. See <a href='https://wiki.openstack.org/wiki/OSSN/OSSN-0074'>OSSN-0074</a> for further details.",
-                r ->  Util.fixNull(JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(r.serverName))
+                r ->  Util.fixNull(JnlpAgentReceiver.SLAVE_SECRET.mac(r.serverName))
         );
         stub(
                 "SLAVE_LABELS",
