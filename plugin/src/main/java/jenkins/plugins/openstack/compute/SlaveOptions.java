@@ -23,6 +23,7 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.slaves.NodeProperty;
@@ -72,8 +73,9 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final Integer numExecutors;
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
-    private /*final*/ LauncherFactory launcherFactory;
-    private /*final*/ @CheckForNull ArrayList<NodeProperty<?>> nodeProperties;
+    private final LauncherFactory launcherFactory;
+    @SuppressFBWarnings("SE_BAD_FIELD")
+    private final @CheckForNull ArrayList<NodeProperty<?>> nodeProperties;
 
     // Moved into LauncherFactory. Converted to string for the ease of conversion. Note that due to inheritance implemented,
     // the migration needs to be implemented by the holder so this is package protected.

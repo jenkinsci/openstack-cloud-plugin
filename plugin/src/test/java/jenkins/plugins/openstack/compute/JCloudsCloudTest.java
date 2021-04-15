@@ -53,6 +53,7 @@ import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -327,7 +328,7 @@ public class JCloudsCloudTest {
     }
 
     private String fileAsString(String filename) throws IOException {
-        return IOUtils.toString(getClass().getResourceAsStream(getClass().getSimpleName() + "/" + filename));
+        return IOUtils.toString(getClass().getResourceAsStream(getClass().getSimpleName() + "/" + filename), StandardCharsets.UTF_8);
     }
 
     @Test
