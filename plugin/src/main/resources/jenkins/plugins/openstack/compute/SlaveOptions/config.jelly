@@ -10,12 +10,12 @@
  defaultOpts - default options, never null.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:rh="/jenkins/plugins/openstack/form">
     <j:set var="descriptor" value="${defaultOpts.descriptor}"/>
     <j:set var="d" value="${descriptor}"/>
     <f:nested>
         <div name="slaveOptions" descriptorid="${descriptor.id}">
-            <table style="width:100%">
+            <rh:blockWrapper>
                 <f:section title="Cloud Server Options">
                     <f:dropdownDescriptorSelector field="bootSource" title="Boot Source"/>
                     <f:entry title="Hardware" field="hardwareId">
@@ -68,19 +68,19 @@
                     </f:entry>
                     <f:dropdownDescriptorSelector field="launcherFactory" title="Connection type"/>
                     <f:block>
-                        <table style="width:100%">
+                        <rh:blockWrapper>
                             <f:optionalBlock name="hasNodeProperties" checked="${instance.nodeProperties != null}" title="Node Properties" inline="true">
                                 <f:entry>
                                     <f:repeatableHeteroProperty field="nodeProperties" oneEach="true" hasHeader="true"
                                                                 addCaption="Add Node Property" deleteCaption="Delete Node Property"/>
                                 </f:entry>
                             </f:optionalBlock>
-                        </table>
+                        </rh:blockWrapper>
                     </f:block>
                 </f:section>
 
                 <f:class-entry descriptor="${descriptor}"/>
-            </table>
+            </rh:blockWrapper>
         </div>
     </f:nested>
 </j:jelly>

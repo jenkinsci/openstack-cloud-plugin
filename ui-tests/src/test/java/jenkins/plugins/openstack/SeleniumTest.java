@@ -32,6 +32,7 @@ import static org.jenkinsci.test.acceptance.Matchers.*;
 import static org.jenkinsci.test.acceptance.po.FormValidation.Kind.OK;
 import static org.junit.Assert.assertEquals;
 
+import hudson.util.VersionNumber;
 import jenkins.plugins.openstack.po.OpenstackBuildWrapper;
 import jenkins.plugins.openstack.po.OpenstackCloud;
 import jenkins.plugins.openstack.po.OpenstackOneOffSlave;
@@ -39,14 +40,17 @@ import jenkins.plugins.openstack.po.OpenstackSlaveTemplate;
 import jenkins.plugins.openstack.po.UserDataConfig;
 
 import org.jenkinsci.test.acceptance.junit.AbstractJUnitTest;
-import org.jenkinsci.test.acceptance.junit.TestActivation;
 import org.jenkinsci.test.acceptance.junit.WithCredentials;
 import org.jenkinsci.test.acceptance.junit.WithPlugins;
 import org.jenkinsci.test.acceptance.plugins.config_file_provider.ConfigFileProvider;
+import org.jenkinsci.test.acceptance.plugins.credentials.CredentialsPage;
+import org.jenkinsci.test.acceptance.plugins.credentials.ManagedCredentials;
+import org.jenkinsci.test.acceptance.plugins.credentials.UserPwdCredential;
 import org.jenkinsci.test.acceptance.po.Build;
+import org.jenkinsci.test.acceptance.po.ConfigurablePageObject;
 import org.jenkinsci.test.acceptance.po.FormValidation;
 import org.jenkinsci.test.acceptance.po.FreeStyleJob;
-import org.jenkinsci.test.acceptance.po.JenkinsConfig;
+import org.jenkinsci.test.acceptance.po.Jenkins;
 import org.jenkinsci.test.acceptance.po.MatrixBuild;
 import org.jenkinsci.test.acceptance.po.MatrixProject;
 import org.jenkinsci.test.acceptance.po.MatrixRun;
@@ -56,7 +60,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.internal.AssumptionViolatedException;
 import org.jvnet.hudson.test.Issue;
+import org.openqa.selenium.WebElement;
+
+import java.net.URL;
+import java.util.List;
+import java.util.function.Consumer;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
@@ -113,25 +123,16 @@ public class SeleniumTest extends AbstractJUnitTest {
         if ("".equals(OS_PROJECT_DOMAIN_NAME)) OS_PROJECT_DOMAIN_NAME = null;
     }
 
-    @After // Terminate all nodes
+    //@After // Terminate all nodes
     public void tearDown() {
         // We have never left the config - no nodes to terminate
-        if (getCurrentUrl().endsWith("/configure")) return;
+        if (getCurrentUrl().endsWith("/configure") || getCurrentUrl().endsWith("/configureClouds")) return;
         jenkins.runScript("Jenkins.instance.nodes.each { it.terminate() }");
         sleep(5000);
         String s;
         do {
             s = jenkins.runScript("os = Jenkins.instance.clouds[0]?.openstack; if (os) { os.runningNodes.each { os.destroyServer(it) }; return os.runningNodes.size() }; return 0");
         } while (!"0".equals(s));
-    }
-
-    @Test
-    public void testConnection() {
-        JenkinsConfig config = jenkins.getConfigPage();
-        config.configure();
-        OpenstackCloud cloud = addCloud(config);
-        FormValidation val = cloud.testConnection();
-        assertThat(val, FormValidation.reports(OK, startsWith("Connection succeeded!")));
     }
 
     @Test
@@ -270,14 +271,6 @@ public class SeleniumTest extends AbstractJUnitTest {
         waitFor(slave, pageObjectDoesNotExist(), 1000);
     }
 
-    private OpenstackCloud addCloud(JenkinsConfig config) {
-        return config.addCloud(OpenstackCloud.class)
-                .profile(CLOUD_NAME)
-                .endpoint(OS_AUTH_URL)
-                .credential(OS_USERNAME, OS_USER_DOMAIN_NAME, OS_PROJECT_NAME, OS_PROJECT_DOMAIN_NAME, OS_PASSWORD)
-        ;
-    }
-
     private void configureCloudInit(String cloudInitName) {
         ConfigFileProvider fileProvider = new ConfigFileProvider(jenkins);
         UserDataConfig cloudInit = fileProvider.addFile(UserDataConfig.class);
@@ -287,26 +280,64 @@ public class SeleniumTest extends AbstractJUnitTest {
     }
 
     private void configureProvisioning(String type, String labels) {
-        jenkins.configure();
-        OpenstackCloud cloud = addCloud(jenkins.getConfigPage());
-        if (OS_FIP_POOL_NAME != null) {
-            cloud.associateFloatingIp(OS_FIP_POOL_NAME);
-        }
-        cloud.instanceCap(3);
-        OpenstackSlaveTemplate template = cloud.addSlaveTemplate();
+        CloudsConfiguration.addCloud(jenkins, OpenstackCloud.class, cloud -> {
+            if (OS_FIP_POOL_NAME != null) {
+                cloud.associateFloatingIp(OS_FIP_POOL_NAME);
+            }
+            cloud.instanceCap(3);
+            OpenstackSlaveTemplate template = cloud.addSlaveTemplate();
 
-        template.name(CLOUD_DEFAULT_TEMPLATE);
-        template.labels(labels);
-        template.hardwareId(OS_HARDWARE_ID);
-        template.networkId(OS_NETWORK_ID);
-        template.imageId(OS_IMAGE_ID);
-        template.connectionType(type);
-        if ("SSH".equals(type)) {
-            template.sshCredentials(SSH_CRED_ID);
+            template.name(CLOUD_DEFAULT_TEMPLATE);
+            template.labels(labels);
+            template.hardwareId(OS_HARDWARE_ID);
+            template.networkId(OS_NETWORK_ID);
+            template.imageId(OS_IMAGE_ID);
+            template.connectionType(type);
+            if ("SSH".equals(type)) {
+                template.sshCredentials(SSH_CRED_ID);
+            }
+            template.userData(CLOUD_INIT_NAME);
+            template.keyPair(OS_KEY_NAME);
+            template.fsRoot("/tmp/jenkins");
+        });
+    }
+
+    public static final class CloudsConfiguration extends ConfigurablePageObject {
+
+        protected CloudsConfiguration(Jenkins jenkins) {
+            super(jenkins, jenkins.url("configureClouds"));
         }
-        template.userData(CLOUD_INIT_NAME);
-        template.keyPair(OS_KEY_NAME);
-        template.fsRoot("/tmp/jenkins");
-        jenkins.save();
+
+        @Override
+        public URL getConfigUrl() {
+            return url;
+        }
+
+        public static <T> void addCloud(Jenkins jenkins, Class<T> type, Consumer<T> r) {
+            ConfigurablePageObject po;
+            String controlName;
+
+            boolean onGlobalConfig = jenkins.getVersion().isOlderThan(new VersionNumber("2.205"));
+            if (onGlobalConfig) {
+                po = jenkins;
+                controlName = "/jenkins-model-GlobalCloudConfiguration/hetero-list-add[cloud]";
+            } else {
+                po = new CloudsConfiguration(jenkins);
+                controlName = "/hetero-list-add[cloud]";
+            }
+
+            po.configure();
+            po.control(controlName).selectDropdownMenu(type);
+
+            List<WebElement> all = po.all(by.name("cloud"));
+            WebElement last = all.get(all.size() - 1);
+
+            // Hack: instantiating enclosing class even when not needed to get an access to protected #newInstance
+            T cloud = new CloudsConfiguration(jenkins).newInstance(type, po, last.getAttribute("path"));
+
+            r.accept(cloud);
+
+            po.save();
+        }
     }
 }
