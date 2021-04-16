@@ -88,18 +88,18 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
         super(Objects.requireNonNull(metadata.getName()), slaveOptions.getFsRoot(), null /*needs to be set later via setter*/);
 
+        this.cloudName = id.getCloudName(); // TODO deprecate field
+        this.provisioningId = id;
+        this.options = slaveOptions;
+        this.nodeId = metadata.getId();
+        this.cache = makeCache();
+
         setNumExecutors(slaveOptions.getNumExecutors());
         setMode(Mode.NORMAL);
         setLabelString(labelString);
         setRetentionStrategy(new JCloudsRetentionStrategy());
         setNodeProperties(mkNodeProperties(Openstack.getAccessIpAddress(metadata), slaveOptions.getNodeProperties()));
         setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
-
-        this.cloudName = id.getCloudName(); // TODO deprecate field
-        this.provisioningId = id;
-        this.options = slaveOptions;
-        this.nodeId = metadata.getId();
-        this.cache = makeCache();
     }
 
     private static @Nonnull List<NodeProperty<? extends Node>> mkNodeProperties(@CheckForNull String vmIpAddressOrNull,
