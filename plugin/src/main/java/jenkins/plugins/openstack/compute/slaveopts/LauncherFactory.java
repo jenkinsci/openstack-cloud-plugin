@@ -69,6 +69,7 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import io.jenkins.plugins.remotingkafka.KafkaComputerLauncher;
 /**
  * Node launcher factory.
  *
@@ -268,6 +269,53 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             @Override
             public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
                 return JNLP; // Let's avoid creating instances where we can
+            }
+        }
+    }
+
+    /**
+     * Wait for KAFKA connection to be made.
+     */
+    public static final class KAFKA extends LauncherFactory {
+        private static final long serialVersionUID = -1112849796889317241L;
+
+        public static final LauncherFactory KAFKA = new KAFKA();
+
+        @DataBoundConstructor // Needed for JCasC
+        public KAFKA() {}
+
+        @Override
+        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+            Jenkins.get().addNode(slave);
+            return new KafkaComputerLauncher();
+        }
+
+        @Override
+        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
+            // The address might not be visible at all so let's just wait for connection.
+            return slave.getChannel() != null ? null : "KAFKA connection was not established yet";
+        }
+
+        @Override
+        public int hashCode() {
+            return 31;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj != null && getClass() == obj.getClass();
+        }
+
+        private Object readResolve() {
+            return KAFKA; // Let's avoid creating instances where we can
+        }
+
+        @Extension
+        @Symbol("kafka")
+        public static final class Desc extends Descriptor<LauncherFactory> {
+            @Override
+            public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
+                return KAFKA; // Let's avoid creating instances where we can
             }
         }
     }

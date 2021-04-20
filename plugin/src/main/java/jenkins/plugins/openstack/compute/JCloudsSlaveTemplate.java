@@ -122,6 +122,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 lf = new LauncherFactory.SSH(credentialsId);
             } else if("JNLP".equals(slaveType)) {
                 lf = LauncherFactory.JNLP.JNLP;
+            } else if("KAFKA".equals(slaveType)) {
+                lf = LauncherFactory.KAFKA.KAFKA;
             }
 
             BootSource.Image bs = imageId == null ? null : new BootSource.Image(imageId);
@@ -153,6 +155,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             } else if ("SSH".equals(slaveOptions.slaveType)) {
                 lf = new LauncherFactory.SSH(slaveOptions.credentialsId);
                 slaveOptions.slaveType = slaveOptions.credentialsId = null;
+            } else if ("KAFKA".equals(slaveOptions.slaveType)) {
+                lf = LauncherFactory.KAFKA.KAFKA;
+                slaveOptions.slaveType = null;
             }
             if (lf != null) {
                 slaveOptions = slaveOptions.getBuilder().launcherFactory(lf).build();
