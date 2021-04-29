@@ -25,11 +25,15 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.Util;
 import hudson.util.VariableResolver;
+import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
 import jenkins.slaves.JnlpAgentReceiver;
-
+import jenkins.model.Jenkins;
 import javax.annotation.Nonnull;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Base64;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Variable resolver that commits to resolve documented set of variables.
@@ -77,6 +81,26 @@ import java.util.Map;
                 "Labels of the node.",
                 r -> r.labelString
         );
+        stub(
+                "AGENT_NAME",
+                "Agent name",
+                r -> r.serverName
+        );
+        stub(
+                "JENKINS_INSTANCE_IDENTITY",
+                "Jenkins instance identity. See <a href='https://wiki.jenkins.io/display/JENKINS/Instance+Identity'>Instance Identity</a>",
+                r -> Util.fixNull(java.util.Base64.getEncoder().encodeToString(org.jenkinsci.main.modules.instance_identity.InstanceIdentity.get().getPublic().getEncoded()))
+        );
+        stub(
+                "AGENT_JNLP_HOST",
+                "Jenkins agent jnlp host",
+                r -> r.host
+        );
+        stub(
+                "AGENT_JNLP_PORT",
+                "Jenkins agent jnlp port",
+                r -> Util.fixNull(Integer.toString(Jenkins.get().getSlaveAgentPort()))
+        );        
     }
     private static void stub(@Nonnull String name, @Nonnull String doc, @Nonnull ValueCalculator vc) {
         STUB.put(name, new Entry(name, doc, vc));
@@ -85,6 +109,7 @@ import java.util.Map;
     private final @Nonnull String rootUrl;
     private final @Nonnull String serverName;
     private final @Nonnull String labelString;
+    private final @Nonnull String host;
     private final @Nonnull SlaveOptions opts;
 
     /*package*/ UserDataVariableResolver(
@@ -94,6 +119,13 @@ import java.util.Map;
         this.serverName = serverName;
         this.labelString = labelString;
         this.opts = opts;
+        String host;
+        try{
+            host = new URI(rootUrl).getHost();
+        } catch(URISyntaxException ex) {
+            host = rootUrl;
+        }
+        this.host = host;
     }
 
     @Override
