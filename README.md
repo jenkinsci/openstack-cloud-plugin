@@ -205,7 +205,7 @@ credentials:
 
 ### Tips and tricks
 
--   User can manually provision slave from particular cloud/template on
+-   User can manually provision agent from particular cloud/template on
     *Manage Jenkins \> Manage Nodes.*
 -   Plugin identifies OpenStack image/snapshot to provision by its name.
     The image can be updated/replaced in openstack and the plugin will
@@ -223,7 +223,7 @@ credentials:
     that plugin failed to delete. In case the instance get leaked,
     please report that as a bug with all relevant FINE level logs
     attached.
--   On every slave provisioned by the plugin, there is an environment
+-   On every agent provisioned by the plugin, there is an environment
     variable `OPENSTACK_PUBLIC_IP` declared with the public IP address
     allocated for the machine.
 
