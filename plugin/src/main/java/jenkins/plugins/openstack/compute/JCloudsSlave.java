@@ -159,10 +159,15 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                     .jvmOptions(Util.fixEmpty(jvmOptions))
             ;
 
-            LauncherFactory lf = "SSH".equals(slaveType)
-                    ? new LauncherFactory.SSH(credentialsId)
-                    : LauncherFactory.JNLP.JNLP
-            ;
+            LauncherFactory lf = null;
+            if ("SSH".equals(slaveType)) {
+                lf = new LauncherFactory.SSH(credentialsId);
+            } else if ("JNLP".equals(slaveType)) {
+                lf = LauncherFactory.JNLP.JNLP;
+            } else if ("KAFKA".equals(slaveType)) {
+                lf = LauncherFactory.KAFKA.KAFKA;
+            }
+
             builder.launcherFactory(lf);
 
             if (overrideRetentionTime > 0) {

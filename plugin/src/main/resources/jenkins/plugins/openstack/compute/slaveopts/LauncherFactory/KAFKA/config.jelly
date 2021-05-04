@@ -1,0 +1,9 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:section title="KAFKA remote agent launch">
+        <f:entry>
+            <p>Jenkins will wait for the Kafka connection to be initiated from the slave itself. Note this plugin does not initiate
+            that. See help for <i>User Data</i> field for more information on the available options.</p>
+        </f:entry>
+    </f:section>
+</j:jelly>

@@ -164,6 +164,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         LauncherFactory lf = null;
         if ("JNLP".equals(slaveOptions.slaveType)) {
             lf = LauncherFactory.JNLP.JNLP;
+        } else if ("KAFKA".equals(slaveOptions.slaveType)) {
+            lf = LauncherFactory.KAFKA.KAFKA;
         } else if (!"JNLP".equals(slaveOptions.slaveType) && slaveOptions.credentialsId != null) {
             // user configured credentials and clearly rely on SSH launcher that used to be the default so bring it back
             lf = new LauncherFactory.SSH(slaveOptions.credentialsId);
