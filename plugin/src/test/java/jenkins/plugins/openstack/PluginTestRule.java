@@ -389,7 +389,7 @@ public final class PluginTestRule extends JenkinsRule {
             }
             return machine;
         });
-        when(os.updateInfo(any(Server.class))).thenAnswer((Answer<Server>) invocation1 -> (Server) invocation1.getArguments()[0]);
+        when(os.assignFloatingIp(any(Server.class), any(String.class))).thenAnswer((Answer<Server>) invocation1 -> (Server) invocation1.getArguments()[0]);
         when(os.getRunningNodes()).thenAnswer((Answer<List<Server>>) invocation1 -> {
             synchronized (running) {
                 return new ArrayList<>(running);

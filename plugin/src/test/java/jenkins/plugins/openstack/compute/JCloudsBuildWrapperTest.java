@@ -82,7 +82,7 @@ public class JCloudsBuildWrapperTest {
                 .thenReturn(success)
                 .thenThrow(new Openstack.ActionFailed("It is broken, alright!"))
         ;
-        when(os.updateInfo(any(Server.class))).thenReturn(success);
+        when(os.assignFloatingIp(any(Server.class), any(String.class))).thenReturn(success);
         Network network = mock(Network.class);
         String networkId = opts.getNetworkId();
         when(network.getId()).thenReturn(networkId); when(network.getName()).thenReturn("netname");
@@ -98,7 +98,6 @@ public class JCloudsBuildWrapperTest {
         j.assertLogContains("One or more instances failed to launch", build);
 
         verify(os, times(2)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
-        verify(os, times(1)).updateInfo(any(Server.class));
         verify(os, times(1)).assignFloatingIp(any(Server.class), eq("custom"));
         verify(os, times(1)).destroyServer(any(Server.class)); // Cleanup after the successful attempt
     }
