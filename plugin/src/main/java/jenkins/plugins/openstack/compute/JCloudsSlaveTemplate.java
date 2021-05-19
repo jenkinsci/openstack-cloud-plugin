@@ -29,6 +29,7 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
 
 import javax.annotation.CheckForNull;
@@ -262,7 +263,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     @Restricted(NoExternalUse.class)
-    public @Nonnull Server provisionServer(@CheckForNull ServerScope scope, @CheckForNull ProvisioningActivity.Id id) throws Openstack.ActionFailed {
+    public @Nonnull Server provisionServer(
+            @CheckForNull ServerScope scope, @CheckForNull ProvisioningActivity.Id id
+    ) throws Openstack.ActionFailed {
         final String serverName = getServerName();
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
@@ -342,21 +345,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
-
         try {
             if (bootSource != null) {
                 bootSource.afterProvisioning(server, openstack);
             }
+            LOGGER.info("Provisioned: " + server);
             String poolName = opts.getFloatingIpPool();
             if (poolName != null) {
                 LOGGER.fine("Assigning floating IP from " + poolName + " to " + serverName);
-                openstack.assignFloatingIp(server, poolName);
-                // Make sure address information is reflected in metadata
-                server = openstack.updateInfo(server);
+                server = openstack.assignFloatingIp(server, poolName);
                 LOGGER.info("Amended server: " + server);
             }
 
-            LOGGER.info("Provisioned: " + server);
             return server;
         } catch (Throwable ex) {
             // Do not leak the server as we are aborting the provisioning

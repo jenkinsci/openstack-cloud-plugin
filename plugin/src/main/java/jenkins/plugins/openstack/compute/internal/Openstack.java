@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
@@ -612,15 +613,16 @@ public class Openstack {
     /**
      * Assign floating ip address to the server.
      *
-     * Note that after the successful assignment, the Server instance becomes outdated as it does not contain the IP details.
+     * Note that after the successful assignment, the old Server instance becomes outdated as it does not contain the IP details.
      *
      * The IP description will contain fingerprint linking it back to server it was created for. It is guaranteed it will
      * be created after the server so any IP found without its server running is a leaked one.
      *
      * @param server Server to assign FIP
      * @param poolName Name of the FIP pool to use.
+     * @return Updated server.
      */
-    public @Nonnull NetFloatingIP assignFloatingIp(@Nonnull Server server, @Nonnull String poolName) throws ActionFailed {
+    public @Nonnull Server assignFloatingIp(@Nonnull Server server, @Nonnull String poolName) throws ActionFailed {
         debug("Allocating floating IP for {0} in {1}", server.getName(), server.getName());
         NetworkingService networking = clientProvider.get().networking();
 
@@ -630,7 +632,27 @@ public class Openstack {
         Network network = networking.network().list(Collections.singletonMap("name", poolName)).get(0);
         NetFloatingIP fip = Builders.netFloatingIP().floatingNetworkId(network.getId()).portId(port.getId()).description(desc).build();
         try {
-            return networking.floatingip().create(fip);
+            NetFloatingIP ip = networking.floatingip().create(fip);
+            // Make sure address information is reflected in metadata
+            for (int i = 0; i < 30; i++) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt(); // Reset interrupt flag
+                    throw new ActionFailed("Interrupted", ex);
+                }
+                server = updateInfo(server);
+                Optional<? extends Address> newIp = server.getAddresses().getAddresses().values().stream()
+                        .flatMap(Collection::stream)
+                        .filter(address -> Objects.equals(address.getAddr(), ip.getFloatingIpAddress()))
+                        .findFirst()
+                ;
+                if (newIp.isPresent()) {
+                    return server;
+                }
+            }
+            destroyFip(ip.getId());
+            throw new ActionFailed("IP address not propagated in time for " + server.getName());
         } catch (ResponseException ex) {
             // TODO Grab some still IPs from JCloudsCleanupThread
             throw new ActionFailed(ex.getMessage() + " Allocating for " + server.getName(), ex);
@@ -658,9 +680,13 @@ public class Openstack {
      * @throws NoSuchElementException When no suitable address is found.
      */
     public static @CheckForNull String getAccessIpAddress(@Nonnull Server server) throws IllegalArgumentException, NoSuchElementException {
-        String fixedIPv4 = null;
-        String fixedIPv6 = null;
-        String floatingIPv6 = null;
+        return getAccessIpAddressObject(server).getAddr();
+    }
+
+    public static Address getAccessIpAddressObject(@Nonnull Server server) {
+        Address fixedIPv4 = null;
+        Address fixedIPv6 = null;
+        Address floatingIPv6 = null;
         Collection<List<? extends Address>> addressMap = server.getAddresses().getAddresses().values();
         for (List<? extends Address> addresses: addressMap) {
             for (Address addr: addresses) {
@@ -675,20 +701,20 @@ public class Openstack {
                 if (Objects.equals(type, "floating")) {
                     if (version == 4) {
                         // The most favourable option so we can return early here
-                        return address;
+                        return addr;
                     } else {
                         if (floatingIPv6 == null) {
-                            floatingIPv6 = address;
+                            floatingIPv6 = addr;
                         }
                     }
                 } else {
                     if (version == 4) {
                         if (fixedIPv4 == null) {
-                            fixedIPv4 = address;
+                            fixedIPv4 = addr;
                         }
                     } else {
                         if (fixedIPv6 == null) {
-                            fixedIPv6 = address;
+                            fixedIPv6 = addr;
                         }
                     }
                 }

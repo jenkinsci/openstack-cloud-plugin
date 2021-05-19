@@ -102,7 +102,6 @@ public class ProvisioningTest {
         verify(os, atLeastOnce()).getRunningNodes();
         verify(os, times(2)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
         verify(os, times(2)).assignFloatingIp(any(Server.class), eq("custom"));
-        verify(os, times(2)).updateInfo(any(Server.class));
         verify(os, atLeastOnce()).destroyServer(any(Server.class));
 
         List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
