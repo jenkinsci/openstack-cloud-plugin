@@ -230,7 +230,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     private Object readResolve() {
         if (bootSource == null && imageId != null) {
-            bootSource = new BootSource.Image(imageId);
+            bootSource = new BootSource.Image(imageId, null, false);
         }
         imageId = null;
         return this;
