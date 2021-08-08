@@ -20,8 +20,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -34,8 +36,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.openstack4j.model.compute.Server;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 
 public class JCloudsBuildWrapper extends BuildWrapper {
@@ -60,17 +60,13 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         final ServerScope.Build scope = new ServerScope.Build(build);
 
         // eagerly lookup node supplier so that errors occur before we attempt to provision things
-        Iterable<NodePlan> nodePlans = Iterables.transform(instancesToRun, new Function<InstancesToRun, NodePlan>() {
-
-            @SuppressWarnings("unchecked")
-            public NodePlan apply(InstancesToRun instance) {
-                JCloudsCloud cloud = JCloudsCloud.getByName(instance.cloudName);
-                String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
-                JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
-                if (template == null) throw new IllegalArgumentException("No such template " + templateName);
-                return new NodePlan(cloud, template, instance.count, scope);
-            }
-        });
+        Iterable<NodePlan> nodePlans = instancesToRun.stream().map(instance -> {
+            JCloudsCloud cloud = JCloudsCloud.getByName(Objects.requireNonNull(instance.cloudName));
+            String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
+            JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
+            if (template == null) throw new IllegalArgumentException("No such template " + templateName);
+            return new NodePlan(cloud, template, instance.count, scope);
+        }).collect(Collectors.toList());
 
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
         final ImmutableList.Builder<RunningNode> cloudTemplateNodeBuilder = ImmutableList.builder();
@@ -89,7 +85,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
 
                 ListenableFuture<Server> provisionTemplate = executor.submit(nodePlan.getNodeSupplier());
 
-                Futures.addCallback(provisionTemplate, new FutureCallback<Server>() {
+                FutureCallback<Server> callback = new FutureCallback<Server>() {
                     public void onSuccess(Server result) {
                         if (result != null) {
                             synchronized (cloudTemplateNodeBuilder) {
@@ -108,7 +104,8 @@ public class JCloudsBuildWrapper extends BuildWrapper {
                                 index, nodePlan.getCloud(), nodePlan.getTemplate(), Functions.printThrowable(t)
                         );
                     }
-                });
+                };
+                Futures.addCallback(provisionTemplate, callback, MoreExecutors.directExecutor());
 
                 plannedInstancesBuilder.add(provisionTemplate);
             }
