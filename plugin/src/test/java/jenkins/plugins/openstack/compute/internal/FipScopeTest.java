@@ -34,14 +34,16 @@ import static org.mockito.Mockito.when;
 
 public class FipScopeTest {
 
-    private static final String FNGRPRNT = "https://some-quite-long-jenkins-url-to-make-sure-it-fits.acme.com:8080/jenkins";
-    public static final String REALISTIC_EXAMPLE
-            = "{ 'jenkins-instance': 'https://some-quite-long-jenkins-url-to-make-sure-it-fits.acme.com:8080/jenkins', 'jenkins-scope': 'server:d8eca2df-7795-4069-b2ef-1e2412491345' }";
+    private static final String URL = "https://some-quite-long-jenkins-url-to-make-sure-it-fits.acme.com:8080/jenkins";
+    private static final String FINGERPRINT = "3919bce9a2f5fc4f730bd6462e23454ecb1fb089";
+    public static final String LEGACY_DESCRIPTION = "{ 'jenkins-instance': 'https://some-quite-long-jenkins-url-to-make-sure-it-fits.acme.com:8080/jenkins', 'jenkins-scope': 'server:d8eca2df-7795-4069-b2ef-1e2412491345' }";
+    public static final String EXPECTED_DESCRIPTION = "{ 'jenkins-instance': 'https://some-quite-long-jenkins-url-to-make-sure-it-fits.acme.com:8080/jenkins', 'jenkins-identity': '3919bce9a2f5fc4f730bd6462e23454ecb1fb089', 'jenkins-scope': 'server:d8eca2df-7795-4069-b2ef-1e2412491345' }";
+    public static final String ABBREVIATED_DESCRIPTION = "{ 'jenkins-identity': '3919bce9a2f5fc4f730bd6462e23454ecb1fb089', 'jenkins-scope': 'server:d8eca2df-7795-4069-b2ef-1e2412491345' }";
 
     @Test
     public void getDescription() {
-        assertEquals(REALISTIC_EXAMPLE, FipScope.getDescription(FNGRPRNT, server("d8eca2df-7795-4069-b2ef-1e2412491345")));
-        assertThat("Possible length is larger than maximal size of FIP description", REALISTIC_EXAMPLE.length(), lessThanOrEqualTo(250));
+        assertEquals(EXPECTED_DESCRIPTION, FipScope.getDescription(URL, FINGERPRINT, server("d8eca2df-7795-4069-b2ef-1e2412491345")));
+        assertThat("Possible length is larger than maximal size of FIP description", EXPECTED_DESCRIPTION.length(), lessThanOrEqualTo(FipScope.MAX_DESCRIPTION_LENGTH));
     }
 
     private Server server(String id) {
@@ -52,13 +54,16 @@ public class FipScopeTest {
 
     @Test
     public void getServerId() {
-        assertEquals("d8eca2df-7795-4069-b2ef-1e2412491345", FipScope.getServerId(FNGRPRNT, REALISTIC_EXAMPLE));
+//        assertEquals("d8eca2df-7795-4069-b2ef-1e2412491345", FipScope.getServerId(URL, FINGERPRINT, EXPECTED_DESCRIPTION));
+        assertEquals("d8eca2df-7795-4069-b2ef-1e2412491345", FipScope.getServerId(URL, FINGERPRINT, LEGACY_DESCRIPTION));
+        assertEquals("d8eca2df-7795-4069-b2ef-1e2412491345", FipScope.getServerId(URL, FINGERPRINT, ABBREVIATED_DESCRIPTION));
 
-        assertNull(FipScope.getServerId(FNGRPRNT, "{ 'jenkins-instance': 'https://some.other.jenkins.io', 'jenkins-scope': 'server:d8eca2df-7795-4069-b2ef-1e2412491345' }"));
-        assertNull(FipScope.getServerId(FNGRPRNT, "{ [ 'not', 'the', 'json', 'you', 'expect' ] }"));
-        assertNull(FipScope.getServerId(FNGRPRNT, "[ 'not', 'the', 'json', 'you', 'expect' ]"));
-        assertNull(FipScope.getServerId(FNGRPRNT, "Human description"));
-        assertNull(FipScope.getServerId(FNGRPRNT, ""));
-        assertNull(FipScope.getServerId(FNGRPRNT, null));
+        assertNull(FipScope.getServerId(URL, FINGERPRINT, "{ 'jenkins-instance': 'https://some.other.jenkins.io', 'jenkins-scope': 'server:d8eca2df-7795-4069-b2ef-1e2412491345' }"));
+        assertNull(FipScope.getServerId(URL, FINGERPRINT, "{ 'jenkins-identity': 'different-than-expected', 'jenkins-scope': 'server:d8eca2df-7795-4069-b2ef-1e2412491345' }"));
+        assertNull(FipScope.getServerId(URL, FINGERPRINT, "{ foo: [ 'not', 'the', 'json', 'you', 'expect' ] }"));
+        assertNull(FipScope.getServerId(URL, FINGERPRINT, "[ 'not', 'the', 'json', 'you', 'expect' ]"));
+        assertNull(FipScope.getServerId(URL, FINGERPRINT, "Human description"));
+        assertNull(FipScope.getServerId(URL, FINGERPRINT, ""));
+        assertNull(FipScope.getServerId(URL, FINGERPRINT, null));
     }
 }

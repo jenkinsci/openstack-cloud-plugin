@@ -91,6 +91,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -374,7 +375,11 @@ public final class PluginTestRule extends JenkinsRule {
             Map<String, Network> nets = (Map<String, Network>) invocation.getArguments()[0];
             return nets.values().stream().collect(Collectors.toMap(n -> n, b -> 100));
         });
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer((Answer<Server>) invocation -> {
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenCallRealMethod();
+        doCallRealMethod().when(os).attachFingerprint(any(ServerCreateBuilder.class));
+        doCallRealMethod().when(os).instanceUrl();
+        doCallRealMethod().when(os).instanceFingerprint();
+        when(os._bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenAnswer((Answer<Server>) invocation -> {
             ServerCreateBuilder builder = (ServerCreateBuilder) invocation.getArguments()[0];
 
             ServerCreate create = builder.build();
@@ -508,7 +513,6 @@ public final class PluginTestRule extends JenkinsRule {
             when(server.getStatus()).thenReturn(Server.Status.ACTIVE);
             when(server.getMetadata()).thenReturn(metadata);
             when(server.getOsExtendedVolumesAttached()).thenReturn(Collections.singletonList(UUID.randomUUID().toString()));
-            metadata.put("jenkins-instance", jenkins.getRootUrl()); // Mark the slave as ours
         }
 
         public MockServerBuilder name(String name) {

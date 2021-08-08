@@ -25,6 +25,8 @@ package jenkins.plugins.openstack.compute.internal;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -53,6 +55,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -65,6 +68,9 @@ import hudson.Util;
 import hudson.remoting.Which;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.api.Builders;
@@ -116,7 +122,10 @@ import jenkins.model.Jenkins;
 public class Openstack {
 
     private static final Logger LOGGER = Logger.getLogger(Openstack.class.getName());
-    public static final String FINGERPRINT_KEY = "jenkins-instance";
+    public static final String FINGERPRINT_KEY_URL = "jenkins-instance";
+    public static final String FINGERPRINT_KEY_FINGERPRINT = "jenkins-identity";
+
+    private static String INSTANCE_FINGERPRINT;
 
     private static final Comparator<Date> ACCEPT_NULLS = Comparator.nullsLast(Comparator.naturalOrder());
     private static final Comparator<Flavor> FLAVOR_COMPARATOR = Comparator.nullsLast(Comparator.comparing(Flavor::getName));
@@ -367,7 +376,7 @@ public class Openstack {
         for (NetFloatingIP ip : clientProvider.get().networking().floatingip().list()) {
             if (ip.getFixedIpAddress() != null) continue; // Used
 
-            String serverId = FipScope.getServerId(instanceFingerprint(), ip.getDescription());
+            String serverId = FipScope.getServerId(instanceUrl(), instanceFingerprint(), ip.getDescription());
             if (serverId == null) continue; // Not ours
 
             freeIps.add(ip.getId());
@@ -489,7 +498,12 @@ public class Openstack {
     }
 
     private boolean isOurs(@Nonnull Server server) {
-        return instanceFingerprint().equals(server.getMetadata().get(FINGERPRINT_KEY));
+        Map<String, String> metadata = server.getMetadata();
+        String serverFingerprint = metadata.get(FINGERPRINT_KEY_FINGERPRINT);
+        return serverFingerprint == null
+                ? Objects.equals(instanceUrl(), metadata.get(FINGERPRINT_KEY_URL)) // Earlier versions ware only using URL, collect severs provisioned by those
+                : Objects.equals(instanceUrl(), metadata.get(FINGERPRINT_KEY_URL)) && Objects.equals(instanceFingerprint(), serverFingerprint)
+        ;
     }
 
     /**
@@ -497,10 +511,26 @@ public class Openstack {
      *
      * @return Identifier to filter instances we control.
      */
-    private @Nonnull String instanceFingerprint() {
+    @VisibleForTesting
+    public @Nonnull String instanceUrl() {
         String rootUrl = Jenkins.get().getRootUrl();
         if (rootUrl == null) throw new IllegalStateException("Jenkins instance URL is not configured");
         return rootUrl;
+    }
+
+    /**
+     * Binary fingerprint to be unique worldwide.
+     */
+    @VisibleForTesting
+    public @Nonnull String instanceFingerprint() {
+        if (INSTANCE_FINGERPRINT == null) {
+            // Use salted hash not to disclose the public key. The key is used to authenticate agent connections.
+            INSTANCE_FINGERPRINT = DigestUtils.sha1Hex(
+                    "openstack-cloud-plugin-identity-fingerprint:"
+                    + new String(Base64.encodeBase64(InstanceIdentity.get().getPublic().getEncoded()), Charsets.UTF_8)
+            );
+        }
+        return INSTANCE_FINGERPRINT;
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
@@ -526,6 +556,9 @@ public class Openstack {
      */
     public @Nonnull Server bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) throws ActionFailed {
         debug("Booting machine");
+
+        // Mark the server as ours
+        attachFingerprint(request);
         try {
             Server server = _bootAndWaitActive(request, timeout);
             if (server == null) {
@@ -558,9 +591,14 @@ public class Openstack {
         }
     }
 
+    @VisibleForTesting // mocking
+    public void attachFingerprint(@Nonnull ServerCreateBuilder request) {
+        request.addMetadataItem(FINGERPRINT_KEY_URL, instanceUrl());
+        request.addMetadataItem(FINGERPRINT_KEY_FINGERPRINT, instanceFingerprint());
+    }
+
     @Restricted(NoExternalUse.class) // Test hook
     public Server _bootAndWaitActive(@Nonnull ServerCreateBuilder request, @Nonnegative int timeout) {
-        request.addMetadataItem(FINGERPRINT_KEY, instanceFingerprint());
         return clientProvider.get().compute().servers().bootAndWaitActive(request.build(), timeout);
     }
 
@@ -626,7 +664,7 @@ public class Openstack {
         debug("Allocating floating IP for {0} in {1}", server.getName(), server.getName());
         NetworkingService networking = clientProvider.get().networking();
 
-        String desc = FipScope.getDescription(instanceFingerprint(), server);
+        String desc = FipScope.getDescription(instanceUrl(), instanceFingerprint(), server);
 
         Port port = getServerPorts(server).get(0);
         Network network = networking.network().list(Collections.singletonMap("name", poolName)).get(0);

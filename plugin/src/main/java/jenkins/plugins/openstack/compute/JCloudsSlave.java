@@ -59,7 +59,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     /** metadata fields that aren't worth showing to the user. */
     private static final List<String> HIDDEN_METADATA_VALUES = Arrays.asList(
-            Openstack.FINGERPRINT_KEY,
+            Openstack.FINGERPRINT_KEY_FINGERPRINT,
+            Openstack.FINGERPRINT_KEY_URL,
             JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY,
             JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY,
             ServerScope.METADATA_KEY

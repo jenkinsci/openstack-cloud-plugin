@@ -379,6 +379,7 @@ public class OpenstackTest {
 
         doReturn(server).when(os)._bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
         doThrow(new Openstack.ActionFailed("Fake deletion failure")).when(os).destroyServer(server);
+        doNothing().when(os).attachFingerprint(any(ServerCreateBuilder.class));
 
         try {
             os.bootAndWaitActive(mock(ServerCreateBuilder.class), 1);

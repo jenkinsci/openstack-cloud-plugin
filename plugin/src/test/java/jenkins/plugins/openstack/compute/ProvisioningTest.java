@@ -7,7 +7,6 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.plugins.sshslaves.SSHLauncher;
@@ -43,13 +42,16 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import static jenkins.plugins.openstack.compute.internal.Openstack.FINGERPRINT_KEY_FINGERPRINT;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -299,10 +301,13 @@ public class ProvisioningTest {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
 
+        assertThat(cloud.getOpenstack().instanceUrl(), not(emptyString()));
+        assertThat(cloud.getOpenstack().instanceFingerprint(), not(emptyString()));
+System.out.println(cloud.getOpenstack().instanceFingerprint());
         Server server = template.provisionServer(null, null);
         Map<String, String> m = server.getMetadata();
-
-        assertEquals(j.getURL().toExternalForm(), m.get(Openstack.FINGERPRINT_KEY));
+        assertEquals(cloud.getOpenstack().instanceUrl(), m.get(Openstack.FINGERPRINT_KEY_URL));
+        assertEquals(cloud.getOpenstack().instanceFingerprint(), m.get(FINGERPRINT_KEY_FINGERPRINT));
         assertEquals(cloud.name, m.get(JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY));
         assertEquals(template.getName(), m.get(JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY));
         assertEquals(new ServerScope.Node(server.getName()).getValue(), m.get(ServerScope.METADATA_KEY));
