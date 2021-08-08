@@ -859,7 +859,7 @@ public class Openstack {
                 if (cause instanceof RuntimeException) {
                     throw (RuntimeException) cause;
                 }
-                throw new RuntimeException(e);
+                throw e;
             }
         }
 

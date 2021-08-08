@@ -309,7 +309,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             if (cause instanceof RuntimeException) {
                 throw (RuntimeException) cause;
             }
-            throw new RuntimeException(e);
+            throw e;
         }
     }
 
