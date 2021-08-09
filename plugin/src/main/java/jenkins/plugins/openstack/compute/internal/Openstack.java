@@ -23,8 +23,54 @@
  */
 package jenkins.plugins.openstack.compute.internal;
 
-import java.io.File;
-import java.io.IOException;
+import com.cloudbees.plugins.credentials.common.PasswordCredentials;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.ExtensionPoint;
+import hudson.Util;
+import hudson.util.FormValidation;
+import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.openstack4j.api.Builders;
+import org.openstack4j.api.OSClient;
+import org.openstack4j.api.client.IOSClientBuilder;
+import org.openstack4j.api.compute.ServerService;
+import org.openstack4j.api.exceptions.ResponseException;
+import org.openstack4j.api.networking.NetFloatingIPService;
+import org.openstack4j.api.networking.NetworkingService;
+import org.openstack4j.core.transport.Config;
+import org.openstack4j.model.common.ActionResponse;
+import org.openstack4j.model.compute.Address;
+import org.openstack4j.model.compute.Fault;
+import org.openstack4j.model.compute.Flavor;
+import org.openstack4j.model.compute.Keypair;
+import org.openstack4j.model.compute.Server;
+import org.openstack4j.model.compute.builder.ServerCreateBuilder;
+import org.openstack4j.model.compute.ext.AvailabilityZone;
+import org.openstack4j.model.identity.v2.Access;
+import org.openstack4j.model.identity.v3.Token;
+import org.openstack4j.model.image.v2.Image;
+import org.openstack4j.model.network.NetFloatingIP;
+import org.openstack4j.model.network.Network;
+import org.openstack4j.model.network.Port;
+import org.openstack4j.model.network.Router;
+import org.openstack4j.model.network.ext.NetworkIPAvailability;
+import org.openstack4j.model.network.options.PortListOptions;
+import org.openstack4j.model.storage.block.Volume;
+import org.openstack4j.model.storage.block.Volume.Status;
+import org.openstack4j.model.storage.block.VolumeSnapshot;
+import org.openstack4j.openstack.OSFactory;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnegative;
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,65 +85,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnegative;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
-
-import com.cloudbees.plugins.credentials.common.PasswordCredentials;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.util.concurrent.UncheckedExecutionException;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.ExtensionPoint;
-import hudson.Util;
-import hudson.remoting.Which;
-import hudson.util.FormValidation;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.openstack4j.api.Builders;
-import org.openstack4j.api.networking.NetFloatingIPService;
-import org.openstack4j.api.networking.NetworkingService;
-import org.openstack4j.core.transport.Config;
-import org.openstack4j.api.OSClient;
-import org.openstack4j.api.client.IOSClientBuilder;
-import org.openstack4j.api.compute.ServerService;
-import org.openstack4j.api.exceptions.ResponseException;
-import org.openstack4j.model.common.ActionResponse;
-import org.openstack4j.model.compute.Address;
-import org.openstack4j.model.compute.Fault;
-import org.openstack4j.model.compute.Flavor;
-import org.openstack4j.model.compute.Keypair;
-import org.openstack4j.model.compute.Server;
-import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.model.compute.ext.AvailabilityZone;
-import org.openstack4j.model.identity.v2.Access;
-import org.openstack4j.model.identity.v3.Token;
-import org.openstack4j.model.image.v2.Image;
-import org.openstack4j.model.network.NetFloatingIP;
-import org.openstack4j.model.network.Network;
-import org.openstack4j.model.network.Router;
-import org.openstack4j.model.network.Port;
-import org.openstack4j.model.network.ext.NetworkIPAvailability;
-import org.openstack4j.model.network.options.PortListOptions;
-import org.openstack4j.model.storage.block.Volume;
-import org.openstack4j.model.storage.block.Volume.Status;
-import org.openstack4j.model.storage.block.VolumeSnapshot;
-import org.openstack4j.openstack.OSFactory;
-
-import jenkins.model.Jenkins;
 
 /**
  * Encapsulate {@link OSClient}.
@@ -820,7 +812,7 @@ public class Openstack {
 
     @Restricted(NoExternalUse.class) // Extension point just for testing
     public static abstract class FactoryEP implements ExtensionPoint {
-        private final transient @Nonnull Cache<String, Openstack> cache = CacheBuilder.newBuilder()
+        private final transient @Nonnull Cache<String, Openstack> cache = Caffeine.newBuilder()
                 // There is no clear reasoning behind particular expiration policy except that individual instances can
                 // have different token expiration time, which is something guava does not support. This expiration needs
                 // to be implemented separately.
@@ -847,12 +839,18 @@ public class Openstack {
                     + (auth instanceof PasswordCredentials ? ((PasswordCredentials) auth).getPassword().getEncryptedValue() + '\n' : "")
                     + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
-            final Callable<Openstack> cacheMissFunction = () -> ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
+            final Function<String, Openstack> cacheMissFunction = (String unused) -> {
+                try {
+                    return ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
+                } catch (FormValidation ex) {
+                    throw new RuntimeException(ex);
+                }
+            };
 
-            // Get an instance, creating a new one if necessary.
             try {
-                return ep.cache.get(fingerprint, cacheMissFunction);
-            } catch (UncheckedExecutionException | ExecutionException e) {
+                // cacheMissFunction is guaranteed to return nonnull
+                return Objects.requireNonNull(ep.cache.get(fingerprint, cacheMissFunction));
+            } catch (RuntimeException e) { // Propagated from cacheMissFunction
                 // Exception was thrown when creating a new instance.
                 final Throwable cause = e.getCause();
                 if (cause instanceof FormValidation) {
@@ -861,7 +859,7 @@ public class Openstack {
                 if (cause instanceof RuntimeException) {
                     throw (RuntimeException) cause;
                 }
-                throw new RuntimeException(e);
+                throw e;
             }
         }
 
@@ -972,18 +970,6 @@ public class Openstack {
 //                }
 //                return sb.toString();
             }
-        }
-    }
-
-    static {
-        // Log where guava is coming from. This can not be reliably tested as jenkins-test-harness, hpi:run and actual
-        // jenkins deployed plugin have different classloader environments. Messing around with maven-hpi-plugin opts can
-        // fix or break any of that and there is no regression test to catch that.
-        try {
-            File path = Which.jarFile(MoreObjects.ToStringHelper.class);
-            LOGGER.info("com.google.common.base.Objects loaded from " + path);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Unable to get source of com.google.common.base.Objects", e);
         }
     }
 }

@@ -11,7 +11,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.google.common.cache.Cache;
+import com.github.benmanes.caffeine.cache.Cache;
 import hudson.ExtensionList;
 import hudson.model.Item;
 import hudson.model.Label;
@@ -49,7 +49,6 @@ import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 import org.mockito.stubbing.Answer;
 import org.openstack4j.api.OSClient;
-import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -62,7 +61,6 @@ import java.util.concurrent.Callable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
@@ -70,10 +68,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -85,13 +81,6 @@ public class JCloudsCloudTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
-
-    @Test @Issue("JENKINS-39282") // The problem does not manifest in jenkins-test-harness - created as a regression test
-    public void guavaLeak() {
-        NovaServer server = mock(NovaServer.class, CALLS_REAL_METHODS);
-        server.id = "424242";
-        assertThat(server.toString(), containsString("424242"));
-    }
 
     @Test
     public void failToTestConnection() {
