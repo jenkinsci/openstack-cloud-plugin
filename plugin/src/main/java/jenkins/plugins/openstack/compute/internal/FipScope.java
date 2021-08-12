@@ -29,16 +29,35 @@ import org.openstack4j.model.compute.Server;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.Objects;
 
+/**
+ * Scope of FIP for deletion.
+ *
+ * This uses URL+ServerID, do not need to use instance identity as the ServerID is unique.
+ */
 @Restricted(NoExternalUse.class)
 public class FipScope {
+    /*package*/ static final int MAX_DESCRIPTION_LENGTH = 250;
 
-    public static @Nonnull String getDescription(@Nonnull String instanceFingerprint, @Nonnull Server server) {
-        return "{ '" + Openstack.FINGERPRINT_KEY + "': '" + instanceFingerprint + "', 'jenkins-scope': 'server:" + server.getId() + "' }";
+    public static @Nonnull String getDescription(
+            @Nonnull String url, @Nonnull String identity, @Nonnull Server server
+    ) {
+        String description = "{ '" + Openstack.FINGERPRINT_KEY_URL + "': '" + url + "', '"
+                + Openstack.FINGERPRINT_KEY_FINGERPRINT + "': '" + identity
+                + "', 'jenkins-scope': 'server:" + server.getId() + "' }"
+        ;
+
+        if (description.length() < MAX_DESCRIPTION_LENGTH) return description;
+
+        // Avoid URL that is used only for human consumption anyway
+        return "{ '" + Openstack.FINGERPRINT_KEY_FINGERPRINT + "': '" + identity
+                + "', 'jenkins-scope': 'server:" + server.getId() + "' }"
+        ;
     }
 
-    public static @CheckForNull String getServerId(@Nonnull String instanceFingerprint, @CheckForNull String description) {
-        String scope = getScopeString(instanceFingerprint, description);
+    public static @CheckForNull String getServerId(@Nonnull String url, @Nonnull String identity, @CheckForNull String description) {
+        String scope = getScopeString(url, identity, description);
         if (scope == null) return null;
 
         if (!scope.startsWith("server:")) {
@@ -47,12 +66,16 @@ public class FipScope {
         return scope.substring(7);
     }
 
-    private static @CheckForNull String getScopeString(@Nonnull String instanceFingerprint, @CheckForNull String description) {
+    private static @CheckForNull String getScopeString(@Nonnull String url, @Nonnull String identity, @CheckForNull String description) {
         try {
             JSONObject jsonObject = JSONObject.fromObject(description);
 
-            boolean isOurs = instanceFingerprint.equals(jsonObject.getString(Openstack.FINGERPRINT_KEY));
-            if (!isOurs) return null;
+            // Not ours
+            String attachedIdentity = jsonObject.optString(Openstack.FINGERPRINT_KEY_FINGERPRINT, null);
+            String attachedUrl = jsonObject.optString(Openstack.FINGERPRINT_KEY_URL, null);
+            if (attachedIdentity == null && attachedUrl == null) return null;
+            if (attachedIdentity != null && !Objects.equals(attachedIdentity, identity)) return null;
+            if (attachedUrl != null && !Objects.equals(attachedUrl, url)) return null;
 
             return jsonObject.getString("jenkins-scope");
         } catch (net.sf.json.JSONException ex) {
