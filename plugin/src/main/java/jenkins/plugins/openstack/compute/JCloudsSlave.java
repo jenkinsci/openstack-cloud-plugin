@@ -1,5 +1,8 @@
 package jenkins.plugins.openstack.compute;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.collect.ImmutableList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.EnvVars;
 import hudson.Extension;
@@ -31,10 +34,6 @@ import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableList;
-
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -44,9 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -188,7 +186,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     /** Creates a cache where data will be kept for a short duration before being discarded. */
     private static @Nonnull <K, V> Cache<K, V> makeCache() {
-        return CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+        return Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
     }
 
     /**
@@ -220,7 +218,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      */
     @Restricted(DoNotUse.class) // Jelly
     public @Nonnull Map<String, String> getLiveOpenstackServerDetails() {
-        return getCachableData("liveData", this::readLiveOpenstackServerDetails);
+        return getCachableData("liveData", (String unused) -> readLiveOpenstackServerDetails());
     }
 
     private @Nonnull Map<String, String> readLiveOpenstackServerDetails() {
@@ -304,15 +302,15 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     /** Gets something from the cache, loading it into the cache if necessary. */
-    private @Nonnull Map<String, String> getCachableData(@Nonnull final String key, @Nonnull final Callable<Map<String, String>> dataloader) {
+    private @Nonnull Map<String, String> getCachableData(@Nonnull final String key, @Nonnull final Function<String, Map<String, String>> dataloader) {
         try {
-            return cache.get(key, dataloader);
-        } catch (ExecutionException e) {
+            return Objects.requireNonNull(cache.get(key, dataloader));
+        } catch (RuntimeException e) { // Propagated from cacheMissFunction
             final Throwable cause = e.getCause();
             if (cause instanceof RuntimeException) {
                 throw (RuntimeException) cause;
             }
-            throw new RuntimeException(e);
+            throw e;
         }
     }
 
