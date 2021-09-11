@@ -154,7 +154,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
             }
         }
 
-        return Util.join(ips, ",");
+        return String.join(",", ips);
     }
 
     private static void terminateNodes(Iterable<RunningNode> runningNodes) {
