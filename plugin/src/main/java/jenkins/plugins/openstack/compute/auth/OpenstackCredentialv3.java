@@ -5,11 +5,11 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.NameWith;
 import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import com.google.common.base.Strings;
 import hudson.Extension;
 import hudson.Util;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.plugins.openstack.compute.auth.totp.TotpGenerator;
 import org.jenkinsci.Symbol;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
@@ -21,16 +21,11 @@ import org.openstack4j.openstack.OSFactory;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.util.Optional;
-import java.util.regex.Pattern;
 
 @NameWith(value = OpenstackCredentialv3.NameProvider.class)
 public class OpenstackCredentialv3 extends AbstractOpenstackCredential implements StandardUsernamePasswordCredentials, PasswordCredentials {
 
     private static final long serialVersionUID = -1868447356467542586L;
-
-    // All implementations of totp checked ignore any padding, which allows a simple validation
-    private static Pattern base32Validator = Pattern.compile("^[A-Z2-7]+=*$");
 
     private final String username;
     private final String userDomain;
@@ -38,6 +33,8 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
     private final String projectDomain;
     private final Secret password;
     private final Secret totpSecret;
+
+    private final transient TotpGenerator totpGenerator;
 
     @DataBoundConstructor
     @SuppressWarnings("unused")
@@ -64,6 +61,8 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         this.projectDomain = projectDomain;
         this.password = password;
         this.totpSecret = totpSecret;
+
+        this.totpGenerator = new TotpGenerator();
     }
 
     @Nonnull
@@ -87,18 +86,14 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         IOSClientBuilder.V3 builder = OSFactory.builderV3().endpoint(endPointUrl)
                 .scopeToProject(projectNameIdentifier, projectDomainIdentifier);
 
-
         String plainSecret = Secret.toString(totpSecret);
         if (!plainSecret.isEmpty()) {
-            Optional<String> token = TotpGenerator.generateToken(plainSecret);
-            if (token.isPresent()) {
-                return builder.credentials(
-                        username,
-                        password.getPlainText(),
-                        userDomainIdentifier,
-                        token.get()
-                );
-            }
+            return builder.credentials(
+                    username,
+                    password.getPlainText(),
+                    userDomainIdentifier,
+                    totpGenerator.generatePasscode(plainSecret)
+            );
         }
 
         return builder
@@ -170,7 +165,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
 
         @Restricted(DoNotUse.class)
         public FormValidation doCheckTotpSecret(@QueryParameter String value) {
-            if (Strings.isNullOrEmpty(value) || base32Validator.matcher(value).matches()) {
+            if (new TotpGenerator().isValidSecret(value)) {
                 return FormValidation.ok();
             } else {
                 return FormValidation.warning("Secret cannot be used to generate a TOTP Token, please supply a valid Base32 String.");
