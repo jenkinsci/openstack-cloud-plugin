@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <dependencyManagement>
@@ -16,7 +17,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.17</version>
+        <version>4.25</version>
         <relativePath></relativePath>
     </parent>
 
@@ -34,20 +35,23 @@
         <surefire.useFile>false</surefire.useFile>
         <spotbugs.failOnError>false</spotbugs.failOnError>
         <spotbugs.excludeFilterFile>src/findbugs-exclude.xml</spotbugs.excludeFilterFile>
-        <spotbugs.skip>true</spotbugs.skip> <!-- Upstream Jenkins fails the build if some are found. Excludes does not seem to work. -->
+        <spotbugs.skip>true
+        </spotbugs.skip> <!-- Upstream Jenkins fails the build if some are found. Excludes does not seem to work. -->
         <maven.compiler.showDeprecation>true</maven.compiler.showDeprecation>
 
         <guava.version>20.0</guava.version> <!-- version compatible with openstack4j -->
         <jsr305.version>1.3.9</jsr305.version>
-        <openstack4j.version>3.8</openstack4j.version>
+        <openstack4j.version>3.10</openstack4j.version>
         <okhttp.version>3.9.1</okhttp.version>
+        <jenkins-test-harness.version>1626.v46b0925e70db</jenkins-test-harness.version>
+        <jackson.version>2.12.4</jackson.version>
     </properties>
 
     <developers>
         <developer>
-          <id>olivergondza</id>
-          <name>Oliver Gondža</name>
-          <email>ogondza@gmail.com</email>
+            <id>olivergondza</id>
+            <name>Oliver Gondža</name>
+            <email>ogondza@gmail.com</email>
         </developer>
     </developers>
 
@@ -150,6 +154,29 @@
             <version>1.29</version>
         </dependency>
 
+        <!--Specifying jenkins version to avoid maven.plugins.enforcer.RequireUpperBoundDeps error
+        between configuration as code and openstack4j -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -183,12 +210,6 @@
             <artifactId>workflow-basic-steps</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.main</groupId>
-            <artifactId>jenkins-test-harness</artifactId>
-            <version>1589.vc23fca066d5c</version>
-            <scope>test</scope>
-        </dependency>
 
         <!-- Plugins split from core -->
         <dependency>
@@ -211,27 +232,6 @@
             <artifactId>test-harness</artifactId>
             <groupId>io.jenkins.configuration-as-code</groupId>
             <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.12.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.12.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.12.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.12.4</version>
         </dependency>
     </dependencies>
 
