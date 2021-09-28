@@ -18,7 +18,7 @@
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
         <version>4.25</version>
-        <relativePath></relativePath>
+        <relativePath/>
     </parent>
 
     <artifactId>openstack-cloud</artifactId>
