@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <dependencyManagement>
@@ -49,9 +50,9 @@
 
     <developers>
         <developer>
-          <id>olivergondza</id>
-          <name>Oliver Gondža</name>
-          <email>ogondza@gmail.com</email>
+            <id>olivergondza</id>
+            <name>Oliver Gondža</name>
+            <email>ogondza@gmail.com</email>
         </developer>
     </developers>
 
@@ -171,6 +172,9 @@
             <artifactId>snakeyaml</artifactId>
             <version>1.29</version>
         </dependency>
+
+        <!--Specifying jenkins version to avoid maven.plugins.enforcer.RequireUpperBoundDeps error
+        between configuration as code and openstack4j -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -248,8 +252,6 @@
             <groupId>io.jenkins.configuration-as-code</groupId>
             <scope>test</scope>
         </dependency>
-
-
     </dependencies>
 
     <build>
