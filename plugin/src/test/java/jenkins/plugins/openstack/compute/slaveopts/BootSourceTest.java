@@ -39,10 +39,10 @@ import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static java.util.Locale.US;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -55,7 +55,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 public class BootSourceTest {
-    private static final FormValidation VALIDATION_REQUIRED = FormValidation.error(hudson.util.Messages.FormValidation_ValidateRequired());
+    private static final FormValidation VALIDATION_REQUIRED = FormValidation.error(hudson.util.Messages._FormValidation_ValidateRequired().toString(US));
 
     public @Rule PluginTestRule j = new PluginTestRule();
 

@@ -35,7 +35,6 @@ import hudson.Util;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import org.apache.commons.codec.Charsets;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
@@ -94,6 +93,8 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Encapsulate {@link OSClient}.
@@ -517,7 +518,7 @@ public class Openstack {
             // Use salted hash not to disclose the public key. The key is used to authenticate agent connections.
             INSTANCE_FINGERPRINT = DigestUtils.sha1Hex(
                     "openstack-cloud-plugin-identity-fingerprint:"
-                    + new String(Base64.encodeBase64(InstanceIdentity.get().getPublic().getEncoded()), Charsets.UTF_8)
+                            + new String(Base64.encodeBase64(InstanceIdentity.get().getPublic().getEncoded()), UTF_8)
             );
         }
         return INSTANCE_FINGERPRINT;

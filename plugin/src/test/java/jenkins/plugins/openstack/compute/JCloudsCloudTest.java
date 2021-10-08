@@ -19,6 +19,7 @@ import hudson.model.UnprotectedRootAction;
 import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
+import hudson.security.AccessDeniedException3;
 import hudson.security.Permission;
 import hudson.security.SidACL;
 import hudson.slaves.Cloud;
@@ -334,7 +335,7 @@ public class JCloudsCloudTest {
         try {
             j.executeOnServer(new DoProvision(jenkinsRead, template));
             fail("Expected 'AccessDeniedException' exception hasn't been thrown");
-        } catch (AccessDeniedException ex) {
+        } catch (AccessDeniedException3 ex) {
             // Expected
         }
     }
@@ -518,7 +519,7 @@ public class JCloudsCloudTest {
             try {
                 desc.doTestConnection(true, c.getId(), destination, "");
                 fail();
-            } catch (AccessDeniedException ex) {
+            } catch (AccessDeniedException3 ex) {
                 // Expected
             }
             assertEquals(0, credentialsCollectingPortal.reqs.size());
