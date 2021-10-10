@@ -7,9 +7,14 @@ import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import hudson.Extension;
 import hudson.Util;
+import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.plugins.openstack.compute.auth.totp.TotpGenerator;
 import org.jenkinsci.Symbol;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
 import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.model.common.Identifier;
 import org.openstack4j.openstack.OSFactory;
@@ -27,6 +32,9 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
     private final String projectName;
     private final String projectDomain;
     private final Secret password;
+    private final Secret totpSecret;
+
+    private final transient TotpGenerator totpGenerator;
 
     @DataBoundConstructor
     @SuppressWarnings("unused")
@@ -34,21 +42,27 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
                                  @CheckForNull String id, @CheckForNull String description,
                                  @Nonnull String userName,
                                  @Nonnull String userDomain, @Nonnull String projectName,
-                                 @Nonnull String projectDomain, @Nonnull String password) {
-        this(scope,id,description,userName, userDomain, projectName, projectDomain, Secret.fromString(password));
+                                 @Nonnull String projectDomain, @Nonnull String password,
+                                 String totpSecret) {
+        this(scope, id, description, userName, userDomain, projectName, projectDomain,
+                Secret.fromString(password), Secret.fromString(totpSecret));
     }
 
     @SuppressWarnings("unused")
     public OpenstackCredentialv3(@CheckForNull CredentialsScope scope,
                                  @CheckForNull String id, @CheckForNull String description,
                                  @Nonnull String userName, @Nonnull String userDomain, @Nonnull String projectName,
-                                 @Nonnull String projectDomain, @Nonnull Secret password) {
-        super(scope,id,description);
+                                 @Nonnull String projectDomain, @Nonnull Secret password,
+                                 Secret totpSecret) {
+        super(scope, id, description);
         this.username = userName;
         this.userDomain = userDomain;
         this.projectName = projectName;
         this.projectDomain = projectDomain;
         this.password = password;
+        this.totpSecret = totpSecret;
+
+        this.totpGenerator = new TotpGenerator();
     }
 
     @Nonnull
@@ -57,16 +71,33 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         return password;
     }
 
+    public Secret getTotpSecret() {
+        return totpSecret;
+    }
+
     @Override
-    public @Nonnull IOSClientBuilder.V3 getBuilder(String endPointUrl) {
+    public @Nonnull
+    IOSClientBuilder.V3 getBuilder(String endPointUrl) {
 
         Identifier projectDomainIdentifier = Identifier.byName(projectDomain);
         Identifier projectNameIdentifier = Identifier.byName(projectName);
         Identifier userDomainIdentifier = Identifier.byName(userDomain);
 
-        return OSFactory.builderV3().endpoint(endPointUrl)
-                .credentials(username, getPassword().getPlainText(), userDomainIdentifier)
+        IOSClientBuilder.V3 builder = OSFactory.builderV3().endpoint(endPointUrl)
                 .scopeToProject(projectNameIdentifier, projectDomainIdentifier);
+
+        String plainSecret = Secret.toString(totpSecret);
+        if (!plainSecret.isEmpty()) {
+            return builder.credentials(
+                    username,
+                    password.getPlainText(),
+                    userDomainIdentifier,
+                    totpGenerator.generatePasscode(plainSecret)
+            );
+        }
+
+        return builder
+                .credentials(username, password.getPlainText(), userDomainIdentifier);
     }
 
     @Override
@@ -130,6 +161,15 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         @Override
         public @Nonnull String getDisplayName() {
             return "OpenStack auth v3";
+        }
+
+        @Restricted(DoNotUse.class)
+        public FormValidation doCheckTotpSecret(@QueryParameter String value) {
+            if (new TotpGenerator().isValidSecret(value)) {
+                return FormValidation.ok();
+            } else {
+                return FormValidation.warning("Secret cannot be used to generate a TOTP Token, please supply a valid Base32 String.");
+            }
         }
     }
 }

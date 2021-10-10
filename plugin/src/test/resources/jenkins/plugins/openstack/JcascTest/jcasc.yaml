@@ -94,6 +94,16 @@ credentials:
               projectName: "casc"
               projectDomain: "acme.com"
               password: "bar" # Do not hardcode plaintext secrets for real world declarations!
+          - openstackV3:
+              scope: SYSTEM
+              id: "openstack_service_credentials_with_passcode"
+              description: "desc totp"
+              userName: "jenkins"
+              userDomain: "devstack.com"
+              projectName: "devstack"
+              projectDomain: "devstack.com"
+              password: "hudson" # Do not hardcode plaintext secrets for real world declarations!
+              totpSecret: "JBSWY3DPEHPK3PXP" # Do not hardcode plaintext secrets for real world declarations!
           - openstackV2:
               scope: SYSTEM
               id: "openstack_service_credentialsV2"

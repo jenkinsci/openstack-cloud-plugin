@@ -502,7 +502,7 @@ public class JCloudsCloudTest {
     public void security808() throws Exception {
         j.jenkins.setCrumbIssuer(null);
         OpenstackCredentialv3 c = new OpenstackCredentialv3(
-                CredentialsScope.SYSTEM, "foo", "", "username", "userdomain", "prjectname", "projectdomain", "SHHH!"
+                CredentialsScope.SYSTEM, "foo", "", "username", "userdomain", "prjectname", "projectdomain", "SHHH!", null
         );
         OpenstackCredentials.add(c);
         DescriptorImpl desc = j.getCloudDescriptor();

@@ -188,7 +188,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 String project = id[0];
                 String username = id[1];
                 String domain = id[2];
-                migratedOpenstackCredential = new OpenstackCredentialv3(CredentialsScope.SYSTEM,null,null,username,domain,project,domain,credential);
+                migratedOpenstackCredential = new OpenstackCredentialv3(CredentialsScope.SYSTEM,null,null,username,domain,project,domain, credential, null);
             }
             if (migratedOpenstackCredential != null) {
                 credentialId = migratedOpenstackCredential.getId();

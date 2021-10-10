@@ -80,13 +80,21 @@ public class JcascTest {
             assertEquals("casc", cv3.getProjectName());
             assertEquals("acme.com", cv3.getProjectDomain());
 
+            OpenstackCredentialv3 cv3WithTotp = (OpenstackCredentialv3) OpenstackCredentials.getCredential("openstack_service_credentials_with_passcode");
+            assertEquals("jenkins", cv3WithTotp.getUsername());
+            assertEquals("hudson", cv3WithTotp.getPassword().getPlainText());
+            assertEquals("devstack.com", cv3WithTotp.getUserDomain());
+            assertEquals("devstack", cv3WithTotp.getProjectName());
+            assertEquals("devstack.com", cv3WithTotp.getProjectDomain());
+            assertEquals("JBSWY3DPEHPK3PXP", cv3WithTotp.getTotpSecret().getPlainText());
+
             OpenstackCredentialv2 cv2 = (OpenstackCredentialv2) OpenstackCredentials.getCredential("openstack_service_credentialsV2");
             assertEquals("username", cv2.getUsername());
             assertEquals("pwd", cv2.getPassword().getPlainText());
             assertEquals("tnt", cv2.getTenant());
         }
 
-        final List<NodeProperty<Node>> expectedCloudNPs = PluginTestRule.mkListOfNodeProperties(1,3);
+        final List<NodeProperty<Node>> expectedCloudNPs = PluginTestRule.mkListOfNodeProperties(1, 3);
         { // Slave options
             SlaveOptions co = c.getRawSlaveOptions();
             assertEquals("Image Name", ((BootSource.Image) co.getBootSource()).getName());
