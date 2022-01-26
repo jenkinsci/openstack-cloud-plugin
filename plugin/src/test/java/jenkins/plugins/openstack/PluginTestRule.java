@@ -295,7 +295,7 @@ public final class PluginTestRule extends JenkinsRule {
 
     public JCloudsSlaveTemplate dummySlaveTemplate(SlaveOptions opts, String labels) {
         int num = templateCount.getAndIncrement();
-        return new JCloudsSlaveTemplate("template" + num, labels, opts);
+        return new JCloudsSlaveTemplate("template" + num, labels, Node.Mode.NORMAL, opts);
     }
 
     public JCloudsCloud dummyCloud(JCloudsSlaveTemplate... templates) {

@@ -8,6 +8,7 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Failure;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
@@ -64,6 +65,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     private final @Nonnull String name;
     private final @Nonnull String labelString;
+    private final @Nonnull Node.Mode mode;
 
     // Difference compared to cloud
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
@@ -87,10 +89,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String availabilityZone;
 
     @DataBoundConstructor
-    public JCloudsSlaveTemplate(final @Nonnull String name, final @Nonnull String labels, final @CheckForNull SlaveOptions slaveOptions) {
+    public JCloudsSlaveTemplate(final @Nonnull String name, final @Nonnull String labels, Node.Mode mode, final @CheckForNull SlaveOptions slaveOptions) {
         this.name = Util.fixNull(name).trim();
         this.labelString = Util.fixNull(labels).trim();
-
+        this.mode = mode != null ? mode : Node.Mode.NORMAL;
+        LOGGER.info("Constructing new JCloudsSlaveTemplate - mode=" + this.mode);
         this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions;
 
         readResolve();
@@ -193,8 +196,12 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return labelString;
     }
 
+    public @Nonnull Node.Mode getMode() {
+        return mode != null ? mode : Node.Mode.NORMAL;
+    }
+
     public boolean canProvision(final Label label) {
-        return label == null || label.matches(labelSet);
+        return (label == null && getMode() == Node.Mode.NORMAL) || (label != null && label.matches(labelSet));
     }
 
     /*package*/ boolean hasProvisioned(@Nonnull Server server) {
@@ -219,7 +226,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         JCloudsSlave node = null;
         // Terminate node unless provisioned successfully
         try {
-            node = new JCloudsSlave(id, server, labelString, opts);
+            node = new JCloudsSlave(id, server, labelString, mode, opts);
 
             String cause;
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
@@ -280,7 +287,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
         builder.addMetadataItem(ServerScope.METADATA_KEY, scope.getValue());
 
-        LOGGER.info("Provisioning new openstack server " + serverName + " with options " + opts);
+        LOGGER.info("Provisioning new openstack server " + serverName + " (mode=" + getMode() + ") with options " + opts);
         // Ensure predictable server name so we can inject it into user data
         builder.name(serverName);
 
@@ -533,6 +540,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             } catch (Failure ex) {
                 return FormValidation.error(ex.getMessage());
             }
+        }
+
+        @Restricted(DoNotUse.class)
+        @RequirePOST
+        public FormValidation doCheckLabels(@QueryParameter String value, @QueryParameter Node.Mode mode) {
+            if ((value == null || value.trim().isEmpty()) && mode == Node.Mode.EXCLUSIVE) {
+                return FormValidation.warning("Nodes without any labels and running in exclusive mode will never be provisioned");
+            }
+            return FormValidation.ok();
         }
     }
 }

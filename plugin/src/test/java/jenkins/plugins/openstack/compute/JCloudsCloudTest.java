@@ -15,6 +15,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import hudson.ExtensionList;
 import hudson.model.Item;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.UnprotectedRootAction;
 import hudson.model.User;
 import hudson.security.ACL;
@@ -141,7 +142,7 @@ public class JCloudsCloudTest {
 
         String openstackAuth = j.dummyCredentials();
 
-        JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
+        JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", Node.Mode.NORMAL, new SlaveOptions(
                 new BootSource.Image("iid"), "hw", "nw", "ud", 1, 0, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, null, 4, false
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "endPointUrl", false,"zone", new SlaveOptions(
@@ -259,6 +260,7 @@ public class JCloudsCloudTest {
 
         JCloudsSlaveTemplate template = cloud.getTemplate("ath-integration-test");
         assertEquals(Label.parse("label"), template.getLabelSet());
+        assertEquals(Node.Mode.EXCLUSIVE, template.getMode());
         SlaveOptions to = template.getEffectiveSlaveOptions();
         assertEquals("16", to.getHardwareId());
         assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", ((BootSource.Image) to.getBootSource()).getName());

@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.Node;
 import hudson.util.OneShotEvent;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -73,7 +74,7 @@ public class ServerScopeTest {
     @Test
     public void nodeScope() throws Exception {
         final Id id = new Id("foo", "bar", "baz");
-        final JCloudsSlave js = new JCloudsSlave(id, j.mockServer().withFixedIPv4("1.1.1.1").name("foo").get(), "foo", j.defaultSlaveOptions());
+        final JCloudsSlave js = new JCloudsSlave(id, j.mockServer().withFixedIPv4("1.1.1.1").name("foo").get(), "foo", Node.Mode.NORMAL, j.defaultSlaveOptions());
         Server mock = mock(Server.class);
         when(mock.getMetadata()).thenReturn(Collections.singletonMap(
                 ServerScope.METADATA_KEY,

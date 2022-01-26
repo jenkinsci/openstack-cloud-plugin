@@ -46,7 +46,7 @@ public class JCloudsSlaveTest {
                 expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, Node.Mode.NORMAL, mockSlaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
@@ -76,7 +76,7 @@ public class JCloudsSlaveTest {
                 expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, Node.Mode.NORMAL, mockSlaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
@@ -114,7 +114,7 @@ public class JCloudsSlaveTest {
                 envVar2Value, EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, Node.Mode.NORMAL, mockSlaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
@@ -145,7 +145,7 @@ public class JCloudsSlaveTest {
                 expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, Node.Mode.NORMAL, mockSlaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();

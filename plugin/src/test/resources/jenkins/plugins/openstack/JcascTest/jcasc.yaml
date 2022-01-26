@@ -34,18 +34,22 @@ jenkins:
         templates:
           - name: "empty"
             labels: "linux"
+            mode: NORMAL
           - name: "jnlp"
             labels: "jnlp"
+            mode: NORMAL
             slaveOptions:
               launcherFactory: "jnlp"
           - name: "volumeSnapshot"
             labels: "volume"
+            mode: NORMAL
             slaveOptions:
               bootSource:
                 volumeSnapshot:
                   name: "Volume name"
           - name: "volumeFromImage"
             labels: "volume from image"
+            mode: NORMAL
             slaveOptions:
               bootSource:
                 volumeFromImage:
@@ -53,11 +57,13 @@ jenkins:
                   volumeSize: 15
           - name: "customNodeProperties"
             labels: "templateWithItsOwnNodeProperties"
+            mode: NORMAL
             slaveOptions:
               nodeProperties:
                 - nodePropertyTwo
           - name: "noNodeProperties"
             labels: "templateWithNoNodePropertiesInsteadOfDefaults"
+            mode: NORMAL
             slaveOptions:
               nodeProperties: []
 

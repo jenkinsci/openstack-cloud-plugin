@@ -29,6 +29,7 @@
           <imageId>RDU2/ac98e93d-34a3-437d-a7ba-9ad24c02f5b2</imageId>
           <hardwareId>RDU2/16</hardwareId>
           <labelString>label</labelString>
+          <mode>EXCLUSIVE</mode>
           <userDataId>jenkins.plugins.openstack.compute.UserDataConfig.1455188317989</userDataId>
           <numExecutors>1</numExecutors>
           <stopOnTerminate>false</stopOnTerminate>
