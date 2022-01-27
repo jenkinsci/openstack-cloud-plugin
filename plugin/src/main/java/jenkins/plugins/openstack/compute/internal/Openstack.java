@@ -59,10 +59,7 @@ import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.identity.v2.Access;
 import org.openstack4j.model.identity.v3.Token;
 import org.openstack4j.model.image.v2.Image;
-import org.openstack4j.model.network.NetFloatingIP;
-import org.openstack4j.model.network.Network;
-import org.openstack4j.model.network.Port;
-import org.openstack4j.model.network.Router;
+import org.openstack4j.model.network.*;
 import org.openstack4j.model.network.ext.NetworkIPAvailability;
 import org.openstack4j.model.network.options.PortListOptions;
 import org.openstack4j.model.storage.block.Volume;
@@ -330,7 +327,8 @@ public class Openstack {
         HashSet<Network> applicablePublicNetworks = new HashSet<>();
         for (Router r: routers) {
             for (Network n: networks) {
-                if (Objects.equals(r.getExternalGatewayInfo().getNetworkId(), n.getId())) {
+                ExternalGateway gateway = r.getExternalGatewayInfo();
+                if (gateway != null && Objects.equals(gateway.getNetworkId(), n.getId())) {
                     applicablePublicNetworks.add(n);
                 }
             }
