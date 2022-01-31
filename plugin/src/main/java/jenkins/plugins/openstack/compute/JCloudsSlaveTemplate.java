@@ -93,7 +93,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.name = Util.fixNull(name).trim();
         this.labelString = Util.fixNull(labels).trim();
         this.mode = mode != null ? mode : Node.Mode.NORMAL;
-        LOGGER.info("Constructing new JCloudsSlaveTemplate - mode=" + this.mode);
+        LOGGER.fine("Constructing new JCloudsSlaveTemplate - mode=" + this.mode);
         this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions;
 
         readResolve();
@@ -201,7 +201,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     public boolean canProvision(final Label label) {
-        return (label == null && getMode() == Node.Mode.NORMAL) || (label != null && label.matches(labelSet));
+        return label == null
+            ? getMode() == Node.Mode.NORMAL
+            : label.matches(labelSet);
     }
 
     /*package*/ boolean hasProvisioned(@Nonnull Server server) {
