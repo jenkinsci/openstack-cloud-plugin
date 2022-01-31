@@ -260,7 +260,7 @@ public class JCloudsCloudTest {
 
         JCloudsSlaveTemplate template = cloud.getTemplate("ath-integration-test");
         assertEquals(Label.parse("label"), template.getLabelSet());
-        assertEquals(Node.Mode.EXCLUSIVE, template.getMode());
+        assertEquals(Node.Mode.NORMAL, template.getMode());
         SlaveOptions to = template.getEffectiveSlaveOptions();
         assertEquals("16", to.getHardwareId());
         assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", ((BootSource.Image) to.getBootSource()).getName());
