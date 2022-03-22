@@ -8,7 +8,6 @@
           <f:entry title="Labels" field="labels">
             <f:textbox/>
           </f:entry>
-          <f:slave-mode name="mode" node="${instance}"/>
         </f:section>
 
         <f:advanced title="Provisioning details">

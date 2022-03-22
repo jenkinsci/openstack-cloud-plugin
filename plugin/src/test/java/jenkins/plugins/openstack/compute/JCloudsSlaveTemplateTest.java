@@ -10,7 +10,6 @@ import java.util.Properties;
 import java.util.stream.Stream;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import hudson.model.Node;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 
@@ -68,13 +67,13 @@ public class JCloudsSlaveTemplateTest {
                 .build()
         ;
         JCloudsSlaveTemplate jnlpTemplate = new JCloudsSlaveTemplate(
-                "jnlp-template", "openstack-slave-type1 openstack-type2", Node.Mode.NORMAL, jnlpOpts
+                "jnlp-template", "openstack-slave-type1 openstack-type2", jnlpOpts
         );
 
         LauncherFactory.SSH slaveType = new LauncherFactory.SSH(j.dummySshCredentials("sshid"), "mypath");
         SlaveOptions sshOpts = dummySlaveOptions().getBuilder().launcherFactory(slaveType).build();
         JCloudsSlaveTemplate sshTemplate = new JCloudsSlaveTemplate(
-                "ssh-template", "openstack-slave-type1 openstack-type2", Node.Mode.NORMAL, sshOpts
+                "ssh-template", "openstack-slave-type1 openstack-type2", sshOpts
         );
 
         JCloudsCloud originalCloud = new JCloudsCloud(
@@ -113,7 +112,7 @@ public class JCloudsSlaveTemplateTest {
         assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
-                "test-templateOpts", "openstack-slave-type1 openstack-type2", Node.Mode.NORMAL, templateOpts
+                "test-templateOpts", "openstack-slave-type1 openstack-type2", templateOpts
         );
 
         JCloudsCloud cloud = new JCloudsCloud(

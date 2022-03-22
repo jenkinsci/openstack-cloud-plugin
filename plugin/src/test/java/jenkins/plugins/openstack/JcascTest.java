@@ -119,7 +119,6 @@ public class JcascTest {
         // The only use-case for empty template is when all options are inherited by a single configured template
         JCloudsSlaveTemplate t = c.getTemplate("empty");
         assertEquals("linux", t.getLabels());
-        assertEquals(Node.Mode.NORMAL, t.getMode());
         assertEquals(SlaveOptions.empty(), t.getRawSlaveOptions());
 
         SlaveOptions jso = c.getTemplate("jnlp").getRawSlaveOptions();

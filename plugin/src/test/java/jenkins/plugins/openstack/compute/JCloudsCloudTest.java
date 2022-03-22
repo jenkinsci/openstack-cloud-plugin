@@ -142,11 +142,11 @@ public class JCloudsCloudTest {
 
         String openstackAuth = j.dummyCredentials();
 
-        JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", Node.Mode.NORMAL, new SlaveOptions(
-                new BootSource.Image("iid"), "hw", "nw", "ud", 1, 0, "public", "sg", "az", 2, "kp", 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, null, 4, false
+        JCloudsSlaveTemplate template = new JCloudsSlaveTemplate("template", "label", new SlaveOptions(
+                new BootSource.Image("iid"), "hw", "nw", "ud", 1, 0, "public", "sg", "az", 2, "kp", Node.Mode.NORMAL, 3, "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, null, 4, false
         ));
         JCloudsCloud cloud = new JCloudsCloud("openstack", "endPointUrl", false,"zone", new SlaveOptions(
-                new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, 4, null, "SG", "AZ", 7, "KP", 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), null, 9, false
+                new BootSource.VolumeSnapshot("vsid"), "HW", "NW", "UD", 6, 4, null, "SG", "AZ", 7, "KP", Node.Mode.NORMAL, 8, "JVMO", "FSrOOT", new LauncherFactory.SSH("cid"), null, 9, false
         ), Collections.singletonList(template),openstackAuth);
         j.jenkins.clouds.add(cloud);
 
@@ -260,7 +260,6 @@ public class JCloudsCloudTest {
 
         JCloudsSlaveTemplate template = cloud.getTemplate("ath-integration-test");
         assertEquals(Label.parse("label"), template.getLabelSet());
-        assertEquals(Node.Mode.NORMAL, template.getMode());
         SlaveOptions to = template.getEffectiveSlaveOptions();
         assertEquals("16", to.getHardwareId());
         assertEquals("ac98e93d-34a3-437d-a7ba-9ad24c02f5b2", ((BootSource.Image) to.getBootSource()).getName());

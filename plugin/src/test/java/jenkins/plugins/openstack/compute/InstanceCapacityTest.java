@@ -25,7 +25,6 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.model.Descriptor;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
 import hudson.slaves.NodeProvisioner;
 import jenkins.plugins.openstack.PluginTestRule;
@@ -91,7 +90,7 @@ public class InstanceCapacityTest {
 
         Server server = j.mockServer().name("foo0").withFixedIPv4("0.0.0.0").get();
         ProvisioningActivity.Id id = new ProvisioningActivity.Id(cloud.name, restrictedTmplt.getName());
-        j.jenkins.addNode(new JCloudsSlave(id, server, "restricted common", Node.Mode.NORMAL, restrictedTmplt.getEffectiveSlaveOptions()));
+        j.jenkins.addNode(new JCloudsSlave(id, server, "restricted common", restrictedTmplt.getEffectiveSlaveOptions()));
 
         lr.capture(5);
         lr.record(JCloudsCloud.class, Level.INFO);

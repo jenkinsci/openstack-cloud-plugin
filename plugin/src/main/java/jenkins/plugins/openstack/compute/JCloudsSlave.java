@@ -82,7 +82,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private transient @Deprecated Server metadata;
 
     public JCloudsSlave(
-            @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull Node.Mode mode, @Nonnull SlaveOptions slaveOptions
+            @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
     ) throws IOException, Descriptor.FormException {
 
         super(Objects.requireNonNull(metadata.getName()), slaveOptions.getFsRoot(), null /*needs to be set later via setter*/);
@@ -94,7 +94,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.cache = makeCache();
 
         setNumExecutors(slaveOptions.getNumExecutors());
-        setMode(mode);
+        setMode(slaveOptions.getMode() != null ? slaveOptions.getMode() : Node.Mode.NORMAL);
         setLabelString(labelString);
         setRetentionStrategy(new JCloudsRetentionStrategy());
         setNodeProperties(mkNodeProperties(Openstack.getAccessIpAddress(metadata), slaveOptions.getNodeProperties()));

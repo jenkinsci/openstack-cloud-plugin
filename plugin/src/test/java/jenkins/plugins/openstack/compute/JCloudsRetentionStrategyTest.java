@@ -3,7 +3,6 @@ package jenkins.plugins.openstack.compute;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.slaves.ComputerListener;
@@ -47,7 +46,7 @@ public class JCloudsRetentionStrategyTest {
         int retentionTime = 1; // minute
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
-                "template", "label", Node.Mode.NORMAL, SlaveOptions.builder().retentionTime(retentionTime).build()
+                "template", "label", SlaveOptions.builder().retentionTime(retentionTime).build()
         );
 
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(template));
