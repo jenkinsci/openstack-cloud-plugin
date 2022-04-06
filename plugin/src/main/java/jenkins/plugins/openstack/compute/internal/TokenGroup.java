@@ -29,7 +29,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -117,7 +116,7 @@ public class TokenGroup {
                 inQuotes = !inQuotes;
             } else if (delimiters.contains(c) && !inQuotes) {
                 fields.add(token.toString());
-                fields.add(new String(new char[] { (char) c }));
+                fields.add(String.valueOf((char) c));
                 token.setLength(0);
             } else {
                 token.append((char) c);
