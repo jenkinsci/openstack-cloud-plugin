@@ -23,11 +23,13 @@
  */
 package jenkins.plugins.openstack.compute.internal;
 
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -37,18 +39,19 @@ import java.util.List;
  */
 @Restricted(NoExternalUse.class)
 public class TokenGroup {
+
+    public static final String STRIP_ALL_WHITESPACE = null;
+
     /**
      * Get list of tokens separated by delim.
      */
-    public static @Nonnull List<String> from(@Nonnull final String csv, char delim) {
-        List<String> strings = breakInput(csv, new char[] { delim });
-
-        if (strings.size() == 1) return strings;
+    public static @Nonnull List<String> from(@Nonnull final String input, char delim) {
+        List<String> strings = breakInput(input, new char[] { delim });
 
         ArrayList<String> ret = new ArrayList<>(strings.size() / 2 + 1);
-        // Remove delimiters
+        // Remove delimiters - odd members
         for (int i = 0; i < strings.size(); i+=2) {
-            ret.add(strings.get(i));
+            ret.add(clean(strings.get(i)));
         }
 
         return ret;
@@ -60,19 +63,19 @@ public class TokenGroup {
      * The inner lists are never empty and contain tokens delimited by delim2. The outer list contains list on the inner
      * lists that ware separated by delim1. IOW, it turns "foo&lt;D1&gt;bar&lt;D2&gt;baz&lt;D1&gt;bax" into "((foo),(bar,baz),(bax))"
      */
-    public static @Nonnull List<List<String>> from(@Nonnull final String csv, char delim1, char delim2) {
+    public static @Nonnull List<List<String>> from(@Nonnull final String input, char delim1, char delim2) {
         ArrayList<List<String>> ret = new ArrayList<>();
 
-        List<String> input = breakInput(csv, new char[] { delim1, delim2 });
+        List<String> strings = breakInput(input, new char[] { delim1, delim2 });
 
         ArrayList<String> chunks = new ArrayList<>();
-        for (int i = 0; i < input.size(); i+=2) {
-            String token = input.get(i);
-            chunks.add(token);
+        for (int i = 0; i < strings.size(); i+=2) {
+            String token = strings.get(i);
+            chunks.add(clean(token));
 
-            if (i + 1 == input.size()) break; // last element followed by no delimiter
+            if (i + 1 == strings.size()) break; // last element followed by no delimiter
 
-            char delimiter = input.get(i + 1).charAt(0);
+            char delimiter = strings.get(i + 1).charAt(0);
 
             if (delimiter == delim1) {
                 ret.add(chunks);
@@ -84,7 +87,14 @@ public class TokenGroup {
         return ret;
     }
 
-    private static @Nonnull List<String> breakInput(String csv, char[] delims) {
+    /**
+     * Remove unwanted characters, line breaks, newlines, etc.
+     */
+    private static String clean(String in) {
+        return StringUtils.strip(in, STRIP_ALL_WHITESPACE);
+    }
+
+    private static @Nonnull List<String> breakInput(String input, char[] delims) {
         List<Integer> delimiters = new ArrayList<>();
         for (char delim : delims) {
             delimiters.add((int) delim);
@@ -95,7 +105,7 @@ public class TokenGroup {
         StringBuilder token = new StringBuilder();
         boolean inQuotes = false;
         boolean escaped = false;
-        for (int c : csv.codePoints().toArray()) {
+        for (int c : input.codePoints().toArray()) {
             if (c == '\\') {
                 if (escaped) {
                     token.append('\\');

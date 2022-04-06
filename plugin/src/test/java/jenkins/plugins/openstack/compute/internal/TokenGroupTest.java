@@ -42,8 +42,10 @@ public class TokenGroupTest {
         assertEquals(l("foo bar", "baz"), TokenGroup.from("foo bar,baz", ','));
         assertEquals(l("a,b|c\"\\"), TokenGroup.from("\"a,b|c\\\"\\\\\"", ','));
 
-        // Space not trimmed
-        assertEquals(l("foo", " bar"), TokenGroup.from("\"foo\", bar", ','));
+        // Whitespace trimmed
+        assertEquals(l("foo"), TokenGroup.from(" foo\n", ','));
+        assertEquals(l("foo", "bar"), TokenGroup.from(" \"foo\" , bar ", ','));
+        assertEquals(l("foo", "bar"), TokenGroup.from("\n\"foo\"\n,\nbar\n", ','));
         // Single quotes are not quotes
         assertEquals(l("'foo'"), TokenGroup.from("'foo'", ','));
         assertEquals(l("foo\\bar"), TokenGroup.from("foo\\\\bar", ','));
@@ -56,8 +58,10 @@ public class TokenGroupTest {
         assertEquals(l(l("foo bar"), l("baz")), TokenGroup.from("foo bar,baz", ',', '|'));
         assertEquals(l(l("a,b|c\"\\")), TokenGroup.from("\"a,b|c\\\"\\\\\"", ',', '|'));
 
-        // Space not trimmed
-        assertEquals(l(l("foo"), l(" bar")), TokenGroup.from("\"foo\", bar", ',', '|'));
+        // Whitespace trimmed
+        assertEquals(l(l("foo")), TokenGroup.from("\tfoo\n", ',', '|'));
+        assertEquals(l(l("foo", "bar")), TokenGroup.from(" \"foo\" | bar ", ',', '|'));
+        assertEquals(l(l("foo"), l("bar")), TokenGroup.from("\n\"foo\"\n,\nbar\n", ',', '|'));
         // Single quotes are not quotes
         assertEquals(l(l("'foo'")), TokenGroup.from("'foo'", ',', '|'));
         assertEquals(l(l("foo\\bar")), TokenGroup.from("foo\\\\bar", ',', '|'));
@@ -67,8 +71,8 @@ public class TokenGroupTest {
         assertEquals(l(l("foo bar", "baz")), TokenGroup.from("foo bar|baz", ',', '|'));
     }
 
-    private static <A, R extends List<A>> R l(A... args) {
-        List<A> ret = new ArrayList<>(Arrays.asList(args));
-        return (R) ret;
+    @SafeVarargs
+    private static <A> List<A> l(A... args) {
+        return new ArrayList<>(Arrays.asList(args));
     }
 }
