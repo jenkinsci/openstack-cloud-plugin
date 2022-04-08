@@ -110,23 +110,24 @@ jenkins:
         templates:
           - name: "empty"
             labels: "linux"
-            mode: EXCLUSIVE
+            slaveOptions:
+              mode: EXCLUSIVE
           - name: "jnlp"
             labels: "jnlp"
-            mode: NORMAL
             slaveOptions:
+              mode: NORMAL
               launcherFactory: "jnlp"
           - name: "volumeSnapshot"
             labels: "volume"
-            mode: NORMAL
             slaveOptions:
+              mode: NORMAL
               bootSource:
                 volumeSnapshot:
                   name: "Volume name"
           - name: "volumeFromImage"
             labels: "volume from image"
-            mode: NORMAL
             slaveOptions:
+              mode: NORMAL
               bootSource:
                 volumeFromImage:
                   name: "Volume name"
