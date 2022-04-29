@@ -32,6 +32,7 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -438,6 +439,99 @@ System.out.println(cloud.getOpenstack().instanceFingerprint());
             assertThat(ex.getMessage(), containsString("No access IP address found for "));
         }
     }
+
+    @Test
+    public void provisionWhenSharedLabel() throws Exception {
+        
+        // Test 1 - premiere assertion 
+        /* 	○ Test1: Everything fine 
+			§ Two clouds configured and up
+			§ Two jobs - excessWorkload = 2 
+			§ Should work fine 
+         */
+       
+        SlaveOptions init = j.defaultSlaveOptions();
+        JCloudsSlaveTemplate template1 = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "generic");
+        JCloudsSlaveTemplate template2 = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "generic");
+        JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(2).build(), template1);
+        JCloudsCloud cloud2 = j.dummyCloud(init.getBuilder().instanceCap(2).build(), template2);
+        
+        Label generic = Label.get("generic");
+            
+        // Simulate the provisioning process used in NodeProvisioner (https://github.com/jenkinsci/jenkins/blob/master/core/src/main/java/hudson/slaves/NodeProvisioner.java#L628)
+        List<JCloudsCloud> clouds = new ArrayList<JCloudsCloud>();
+        clouds.add(cloud); clouds.add(cloud2); 
+        int jobsCount = 2; 
+        // Until there are no more jobs to build
+        while(jobsCount>0){
+            // try provisioning from the clouds 
+            for (JCloudsCloud c : clouds){
+                if (c.canProvision(generic)){
+                    // update the number of remaining jobs to build
+                    Collection<NodeProvisioner.PlannedNode> plannedNodeList =  c.provision(generic,jobsCount);
+                    jobsCount -= plannedNodeList.size(); 
+                }
+            }  
+        }
+        assertEquals(0,jobsCount);
+
+          // Test 2 - second assertion 
+        /* ○ Test2: First Cloud down 
+			§ First Cloud down - simulate outage by providing invalid credentials 
+			§ Two jobs
+			§ Should work fine - It should build both jobs using the remaining cloud
+         */
+        clouds.clear();
+        cloud = cloud2 = null;
+        JCloudsCloud cloud3 = j.unavailableDummyCloud(init.getBuilder().instanceCap(1).build(), template1);
+        JCloudsCloud cloud4 = j.dummyCloud(init.getBuilder().instanceCap(2).build(), template2);
+        
+      
+
+        // // Simulate the provisioning process used in NodeProvisioner (https://github.com/jenkinsci/jenkins/blob/master/core/src/main/java/hudson/slaves/NodeProvisioner.java#L628)
+       
+        clouds.add(cloud3); clouds.add(cloud4); 
+        int jobsCount2 = 2; 
+        // // Until there are no more jobs to build
+        while(jobsCount2>0){
+            // try provisioning from the clouds 
+            for (JCloudsCloud c : clouds){
+                if (c.canProvision(generic)){
+                    // update the number of remaining jobs to build
+                    jobsCount2 -=  c.provision(generic,jobsCount2).size();
+                }
+            }  
+        }
+
+        assertEquals(0,jobsCount2);
+         // Test 3 - third assertion 
+        /* ○ Test 3: second Cloud down 
+			§ First Cloud down - simulate outage by providing invalid credentials 
+			§ Two jobs
+			§ Should work fine - It should build both jobs using the remaining cloud
+         */
+        clouds.clear();
+        cloud3 = cloud4 = null;
+        JCloudsCloud cloud5 = j.dummyCloud(init.getBuilder().instanceCap(2).build(), template1);
+        JCloudsCloud cloud6 = j.unavailableDummyCloud(init.getBuilder().instanceCap(1).build(), template2);
+        
+        // // Simulate the provisioning process used in NodeProvisioner (https://github.com/jenkinsci/jenkins/blob/master/core/src/main/java/hudson/slaves/NodeProvisioner.java#L628)
+        clouds.add(cloud5); clouds.add(cloud6); 
+         int jobsCount3 = 2; 
+        // // Until there are no more jobs to build
+        while(jobsCount3>0){
+            // try provisioning from the clouds 
+            for (JCloudsCloud c : clouds){
+                if (c.canProvision(generic)){
+                    // update the number of remaining jobs to build
+                    jobsCount3 -= c.provision(generic,jobsCount3).size();
+                }
+            }  
+        }
+             
+        assertEquals(0,jobsCount3);  
+    }
+
 
     private void verifyPreferredAddressUsed(String expectedAddress, Collection<NetworkAddress> addresses) throws Exception {
         CloudStatistics cs = CloudStatistics.get();
