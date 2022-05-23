@@ -223,7 +223,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
             String cause;
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
-                if ((System.currentTimeMillis() - node.getCreatedTime()) > timeout) {
+                if (node.isLaunchTimedOut()) {
 
                     String timeoutMessage = String.format("Failed to connect agent %s within timeout (%d ms): %s", node.getNodeName(), timeout, cause);
                     Error errorQuerying = null;

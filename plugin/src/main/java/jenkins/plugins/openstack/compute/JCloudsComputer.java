@@ -98,6 +98,9 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
      */
     /*package*/ @CheckForNull OfflineCause getFatalOfflineCause() {
         OfflineCause oc = getOfflineCause();
+
+        if (getNode().isLaunchTimedOut() && oc instanceof OfflineCause.LaunchFailed) return oc;
+
         return oc instanceof DiskSpaceMonitorDescriptor.DiskSpace || oc instanceof OfflineCause.ChannelTermination
                 ? oc
                 : null
