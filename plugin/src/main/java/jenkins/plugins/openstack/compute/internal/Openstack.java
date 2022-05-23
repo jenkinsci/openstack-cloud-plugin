@@ -214,7 +214,7 @@ public class Openstack {
     /**
      * For every network requested, return mapping of network and number of available fixed addresses.
      *
-     * Note the network-ip-availability is usually available for admins only so the method may return <tt>null</tt> in that case.
+     * Note the network-ip-availability is usually available for admins only so the method may return <code>null</code> in that case.
      *
      * @return Map of requested networks and their free capacity. Might be empty.
      */

@@ -268,7 +268,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     }
 
     /**
-     * Derive new options from current leaving <tt>null</tt> where same as default.
+     * Derive new options from current leaving <code>null</code> where same as default.
      */
     public @Nonnull SlaveOptions eraseDefaults(@Nonnull SlaveOptions defaults) {
         return new Builder()
@@ -294,7 +294,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         ;
     }
 
-    /** Returns null if our <tt>base</tt> value is the same as the <tt>def</tt>ault value. */
+    /** Returns null if our <code>base</code> value is the same as the <code>def</code>ault value. */
     private @CheckForNull <T> T _erase(@CheckForNull T base, @CheckForNull T def) {
         if (def == null) return base;
         if (def.equals(base)) return null;
