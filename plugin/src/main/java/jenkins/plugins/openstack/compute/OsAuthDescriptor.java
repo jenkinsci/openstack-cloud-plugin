@@ -62,7 +62,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
     }
 
     /**
-     * Get relative <tt>fillDependsOn</tt> offsets to apply.
+     * Get relative <code>fillDependsOn</code> offsets to apply.
      */
     public abstract List<String> getAuthFieldsOffsets();
 

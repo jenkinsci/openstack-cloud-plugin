@@ -36,7 +36,7 @@ import java.util.logging.Logger;
 /**
  * Dispose OpenStack VM *without* cleaning up the Jenkins computer.
  *
- * See <tt>jenkins.plugins.openstack.compute.JCloudsSlave.RecordDisposal</tt> for the variant that does both.
+ * See <code>jenkins.plugins.openstack.compute.JCloudsSlave.RecordDisposal</code> for the variant that does both.
  */
 @Restricted(NoExternalUse.class)
 public final class DestroyMachine implements Disposable {

@@ -53,11 +53,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
@@ -303,7 +299,7 @@ public class ProvisioningTest {
 
         assertThat(cloud.getOpenstack().instanceUrl(), not(emptyString()));
         assertThat(cloud.getOpenstack().instanceFingerprint(), not(emptyString()));
-System.out.println(cloud.getOpenstack().instanceFingerprint());
+
         Server server = template.provisionServer(null, null);
         Map<String, String> m = server.getMetadata();
         assertEquals(cloud.getOpenstack().instanceUrl(), m.get(Openstack.FINGERPRINT_KEY_URL));
@@ -340,7 +336,7 @@ System.out.println(cloud.getOpenstack().instanceFingerprint());
     }
 
     @Test
-    public void timeoutLaunching() throws Exception {
+    public void timeoutLaunchingJnlp() throws Exception {
         final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
         final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
@@ -359,7 +355,48 @@ System.out.println(cloud.getOpenstack().instanceFingerprint());
             assertThat("Server details are printed", msg, containsString("Server state: Mock for "));
         }
 
-        // Wait for the server to be dereflleted
+        // Wait for the server to be disposed
+        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+        while (!disposer.getBacklog().isEmpty()) {
+            Thread.sleep(1000);
+        }
+        verify(cloud.getOpenstack()).destroyServer(any(Server.class));
+    }
+
+    @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/310")
+    public void timeoutLaunchingSsh() throws Exception {
+        LauncherFactory.SSH sshLaunch = new LauncherFactory.SSH("no-such-creds");
+        final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(3000).launcherFactory(sshLaunch).build();
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
+        JCloudsSlave agent = j.provision(cloud, "asdf");
+        JCloudsComputer computer = agent.getComputer();
+        assertFalse(agent.isLaunchTimedOut());
+
+        OfflineCause ofc = null;
+        for (int i = 0; i < 3; i++){
+            ofc = computer.getOfflineCause();
+            if (ofc != null) break;
+            Thread.sleep(500);
+        }
+        assertThat(ofc, instanceOf(OfflineCause.LaunchFailed.class));
+        // OfflineCause.LaunchFailed is NOT fatal until the stat timeout is up
+        assertNull(computer.getFatalOfflineCause());
+        assertFalse(agent.isLaunchTimedOut());
+
+        for (int i = 0; i < 4; i++){
+            ofc = computer.getFatalOfflineCause();
+            if (ofc != null) break;
+            Thread.sleep(1000);
+        }
+        // OfflineCause.LaunchFailed will become fatal when the stat timeout is up
+        long aliveFor = System.currentTimeMillis() - agent.getCreatedTime();
+        assertTrue("Not timed out after ms " + aliveFor, agent.isLaunchTimedOut());
+        //assertThat("Cause not fatal after ms " + aliveFor, computer.getFatalOfflineCause(), instanceOf(OfflineCause.LaunchFailed.class));
+        assertThat("Cause not fatal after ms " + aliveFor, ofc, instanceOf(OfflineCause.LaunchFailed.class));
+
+        j.triggerOpenstackSlaveCleanup();
+
+        // Wait for the server to be disposed
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
         while (!disposer.getBacklog().isEmpty()) {
             Thread.sleep(1000);

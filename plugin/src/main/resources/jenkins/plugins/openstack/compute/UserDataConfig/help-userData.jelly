@@ -6,7 +6,7 @@
     <dl>
       <!-- Descriptor not exposed for help files? -->
       <j:forEach var="entry" items="${app.getDescriptor('jenkins.plugins.openstack.compute.UserDataConfig').variables}">
-        <dt><tt>${entry.name}</tt></dt>
+        <dt><code>${entry.name}</code></dt>
         <dd><j:out value="${entry.description}"/></dd>
       </j:forEach>
     </dl>
@@ -14,23 +14,23 @@
     <p>
     For example, a unix-based JNLP slave could use a script such as
     <blockquote>
-      <tt>
+      <code>
       #!/bin/sh<br/>
       mkdir -p &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
       wget &quot;$${SLAVE_JAR_URL}&quot; -O &quot;$${SLAVE_JENKINS_HOME}/slave.jar&quot;<br/>
       cd &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
       java $${SLAVE_JVM_OPTIONS} -jar &quot;$${SLAVE_JENKINS_HOME}/slave.jar&quot; -jnlpUrl &quot;$${SLAVE_JNLP_URL}&quot; -secret &quot;$${SLAVE_JNLP_SECRET}&quot;
-      </tt>
+      </code>
     </blockquote>
     whereas a Windows-based JNLP slave could use a script such as
     <blockquote>
-      <tt>
+      <code>
         #ps1<br/>
         mkdir -Force &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
         (new-object System.Net.WebClient).DownloadFile(&apos;$${SLAVE_JAR_URL}&apos;,&apos;$${SLAVE_JENKINS_HOME}\slave.jar&apos;)<br/>
         cd &quot;$${SLAVE_JENKINS_HOME}&quot;<br/>
         java $${SLAVE_JVM_OPTIONS} -jar &quot;slave.jar&quot; -jnlpUrl &quot;$${SLAVE_JNLP_URL}&quot; -secret &quot;$${SLAVE_JNLP_SECRET}&quot;
-      </tt>
+      </code>
     </blockquote>
     </p>
   </div>

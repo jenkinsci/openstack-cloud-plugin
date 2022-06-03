@@ -146,7 +146,7 @@ public abstract class ServerScope {
     /**
      * Server is scoped to Jenkins node of the name equal to the specifier.
      *
-     * Server marked as <tt>node:asdf</tt> will live only to support Jenkins node <tt>asdf</tt>.
+     * Server marked as <code>node:asdf</code> will live only to support Jenkins node <code>asdf</code>.
      */
     public static final class Node extends ServerScope {
         private final @Nonnull String name;
