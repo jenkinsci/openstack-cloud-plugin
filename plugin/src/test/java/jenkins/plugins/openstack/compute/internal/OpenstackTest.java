@@ -1,7 +1,6 @@
 package jenkins.plugins.openstack.compute.internal;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
@@ -190,7 +189,7 @@ public class OpenstackTest {
         when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(images);
         final ArrayList<String> expected = new ArrayList<>(
                 Arrays.asList("mockImageNamedBar2Id", "mockImageNamedBar3Id", "mockImageNamedBar1Id"));
-        final OSClient osClient = mock(OSClient.class);
+
         when(osClient.imagesV2()).thenReturn(mockIS);
 
 
@@ -208,7 +207,7 @@ public class OpenstackTest {
     public void getImageIdsForGivenUnknownThenReturnsEmpty() {
         final ImageService mockIS = mock(ImageService.class);
         when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
-        final OSClient osClient = mock(OSClient.class);
+
         when(osClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>();
 
@@ -233,7 +232,7 @@ public class OpenstackTest {
         final ImageService mockIS = mock(ImageService.class);
         when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
         when(mockIS.get(imageId)).thenReturn(mockImageNamedFoo);
-        final OSClient osClient = mock(OSClient.class);
+
         when(osClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList(mockImageNamedFoo.getId()));
 
@@ -271,7 +270,7 @@ public class OpenstackTest {
         final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar1,
                 mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
-        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+
         when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList("mockVolumeSnapshotNamedBar2Id",
                 "mockVolumeSnapshotNamedBar3Id", "mockVolumeSnapshotNamedBar1Id"));
@@ -312,7 +311,7 @@ public class OpenstackTest {
         final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar1,
                 mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
-        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+
         when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>();
 
@@ -351,7 +350,7 @@ public class OpenstackTest {
         final BlockVolumeSnapshotService mockBVSS = mock(BlockVolumeSnapshotService.class);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
         when(mockBVSS.get(volumeSnapshotId)).thenReturn(mockVolumeSnapshotNamedFoo);
-        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+
         when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList(mockVolumeSnapshotNamedFoo.getId()));
 
@@ -374,7 +373,7 @@ public class OpenstackTest {
         when(mockAZ3.getZoneName()).thenReturn("Flibble");
         final ZoneService mockZS = mock(ZoneService.class);
         doReturn(Arrays.asList(mockAZ1, mockAZ2, mockAZ3)).when(mockZS).list();
-        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+
         when(osClient.compute().zones()).thenReturn(mockZS);
         final ArrayList<AvailabilityZone> expected = new ArrayList<>(Arrays.asList(mockAZ2, mockAZ3, mockAZ1));
 
