@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute.auth;
 
 import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import hudson.ExtensionPoint;
 
@@ -11,5 +12,6 @@ public abstract class AbstractOpenstackCredential extends BaseStandardCredential
 
     public AbstractOpenstackCredential(@CheckForNull CredentialsScope scope, @CheckForNull String id, @CheckForNull String description) {
         super(scope, id, description);
+        assert this instanceof PasswordCredentials;
     }
 }
