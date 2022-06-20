@@ -1,11 +1,16 @@
 package jenkins.plugins.openstack.compute.internal;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyMapOf;
+import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.*;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -13,7 +18,9 @@ import org.openstack4j.api.OSClient;
 import org.openstack4j.api.compute.ext.ZoneService;
 import org.openstack4j.api.image.v2.ImageService;
 import org.openstack4j.api.networking.NetFloatingIPService;
+import org.openstack4j.api.networking.NetworkService;
 import org.openstack4j.api.networking.PortService;
+import org.openstack4j.api.networking.ext.NetworkIPAvailabilityService;
 import org.openstack4j.api.storage.BlockVolumeSnapshotService;
 import org.openstack4j.model.common.ActionResponse;
 import org.openstack4j.model.compute.Fault;
@@ -22,12 +29,16 @@ import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.network.NetFloatingIP;
+import org.openstack4j.model.network.Network;
 import org.openstack4j.model.network.Port;
+import org.openstack4j.model.network.ext.NetworkIPAvailability;
 import org.openstack4j.model.network.options.PortListOptions;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
 import org.openstack4j.openstack.networking.domain.NeutronFloatingIP;
+import org.openstack4j.openstack.networking.domain.NeutronNetwork;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,6 +54,15 @@ import java.util.Map;
         "unchecked"
 })
 public class OpenstackTest {
+
+    private OSClient osClient;
+    private Openstack openstack;
+
+    @Before
+    public void setUp() throws Exception {
+        osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+        openstack = spy(new Openstack(osClient));
+    }
 
     @Test
     public void getImagesReturnsImagesIndexedByNameSortedByAge() {
@@ -68,15 +88,15 @@ public class OpenstackTest {
         when(mockImageNamedBar3.getCreatedAt()).thenReturn(new Date(1000));
         final List images = Arrays.asList(mockImageNamedBar1, mockImageWithNullName, mockImageNamedBar2,
                 mockImageNamedFoo, mockImageNamedBar3);
-        final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.imagesV2().list(any())).thenReturn(images);
+
+        when(osClient.imagesV2().list(any())).thenReturn(images);
         final Collection<Image> images0 = new ArrayList<>(
                 Arrays.asList(mockImageNamedBar2, mockImageNamedBar3, mockImageNamedBar1));
         final Collection<Image> images1 = new ArrayList<>(Arrays.asList(mockImageNamedFoo));
         final Collection<Image> images2 = new ArrayList<>(Arrays.asList(mockImageWithNullName));
 
-        final Openstack instance = new Openstack(mockClient);
-        final Map<String, List<Image>> actual = instance.getImages();
+
+        final Map<String, List<Image>> actual = openstack.getImages();
 
         // Result keys should be in name order
         final Iterator<Map.Entry<String, List<Image>>> iterator = actual.entrySet().iterator();
@@ -123,16 +143,16 @@ public class OpenstackTest {
         when(mockVolumeSnapshotUnavailable.getStatus()).thenReturn(Volume.Status.ATTACHING);
         final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedBar1, mockVolumeSnapshotWithNullName,
                 mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar3, mockVolumeSnapshotUnavailable);
-        final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.blockStorage().snapshots().list()).thenReturn(volumeSnapshots);
+
+        when(osClient.blockStorage().snapshots().list()).thenReturn(volumeSnapshots);
         final Collection<VolumeSnapshot> volumeSnapshots0 = new ArrayList<>(
                 Arrays.asList(mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3, mockVolumeSnapshotNamedBar1));
         final Collection<VolumeSnapshot> volumeSnapshots1 = new ArrayList<>(Arrays.asList(mockVolumeSnapshotNamedFoo));
         final Collection<VolumeSnapshot> volumeSnapshots2 = new ArrayList<>(
                 Arrays.asList(mockVolumeSnapshotWithNullName));
 
-        final Openstack instance = new Openstack(mockClient);
-        final Map<String, List<VolumeSnapshot>> actual = instance.getVolumeSnapshots();
+
+        final Map<String, List<VolumeSnapshot>> actual = openstack.getVolumeSnapshots();
 
         // Result keys should be in name order
         final Iterator<Map.Entry<String, List<VolumeSnapshot>>> iterator = actual.entrySet().iterator();
@@ -170,11 +190,11 @@ public class OpenstackTest {
         when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(images);
         final ArrayList<String> expected = new ArrayList<>(
                 Arrays.asList("mockImageNamedBar2Id", "mockImageNamedBar3Id", "mockImageNamedBar1Id"));
-        final OSClient mockClient = mock(OSClient.class);
-        when(mockClient.imagesV2()).thenReturn(mockIS);
+        final OSClient osClient = mock(OSClient.class);
+        when(osClient.imagesV2()).thenReturn(mockIS);
 
-        final Openstack instance = new Openstack(mockClient);
-        final List<String> actual = instance.getImageIdsFor("Bar");
+
+        final List<String> actual = openstack.getImageIdsFor("Bar");
 
         final Map<String, String> expectedFilteringParams = new HashMap<>(2);
         expectedFilteringParams.put("name", "Bar");
@@ -188,12 +208,12 @@ public class OpenstackTest {
     public void getImageIdsForGivenUnknownThenReturnsEmpty() {
         final ImageService mockIS = mock(ImageService.class);
         when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
-        final OSClient mockClient = mock(OSClient.class);
-        when(mockClient.imagesV2()).thenReturn(mockIS);
+        final OSClient osClient = mock(OSClient.class);
+        when(osClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>();
 
-        final Openstack instance = new Openstack(mockClient);
-        final List<String> actual = instance.getImageIdsFor("NameNotFound");
+
+        final List<String> actual = openstack.getImageIdsFor("NameNotFound");
 
         final Map<String, String> expectedFilteringParams = new HashMap<>(2);
         expectedFilteringParams.put("name", "NameNotFound");
@@ -213,12 +233,12 @@ public class OpenstackTest {
         final ImageService mockIS = mock(ImageService.class);
         when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
         when(mockIS.get(imageId)).thenReturn(mockImageNamedFoo);
-        final OSClient mockClient = mock(OSClient.class);
-        when(mockClient.imagesV2()).thenReturn(mockIS);
+        final OSClient osClient = mock(OSClient.class);
+        when(osClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList(mockImageNamedFoo.getId()));
 
-        final Openstack instance = new Openstack(mockClient);
-        final List<String> actual = instance.getImageIdsFor(imageId);
+
+        final List<String> actual = openstack.getImageIdsFor(imageId);
 
         verify(mockIS).list(anyMapOf(String.class, String.class));
         verify(mockIS).get(imageId);
@@ -251,13 +271,13 @@ public class OpenstackTest {
         final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar1,
                 mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
-        final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.blockStorage().snapshots()).thenReturn(mockBVSS);
+        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+        when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList("mockVolumeSnapshotNamedBar2Id",
                 "mockVolumeSnapshotNamedBar3Id", "mockVolumeSnapshotNamedBar1Id"));
 
-        final Openstack instance = new Openstack(mockClient);
-        final List<String> actual = instance.getVolumeSnapshotIdsFor("Bar");
+
+        final List<String> actual = openstack.getVolumeSnapshotIdsFor("Bar");
 
         final Map<String, String> expectedFilteringParams = new HashMap<>(2);
         expectedFilteringParams.put("name", "Bar");
@@ -292,12 +312,12 @@ public class OpenstackTest {
         final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar1,
                 mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
-        final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.blockStorage().snapshots()).thenReturn(mockBVSS);
+        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+        when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>();
 
-        final Openstack instance = new Openstack(mockClient);
-        final List<String> actual = instance.getVolumeSnapshotIdsFor("NameNotFound");
+
+        final List<String> actual = openstack.getVolumeSnapshotIdsFor("NameNotFound");
 
         verify(mockBVSS).list();
         verifyNoMoreInteractions(mockBVSS);
@@ -331,12 +351,12 @@ public class OpenstackTest {
         final BlockVolumeSnapshotService mockBVSS = mock(BlockVolumeSnapshotService.class);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
         when(mockBVSS.get(volumeSnapshotId)).thenReturn(mockVolumeSnapshotNamedFoo);
-        final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.blockStorage().snapshots()).thenReturn(mockBVSS);
+        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+        when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList(mockVolumeSnapshotNamedFoo.getId()));
 
-        final Openstack instance = new Openstack(mockClient);
-        final List<String> actual = instance.getVolumeSnapshotIdsFor(volumeSnapshotId);
+
+        final List<String> actual = openstack.getVolumeSnapshotIdsFor(volumeSnapshotId);
 
         verify(mockBVSS).list();
         verify(mockBVSS).get(volumeSnapshotId);
@@ -354,14 +374,64 @@ public class OpenstackTest {
         when(mockAZ3.getZoneName()).thenReturn("Flibble");
         final ZoneService mockZS = mock(ZoneService.class);
         doReturn(Arrays.asList(mockAZ1, mockAZ2, mockAZ3)).when(mockZS).list();
-        final OSClient mockClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
-        when(mockClient.compute().zones()).thenReturn(mockZS);
+        final OSClient osClient = mock(OSClient.class, RETURNS_DEEP_STUBS);
+        when(osClient.compute().zones()).thenReturn(mockZS);
         final ArrayList<AvailabilityZone> expected = new ArrayList<>(Arrays.asList(mockAZ2, mockAZ3, mockAZ1));
 
-        final Openstack instance = new Openstack(mockClient);
-        final List<? extends AvailabilityZone> actual = instance.getAvailabilityZones();
+        final List<? extends AvailabilityZone> actual = openstack.getAvailabilityZones();
 
         assertThat(new ArrayList<>(actual), equalTo(expected));
+    }
+
+    @Test
+    public void cacheNetworks() {
+        NeutronNetwork net = mock(NeutronNetwork.class);
+        when(net.getId()).thenReturn("foo");
+
+        NetworkService netService = osClient.networking().network();
+        doReturn(Collections.singletonList(net)).when(netService).list();
+
+        Map<String, Network> foo = openstack.getNetworks(Collections.singletonList("foo"));
+        assertThat(foo, equalTo(Collections.singletonMap("foo", net)));
+        verify(netService, times(1)).list();
+
+        foo = openstack.getNetworks(Collections.singletonList("foo"));
+        assertThat(foo, equalTo(Collections.singletonMap("foo", net)));
+        verify(netService, times(1)).list();
+
+        verify(openstack, times(2))._listNetworks();
+
+        // Query again for new instance of Openstack
+        new Openstack(osClient).getNetworks(Collections.singletonList("foo"));
+        verify(netService, times(2)).list();
+    }
+
+    @Test
+    public void cacheNetworkAvailability() {
+        NetworkIPAvailability awail = mock(NetworkIPAvailability.class);
+        when(awail.getNetworkId()).thenReturn("42");
+        when(awail.getTotalIps()).thenReturn(BigInteger.valueOf(10));
+        when(awail.getUsedIps()).thenReturn(BigInteger.valueOf(4));
+
+        NeutronNetwork net = mock(NeutronNetwork.class);
+        when(net.getId()).thenReturn("42");
+
+        NetworkIPAvailabilityService netService = osClient.networking().networkIPAvailability();
+        doReturn(Collections.singletonList(awail)).when(netService).get();
+
+        Map<Network, Integer> foo = openstack.getNetworksCapacity(Collections.singletonMap("42", net));
+        assertThat(foo, equalTo(Collections.singletonMap(net, 6)));
+        verify(netService, times(1)).get();
+
+        foo = openstack.getNetworksCapacity(Collections.singletonMap("42", net));
+        assertThat(foo, equalTo(Collections.singletonMap(net, 6)));
+        verify(netService, times(1)).get();
+
+        verify(openstack, times(2)).getNetworkIPAvailability();
+
+        // Query again for new instance of Openstack
+        new Openstack(osClient).getNetworksCapacity(Collections.singletonMap("42", net));
+        verify(netService, times(2)).get();
     }
 
     @Test
