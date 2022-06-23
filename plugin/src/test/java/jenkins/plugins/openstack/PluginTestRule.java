@@ -3,6 +3,7 @@ package jenkins.plugins.openstack;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.common.PasswordCredentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 
@@ -27,6 +28,7 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import hudson.util.ProcessTree;
+import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
@@ -150,8 +152,9 @@ public final class PluginTestRule extends JenkinsRule {
         }
     }
 
-    public static class DummyOpenstackCredentials extends AbstractOpenstackCredential {
+    public static class DummyOpenstackCredentials extends AbstractOpenstackCredential implements PasswordCredentials {
         private static final long serialVersionUID = -6458476198187349017L;
+        public static final Secret SECRET = Secret.fromString("");
 
         private DummyOpenstackCredentials() {
             super(CredentialsScope.SYSTEM, "my-id", "testCredentials");
@@ -160,6 +163,12 @@ public final class PluginTestRule extends JenkinsRule {
         @Override
         public @Nonnull IOSClientBuilder<? extends OSClient<?>, ?> getBuilder(String endPointUrl) {
             throw new AuthenticationException(getClass().getSimpleName() + " can not be use to create client", -1);
+        }
+
+        @Nonnull
+        @Override
+        public Secret getPassword() {
+            return SECRET;
         }
     }
 

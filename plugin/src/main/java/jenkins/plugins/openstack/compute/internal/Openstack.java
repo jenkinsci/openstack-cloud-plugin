@@ -130,6 +130,17 @@ public class Openstack {
     // Store the OS session token so clients can be created from it per all threads using this.
     private final ClientProvider clientProvider;
 
+    private static final @Nonnull Cache<Openstack, List<? extends Network>> networksCache
+            = Caffeine.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build()
+    ;
+
+    // The time to cache here is questionable as the information can get outdated based on activity out of our reach.
+    // Caching this for few seconds will smooth spikes provisioning many VMs at the time, although it might cause some
+    // of provisioning attempts to fail in case the number fo the VMs is larger than number of free IPs in the pool with most free IPs.
+    private static final @Nonnull Cache<Openstack, List<? extends NetworkIPAvailability>> networkIpAvailabilityCache
+            = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.SECONDS).build()
+    ;
+
     private Openstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region) {
 
         final IOSClientBuilder<? extends OSClient<?>, ?> builder = auth.getBuilder(endPointUrl);
@@ -150,7 +161,7 @@ public class Openstack {
         debug("Openstack client created for \"{0}\", \"{1}\".", auth.toString(), region);
     }
 
-    /*exposed for testing*/
+    @VisibleForTesting
     public Openstack(@Nonnull final OSClient<?> client) {
         this.clientProvider = new ClientProvider() {
             @Override public @Nonnull OSClient<?> get() {
@@ -178,8 +189,11 @@ public class Openstack {
     }
 
     @VisibleForTesting
-    public  @Nonnull List<? extends Network> _listNetworks() {
-        return clientProvider.get().networking().network().list();
+    public @Nonnull List<? extends Network> _listNetworks() {
+        return Objects.requireNonNull(networksCache.get(
+                this,
+                (os) -> os.clientProvider.get().networking().network().list()
+        ));
     }
 
     /**
@@ -223,13 +237,20 @@ public class Openstack {
 
         List<String> declaredIds = declaredNetworks.values().stream().map(Network::getId).collect(Collectors.toList());
 
-        List<? extends NetworkIPAvailability> networkIPAvailabilities = clientProvider.get().networking().networkIPAvailability().get();
+        List<? extends NetworkIPAvailability> networkIPAvailabilities = getNetworkIPAvailability();
 
         return networkIPAvailabilities.stream().filter( // Those we care for
                 n -> declaredIds.contains(n.getNetworkId())
         ).collect(Collectors.toMap( // network -> capacity
                 n -> declaredNetworks.get(n.getNetworkId()),
                 n -> n.getTotalIps().subtract(n.getUsedIps()).intValue()
+        ));
+    }
+
+    public List<? extends NetworkIPAvailability> getNetworkIPAvailability() {
+        return Objects.requireNonNull(networkIpAvailabilityCache.get(
+                this,
+                (os) -> os.clientProvider.get().networking().networkIPAvailability().get()
         ));
     }
 
@@ -868,11 +889,6 @@ public class Openstack {
         public static @Nonnull Openstack get(
                 @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @CheckForNull final String region
         ) throws FormValidation {
-            final String fingerprint = Util.getDigestOf(endPointUrl +  '\n'
-                    + ignoreSsl + '\n'
-                    + auth.toString() + '\n'
-                    + (auth instanceof PasswordCredentials ? ((PasswordCredentials) auth).getPassword().getEncryptedValue() + '\n' : "")
-                    + region);
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
             final Function<String, Openstack> cacheMissFunction = (String unused) -> {
                 try {
@@ -882,6 +898,7 @@ public class Openstack {
                 }
             };
 
+            final String fingerprint = getCloudConnectionFingerprint(endPointUrl, ignoreSsl, auth, region);
             try {
                 // cacheMissFunction is guaranteed to return nonnull
                 return Objects.requireNonNull(ep.cache.get(fingerprint, cacheMissFunction));
@@ -911,6 +928,23 @@ public class Openstack {
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
             return ep.cache;
         }
+    }
+
+    /**
+     * Get a string unique per cloud connection.
+     *
+     * This is used as caching identifier.
+     */
+    @Nonnull
+    private static String getCloudConnectionFingerprint(
+            @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region
+    ) {
+        String pwd = auth instanceof PasswordCredentials
+                ? ((PasswordCredentials) auth).getPassword().getEncryptedValue()
+                : ""
+        ;
+        String plain = String.join("::", endPointUrl, Boolean.toString(ignoreSsl), auth.toString(), pwd, region);
+        return Util.getDigestOf(plain);
     }
 
     @Extension
