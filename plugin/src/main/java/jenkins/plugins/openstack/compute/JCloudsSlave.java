@@ -97,7 +97,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         setMode(Mode.NORMAL);
         setLabelString(labelString);
         setRetentionStrategy(new JCloudsRetentionStrategy());
-        setNodeProperties(mkNodeProperties(Openstack.getAccessIpAddress(metadata), slaveOptions.getNodeProperties()));
+        setNodeProperties(mkNodeProperties(Openstack.getAccessIpAddress(metadata, slaveOptions.getSshNetworkInterface()), slaveOptions.getNodeProperties()));
         setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
     }
 
@@ -322,7 +322,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      */
     public @CheckForNull String getPublicAddress() throws NoSuchElementException {
 
-        return Openstack.getAccessIpAddress(getOpenstack(cloudName).getServerById(nodeId));
+        return Openstack.getAccessIpAddress(getOpenstack(cloudName).getServerById(nodeId), this.getSlaveOptions().getSshNetworkInterface());
     }
 
     /**

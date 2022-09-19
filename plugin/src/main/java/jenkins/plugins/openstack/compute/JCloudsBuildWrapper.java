@@ -90,7 +90,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
                         if (result != null) {
                             synchronized (cloudTemplateNodeBuilder) {
                                 // Builder in not threadsafe
-                                cloudTemplateNodeBuilder.add(new RunningNode(nodePlan.getCloud(), result));
+                                cloudTemplateNodeBuilder.add(new RunningNode(nodePlan.getCloud(), result, nodePlan.getSshNetWorkInterface()));
                             }
                         } else {
                             failedLaunches.incrementAndGet();
@@ -144,7 +144,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
     private @Nonnull String getIpsString(final Iterable<RunningNode> runningNodes) {
         final List<String> ips = new ArrayList<>(instancesToRun.size());
         for (RunningNode node : runningNodes) {
-            String addr = Openstack.getAccessIpAddress(node.getNode());
+            String addr = Openstack.getAccessIpAddress(node.getNode(), node.getSshNetWorkInterface());
             if (addr != null) {
                 ips.add(addr);
             } else {
@@ -168,9 +168,12 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         private final String cloud;
         private final Server node;
 
-        RunningNode(String cloud, Server node) {
+        private final String sshNetWorkInterface;
+
+        RunningNode(String cloud, Server node, String sshNetWorkInterface) {
             this.cloud = cloud;
             this.node = node;
+            this.sshNetWorkInterface = sshNetWorkInterface;
         }
 
         public String getCloudName() {
@@ -179,6 +182,9 @@ public class JCloudsBuildWrapper extends BuildWrapper {
 
         public Server getNode() {
             return node;
+        }
+        public String getSshNetWorkInterface() {
+            return sshNetWorkInterface;
         }
     }
 
@@ -201,6 +207,10 @@ public class JCloudsBuildWrapper extends BuildWrapper {
 
         public String getTemplate() {
             return template.getName();
+        }
+
+        public String getSshNetWorkInterface() {
+            return template.getRawSlaveOptions().getSshNetworkInterface();
         }
 
         public int getCount() {

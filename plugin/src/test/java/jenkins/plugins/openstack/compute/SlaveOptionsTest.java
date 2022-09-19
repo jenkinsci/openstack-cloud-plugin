@@ -27,6 +27,7 @@ public class SlaveOptionsTest {
         assertEquals(new BootSource.VolumeSnapshot("id"), unmodified.getBootSource());
         assertEquals("hw", unmodified.getHardwareId());
         assertEquals("nw1,mw2", unmodified.getNetworkId());
+        assertEquals("private_nw1", unmodified.getSshNetworkInterface());
         assertEquals("dummyUserDataId", unmodified.getUserDataId());
         assertEquals(1, (int) unmodified.getInstanceCap());
         assertEquals(2, (int) unmodified.getInstancesMin());
@@ -46,6 +47,7 @@ public class SlaveOptionsTest {
                 .bootSource(new BootSource.Image("iid"))
                 .hardwareId("HW")
                 .networkId("NW")
+                .sshNetworkInterface("PRIVATE_NW")
                 .userDataId("UD")
                 .instanceCap(42)
                 .instancesMin(0)
@@ -67,6 +69,7 @@ public class SlaveOptionsTest {
         assertEquals(new BootSource.Image("iid"), overridden.getBootSource());
         assertEquals("HW", overridden.getHardwareId());
         assertEquals("NW", overridden.getNetworkId());
+        assertEquals("PRIVATE_NW", overridden.getSshNetworkInterface());
         assertEquals("UD", overridden.getUserDataId());
         assertEquals(42, (int) overridden.getInstanceCap());
         assertEquals(0, (int) overridden.getInstancesMin());
@@ -99,11 +102,12 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null, null, null
+                null, "", "", "","", null, null, "", "", "", null, "", null, "", "", null, null, null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .hardwareId("")
                 .networkId("")
+                .sshNetworkInterface("")
                 .userDataId("")
                 .floatingIpPool("")
                 .securityGroups("")
@@ -118,6 +122,7 @@ public class SlaveOptionsTest {
 
         assertEquals(null, emptyStrings.getHardwareId());
         assertEquals(null, emptyStrings.getNetworkId());
+        assertEquals(null, emptyStrings.getSshNetworkInterface());
         assertEquals(null, emptyStrings.getUserDataId());
         assertEquals(null, emptyStrings.getSecurityGroups());
         assertEquals(null, emptyStrings.getAvailabilityZone());

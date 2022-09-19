@@ -22,6 +22,8 @@ import org.openstack4j.api.networking.PortService;
 import org.openstack4j.api.networking.ext.NetworkIPAvailabilityService;
 import org.openstack4j.api.storage.BlockVolumeSnapshotService;
 import org.openstack4j.model.common.ActionResponse;
+import org.openstack4j.model.compute.Address;
+import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -47,6 +49,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @SuppressWarnings({
         "rawtypes",
@@ -486,6 +489,119 @@ public class OpenstackTest {
         verify(client.compute().servers()).delete(server.getId());
         verify(fips).delete("release-me");
         verify(fips, never()).delete("keep-me");
+    }
+
+    @Test
+    public void getAccessIpAddress() {
+        // only one adresse with specific sshNetworkInterface
+        getAccesIpAdressTest(getAddressesOneAddress(), "default_network","DEFAULT_IP");
+
+        // only one adresse without specific sshNetworkInterface
+        getAccesIpAdressTest(getAddressesOneAddress(), null,"DEFAULT_IP");
+
+        // 2 adresse without specific sshNetworkInterface
+        getAccesIpAdressTest(getAddressesTwoAddress(), null,"FIRST_IP");
+
+        // 2 adresse with specific sshNetworkInterface
+        getAccesIpAdressTest(getAddressesTwoAddress(), "second_network","SECOND_IP");
+
+        // 2 adresse with specific sshNetworkInterface but not exist
+        try {
+            getAccesIpAdressTest(getAddressesTwoAddress(), "not_exist_network","FIRST_IP");
+            fail();
+        } catch (NoSuchElementException e) {
+            //no-op
+        }
+
+        // backward compatibility, return floating without specific interface
+        getAccesIpAdressTest(getAddressesTwoAddressButOneFloating(), null,"SECOND_IP");
+
+        // backward compatibility, return 1rst floating without specific interface
+        getAccesIpAdressTest(getAddressesTwoAddressFloating(), null,"FIRST_IP");
+        // backward compatibility, return ipv4
+        getAccesIpAdressTest(getAddressesTwoAddress4and6(), null,"SECOND_IP");
+    }
+
+    private Addresses getAddressesOneAddress() {
+        Address address = getAddress("DEFAULT_IP", "fixed", 4);
+        Addresses addresses = mock(Addresses.class);
+        Map<String, List<? extends Address>> mapAdresses = new HashMap<String, List<? extends Address>>() {{
+            put("default_network", Collections.singletonList(address));
+        }};
+        when(addresses.getAddresses()).thenReturn(mapAdresses);
+        when(addresses.getAddresses(any()))
+                .thenAnswer((Answer<List<? extends Address>>) invocationOnMock -> mapAdresses.get(invocationOnMock.getArguments()[0]));
+        return addresses;
+    }
+    private Addresses getAddressesTwoAddress() {
+        Address firstIp = getAddress("FIRST_IP", "fixed", 4);
+        Address secondIp = getAddress("SECOND_IP", "fixed", 4);
+        Addresses addresses = mock(Addresses.class);
+        Map<String, List<? extends Address>> mapAdresses = new HashMap<String, List<? extends Address>>() {{
+            put("first_network", Collections.singletonList(firstIp));
+            put("second_network", Collections.singletonList(secondIp));
+        }};
+        when(addresses.getAddresses()).thenReturn(mapAdresses);
+        when(addresses.getAddresses(any()))
+                .thenAnswer((Answer<List<? extends Address>>) invocationOnMock -> mapAdresses.get(invocationOnMock.getArguments()[0]));
+        return addresses;
+    }
+
+    private Addresses getAddressesTwoAddressButOneFloating() {
+        Address firstIp = getAddress("FIRST_IP", "fixed", 4);
+        Address secondIp = getAddress("SECOND_IP", "floating",4 );
+        Addresses addresses = mock(Addresses.class);
+        Map<String, List<? extends Address>> mapAdresses = new HashMap<String, List<? extends Address>>() {{
+            put("first_network", Collections.singletonList(firstIp));
+            put("second_network", Collections.singletonList(secondIp));
+        }};
+        when(addresses.getAddresses()).thenReturn(mapAdresses);
+        when(addresses.getAddresses(any()))
+                .thenAnswer((Answer<List<? extends Address>>) invocationOnMock -> mapAdresses.get(invocationOnMock.getArguments()[0]));
+        return addresses;
+    }
+    private Addresses getAddressesTwoAddressFloating() {
+        Address firstIp = getAddress("FIRST_IP", "floating", 4);
+        Address secondIp = getAddress("SECOND_IP", "floating", 4);
+        Addresses addresses = mock(Addresses.class);
+        Map<String, List<? extends Address>> mapAdresses = new HashMap<String, List<? extends Address>>() {{
+            put("first_network", Collections.singletonList(firstIp));
+            put("second_network", Collections.singletonList(secondIp));
+        }};
+        when(addresses.getAddresses()).thenReturn(mapAdresses);
+        when(addresses.getAddresses(any()))
+                .thenAnswer((Answer<List<? extends Address>>) invocationOnMock -> mapAdresses.get(invocationOnMock.getArguments()[0]));
+        return addresses;
+    }
+    private Addresses getAddressesTwoAddress4and6() {
+        Address firstIp = getAddress("FIRST_IP", "fixed",6);
+        Address secondIp = getAddress("SECOND_IP", "fixed",4);
+        Addresses addresses = mock(Addresses.class);
+        Map<String, List<? extends Address>> mapAdresses = new HashMap<String, List<? extends Address>>() {{
+            put("first_network", Collections.singletonList(firstIp));
+            put("second_network", Collections.singletonList(secondIp));
+        }};
+        when(addresses.getAddresses()).thenReturn(mapAdresses);
+        when(addresses.getAddresses(any()))
+                .thenAnswer((Answer<List<? extends Address>>) invocationOnMock -> mapAdresses.get(invocationOnMock.getArguments()[0]));
+        return addresses;
+    }
+
+    private Address getAddress(String ip, String type, int version) {
+        Address address = mock(Address.class);
+        when(address.getAddr()).thenReturn(ip);
+        when(address.getVersion()).thenReturn(version);
+        when(address.getType()).thenReturn(type);
+        return address;
+    }
+
+    private void getAccesIpAdressTest(Addresses addresses, String sshNetworkInterface, String result) {
+        Server server = mock(Server.class);
+        when(server.getAddresses()).thenReturn(addresses);
+
+        String ipAdresse = Openstack.getAccessIpAddress(server, sshNetworkInterface);
+
+        assertThat(ipAdresse, equalTo(result));
     }
 
     /**

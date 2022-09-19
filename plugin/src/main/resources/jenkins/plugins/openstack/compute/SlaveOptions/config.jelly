@@ -24,6 +24,9 @@
                     <f:entry title="Network(s)" field="networkId">
                         <f:textbox checkMethod="post"/>
                     </f:entry>
+                    <f:entry title="Name of Network Interface for SSH" field="sshNetworkInterface">
+                        <f:textbox checkMethod="post"/>
+                    </f:entry>
                     <f:entry title="User Data" field="userDataId">
                         <f:select checkMethod="post"/>
                     </f:entry>

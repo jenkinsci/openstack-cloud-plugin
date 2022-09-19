@@ -37,6 +37,7 @@ import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -727,16 +728,35 @@ public class Openstack {
      * @throws IllegalArgumentException When address can not be understood.
      * @throws NoSuchElementException When no suitable address is found.
      */
-    public static @CheckForNull String getAccessIpAddress(@Nonnull Server server) throws IllegalArgumentException, NoSuchElementException {
-        return getAccessIpAddressObject(server).getAddr();
+    public static @CheckForNull String getAccessIpAddress(@Nonnull Server server, String sshNetworkInterface) throws IllegalArgumentException, NoSuchElementException {
+        return getAccessIpAddressObject(server,sshNetworkInterface).getAddr();
     }
 
-    public static Address getAccessIpAddressObject(@Nonnull Server server) {
+    public static Address getAccessIpAddressObject(@Nonnull Server server, String sshNetworkInterface) {
+        Collection<List<? extends Address>> addressMap;
+        if (StringUtils.isNotEmpty(sshNetworkInterface)) {
+            List<? extends Address> addresses = server.getAddresses().getAddresses(sshNetworkInterface);
+            if (addresses == null) {
+                throw new NoSuchElementException("No IP address found for " + server.getName() + " on interface " + sshNetworkInterface);
+            }
+            addressMap = Collections.singletonList(addresses);
+        } else {
+            addressMap = server.getAddresses().getAddresses().values();
+        }
+
+        Address address = getAddressIpAddressObjectFromList(addressMap);
+        if (address != null) {
+            return address;
+        }
+
+        throw new NoSuchElementException("No access IP address found for " + server.getName() + ": " + addressMap);
+    }
+
+    private static Address getAddressIpAddressObjectFromList(Collection<List<? extends Address>> addressMap) {
         Address fixedIPv4 = null;
         Address fixedIPv6 = null;
         Address floatingIPv6 = null;
-        Collection<List<? extends Address>> addressMap = server.getAddresses().getAddresses().values();
-        for (List<? extends Address> addresses: addressMap) {
+        for (List<? extends Address> addresses : addressMap) {
             for (Address addr: addresses) {
                 String type = addr.getType();
                 int version = addr.getVersion();
@@ -771,9 +791,7 @@ public class Openstack {
 
         if (floatingIPv6 != null) return floatingIPv6;
         if (fixedIPv4 != null) return fixedIPv4;
-        if (fixedIPv6 != null) return fixedIPv6;
-
-        throw new NoSuchElementException("No access IP address found for " + server.getName() + ": " + addressMap);
+        return fixedIPv6;
     }
 
     /**

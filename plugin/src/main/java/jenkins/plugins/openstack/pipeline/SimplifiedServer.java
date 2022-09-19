@@ -27,6 +27,7 @@ public class SimplifiedServer implements Serializable {
     private @Nonnull String cloud;
     private @Nonnull String template;
     private @Nonnull String scope;
+    private @Nonnull String sshNetWorkInterface;
 
     public SimplifiedServer(@Nonnull String cloud, @Nonnull String template, @Nonnull String scope) {
         this.template = template;
@@ -37,6 +38,7 @@ public class SimplifiedServer implements Serializable {
         JCloudsCloud jcl = JCloudsCloud.getByName(cloud);
         JCloudsSlaveTemplate t = jcl.getTemplate(template);
         if (t == null) throw new IllegalArgumentException("Invalid template: " + template);
+        sshNetWorkInterface = t.getRawSlaveOptions().getSshNetworkInterface();
 
         this.srv = t.provisionServer(serverscope, null);
     }
@@ -54,7 +56,7 @@ public class SimplifiedServer implements Serializable {
     public String getAddress() {
         if (srv == null) return null;
 
-        return Openstack.getAccessIpAddress(srv);
+        return Openstack.getAccessIpAddress(srv, sshNetWorkInterface);
     }
 
     @Whitelisted
