@@ -76,6 +76,7 @@ import static java.lang.Boolean.TRUE;
  * @author Vijay Kiran
  */
 public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
+	private static final Integer AGENT_PROVISIONING_DELAY = Integer.parseInt(System.getProperty("jenkins.plugins.openstack.agentProvisioningDelaySeconds", "0"));
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
@@ -312,6 +313,19 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             plannedNodeList.add(new TrackedPlannedNode(id, numExecutors, task));
 
             excessWorkload -= numExecutors;
+            LOGGER.fine("Reduced excess work load: " + excessWorkload);
+            if (excessWorkload > 0 && AGENT_PROVISIONING_DELAY > 0) {
+                // The steps taken so far did not reduce the work load sufficiently,
+                // and the next agent has to be started right away.
+                // Setting this option delays the next iteration in order to avoid issues
+                // with certain OpenStack setups.
+                LOGGER.info("Delaying slave provisioning by " + AGENT_PROVISIONING_DELAY +  " seconds");
+                try {
+                    Thread.sleep(AGENT_PROVISIONING_DELAY * 1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
         return plannedNodeList;
     }
