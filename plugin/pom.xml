@@ -43,7 +43,7 @@
         <openstack4j.version>3.10</openstack4j.version>
         <okhttp.version>3.9.1</okhttp.version>
         <jenkins-test-harness.version>1626.v46b0925e70db</jenkins-test-harness.version>
-        <jackson.version>2.12.4</jackson.version>
+        <jackson.version>2.12.7.1</jackson.version>
     </properties>
 
     <developers>
