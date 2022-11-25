@@ -503,6 +503,11 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return ignoreSsl;
     }
 
+    @Override
+    public String toString() {
+        return String.format("OpenStack cloud %s for %s", name, endPointUrl);
+    }
+
     @Extension
     @Symbol("openstack")
     public static class DescriptorImpl extends Descriptor<Cloud> {

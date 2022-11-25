@@ -365,6 +365,16 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return created;
     }
 
+    /**
+     * @return True if the agent should have been up by now, and it is not. Note it could have been up momentarily before.
+     */
+    public boolean isLaunchTimedOut() {
+        JCloudsComputer computer = getComputer();
+        if (computer != null && computer.isOnline()) return false;
+        long existsFor = System.currentTimeMillis() - created;
+        return existsFor > getSlaveOptions().getStartTimeout();
+    }
+
     @Override public JCloudsComputer getComputer() {
         return (JCloudsComputer) super.getComputer();
     }
