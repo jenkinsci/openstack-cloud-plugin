@@ -28,8 +28,9 @@
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
+        <!--<jenkins.version>2.361.4</jenkins.version>-->
         <jenkins.version>2.289.1</jenkins.version>
-        <java.level>8</java.level>
+	<java.level>8</java.level>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
         <spotbugs.failOnError>false</spotbugs.failOnError>
@@ -44,7 +45,7 @@
         <okhttp.version>3.9.1</okhttp.version>
         <totp.version>1.7.1</totp.version>
         <jenkins-test-harness.version>1626.v46b0925e70db</jenkins-test-harness.version>
-        <jackson.version>2.12.4</jackson.version>
+        <jackson.version>2.14.1</jackson.version>
     </properties>
 
     <developers>
@@ -98,10 +99,11 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.12</version>
+            <version>1.15</version>
         </dependency>
 
-        <!-- Jenkins plugins -->
+	        
+	<!-- Jenkins plugins -->
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>ssh-slaves</artifactId>
@@ -155,12 +157,12 @@
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
-            <version>3.0.10</version>
+            <version>3.4.1</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-classworlds</artifactId>
-            <version>2.4.2</version>
+            <version>2.5.2</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci</groupId>
@@ -169,9 +171,29 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>1.29</version>
+            <version>1.33</version>
         </dependency>
-
+	<dependency>
+		<groupId>org.apache.commons</groupId>
+		<artifactId>commons-compress</artifactId>
+		<version>1.21</version>
+	</dependency>
+	<dependency>
+		<groupId>org.codehaus.plexus</groupId>
+		<artifactId>plexus-interpolation</artifactId>
+		<version>1.26</version>
+	</dependency>
+<!--	<dependency>
+                <groupId>org.kohsuke</groupId>
+                <artifactId>access-modifier-annotation</artifactId>
+                <version>1.27</version>
+        </dependency>
+	<dependency>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-annotations</artifactId>
+                <version>4.7.1</version>
+        </dependency>
+-->
         <!--Specifying jenkins version to avoid maven.plugins.enforcer.RequireUpperBoundDeps error
         between configuration as code and openstack4j -->
         <dependency>
