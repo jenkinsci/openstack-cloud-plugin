@@ -34,8 +34,6 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
     private final Secret password;
     private final Secret totpSecret;
 
-    private final transient TotpGenerator totpGenerator;
-
     @DataBoundConstructor
     @SuppressWarnings("unused")
     public OpenstackCredentialv3(@CheckForNull CredentialsScope scope,
@@ -61,8 +59,6 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
         this.projectDomain = projectDomain;
         this.password = password;
         this.totpSecret = totpSecret;
-
-        this.totpGenerator = new TotpGenerator();
     }
 
     @Nonnull
@@ -92,7 +88,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
                     username,
                     password.getPlainText(),
                     userDomainIdentifier,
-                    totpGenerator.generatePasscode(plainSecret)
+                    TotpGenerator.generatePasscode(plainSecret)
             );
         }
 
@@ -165,7 +161,7 @@ public class OpenstackCredentialv3 extends AbstractOpenstackCredential implement
 
         @Restricted(DoNotUse.class)
         public FormValidation doCheckTotpSecret(@QueryParameter String value) {
-            if (new TotpGenerator().isValidSecret(value)) {
+            if (TotpGenerator.isValidSecret(value)) {
                 return FormValidation.ok();
             } else {
                 return FormValidation.warning("Secret cannot be used to generate a TOTP Token, please supply a valid Base32 String.");

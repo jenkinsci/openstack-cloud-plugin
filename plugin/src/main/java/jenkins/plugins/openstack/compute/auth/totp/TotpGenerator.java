@@ -9,24 +9,18 @@ import org.apache.commons.codec.binary.Base32;
 
 public class TotpGenerator {
 
-    private final CodeGenerator codeGenerator;
-    private final SystemTimeProvider timeProvider;
-    private final int counter;
-    private final Base32 base32;
+    private TotpGenerator() {}
 
-    public TotpGenerator() {
-        codeGenerator = new DefaultCodeGenerator();
-        timeProvider = new SystemTimeProvider();
-        counter = 30;
-        this.base32 = new Base32();
-    }
-
-    public boolean isValidSecret(String totpSecret) {
+    private static final CodeGenerator codeGenerator = new DefaultCodeGenerator();
+    private static final SystemTimeProvider timeProvider = new SystemTimeProvider();
+    private static final int counter = 30;
+    private static final Base32 base32  = new Base32();
+    public static boolean isValidSecret(String totpSecret) {
         return !Strings.isNullOrEmpty(totpSecret)
                 && base32.isInAlphabet(totpSecret);
     }
 
-    public String generatePasscode(String totpSecret) {
+    public static String generatePasscode(String totpSecret) {
         if (!isValidSecret(totpSecret)) {
             throw new TotpPasscodeGenerationException("The TOTP secret is invalid.");
         }

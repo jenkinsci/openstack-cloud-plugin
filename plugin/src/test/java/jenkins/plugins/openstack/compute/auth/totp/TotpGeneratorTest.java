@@ -10,26 +10,23 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class TotpGeneratorTest {
-
-    private final TotpGenerator sut = new TotpGenerator();
-
     @Test
     public void thatWrongTotpSecretIsInvalid() {
 
-        assertFalse(sut.isValidSecret("ä"));
+        assertFalse(TotpGenerator.isValidSecret("ä"));
     }
 
     @Test
     public void thatInvalidTotpSecretThrowsException() {
 
-        assertThrows(TotpPasscodeGenerationException.class, () -> sut.generatePasscode("ä"));
+        assertThrows(TotpPasscodeGenerationException.class, () -> TotpGenerator.generatePasscode("ä"));
     }
 
     @Test
     public void thatCorrectTotpSecretIsValid() {
         String secret = "JBSWY3DPEHPK3PXP";
 
-        assertTrue(sut.isValidSecret(secret));
+        assertTrue(TotpGenerator.isValidSecret(secret));
     }
 
     @Test
@@ -37,7 +34,7 @@ public class TotpGeneratorTest {
         String secret = "JBSWY3DPEHPK3PXP";
         DefaultCodeVerifier codeVerifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
 
-        String passcode = sut.generatePasscode(secret);
+        String passcode = TotpGenerator.generatePasscode(secret);
 
         assertTrue(codeVerifier.isValidCode(secret, passcode));
     }
