@@ -5,8 +5,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.289.x</artifactId>
-                <version>950.v396cb834de1e</version>
+                <artifactId>bom-2.361.x</artifactId>
+                <version>1763.v092b_8980a_f5e</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -16,7 +16,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.25</version>
+        <version>4.54</version>
         <relativePath />
     </parent>
 
@@ -28,8 +28,8 @@
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
-        <jenkins.version>2.289.1</jenkins.version>
-        <java.level>8</java.level>
+        <jenkins.version>2.361.4</jenkins.version>
+        <java.level>11</java.level>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
         <spotbugs.failOnError>false</spotbugs.failOnError>
@@ -42,8 +42,8 @@
         <jsr305.version>1.3.9</jsr305.version>
         <openstack4j.version>3.10</openstack4j.version>
         <okhttp.version>3.9.1</okhttp.version>
-        <jenkins-test-harness.version>1626.v46b0925e70db</jenkins-test-harness.version>
-        <jackson.version>2.12.4</jackson.version>
+        <jenkins-test-harness.version>1802.v9de0d87365d2</jenkins-test-harness.version>
+        <jackson.version>2.13.3</jackson.version>
     </properties>
 
     <developers>
@@ -103,7 +103,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>0.27</version>
+            <version>254.v47891b_b_5b_6f6</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -117,7 +117,7 @@
         <dependency>
             <groupId>org.jenkins-ci.modules</groupId>
             <artifactId>instance-identity</artifactId>
-            <version>2.2</version>
+            <version>142.v04572ca_5b_265</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
