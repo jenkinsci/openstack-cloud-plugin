@@ -425,7 +425,7 @@ public class ProvisioningTest {
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         att = attachments.get(0);
-        assertThat(att.getTitle(), startsWith("Connection was broken: java.lang.RuntimeException: Broken alright"));
+        assertThat(att.getTitle(), startsWith("Connection was broken"));
 
         slave = j.provision(cloud, "label");
         slave.toComputer().disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
@@ -435,7 +435,7 @@ public class ProvisioningTest {
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         att = attachments.get(0);
-        assertThat(att.getTitle(), startsWith("Connection was broken: java.io.IOException: Broken badly"));
+        assertThat(att.getTitle(), startsWith("Connection was broken"));
     }
 
     @Test

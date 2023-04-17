@@ -4,7 +4,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyMapOf;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.*;
@@ -446,9 +445,9 @@ public class OpenstackTest {
         when(fault.getDetails()).thenReturn("I told you once");
         when(server.getFault()).thenReturn(fault);
 
-        doReturn(server).when(os)._bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
+        doReturn(server).when(os)._bootAndWaitActive((ServerCreateBuilder) any(ServerCreateBuilder.class), anyInt());
         doThrow(new Openstack.ActionFailed("Fake deletion failure")).when(os).destroyServer(server);
-        doNothing().when(os).attachFingerprint(any(ServerCreateBuilder.class));
+        doNothing().when(os).attachFingerprint((ServerCreateBuilder) any(ServerCreateBuilder.class));
 
         try {
             os.bootAndWaitActive(mock(ServerCreateBuilder.class), 1);
@@ -476,9 +475,9 @@ public class OpenstackTest {
 
         NetFloatingIPService fips = client.networking().floatingip();
         when(fips.list()).thenAnswer(sequencer.getAllFips());
-        when(fips.delete(any(String.class))).thenAnswer(sequencer.deleteFip());
+        when(fips.delete(anyString())).thenAnswer(sequencer.deleteFip());
         PortService ports = client.networking().port();
-        when(ports.list(any(PortListOptions.class))).thenAnswer(sequencer.getAllPorts());
+        when(ports.list((PortListOptions) any(PortListOptions.class))).thenAnswer(sequencer.getAllPorts());
 
         Openstack os = new Openstack(client);
         os.destroyServer(server);

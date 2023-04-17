@@ -227,9 +227,10 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     }
 
     private static final class PendingTermination extends SimpleOfflineCause {
+    	private static final org.jvnet.localizer.Localizable description = null;
 
         private PendingTermination() {
-            super(Messages._DeletedCause());
+            super(description);
         }
     }
 }

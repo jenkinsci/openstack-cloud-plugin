@@ -90,13 +90,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.RETURNS_SMART_NULLS;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
+import static org.mockito.Mockito.*;
+//import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+//import static org.mockito.Mockito.doAnswer;
+//import static org.mockito.Mockito.doCallRealMethod;
+//import static org.mockito.Mockito.mock;
+//import static org.mockito.Mockito.when;
+//import static org.mockito.Mockito.withSettings;
 
 /**
  * Test utils for plugin functional testing.

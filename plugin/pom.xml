@@ -5,8 +5,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.289.x</artifactId>
-                <version>950.v396cb834de1e</version>
+                <artifactId>bom-2.387.x</artifactId>
+                <version>1945.v13a_1306588ff</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -16,7 +16,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.25</version>
+        <version>4.54</version>
         <relativePath />
     </parent>
 
@@ -28,8 +28,8 @@
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
-        <jenkins.version>2.289.1</jenkins.version>
-        <java.level>8</java.level>
+        <jenkins.version>2.387.1</jenkins.version>
+        <java.level>11</java.level>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
         <spotbugs.failOnError>false</spotbugs.failOnError>
@@ -38,12 +38,9 @@
         </spotbugs.skip> <!-- Upstream Jenkins fails the build if some are found. Excludes does not seem to work. -->
         <maven.compiler.showDeprecation>true</maven.compiler.showDeprecation>
 
-        <guava.version>20.0</guava.version> <!-- version compatible with openstack4j -->
-        <jsr305.version>1.3.9</jsr305.version>
-        <openstack4j.version>3.10</openstack4j.version>
-        <okhttp.version>3.9.1</okhttp.version>
-        <jenkins-test-harness.version>1626.v46b0925e70db</jenkins-test-harness.version>
-        <jackson.version>2.12.4</jackson.version>
+        <openstack4j.version>3.11</openstack4j.version>
+        <okhttp.version>5.0.0-alpha.11</okhttp.version>
+
     </properties>
 
     <developers>
@@ -79,7 +76,6 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
         </dependency>
 
         <!-- Jenkins plugins -->
@@ -98,12 +94,11 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>3.7.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>0.27</version>
+            <version>267.v577e3742c282</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -117,7 +112,6 @@
         <dependency>
             <groupId>org.jenkins-ci.modules</groupId>
             <artifactId>instance-identity</artifactId>
-            <version>2.2</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
@@ -136,13 +130,20 @@
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
-            <version>3.0.16</version>
+            <version>3.5.1</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-classworlds</artifactId>
-            <version>2.4.2</version>
+            <version>2.7.0</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.kohsuke/access-modifier-annotation -->
+		<dependency>
+		    <groupId>org.kohsuke</groupId>
+		    <artifactId>access-modifier-annotation</artifactId>
+		    <scope>provided</scope>
+		</dependency>
+
         <dependency>
             <groupId>org.jenkins-ci</groupId>
             <artifactId>symbol-annotation</artifactId>
@@ -150,31 +151,17 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>1.32</version>
+            <version>1.33</version>
         </dependency>
 
-        <!--Specifying jenkins version to avoid maven.plugins.enforcer.RequireUpperBoundDeps error
-        between configuration as code and openstack4j -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
+		<!-- https://mvnrepository.com/artifact/com.fasterxml.jackson/jackson-bom -->
+		<dependency>
+		    <groupId>com.fasterxml.jackson</groupId>
+		    <artifactId>jackson-bom</artifactId>
+		    <version>2.15.0-rc3</version>
+		    <type>pom</type>
+		</dependency>
+
 
         <!-- Test Dependencies -->
         <dependency>
@@ -182,12 +169,13 @@
             <artifactId>hamcrest-core</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>1.9.5</version>
-            <scope>test</scope>
-        </dependency>
+		<!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
+		<dependency>
+		    <groupId>org.mockito</groupId>
+		    <artifactId>mockito-all</artifactId>
+		    <version>1.9.5</version>
+		    <scope>test</scope>
+		</dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-cps</artifactId>
