@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
+import java.lang.reflect.Field;
 
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import hudson.util.FormValidation;
@@ -20,7 +21,6 @@ import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.internal.util.reflection.Whitebox;
 import org.openstack4j.model.compute.BDMDestType;
 import org.openstack4j.model.compute.BDMSourceType;
 import org.openstack4j.model.compute.BlockDeviceMappingCreate;
@@ -41,7 +41,7 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class JCloudsSlaveTemplateTest {
@@ -275,9 +275,7 @@ public class JCloudsSlaveTemplateTest {
     @SuppressWarnings("unchecked")
     private NovaBlockDeviceMappingCreate getBlockDeviceMapping(ServerCreateBuilder scbActual) {
         assertNotNull(scbActual);
-        List<BlockDeviceMappingCreate> blockDeviceMapping = (List<BlockDeviceMappingCreate>) Whitebox.getInternalState(
-                scbActual.build(), "blockDeviceMapping"
-        );
+        List<BlockDeviceMappingCreate> blockDeviceMapping = (List<BlockDeviceMappingCreate>) getInternalState(scbActual.build(), "blockDeviceMapping");
         assertThat(blockDeviceMapping, hasSize(1));
         return (NovaBlockDeviceMappingCreate) blockDeviceMapping.get(0);
     }
@@ -342,10 +340,43 @@ public class JCloudsSlaveTemplateTest {
         assertEquals("vs-id", getVolumeSnapshotId(builders.get(0)));
         assertEquals("something-else", getVolumeSnapshotId(builders.get(1)));
     }
+    private static Object getInternalState(Object target, String field) {
+        Class<?> c = target.getClass();
+        try {
+            Field f = getFieldFromHierarchy(c, field);
+            f.setAccessible(true);
+            return f.get(target);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to set internal state on a private field. Please report to mockito mailing list.", e);
+        }
+    }
 
+    private static Field getFieldFromHierarchy(Class<?> clazz, String field) {
+        Field f = getField(clazz, field);
+        while (f == null && clazz != Object.class) {
+            clazz = clazz.getSuperclass();
+            f = getField(clazz, field);
+        }
+        if (f == null) {
+            throw new RuntimeException(
+                    "You want me to set value to this field: '" + field + 
+                    "' on this class: '" + clazz.getSimpleName() + 
+                    "' but this field is not declared withing hierarchy of this class!");
+        }
+        return f;
+    }
+
+    private static Field getField(Class<?> clazz, String field) {
+        try {
+            return clazz.getDeclaredField(field);
+        } catch (NoSuchFieldException e) {
+            return null;
+        }
+    }
+    
     @SuppressWarnings("unchecked")
     private String getVolumeSnapshotId(ServerCreateBuilder builder) {
-        List<BlockDeviceMappingCreate> mapping = (List<BlockDeviceMappingCreate>) Whitebox.getInternalState(
+        List<BlockDeviceMappingCreate> mapping = (List<BlockDeviceMappingCreate>) getInternalState(
                 builder.build(),
                 "blockDeviceMapping"
         );
