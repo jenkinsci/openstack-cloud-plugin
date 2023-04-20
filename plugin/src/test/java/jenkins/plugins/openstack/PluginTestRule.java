@@ -25,7 +25,6 @@ import hudson.slaves.ComputerListener;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodeProvisioner.NodeProvisionerInvoker;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import hudson.util.ProcessTree;
 import hudson.util.Secret;
@@ -33,7 +32,6 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
-import jenkins.plugins.openstack.compute.JCloudsComputer;
 import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
 import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
@@ -91,12 +89,7 @@ import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.*;
-//import static org.mockito.Mockito.RETURNS_SMART_NULLS;
-//import static org.mockito.Mockito.doAnswer;
-//import static org.mockito.Mockito.doCallRealMethod;
-//import static org.mockito.Mockito.mock;
-//import static org.mockito.Mockito.when;
-//import static org.mockito.Mockito.withSettings;
+
 
 /**
  * Test utils for plugin functional testing.
