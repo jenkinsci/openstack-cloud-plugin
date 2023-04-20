@@ -17,7 +17,7 @@ runcmd:
   - [ "chmod", "777", "/home/jenkins/.ssh/" ]
   - [ "chown", "jenkins", "/home/jenkins" ] # Not sure why this is needed - othwrvise owned by root
   - [ "mkdir", "/usr/local/java/" ] # Location searched by ssh-slaves plugin, though not controlled by it
-  - [ "curl", "-L", "-o", "/usr/local/java/java.tar.gz", "https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.tar.gz", "-H", "Cookie: oraclelicense=accept-securebackup-cookie" ]
+  - [ "curl", "-L", "-o", "/usr/local/java/java.tar.gz", "http://download.oracle.com/otn-pub/java/jdk/8u51-b16/jdk-8u51-linux-x64.tar.gz", "-H", "Cookie: oraclelicense=accept-securebackup-cookie" ]
   - [ "tar", "xf", "/usr/local/java/java.tar.gz", "-C",  "/usr/local/java/", "--strip-components=1" ]
 # Fix auth
   - [ "chmod", "700", "/home/jenkins/.ssh/" ]
