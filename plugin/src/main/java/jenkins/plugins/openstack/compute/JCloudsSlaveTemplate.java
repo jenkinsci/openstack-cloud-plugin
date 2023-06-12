@@ -214,6 +214,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     ) throws JCloudsCloud.ProvisioningFailedException {
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
+        int backOffOnFailureSeconds = 2;
         Server server = provisionServer(null, id);
 
         JCloudsSlave node = null;
@@ -244,7 +245,10 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                     throw ex;
                 }
 
-                Thread.sleep(2000);
+                Thread.sleep(backOffOnFailureSeconds * 1000L);
+                if (backOffOnFailureSeconds < 60 * 5) { // keep doubling sleep factor in seconds until we reach five minute delay
+                    backOffOnFailureSeconds = backOffOnFailureSeconds * 2;
+                }
             }
 
             return node;
