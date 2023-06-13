@@ -245,7 +245,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                     }
                     throw ex;
                 }
-                LOGGER.info("Exponential backoff delay of next slave provisioning attempt in " + backOffOnFailureSeconds + " seconds");
+                LOGGER.info("Exponential backoff delay of next agent provisioning attempt in " + backOffOnFailureSeconds + " seconds");
                 Thread.sleep(backOffOnFailureSeconds * 1000L);
                 if (backOffOnFailureSeconds < BACKOFF_ON_FAILURE_LIMIT) { // keep doubling sleep factor in seconds until we reach five minute delay
                     backOffOnFailureSeconds = backOffOnFailureSeconds * 2;
