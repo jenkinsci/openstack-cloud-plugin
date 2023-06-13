@@ -29,7 +29,6 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
 
 import javax.annotation.CheckForNull;
@@ -61,6 +60,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
 
     private static final AtomicInteger nodeCounter = new AtomicInteger();
+    private static final int BACKOFF_ON_FAILURE_SECONDS = Integer.parseInt(System.getProperty("jenkins.plugins.openstack.agentProvisioningBackoffOnFailureInitialSeconds", "2"));
+    private static final int BACKOFF_ON_FAILURE_LIMIT = Integer.parseInt(System.getProperty("jenkins.plugins.openstack.agentProvisioningBackoffOnFailureLimit", "300"));;
 
     private final @Nonnull String name;
     private final @Nonnull String labelString;
@@ -214,7 +215,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     ) throws JCloudsCloud.ProvisioningFailedException {
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
-        int backOffOnFailureSeconds = 2;
+        int backOffOnFailureSeconds = BACKOFF_ON_FAILURE_SECONDS;
         Server server = provisionServer(null, id);
 
         JCloudsSlave node = null;
@@ -244,9 +245,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                     }
                     throw ex;
                 }
-
+                LOGGER.info("Exponential backoff delay of next slave provisioning attempt in " + backOffOnFailureSeconds + " seconds");
                 Thread.sleep(backOffOnFailureSeconds * 1000L);
-                if (backOffOnFailureSeconds < 60 * 5) { // keep doubling sleep factor in seconds until we reach five minute delay
+                if (backOffOnFailureSeconds < BACKOFF_ON_FAILURE_LIMIT) { // keep doubling sleep factor in seconds until we reach five minute delay
                     backOffOnFailureSeconds = backOffOnFailureSeconds * 2;
                 }
             }
