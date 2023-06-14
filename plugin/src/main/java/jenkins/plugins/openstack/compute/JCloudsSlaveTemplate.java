@@ -29,7 +29,6 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
-import org.openstack4j.model.network.NetFloatingIP;
 import org.openstack4j.model.network.Network;
 
 import javax.annotation.CheckForNull;
@@ -61,6 +60,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
 
     private static final AtomicInteger nodeCounter = new AtomicInteger();
+    // Default number of milliseconds to sleep before checking again if provisioning completed.
+    private static final int pollingPeriodWhileWaitingForProvisioning = 6000;
 
     private final @Nonnull String name;
     private final @Nonnull String labelString;
@@ -244,7 +245,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                     throw ex;
                 }
 
-                Thread.sleep(2000);
+                Thread.sleep(pollingPeriodWhileWaitingForProvisioning);
             }
 
             return node;
