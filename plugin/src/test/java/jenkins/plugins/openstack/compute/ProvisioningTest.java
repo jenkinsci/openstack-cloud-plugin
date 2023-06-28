@@ -337,7 +337,7 @@ public class ProvisioningTest {
 
     @Test
     public void timeoutLaunchingJnlp() throws Exception {
-        final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(1000).build();
+        final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(7000).build();
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
         final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
         assertThat(pns, iterableWithSize(1));
