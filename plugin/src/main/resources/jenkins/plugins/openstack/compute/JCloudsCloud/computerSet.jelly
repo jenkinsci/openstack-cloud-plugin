@@ -20,13 +20,17 @@
                                 ".jclouds-provision-button" : function (e) {
                                     var notification = document.getElementById("os-notifications")
                                     var submitHandler = function(type, args, item) {
-                                        new Ajax.Request("${rootURL}/cloud/"+item.value.cloud+"/provision", {
-                                            parameters: { name: item.value.template },
-                                            onFailure: function(obj) {
-                                                alert('Provisioning failed: ' + obj.responseText, notification)
-                                                console.log('Provisioning failed: ' + obj.status + " " + obj.statusText + ": " + obj.responseText)
-                                            },
-                                            onSuccess: function(obj) {
+                                        fetch("${rootURL}/cloud/"+item.value.cloud+"/provision", {
+                                            method: "POST",
+                                            headers: crumb.wrap({}),
+                                            body: new URLSearchParams({ name: item.value.template }),
+                                        }).then((rsp) => {
+                                            if (!rsp.ok) {
+                                                rsp.text().then((responseText) => {
+                                                    alert('Provisioning failed: ' + responseText, notification)
+                                                    console.log('Provisioning failed: ' + rsp.status + " " + rsp.statusText + ": " + responseText)
+                                                }
+                                            } else {
                                                 hoverNotification('Provisioning started', notification);
                                             }
                                         });
