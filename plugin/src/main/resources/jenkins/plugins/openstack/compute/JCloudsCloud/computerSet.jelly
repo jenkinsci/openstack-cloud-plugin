@@ -23,20 +23,24 @@
                                         fetch("${rootURL}/cloud/"+item.value.cloud+"/provision", {
                                             method: "POST",
                                             headers: crumb.wrap({}),
-                                            body: new URLSearchParams({ name: item.value.template }),
+                                            body: new URLSearchParams({ name: item.value.template })
                                         }).then((rsp) => {
                                             if (!rsp.ok) {
                                                 rsp.text().then((responseText) => {
-                                                    alert('Provisioning failed: ' + responseText, notification)
+                                                    alert('Provisioning failed: ' + responseText)
                                                     console.log('Provisioning failed: ' + rsp.status + " " + rsp.statusText + ": " + responseText)
-                                                }
+                                                })
                                             } else {
                                                 hoverNotification('Provisioning started', notification);
                                             }
                                         });
                                     };
-                                    items = templates[e.name].map(function(template) {
-                                        return { text: template, value: {template: template, cloud: e.name}, onclick: { fn: submitHandler } }
+                                    var items = templates[e.name].map(function (template) {
+                                        return {
+                                            text: template,
+                                            value: {template: template, cloud: e.name},
+                                            onclick: {fn: submitHandler}
+                                        }
                                     });
                                     var menu = new YAHOO.widget.Button(e, { type: "menu", menu: items, name: "name" });
                                 }
