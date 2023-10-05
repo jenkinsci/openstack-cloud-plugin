@@ -98,6 +98,14 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
     public abstract @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException;
 
     /**
+     * Callback run when the node is being terminated.
+     *
+     * This is before the resources are removed.
+     */
+    public void onNodeTerminated() {
+    }
+
+    /**
      * Launch nodes via ssh-slaves plugin.
      */
     public static final class SSH extends LauncherFactory {
@@ -233,6 +241,14 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
         public static final LauncherFactory JNLP = new JNLP();
 
+        /**
+         * Track the termination.
+         *
+         * This is needed so JNLP#isWaitingFor() reports completion when node is terminated before
+         * JCloudsSlaveTEmplate#provisionSlave() detects provisioning is completed.
+         */
+        private transient boolean terminated = false;
+
         @DataBoundConstructor // Needed for JCasC
         public JNLP() {}
 
@@ -245,7 +261,16 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         @Override
         public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
             // The address might not be visible at all so let's just wait for connection.
-            return slave.getChannel() != null ? null : "JNLP connection was not established yet";
+            return terminated || slave.getChannel() != null
+                    ? null
+                    : "JNLP connection was not established yet"
+            ;
+        }
+
+        @Override
+        public void onNodeTerminated() {
+            terminated = true;
+            super.onNodeTerminated();
         }
 
         @Override

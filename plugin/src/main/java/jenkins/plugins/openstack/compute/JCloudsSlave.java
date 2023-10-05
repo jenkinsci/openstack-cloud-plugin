@@ -407,6 +407,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             }
         }
 
+        getLauncherFactory().onNodeTerminated();
+
         // Wrap deletion disposables into statistics tracking disposables
         AsyncResourceDisposer.get().dispose(
                 new RecordDisposal(
