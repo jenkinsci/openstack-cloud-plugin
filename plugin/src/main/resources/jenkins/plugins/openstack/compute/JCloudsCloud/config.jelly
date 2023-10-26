@@ -25,7 +25,8 @@
 
     <f:entry title="Templates">
         <!-- Propagate cloud opts as defaultOpts to templates -->
-        <j:set var="defaultOpts" value="${instance == null ? descriptor.defaultOptions : instance.effectiveSlaveOptions}"/>
+        <!-- Instance is JCloudsCloud on 'update' page, but [sigh] JSONObject on 'create' page, so `instance == null` will not do -->
+        <j:set var="defaultOpts" value="${instance.effectiveSlaveOptions ?: descriptor.defaultOptions}"/>
         <f:repeatable field="templates" header="${%Template}" add="${%Add template}">
             <st:include page="config.jelly" class="${descriptor.clazz}"/>
         </f:repeatable>
