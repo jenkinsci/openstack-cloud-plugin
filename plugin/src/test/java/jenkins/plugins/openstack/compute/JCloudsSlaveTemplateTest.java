@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlForm;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 

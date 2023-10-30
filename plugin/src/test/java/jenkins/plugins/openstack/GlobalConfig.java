@@ -23,14 +23,14 @@
  */
 package jenkins.plugins.openstack;
 
-import com.gargoylesoftware.htmlunit.SgmlPage;
-import com.gargoylesoftware.htmlunit.html.DomElement;
-import com.gargoylesoftware.htmlunit.html.HtmlButton;
-import com.gargoylesoftware.htmlunit.html.HtmlDivision;
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
-import com.gargoylesoftware.htmlunit.html.HtmlInput;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import org.htmlunit.SgmlPage;
+import org.htmlunit.html.DomElement;
+import org.htmlunit.html.HtmlButton;
+import org.htmlunit.html.HtmlDivision;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlFormUtil;
+import org.htmlunit.html.HtmlInput;
+import org.htmlunit.html.HtmlPage;
 
 import java.io.IOException;
 
@@ -72,15 +72,15 @@ public class GlobalConfig {
         public void openAdvanced() throws IOException {
             ((HtmlButton) page.getFirstByXPath(wrapper + "//button[text()='Advanced...']")).click();
         }
-        
+
         public String value(String name) {
             return elem(name).value;
         }
-        
+
         public String def(String name) {
             return elem(name).def;
         }
-        
+
         public Element elem(String name) {
             String xpathExpr = wrapper + "//input[@name='_." + name + "']";
             HtmlInput input = page.getFirstByXPath(xpathExpr);
