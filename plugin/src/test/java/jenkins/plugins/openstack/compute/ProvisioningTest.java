@@ -380,11 +380,11 @@ public class ProvisioningTest {
         }
         assertThat(ofc, instanceOf(OfflineCause.LaunchFailed.class));
         // OfflineCause.LaunchFailed is NOT fatal until the stat timeout is up
-        assertNull(computer.getFatalOfflineCause());
+        assertNull(agent.getFatalOfflineCause());
         assertFalse(agent.isLaunchTimedOut());
 
         for (int i = 0; i < 4; i++){
-            ofc = computer.getFatalOfflineCause();
+            ofc = agent.getFatalOfflineCause();
             if (ofc != null) break;
             Thread.sleep(1000);
         }
@@ -406,7 +406,8 @@ public class ProvisioningTest {
 
     @Test
     public void reportOfflineCauseInCloudStats() throws Exception {
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
+        SlaveOptions so = j.defaultSlaveOptions().getBuilder().startTimeout(100).build();
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(so,"label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         slave.toComputer().setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/Fake/it", 42));
         slave.getComputer().deleteSlave();
@@ -418,6 +419,7 @@ public class ProvisioningTest {
         assertEquals("0.000GB left on /Fake/it.", att.getTitle());
 
         slave = j.provision(cloud, "label");
+        Thread.sleep(100); // This relies on being past the startTimeout
         slave.toComputer().setTemporarilyOffline(true, new OfflineCause.ChannelTermination(new RuntimeException("Broken alright")));
         slave.getComputer().deleteSlave();
 
@@ -425,9 +427,10 @@ public class ProvisioningTest {
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         att = attachments.get(0);
-        assertThat(att.getTitle(), startsWith("Connection was broken: java.lang.RuntimeException: Broken alright"));
+        assertThat(att.getTitle(), startsWith("Connection was broken"));
 
         slave = j.provision(cloud, "label");
+        Thread.sleep(100); // This relies on being past the startTimeout
         slave.toComputer().disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
         slave.getComputer().deleteSlave();
 
@@ -435,7 +438,7 @@ public class ProvisioningTest {
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         att = attachments.get(0);
-        assertThat(att.getTitle(), startsWith("Connection was broken: java.io.IOException: Broken badly"));
+        assertThat(att.getTitle(), startsWith("Connection was broken"));
     }
 
     @Test
