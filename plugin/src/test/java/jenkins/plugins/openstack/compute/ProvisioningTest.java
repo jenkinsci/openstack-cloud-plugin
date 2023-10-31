@@ -345,8 +345,8 @@ public class ProvisioningTest {
         final Future<Node> pnf = pn.future;
 
         try {
-            pnf.get();
-            fail();
+            Node node = pnf.get();
+            fail("Node failed to time out: " + node);
         } catch (ExecutionException ex) {
             assertThat(ex.getCause(), instanceOf(JCloudsCloud.ProvisioningFailedException.class));
             String msg = ex.getCause().getMessage();

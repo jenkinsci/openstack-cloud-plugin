@@ -85,7 +85,7 @@ public class JCloudsSlaveTemplateTest {
 
         j.jenkins.clouds.add(originalCloud);
 
-        HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
+        HtmlForm form = j.createWebClient().goTo("cloud/my-openstack/configure").getFormByName("config");
 
         j.submit(form);
 

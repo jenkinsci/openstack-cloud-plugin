@@ -4,9 +4,7 @@ import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.WebAssert;
-import org.htmlunit.html.HtmlButton;
 import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlFormUtil;
@@ -35,7 +33,6 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv3;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.acegisecurity.AccessDeniedException;
 import org.acegisecurity.acls.sid.Sid;
 import org.apache.commons.io.IOUtils;
 import org.junit.Ignore;
@@ -110,32 +107,26 @@ public class JCloudsCloudTest {
         j.recipeLoadCurrentPlugin();
         j.configRoundtrip();
 
-        HtmlPage page = j.createWebClient().goTo("configureClouds/");
+        JenkinsRule.WebClient wc = j.createWebClient();
+        HtmlPage page = wc.goTo("manage/cloud/new");
 
-        final HtmlForm configForm = page.getFormByName("config");
-        final HtmlButton buttonByCaption = HtmlFormUtil.getButtonByCaption(configForm, "Add a new cloud");
-        HtmlPage page1 = buttonByCaption.click();
-        WebAssert.assertLinkPresentWithText(page1, "Cloud (OpenStack)");
+        final HtmlForm createForm = page.getFormByName("createItem");
+        createForm.getInputByName("name").setValue("test cloud");
+        createForm.getInputByValue("jenkins.plugins.openstack.compute.JCloudsCloud").click(); // Select cloud type
+        HtmlPage configPage = createForm.getButtonByName("Submit").click();
 
-        HtmlPage page2 = page.getAnchorByText("Cloud (OpenStack)").click();
-        HtmlForm configForm2 = page2.getFormByName("config");
-        for (int i = 0; i < 10; i++) { // Wait for JS
-            try {
-                HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
-                break;
-            } catch (ElementNotFoundException ex) {
-                Thread.sleep(1000);
-            }
-        }
-        WebAssert.assertInputPresent(page2, "_.endPointUrl");
-        WebAssert.assertInputPresent(page2, "_.instanceCap");
-        WebAssert.assertInputPresent(page2, "_.retentionTime");
+        HtmlForm configForm2 = configPage.getFormByName("config");
+
+        WebAssert.assertInputPresent(configPage, "_.endPointUrl");
+        WebAssert.assertInputPresent(configPage, "_.instanceCap");
+        WebAssert.assertInputPresent(configPage, "_.retentionTime");
 
         HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
-        HtmlFormUtil.getButtonByCaption(configForm2, "Delete cloud");
+        HtmlFormUtil.getButtonByCaption(configForm2, "Add template");
+        HtmlFormUtil.getButtonByCaption(configForm2, "Save");
     }
 
-    @Test @Ignore("HtmlUnit is not able to trigger form validation")
+    @Test @Ignore("HtmlUnit is not able to trigger form validation") // TODO: Verify if still true
     public void presentUIDefaults() throws Exception {
         SlaveOptions DEF = DescriptorImpl.getDefaultOptions();
 
@@ -150,7 +141,7 @@ public class JCloudsCloudTest {
         j.jenkins.clouds.add(cloud);
 
         JenkinsRule.WebClient wc = j.createWebClient();
-        HtmlPage page = wc.goTo("configure");
+        HtmlPage page = wc.goTo("cloud/openstack/configure");
         GlobalConfig.Cloud c = GlobalConfig.addCloud(page);
         c.openAdvanced();
 
@@ -219,7 +210,7 @@ public class JCloudsCloudTest {
         );
         j.jenkins.clouds.add(original);
 
-        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+        j.submit(j.createWebClient().goTo("cloud/openstack/configure").getFormByName("config"));
 
         JCloudsCloud actual = JCloudsCloud.getByName("openstack");
         assertSame(j.getInstance().clouds.getByName("openstack"), actual);
@@ -238,7 +229,7 @@ public class JCloudsCloudTest {
         );
         j.jenkins.clouds.add(original);
 
-        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+        j.submit(j.createWebClient().goTo("cloud/openstack/configure").getFormByName("config"));
         assertNull(JCloudsCloud.getByName("openstack").getZone());
     }
 
@@ -285,7 +276,7 @@ public class JCloudsCloudTest {
 
         JenkinsRule.WebClient wc = j.createWebClient();
         // Submit works
-        j.submit(wc.goTo("configure").getFormByName("config"));
+        j.submit(wc.goTo("cloud/OSCloud/configure").getFormByName("config"));
 
         // config files UI works
         HtmlPage configfiles = wc.goTo("configfiles");
