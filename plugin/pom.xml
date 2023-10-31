@@ -279,6 +279,8 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
                         <reuseForks>false</reuseForks>
+                        <!-- Serializing org.mockito.internal.stubbing.StubbedInvocationMatcher#answers -->
+                        <argLine>${argLine} --add-opens java.base/java.util.concurrent=ALL-UNNAMED</argLine>
                     </configuration>
                 </plugin>
             </plugins>
