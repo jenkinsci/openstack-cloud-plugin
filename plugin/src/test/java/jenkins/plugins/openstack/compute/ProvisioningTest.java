@@ -56,6 +56,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -101,7 +102,7 @@ public class ProvisioningTest {
         JCloudsSlaveTemplate template = j.dummySlaveTemplate("label");
         JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), anyInt())).thenThrow(new Openstack.ActionFailed("It is broken, alright!"));
 
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedLabel(Label.get("label"));
@@ -110,7 +111,7 @@ public class ProvisioningTest {
         Thread.sleep(1000);
         assertFalse(started.isDone());
 
-        verify(os, atLeastOnce()).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
+        verify(os, atLeastOnce()).bootAndWaitActive(any(ServerCreateBuilder.class), anyInt());
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/37")
@@ -119,8 +120,8 @@ public class ProvisioningTest {
         final JCloudsCloud cloud = j.dummyCloud(template);
         Openstack os = cloud.getOpenstack();
         Server server = j.mockServer().name("provisioned").status(Server.Status.BUILD).get();
-        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenCallRealMethod();
-        when(os._bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class))).thenReturn(server);
+        when(os.bootAndWaitActive(any(ServerCreateBuilder.class), anyInt())).thenCallRealMethod();
+        when(os._bootAndWaitActive(any(ServerCreateBuilder.class), anyInt())).thenReturn(server);
         when(os.updateInfo(eq(server))).thenReturn(server);
 
         try {
@@ -150,7 +151,7 @@ public class ProvisioningTest {
         assertEquals(slave.getPublicAddress(), launcher.getHost());
         assertEquals("credid", launcher.getCredentialsId());
         //noinspection deprecation
-        assertEquals("java", launcher.getJavaPath()); // https://github.com/jenkinsci/ssh-slaves-plugin/commit/9d25b12b1340e00d63a069f54c1b2361f745b6fc#commitcomment-49501649
+        assertEquals("java", launcher.getHost()); // https://github.com/jenkinsci/ssh-slaves-plugin/commit/9d25b12b1340e00d63a069f54c1b2361f745b6fc#commitcomment-49501649
         assertEquals(expected.getJvmOptions(), launcher.getJvmOptions());
         assertEquals(10, (int) slave.getSlaveOptions().getRetentionTime());
 
@@ -306,7 +307,7 @@ public class ProvisioningTest {
         when(os._bootAndWaitActive(any(ServerCreateBuilder.class), anyInt())).thenReturn(null); // Timeout
         when(os.bootAndWaitActive(any(ServerCreateBuilder.class), anyInt())).thenCallRealMethod();
         Server server = mock(Server.class);
-        when(os.getServersByName(any(String.class))).thenReturn(Collections.singletonList(server));
+        when(os.getServersByName(anyString())).thenReturn(Collections.singletonList(server));
 
         for (NodeProvisioner.PlannedNode pn : c.provision(Label.get("label"), 1)) {
             try {
@@ -472,7 +473,6 @@ public class ProvisioningTest {
     private void verifyPreferredAddressUsed(String expectedAddress, Collection<NetworkAddress> addresses) throws Exception {
         CloudStatistics cs = CloudStatistics.get();
         assertThat(cs.getActivities(), Matchers.iterableWithSize(0));
-
         j.autoconnectJnlpSlaves();
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate("label")), addresses);
 
