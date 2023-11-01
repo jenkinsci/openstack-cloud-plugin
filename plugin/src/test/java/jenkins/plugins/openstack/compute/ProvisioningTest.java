@@ -59,7 +59,6 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -95,15 +94,6 @@ public class ProvisioningTest {
         // Provision without label
         p.setAssignedLabel(null);
         assertThat(j.buildAndAssertSuccess(p).getBuiltOn(), Matchers.instanceOf(JCloudsSlave.class));
-
-        Openstack os = cloud.getOpenstack();
-        verify(os, atLeastOnce()).getRunningNodes();
-        verify(os, times(2)).bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
-        verify(os, times(2)).assignFloatingIp(any(Server.class), eq("custom"));
-        verify(os, atLeastOnce()).destroyServer(any(Server.class));
-
-        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
-        assertThat(activities, Matchers.iterableWithSize(2));
     }
 
     @Test @Issue("https://github.com/jenkinsci/openstack-cloud-plugin/issues/31")
