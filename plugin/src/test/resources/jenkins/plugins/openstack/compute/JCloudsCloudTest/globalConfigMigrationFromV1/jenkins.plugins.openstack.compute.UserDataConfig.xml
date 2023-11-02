@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<jenkins.plugins.openstack.compute.UserDataConfig_-UserDataConfigProvider plugin="openstack-cloud">
+<jenkins.plugins.openstack.compute.UserDataConfig_-UserDataConfigProvider plugin="openstack-cloud@1.8">
   <configs>
     <entry>
       <string>jenkins.plugins.openstack.compute.UserDataConfig.1455188317989</string>
-      <org.jenkinsci.lib.configprovider.model.Config plugin="config-file-provider">
+      <org.jenkinsci.lib.configprovider.model.Config plugin="config-file-provider@2.10.0">
         <id>jenkins.plugins.openstack.compute.UserDataConfig.1455188317989</id>
         <name>cloudInit</name>
         <comment></comment>

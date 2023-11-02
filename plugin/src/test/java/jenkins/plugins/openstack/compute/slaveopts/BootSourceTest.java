@@ -48,11 +48,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
-//import static org.mockito.Mockito.doReturn;
-//import static org.mockito.Mockito.mock;
-//import static org.mockito.Mockito.verify;
-//import static org.mockito.Mockito.verifyNoMoreInteractions;
-//import static org.mockito.Mockito.when;
 
 public class BootSourceTest {
     private static final FormValidation VALIDATION_REQUIRED = FormValidation.error(hudson.util.Messages._FormValidation_ValidateRequired().toString(US));
