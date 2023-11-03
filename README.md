@@ -23,15 +23,18 @@ template, it can be configured on cloud level and leave the filed blank
 in the templates.
 
 <a href="https://raw.githubusercontent.com/jenkinsci/openstack-cloud-plugin/master/docs/options.png"><img align="right" width="300" src="https://raw.githubusercontent.com/jenkinsci/openstack-cloud-plugin/master/docs/options.png"></a>
-Aside from machine/node attributes, every template require name and
-labels to be configured. Name will serve both as an identifier of the
+Aside from machine/node attributes, every template requires name, labels and
+usage mode to be configured. Name will serve both as an identifier of the
 template as well as a name prefix for Jenkins node and OpenStack machine
 (that is why some limitations apply here). Labels field expects a set of
 Jenkins labels that will be assigned to all nodes that the template
-provisions. It will also be used to determine which cloud and template to
-use to process Jenkins load. When there is a build with no label
-requirements, any
-template can be used to provision the node. Build with label restriction
+provisions.  The Usage field specifies whether nodes will be provisioned for
+builds that have no label requirement (_Use this node as much as possible_)
+or only if a build's label is present (_Only build jobs with label expressions matching this node_).
+The combination of the Labels and Usage fields will be used to determine
+which cloud and template to use to process Jenkins load. When there is a build with no label
+requirements, any template where the Usage mode is '_Use this node as much as possible_'
+can be used to provision the node. Builds with label restrictions
 can trigger provisioning only on templates with matching label set. The
 attributes at template level will inherit all global values (the value
 in effect is printed under the field on hte config page). In case required
@@ -107,19 +110,24 @@ jenkins:
         templates:
           - name: "empty"
             labels: "linux"
+            slaveOptions:
+              mode: EXCLUSIVE
           - name: "jnlp"
             labels: "jnlp"
             slaveOptions:
+              mode: NORMAL
               launcherFactory: "jnlp"
           - name: "volumeSnapshot"
             labels: "volume"
             slaveOptions:
+              mode: NORMAL
               bootSource:
                 volumeSnapshot:
                   name: "Volume name"
           - name: "volumeFromImage"
             labels: "volume from image"
             slaveOptions:
+              mode: NORMAL
               bootSource:
                 volumeFromImage:
                   name: "Volume name"
