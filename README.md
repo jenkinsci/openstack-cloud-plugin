@@ -226,6 +226,7 @@ credentials:
 -   On every agent provisioned by the plugin, there is an environment
     variable `OPENSTACK_PUBLIC_IP` declared with the public IP address
     allocated for the machine.
+-   Default recurrence period for thread cleaning up agents is 10 minutes, for thread pre-creating node it is 2 minutes. These values can be modified by setting new values in milliseconds in system properties `jenkins.openstack.cleanupPeriod` and `jenkins.openstack.preCreationPeriod`. This is particularly useful in combinations with single-use agents (agents with 1 executor and retention time set to `0`) for Jenkins installation with quick and often executed jobs.
 
 ### Troubleshooting
 
