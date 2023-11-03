@@ -119,7 +119,7 @@ public final class PluginTestRule extends JenkinsRule {
             dummyUserData("dummyUserDataId");
         }
         return new SlaveOptions(
-                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, 2, "pool", "sg", "az", 1, null, 10,
+                new BootSource.VolumeSnapshot("id", null, false), "hw", "nw1,mw2", "dummyUserDataId", 1, 2, "pool", "sg", "az", 1, null, 10,
                 "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, mkListOfNodeProperties(1, 2), 1, null
         );
     }
@@ -176,7 +176,7 @@ public final class PluginTestRule extends JenkinsRule {
 
         // Use some real-looking values preserving defaults to make sure plugin works with them
         return JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
-                .bootSource(new BootSource.Image("dummyImageId"))
+                .bootSource(new BootSource.Image("dummyImageId", null, false))
                 .hardwareId("dummyHardwareId")
                 .networkId("dummyNetworkId")
                 .userDataId("dummyUserDataId")

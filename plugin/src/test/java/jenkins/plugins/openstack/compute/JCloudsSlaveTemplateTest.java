@@ -108,7 +108,7 @@ public class JCloudsSlaveTemplateTest {
     @Test
     public void eraseDefaults() {
         SlaveOptions cloudOpts = dummySlaveOptions(); // Make sure nothing collides with defaults
-        SlaveOptions templateOpts = cloudOpts.getBuilder().bootSource(new BootSource.Image("id")).availabilityZone("other").build();
+        SlaveOptions templateOpts = cloudOpts.getBuilder().bootSource(new BootSource.Image("id", null, false)).availabilityZone("other").build();
         assertEquals(cloudOpts.getHardwareId(), templateOpts.getHardwareId());
 
         JCloudsSlaveTemplate template = new JCloudsSlaveTemplate(
@@ -123,7 +123,7 @@ public class JCloudsSlaveTemplateTest {
         );
 
         assertEquals(cloudOpts, cloud.getRawSlaveOptions());
-        assertEquals(SlaveOptions.builder().bootSource(new BootSource.Image("id")).availabilityZone("other").build(), template.getRawSlaveOptions());
+        assertEquals(SlaveOptions.builder().bootSource(new BootSource.Image("id", null, false)).availabilityZone("other").build(), template.getRawSlaveOptions());
     }
 
     @Test
@@ -195,7 +195,7 @@ public class JCloudsSlaveTemplateTest {
     public void bootFromVolumeSnapshot() {
         final String volumeSnapshotName = "MyVolumeSnapshot";
         final String volumeSnapshotId = "vs-123-id";
-        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName, null, false)).build();
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "a");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
@@ -212,7 +212,7 @@ public class JCloudsSlaveTemplateTest {
          */
         final String volumeSnapshotName = "MyNonexistentVolumeSnapshot";
         final String volumeSnapshotId = volumeSnapshotName;
-        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName, null, false)).build();
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "b");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
@@ -236,7 +236,7 @@ public class JCloudsSlaveTemplateTest {
          */
         final String volumeSnapshotName = "MyOtherVolumeSnapshot";
         final String volumeSnapshotId = "vs-345-id";
-        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName)).build();
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new VolumeSnapshot(volumeSnapshotName, null, false)).build();
         final JCloudsSlaveTemplate instance = j.dummySlaveTemplate(opts, "b");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(instance));
         final Openstack mockOs = cloud.getOpenstack();
@@ -284,7 +284,7 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void bootFromImageVolume() {
-        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new BootSource.VolumeFromImage("src_img_id", 42)).build();
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new BootSource.VolumeFromImage("src_img_id", 42, null, false)).build();
         final JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
         final Openstack os = cloud.getOpenstack();
@@ -304,8 +304,33 @@ public class JCloudsSlaveTemplateTest {
     }
 
     @Test
+    public void bootFromImageVolumeImageNotFoundAndOverrideByFilter() {
+        final SlaveOptions opts = dummySlaveOptions().getBuilder().bootSource(new BootSource.VolumeFromImage("src_img_id", 42, "default.*", true)).build();
+        final JCloudsSlaveTemplate template = j.dummySlaveTemplate(opts, "label");
+        final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(template));
+        final Openstack os = cloud.getOpenstack();
+
+        when(os.getImageIdsFor("src_img_id")).thenReturn(Collections.EMPTY_LIST);
+        when(os.getImageIdsFor("default_image")).thenReturn(Collections.singletonList("default_image"));
+        when(os.getImages()).thenReturn(Collections.singletonMap("default_image", null));
+
+        template.provisionServer(null, null);
+
+        ArgumentCaptor<ServerCreateBuilder> captor = ArgumentCaptor.forClass(ServerCreateBuilder.class);
+        verify(os, times(1)).bootAndWaitActive(captor.capture(), any(Integer.class));
+        NovaBlockDeviceMappingCreate blockDeviceMapping = getBlockDeviceMapping(captor.getValue());
+
+        assertThat(blockDeviceMapping.boot_index, equalTo(0));
+        assertThat(blockDeviceMapping.delete_on_termination, equalTo(true));
+        assertThat(blockDeviceMapping.uuid, equalTo("default_image"));
+        assertThat(blockDeviceMapping.source_type, equalTo(BDMSourceType.IMAGE));
+        assertThat(blockDeviceMapping.destination_type, equalTo(BDMDestType.VOLUME));
+        assertThat(blockDeviceMapping.volume_size, equalTo(42));
+    }
+
+    @Test
     public void allowToUseImageNameAsWellAsId() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.Image("image-id")).build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new BootSource.Image("image-id", null, false)).build();
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
@@ -325,7 +350,7 @@ public class JCloudsSlaveTemplateTest {
 
     @Test
     public void allowToUseVolumeSnapshotNameAsWellAsId() throws Exception {
-        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new VolumeSnapshot("vs-id")).build();
+        SlaveOptions opts = j.defaultSlaveOptions().getBuilder().bootSource(new VolumeSnapshot("vs-id", "vs-.*", true)).build();
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(opts, "label")));
 
         Openstack os = cloud.getOpenstack();
