@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
+import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -19,6 +20,8 @@ import org.openstack4j.api.networking.PortService;
 import org.openstack4j.api.networking.ext.NetworkIPAvailabilityService;
 import org.openstack4j.api.storage.BlockVolumeSnapshotService;
 import org.openstack4j.model.common.ActionResponse;
+import org.openstack4j.model.compute.Address;
+import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Fault;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
@@ -483,6 +486,60 @@ public class OpenstackTest {
         verify(client.compute().servers()).delete(server.getId());
         verify(fips).delete("release-me");
         verify(fips, never()).delete("keep-me");
+    }
+
+
+    @Test
+    public void getAccessIpAddress() {
+        getAccesIpAdressTest(getAddressesOneAddress(), Collections.singletonList("default_network"),"DEFAULT_IP");
+
+        getAccesIpAdressTest(getAddressesTwoAddress(), Arrays.asList("first_network", "second_network"),"FIRST_IP");
+        getAccesIpAdressTest(getAddressesTwoAddress(), Arrays.asList("second_network", "first_network"),"SECOND_IP");
+    }
+
+    private Addresses getAddressesOneAddress() {
+        Address address = getAddress("DEFAULT_IP", "fixed", 4);
+        Addresses addresses = mock(Addresses.class);
+        Map<String, List<? extends Address>> mapAdresses = new HashMap<String, List<? extends Address>>() {{
+            put("default_network", Collections.singletonList(address));
+        }};
+        when(addresses.getAddresses()).thenReturn(mapAdresses);
+        when(addresses.getAddresses(any()))
+                .thenAnswer((Answer<List<? extends Address>>) invocationOnMock -> mapAdresses.get(invocationOnMock.getArguments()[0]));
+        return addresses;
+    }
+    private Addresses getAddressesTwoAddress() {
+        Address firstIp = getAddress("FIRST_IP", "fixed", 4);
+        Address secondIp = getAddress("SECOND_IP", "fixed", 4);
+        Addresses addresses = mock(Addresses.class);
+        Map<String, List<? extends Address>> mapAdresses = new HashMap<String, List<? extends Address>>() {{
+            put("first_network", Collections.singletonList(firstIp));
+            put("second_network", Collections.singletonList(secondIp));
+        }};
+        when(addresses.getAddresses()).thenReturn(mapAdresses);
+        when(addresses.getAddresses(any()))
+                .thenAnswer((Answer<List<? extends Address>>) invocationOnMock -> mapAdresses.get(invocationOnMock.getArguments()[0]));
+        return addresses;
+    }
+
+    private Address getAddress(String ip, String type, int version) {
+        Address address = mock(Address.class);
+        when(address.getAddr()).thenReturn(ip);
+        when(address.getVersion()).thenReturn(version);
+        when(address.getType()).thenReturn(type);
+        return address;
+    }
+
+    private void getAccesIpAdressTest(Addresses addresses,List<String> networkOrder, String result) {
+        Server server = mock(Server.class);
+        when(server.getAddresses()).thenReturn(addresses);
+        Map<String,String> metadata = new HashMap<>();
+        metadata.put(JCloudsSlaveTemplate.OPENSTACK_NETWORK_ORDER, String.join(",", networkOrder));
+        when(server.getMetadata()).thenReturn(metadata);
+
+        String ipAdresse = Openstack.getAccessIpAddress(server);
+
+        assertThat(ipAdresse, equalTo(result));
     }
 
     /**
