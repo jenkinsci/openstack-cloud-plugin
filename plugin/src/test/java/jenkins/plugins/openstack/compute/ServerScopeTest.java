@@ -9,7 +9,6 @@ import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.util.Timer;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.WithoutJenkins;
 import org.openstack4j.model.compute.Server;
 
@@ -113,20 +112,31 @@ public class ServerScopeTest {
     @Test
     public void runScope() throws Exception {
         FreeStyleProject asdf = j.createFreeStyleProject("asdf");
-        asdf.getBuildersList().add(new SleepBuilder(1000000));
+        JCloudsCleanupThreadTest.BuildBlocker bb = new JCloudsCleanupThreadTest.BuildBlocker();
+        asdf.getBuildersList().add(bb);
         FreeStyleBuild build = asdf.scheduleBuild2(0).waitForStart();
 
-        ServerScope.Build alive = new ServerScope.Build(build);
-        assertFalse(alive.isOutOfScope(mockServer));
-        assertEquals("run:asdf:1", alive.getValue());
+        bb.awaitStarted();
+        try {
 
-        ServerScope.Build rotated = new ServerScope.Build("asdf:42");
-        assertTrue(rotated.isOutOfScope(mockServer));
-        assertEquals("run:asdf:42", rotated.getValue());
+            ServerScope.Build alive = new ServerScope.Build(build);
+            assertFalse(alive.isOutOfScope(mockServer));
+            assertEquals("run:asdf:1", alive.getValue());
 
-        ServerScope.Build jobGone = new ServerScope.Build("nonono:1");
-        assertTrue(jobGone.isOutOfScope(mockServer));
-        assertEquals("run:nonono:1", jobGone.getValue());
+            ServerScope.Build rotated = new ServerScope.Build("asdf:42");
+            assertTrue(rotated.isOutOfScope(mockServer));
+            assertEquals("run:asdf:42", rotated.getValue());
+
+            ServerScope.Build jobGone = new ServerScope.Build("nonono:1");
+            assertTrue(jobGone.isOutOfScope(mockServer));
+            assertEquals("run:nonono:1", jobGone.getValue());
+        } finally {
+            // Make sure the build terminates before ending the test.
+            // Active build is causing test harness to fail when deleting log files
+            bb.signalDone();
+            j.waitForCompletion(build);
+        }
+
     }
 
     @Test @WithoutJenkins

@@ -22,12 +22,11 @@ public class OpenstackMachineStepTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
-    private JCloudsCloud cloud;
     private Openstack openstack;
 
     @Before
     public void setup () {
-        cloud = j.configureSlaveLaunchingWithFloatingIP("whatever");
+        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP("whatever");
         j.jenkins.clouds.add(cloud);
         openstack = cloud.getOpenstack();
     }
@@ -100,7 +99,7 @@ public class OpenstackMachineStepTest {
         WorkflowJob bootSerializableCheck = j.jenkins.createProject(WorkflowJob.class, "bootSerializableCheck");
         bootSerializableCheck.setDefinition(new CpsFlowDefinition(
                 "def srv = openstackMachine cloud: 'openstack', template: 'template0'\n" +
-                "node ('master') {\n" +
+                "node () {\n" +
                 "  echo \"Instance IP: ${srv.address}\"\n" +
                 "}\n" +
                 "srv.destroy()", true));

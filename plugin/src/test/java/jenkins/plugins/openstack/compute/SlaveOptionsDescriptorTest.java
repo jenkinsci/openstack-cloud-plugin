@@ -1,7 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
-import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.WebRequest;
+import org.htmlunit.HttpMethod;
+import org.htmlunit.WebRequest;
 import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;

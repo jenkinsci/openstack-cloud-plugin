@@ -41,9 +41,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -240,7 +238,7 @@ public class JCloudsCleanupThreadTest {
         assertThat(j.jenkins.getNodes(), Matchers.iterableWithSize(1));
     }
 
-    private static class BuildBlocker extends TestBuilder {
+    public static class BuildBlocker extends TestBuilder {
         private final OneShotEvent enter = new OneShotEvent();
         private final OneShotEvent exit = new OneShotEvent();
 
@@ -249,6 +247,14 @@ public class JCloudsCleanupThreadTest {
             enter.signal();
             exit.block();
             return true;
+        }
+
+        public void awaitStarted() throws InterruptedException {
+            enter.block();
+        }
+
+        public void signalDone() {
+            exit.signal();
         }
     }
 }

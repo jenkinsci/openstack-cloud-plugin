@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlForm;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 
@@ -85,7 +85,7 @@ public class JCloudsSlaveTemplateTest {
 
         j.jenkins.clouds.add(originalCloud);
 
-        HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
+        HtmlForm form = j.createWebClient().goTo("cloud/my-openstack/configure").getFormByName("config");
 
         j.submit(form);
 

@@ -91,22 +91,6 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         return offlineCause instanceof PendingTermination;
     }
 
-    /**
-     * Get computer {@link OfflineCause} provided it is severe enough the computer should be discarded.
-     *
-     * @return value if should be discarded, null if online or offline with non-fatal cause.
-     */
-    /*package*/ @CheckForNull OfflineCause getFatalOfflineCause() {
-        OfflineCause oc = getOfflineCause();
-
-        if (getNode().isLaunchTimedOut() && oc instanceof OfflineCause.LaunchFailed) return oc;
-
-        return oc instanceof DiskSpaceMonitorDescriptor.DiskSpace || oc instanceof OfflineCause.ChannelTermination
-                ? oc
-                : null
-        ;
-    }
-
     /*package*/ boolean isUserOffline() {
         return getOfflineCause() instanceof OfflineCause.UserCause;
     }

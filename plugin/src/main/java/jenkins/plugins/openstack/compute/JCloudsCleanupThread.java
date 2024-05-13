@@ -91,7 +91,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         for (final JCloudsComputer comp : JCloudsComputer.getAll()) {
             if (!comp.isIdle()) continue;
 
-            final OfflineCause offlineCause = comp.getFatalOfflineCause();
+            final OfflineCause offlineCause = comp.getNode().getFatalOfflineCause();
             if (comp.isPendingDelete()) {
                 LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                 deleteComputer(comp);

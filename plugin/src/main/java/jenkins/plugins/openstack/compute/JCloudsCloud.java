@@ -92,6 +92,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private /*final*/ @Nonnull String credentialId; // Name differs from property name not to break the persistence
 
+    private static final int MaxProvisioningExcessWorkLoadCap = 10;
+
     // Backward compatibility
     private transient @Deprecated Integer instanceCap;
     private transient @Deprecated Integer retentionTime;
@@ -292,6 +294,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     @Override
     public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
+        excessWorkload = Math.min(excessWorkload, MaxProvisioningExcessWorkLoadCap);
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();

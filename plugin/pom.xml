@@ -5,10 +5,17 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.289.x</artifactId>
-                <version>950.v396cb834de1e</version>
+                <artifactId>bom-2.414.x</artifactId>
+                <version>2516.v113cb_3d00317</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>5.10.0</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -16,34 +23,33 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.25</version>
+        <version>4.55</version>
         <relativePath />
     </parent>
 
     <artifactId>openstack-cloud</artifactId>
-    <version>2.64-SNAPSHOT</version>
+    <version>2.66-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>OpenStack Cloud Plugin</name>
     <description>Allows Jenkins to build on OpenStack nodes</description>
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
-        <jenkins.version>2.289.1</jenkins.version>
-        <java.level>8</java.level>
+        <jenkins.version>2.414.1</jenkins.version>
+        <java.level>11</java.level>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
         <spotbugs.failOnError>false</spotbugs.failOnError>
         <spotbugs.excludeFilterFile>src/findbugs-exclude.xml</spotbugs.excludeFilterFile>
-        <spotbugs.skip>true
-        </spotbugs.skip> <!-- Upstream Jenkins fails the build if some are found. Excludes does not seem to work. -->
+        <spotbugs.skip>true</spotbugs.skip> <!-- Upstream Jenkins fails the build if some are found. Excludes do not seem to work. -->
         <maven.compiler.showDeprecation>true</maven.compiler.showDeprecation>
 
-        <guava.version>20.0</guava.version> <!-- version compatible with openstack4j -->
+        <guava.version>32.1.1-jre</guava.version> <!-- version compatible with openstack4j -->
         <jsr305.version>1.3.9</jsr305.version>
-        <openstack4j.version>3.10</openstack4j.version>
+        <openstack4j.version>3.11</openstack4j.version>
         <okhttp.version>3.9.1</okhttp.version>
-        <jenkins-test-harness.version>1626.v46b0925e70db</jenkins-test-harness.version>
-        <jackson.version>2.12.4</jackson.version>
+        <!-- Upper bound io.jenkins.configuration-as-code:test-harness -->
+        <jenkins-test-harness.version>2064.vcd3b_b_8f3f2b_a_</jenkins-test-harness.version>
     </properties>
 
     <developers>
@@ -98,12 +104,12 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>3.5</version>
+            <version>3.7.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>0.21</version>
+            <version>320.v96b_65297a_4b_b_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -117,7 +123,6 @@
         <dependency>
             <groupId>org.jenkins-ci.modules</groupId>
             <artifactId>instance-identity</artifactId>
-            <version>2.2</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
@@ -136,13 +141,14 @@
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
-            <version>3.0.10</version>
+            <version>3.5.1</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-classworlds</artifactId>
             <version>2.4.2</version>
         </dependency>
+
         <dependency>
             <groupId>org.jenkins-ci</groupId>
             <artifactId>symbol-annotation</artifactId>
@@ -150,30 +156,12 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>1.29</version>
-        </dependency>
-
-        <!--Specifying jenkins version to avoid maven.plugins.enforcer.RequireUpperBoundDeps error
-        between configuration as code and openstack4j -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
+            <version>2.2</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>${jackson.version}</version>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>jackson2-api</artifactId>
+            <version>2.14.1-313.v504cdd45c18b</version>
         </dependency>
 
         <!-- Test Dependencies -->
@@ -188,6 +176,7 @@
             <version>1.9.5</version>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-cps</artifactId>
@@ -231,7 +220,29 @@
             <artifactId>test-harness</artifactId>
             <groupId>io.jenkins.configuration-as-code</groupId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jenkins-ci.plugins</groupId>
+                    <artifactId>jackson2-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>net.sourceforge.htmlunit</groupId>-->
+<!--            <artifactId>htmlunit</artifactId>-->
+<!--            <version>2.70.0</version>-->
+<!--            <scope>test</scope>-->
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.apache.commons</groupId>-->
+<!--                    <artifactId>commons-lang3</artifactId>-->
+<!--                </exclusion>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.eclipse.jetty.websocket</groupId>-->
+<!--                    <artifactId>websocket-client</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+<!--        </dependency>-->
     </dependencies>
 
     <build>
@@ -255,6 +266,8 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
                         <reuseForks>false</reuseForks>
+                        <!-- Serializing org.mockito.internal.stubbing.StubbedInvocationMatcher#answers -->
+                        <argLine>${argLine} --add-opens java.base/java.util.concurrent=ALL-UNNAMED</argLine>
                     </configuration>
                 </plugin>
             </plugins>
@@ -264,7 +277,7 @@
 
     <scm>
         <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openstack-cloud-plugin.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:jenkinsci/openstack-cloud-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
         <tag>HEAD</tag>
     </scm>
