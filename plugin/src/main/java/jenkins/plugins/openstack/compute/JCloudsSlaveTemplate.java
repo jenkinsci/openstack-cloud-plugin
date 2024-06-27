@@ -56,6 +56,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public static final String OPENSTACK_CLOUD_NAME_KEY = "jenkins-cloud-name";
     // To be attached on all servers provisioned from configured templates
     public static final String OPENSTACK_TEMPLATE_NAME_KEY = "jenkins-template-name";
+    // To be attached on all servers provisioned from configured templates
+    public static final String OPENSTACK_NETWORK_ORDER = "jenkins-network-order";
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlaveTemplate.class.getName());
 
@@ -305,6 +307,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             List<String> networks = selectNetworkIds(openstack, nid);
             LOGGER.fine("Setting networks to " + networks);
             builder.networks(networks);
+            builder.addMetadataItem(OPENSTACK_NETWORK_ORDER, String.join(",", selectNetworkOrder(openstack, nid)));
         }
 
         String securityGroups = opts.getSecurityGroups();
@@ -477,6 +480,30 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
 
         return ret.stream().map(Network::getId).collect(Collectors.toList());
+    }
+    @VisibleForTesting
+    /*package*/ static @Nonnull List<String> selectNetworkOrder(@Nonnull Openstack openstack, @Nonnull String spec) {
+        if (spec == null || spec.isEmpty()) throw new IllegalArgumentException();
+
+        List<List<String>> declared = TokenGroup.from(spec, ',', '|');
+
+        List<String> allDeclaredNetworks = declared.stream().flatMap(Collection::stream).collect(Collectors.toList());
+
+        if (declared.isEmpty() || declared.contains(Collections.emptyList()) || allDeclaredNetworks.contains("")) {
+            throw new IllegalArgumentException("Networks declaration contains blank '" + declared + "'");
+        }
+
+        Map<String, Network> osNetworksById = openstack.getNetworks(allDeclaredNetworks);
+        Map<String, Network> osNetworksByName = osNetworksById.values().stream().collect(Collectors.toMap(Network::getName, n -> n));
+
+        final Function<String, String> RESOLVE_IDS_TO_NAME = n -> {
+            if (osNetworksByName.containsKey(n)) return n;
+            Network network = osNetworksById.getOrDefault(n, null);
+            if (network != null) return network.getName();
+            throw new IllegalArgumentException("No network name '" + n + "' found for " + spec);
+        };
+
+        return allDeclaredNetworks.stream().map(RESOLVE_IDS_TO_NAME).distinct().collect(Collectors.toList());
     }
 
     /*package for testing*/ @CheckForNull String getUserData() {
