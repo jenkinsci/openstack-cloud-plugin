@@ -3,4 +3,10 @@
     <f:entry title="Name" field="name">
         <f:select checkMethod="post"/>
     </f:entry>
+    <f:entry title="Name filter Regexp" field="nameFilterRegexp">
+       <f:textbox checkMethod="post"/>
+    </f:entry>
+    <f:entry title="Use first available, if selected not found" field="overrideNotFoundImage">
+           <f:checkbox/>
+     </f:entry>
 </j:jelly>

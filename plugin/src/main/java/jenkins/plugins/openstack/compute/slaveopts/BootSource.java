@@ -54,6 +54,7 @@ import org.openstack4j.model.compute.builder.BlockDeviceMappingBuilder;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -132,9 +133,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return Arrays.asList("../..", "../../..");
         }
 
-        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialsId, String zone) {
+        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialsId, String zone, String nameFilterRegexp) {
             ListBoxModel m = new ListBoxModel();
             final String valueOrEmpty = Util.fixNull(existingValue);
+            final String filter = Util.fixEmptyAndTrim(nameFilterRegexp);
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             m.add(new ListBoxModel.Option("None specified", "", valueOrEmpty.isEmpty()));
             try {
@@ -142,6 +144,11 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
                     final List<String> values = listAllNames(openstack);
                     for (String value : values) {
+                        if (filter != null) {
+                            if (!value.matches(filter)){
+                                continue;
+                            }
+                        }
                         final String displayText = value;
                         m.add(displayText, value);
                     }
@@ -216,11 +223,17 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         private static final String OPENSTACK_BOOTSOURCE_IMAGE_ID_KEY = "jenkins-boot-image-id";
 
         protected final @Nonnull String name;
+        protected final @Nullable String nameFilterRegexp;
+        protected final boolean overrideNotFoundImage;
+
+        protected String imageId;
 
         @DataBoundConstructor
-        public Image(@Nonnull String name) {
+        public Image(@Nonnull String name, @Nullable String nameFilterRegexp, boolean overrideNotFoundImage) {
             Objects.requireNonNull(name, "Image name missing");
             this.name = name;
+            this.nameFilterRegexp = Util.fixEmptyAndTrim(nameFilterRegexp);
+            this.overrideNotFoundImage = overrideNotFoundImage;
         }
 
         @Nonnull
@@ -228,16 +241,42 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return name;
         }
 
+        public String getNameFilterRegexp() {
+            return nameFilterRegexp;
+        }
+
+        public boolean getOverrideNotFoundImage() {
+            return overrideNotFoundImage;
+        }
+
         @Override
         public void setServerBootSource(
                 @Nonnull ServerCreateBuilder builder, @Nonnull Openstack os
         ) throws JCloudsCloud.ProvisioningFailedException {
             super.setServerBootSource(builder, os);
-            final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
-            final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
+            List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
+            if (matchingIds.size() == 0 && overrideNotFoundImage) {
+                String overrideName = name;
+                final List<String> values = getDescriptor().listAllNames(os);
+                for (String value : values) {
+                    if (nameFilterRegexp != null) {
+                        if (value.matches(nameFilterRegexp)){
+                            overrideName = value;
+                            LOGGER.warning("Image " + name + "not found, overriding with " + overrideName);
+                            break;
+                        }
+                    }
+                }
+                matchingIds = getDescriptor().findMatchingIds(os, overrideName);
+                imageId = selectIdFromListAndLogProblems(matchingIds, overrideName, "Images");
 
-            builder.image(id);
-            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_IMAGE_ID_KEY, id);
+            } else {
+                imageId = selectIdFromListAndLogProblems(matchingIds, name, "Images");
+
+            }
+            builder.image(imageId);
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_IMAGE_ID_KEY, imageId);
+
         }
 
         @Override
@@ -287,8 +326,9 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                                                 @QueryParameter String endPointUrl,
                                                 @QueryParameter boolean ignoreSsl,
                                                 @QueryParameter String credentialsId,
-                                                @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
+                                                @QueryParameter String zone,
+                                                @QueryParameter String nameFilterRegexp) {
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone, nameFilterRegexp);
             }
 
             @Restricted(DoNotUse.class)
@@ -319,8 +359,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         }
 
         @DataBoundConstructor
-        public VolumeFromImage(@Nonnull String name, int volumeSize) {
-            super(name);
+        public VolumeFromImage(@Nonnull String name, int volumeSize, @Nullable String nameFilterRegexp, boolean overrideNotFoundImage) {
+            super(name, nameFilterRegexp, overrideNotFoundImage);
             if (volumeSize <= 0) throw new IllegalArgumentException("Volume size must be positive, got " + volumeSize);
             this.volumeSize = volumeSize;
         }
@@ -328,19 +368,17 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os) throws JCloudsCloud.ProvisioningFailedException {
             super.setServerBootSource(builder, os);
-            final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
-            final String id = selectIdFromListAndLogProblems(matchingIds, name, "Images");
 
             final BlockDeviceMappingBuilder volumeBuilder = Builders.blockDeviceMapping()
                     .sourceType(BDMSourceType.IMAGE)
                     .destinationType(BDMDestType.VOLUME)
-                    .uuid(id)
+                    .uuid(imageId)
                     .volumeSize(volumeSize)
                     .deleteOnTermination(true)
                     .bootIndex(0)
             ;
             builder.blockDevice(volumeBuilder.build());
-            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUME_FROM_IMAGE_ID_KEY, id);
+            builder.addMetadataItem(OPENSTACK_BOOTSOURCE_VOLUME_FROM_IMAGE_ID_KEY, imageId);
         }
 
         @Override
@@ -380,11 +418,15 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         private static final String OPENSTACK_BOOTSOURCE_VOLUMESNAPSHOT_DESC_KEY = "jenkins-boot-volumesnapshot-description";
 
         private final @Nonnull String name;
+        protected final @Nullable String nameFilterRegexp;
+        protected final boolean overrideNotFoundImage;
 
         @DataBoundConstructor
-        public VolumeSnapshot(@Nonnull String name) {
+        public VolumeSnapshot(@Nonnull String name, @Nullable String nameFilterRegexp, boolean overrideNotFoundImage) {
             Objects.requireNonNull(name, "Volume snapshot name missing");
             this.name = name;
+            this.nameFilterRegexp = Util.fixEmptyAndTrim(nameFilterRegexp);
+            this.overrideNotFoundImage = overrideNotFoundImage;
         }
 
         @Nonnull
@@ -395,8 +437,25 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
         @Override
         public void setServerBootSource(@Nonnull ServerCreateBuilder builder, @Nonnull Openstack os) {
             super.setServerBootSource(builder, os);
-            final List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
-            final String id = selectIdFromListAndLogProblems(matchingIds, name, "VolumeSnapshots");
+            List<String> matchingIds = getDescriptor().findMatchingIds(os, name);
+            final String id;
+            if (matchingIds.size() == 0 && overrideNotFoundImage) {
+                String overrideName = name;
+                final List<String> values = getDescriptor().listAllNames(os);
+                for (String value : values) {
+                    if (nameFilterRegexp != null) {
+                        if (value.matches(nameFilterRegexp)){
+                            overrideName = value;
+                            LOGGER.warning("Volume snapshot " + name + "not found, overriding with " + overrideName);
+                            break;
+                        }
+                    }
+                }
+                matchingIds = getDescriptor().findMatchingIds(os, overrideName);
+                id = selectIdFromListAndLogProblems(matchingIds, overrideName, "VolumeSnapshots");
+            } else {
+              id = selectIdFromListAndLogProblems(matchingIds, name, "VolumeSnapshots");
+            }
             String volumeSnapshotDescriptionOrNull = null;
             try {
                 volumeSnapshotDescriptionOrNull = os.getVolumeSnapshotDescription(id);
@@ -499,8 +558,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Restricted(DoNotUse.class)
             @OsAuthDescriptor.InjectOsAuth
             @RequirePOST
-            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialsId, @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
+            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialsId, @QueryParameter String zone, @QueryParameter String nameFilterRegexp) {
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone, nameFilterRegexp);
             }
 
             @Restricted(DoNotUse.class)

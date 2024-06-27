@@ -126,7 +126,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                 lf = LauncherFactory.JNLP.JNLP;
             }
 
-            BootSource.Image bs = imageId == null ? null : new BootSource.Image(imageId);
+            BootSource.Image bs = imageId == null ? null : new BootSource.Image(imageId, null, false);
             slaveOptions = SlaveOptions.builder().bootSource(bs).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
                     .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
                     .launcherFactory(lf).availabilityZone(availabilityZone).build()
