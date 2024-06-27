@@ -13,6 +13,8 @@ import hudson.Extension;
 import hudson.Functions;
 import hudson.model.TaskListener;
 import hudson.model.AsyncPeriodicWork;
+import java.util.concurrent.TimeUnit;
+
 
 /**
  * Periodically ensure enough slaves are created.
@@ -37,14 +39,17 @@ import hudson.model.AsyncPeriodicWork;
 @Extension @Restricted(NoExternalUse.class)
 public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(JCloudsPreCreationThread.class.getName());
+    private final Long recurrencePeriod;
 
     public JCloudsPreCreationThread() {
         super("OpenStack slave pre-creation");
+        recurrencePeriod = Functions.getIsUnitTest() ? Long.MAX_VALUE : Long.getLong("jenkins.openstack.preCreationPeriod", TimeUnit.MINUTES.toMillis(2));
+        LOGGER.log(Level.FINE, "OpenStack pre-creation recurrence period is {0}ms", recurrencePeriod);
     }
 
     @Override
     public long getRecurrencePeriod() {
-        return Functions.getIsUnitTest() ? Long.MAX_VALUE : MIN * 2;
+        return recurrencePeriod;
     }
 
     @Override
