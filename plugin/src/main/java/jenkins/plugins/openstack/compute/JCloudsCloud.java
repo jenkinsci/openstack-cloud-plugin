@@ -256,14 +256,23 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             return queue; // more slaves then declared - no need to query openstack
         }
 
+         // Check the number of current servers
+         int serverCount = 0;
+         List<Server> runningNodes = new ArrayList<Server>();
+         try {
+             // get the running nodes
+             runningNodes = getOpenstack().getRunningNodes();
+ 
+             serverCount = runningNodes.size();
+             if (serverCount >= globalMax) {
+                 return queue; // more servers than needed - no need to proceed any further
+             }
+           }  catch (JCloudsCloud.LoginFailure ex) {
+            LOGGER.log(Level.WARNING, "Login failure: " + ex.getMessage());
+            return queue;
+        } 
 
-        final List<Server> runningNodes = getOpenstack().getRunningNodes();
-
-        int serverCount = runningNodes.size();
-        if (serverCount >= globalMax) {
-            return queue; // more servers than needed - no need to proceed any further
-        }
-
+       
         int globalCapacity = globalMax - Math.max(nodeCount, serverCount);
         assert globalCapacity > 0;
 
@@ -302,8 +311,19 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             final JCloudsSlaveTemplate template = templateProvider.poll();
             if (template == null) {
-                LOGGER.info("Instance cap exceeded for cloud " + name + " while provisioning for label " + label);
-                break;
+                // two cases 
+                // cloud authentication issue or Instance cap exceeded 
+                try {
+                    // try to authenticate 
+                    getOpenstack();
+                    // if okay, then the problem is related to the instance cap 
+                    LOGGER.info("Instance cap exceeded for cloud " + name + " while provisioning for label " + label);
+                    break;
+                  } catch (JCloudsCloud.LoginFailure ex) {
+                   // no need to log here because it has already been logged in the getAvailableTemplates method. 
+                   break; 
+               } 
+                
             }
 
             LOGGER.fine("Provisioning slave for " + label + " from template " + template.getName());
@@ -316,8 +336,12 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             excessWorkload -= numExecutors;
         }
+
+        
         return plannedNodeList;
     }
+
+   
 
     private static final class NodeCallable implements Callable<Node> {
         private final JCloudsCloud cloud;
@@ -617,7 +641,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
     }
 
-    /*package*/ static final class LoginFailure extends RuntimeException {
+    /*package*/ 
+    public static final class LoginFailure extends RuntimeException {
 
         private static final long serialVersionUID = 4085466675398031930L;
 
@@ -629,7 +654,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             super("Failure to authenticate for cloud " + name + ": " + ex.toString());
         }
 
-        private LoginFailure(String msg) {
+        public LoginFailure(String msg) {
             super(msg);
         }
     }
