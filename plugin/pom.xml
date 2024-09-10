@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.55</version>
+        <version>4.87</version>
         <relativePath />
     </parent>
 
@@ -49,7 +49,7 @@
         <openstack4j.version>3.11</openstack4j.version>
         <okhttp.version>3.9.1</okhttp.version>
         <!-- Upper bound io.jenkins.configuration-as-code:test-harness -->
-        <jenkins-test-harness.version>2064.vcd3b_b_8f3f2b_a_</jenkins-test-harness.version>
+        <jenkins-test-harness.version>2265.v3da_49c8134d6</jenkins-test-harness.version>
     </properties>
 
     <developers>
