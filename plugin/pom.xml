@@ -5,8 +5,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.414.x</artifactId>
-                <version>2516.v113cb_3d00317</version>
+                <artifactId>bom-2.462.x</artifactId>
+                <version>3234.v5ca_5154341ef</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -28,14 +28,14 @@
     </parent>
 
     <artifactId>openstack-cloud</artifactId>
-    <version>2.66-SNAPSHOT</version>
+    <version>2.68-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>OpenStack Cloud Plugin</name>
     <description>Allows Jenkins to build on OpenStack nodes</description>
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
-        <jenkins.version>2.414.1</jenkins.version>
+        <jenkins.version>2.462.2</jenkins.version>
         <java.level>11</java.level>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
@@ -104,12 +104,10 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>3.7.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>320.v96b_65297a_4b_b_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
