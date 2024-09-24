@@ -88,6 +88,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 
@@ -119,7 +120,7 @@ public final class PluginTestRule extends JenkinsRule {
             dummyUserData("dummyUserDataId");
         }
         return new SlaveOptions(
-                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "dummyUserDataId", 1, 2, "pool", "sg", "az", 1, null, 10,
+                new BootSource.VolumeSnapshot("id"), "hw", "nw1,mw2", "customdat=true", "dummyUserDataId", 1, 2, "pool", "sg", "az", 1, null, 10,
                 "jvmo", "fsRoot", LauncherFactory.JNLP.JNLP, mkListOfNodeProperties(1, 2), 1, null
         );
     }

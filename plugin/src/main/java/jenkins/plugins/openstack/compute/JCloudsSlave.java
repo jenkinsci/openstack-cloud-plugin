@@ -202,6 +202,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         final Map<String, String> result = new LinkedHashMap<>();
         final SlaveOptions slaveOptions = getSlaveOptions();
         putIfNotNullOrEmpty(result, "Network(s)", slaveOptions.getNetworkId());
+        putIfNotNullOrEmpty(result, "Custom Metadata", slaveOptions.getCustomMetaData());
         putIfNotNullOrEmpty(result, "Floating Ip Pool", slaveOptions.getFloatingIpPool());
         putIfNotNullOrEmpty(result, "Security Groups", slaveOptions.getSecurityGroups());
         putIfNotNullOrEmpty(result, "Start Timeout (ms)", slaveOptions.getStartTimeout());
