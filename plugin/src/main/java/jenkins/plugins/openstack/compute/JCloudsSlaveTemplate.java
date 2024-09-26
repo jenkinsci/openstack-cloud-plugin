@@ -312,8 +312,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         if (Util.fixEmpty(metaData) != null) {
             if (metaData != null) {
                 List<List<String>> metadat = TokenGroup.from(metaData, ',', '=');
-                LOGGER.fine("Setting metadata to " + customMetaData);
-                builder.addMetadataItem(metadat.get(0).get(0), metadat.get(0).get(1));
+                for (List<String> keyvalue: metadat) {
+                    if (keyvalue.size() == 2) {
+                        LOGGER.fine("Setting metadata to " + customMetaData);
+                        builder.addMetadataItem(keyvalue.get(0), keyvalue.get(1));    
+                    }
+                    else {
+                        LOGGER.warning("Invalid MetaData");    
+                        if (keyvalue.size() == 1) {
+                            LOGGER.warning("Invalid empty value for MetaData " + keyvalue.get(0));
+                        }
+                    }
+                } 
             }
         }
 
