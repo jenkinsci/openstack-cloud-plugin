@@ -1,5 +1,6 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.slaves.Cloud;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
 import org.htmlunit.xml.XmlPage;
@@ -182,7 +183,7 @@ public class ProvisioningTest {
         // Exceed template quota
         XmlPage provision = invokeProvisioning(cloud, wc, "/provision?name=" + constrained.getName());
         assertThat(provision.getWebResponse().getStatusCode(), equalTo(200));
-        while (Jenkins.get().getNodes().size() == 0) {
+        while (Jenkins.get().getNodes().isEmpty()) {
             Thread.sleep(500);
         }
         String slaveName = j.jenkins.getNodes().get(0).getNodeName();
@@ -309,7 +310,7 @@ public class ProvisioningTest {
         Server server = mock(Server.class);
         when(os.getServersByName(anyString())).thenReturn(Collections.singletonList(server));
 
-        for (NodeProvisioner.PlannedNode pn : c.provision(Label.get("label"), 1)) {
+        for (NodeProvisioner.PlannedNode pn : c.provision(new Cloud.CloudState(Label.get("label"), 0), 1)) {
             try {
                 pn.future.get();
                 fail();
@@ -330,7 +331,7 @@ public class ProvisioningTest {
     public void timeoutLaunchingJnlp() throws Exception {
         final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(7000).build();
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
-        final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(Label.get("asdf"), 1);
+        final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(new Cloud.CloudState(Label.get("asdf"), 0), 1);
         assertThat(pns, iterableWithSize(1));
         final PlannedNode pn = pns.iterator().next();
         final Future<Node> pnf = pn.future;
@@ -455,7 +456,7 @@ public class ProvisioningTest {
 
     @Test
     public void findFixedIpv4WhenNoExplicitTypeIsGiven() throws Exception {
-        verifyPreferredAddressUsed("43.43.43.", Arrays.asList(
+        verifyPreferredAddressUsed("43.43.43.", List.of(
                 NetworkAddress.FIXED_4_NO_EXPLICIT_TYPE
         ));
     }

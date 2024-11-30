@@ -360,7 +360,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud, Collection<NetworkAddress> networks) {
-        if (cloud.getTemplates().size() == 0) throw new Error("Unable to provision - no templates provided");
+        if (cloud.getTemplates().isEmpty()) throw new Error("Unable to provision - no templates provided");
 
         final List<Server> running = new ArrayList<>();
         Openstack os = cloud.getOpenstack();
@@ -425,7 +425,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException, IOException {
-        Collection<PlannedNode> slaves = cloud.provision(Label.get(label), 1);
+        Collection<PlannedNode> slaves = cloud.provision(new Cloud.CloudState(Label.get(label), 1), 1);
         if (slaves.size() != 1) throw new AssertionError("One slave expected to be provisioned, was " + slaves.size());
 
         PlannedNode plannedNode = slaves.iterator().next();
@@ -670,7 +670,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public TypeSafeMatcher<FormValidation> validateAs(final FormValidation.Kind kind, final String msg) {
-        return new TypeSafeMatcher<FormValidation>() {
+        return new TypeSafeMatcher<>() {
             @Override
             public void describeTo(org.hamcrest.Description description) {
                 description.appendText(kind.toString() + ": " + msg);
@@ -689,7 +689,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public TypeSafeMatcher<FormValidation> validateAs(final FormValidation expected) {
-        return new TypeSafeMatcher<FormValidation>() {
+        return new TypeSafeMatcher<>() {
             @Override
             public void describeTo(org.hamcrest.Description description) {
                 description.appendText(expected.kind.toString() + ": " + expected.getMessage());

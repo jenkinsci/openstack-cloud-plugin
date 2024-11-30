@@ -29,7 +29,6 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv3;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.util.Timer;
-import org.acegisecurity.Authentication;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -44,6 +43,7 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.Server;
+import org.springframework.security.core.Authentication;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -293,7 +293,8 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     @Override
-    public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
+    public Collection<NodeProvisioner.PlannedNode> provision(CloudState cs, int excessWorkload) {
+        Label label = cs.getLabel();
         excessWorkload = Math.min(excessWorkload, MaxProvisioningExcessWorkLoadCap);
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
 
@@ -345,9 +346,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     @Override
-    public boolean canProvision(final Label label) {
+    public boolean canProvision(final CloudState cs) {
         for (JCloudsSlaveTemplate t : templates)
-            if (t.canProvision(label))
+            if (t.canProvision(cs.getLabel()))
                 return true;
         return false;
     }
@@ -424,10 +425,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     private void provisionAsynchronouslyNotToBlockTheRequestThread(JCloudsSlaveTemplate t) throws Throwable {
-        Authentication auth = Jenkins.getAuthentication();
+        Authentication auth = Jenkins.getAuthentication2();
         Callable<Void> performProvisioning = () -> {
             // Impersonate current identity inside the worker thread not to lose the owner info
-            try (ACLContext ignored = ACL.as(auth)) {
+            try (ACLContext ignored = ACL.as2(auth)) {
                 try {
                     provisionSlaveExplicitly(t);
                     return null;
@@ -595,7 +596,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             jenkins.checkPermission(Jenkins.ADMINISTER);
 
             return new StandardListBoxModel()
-                    .includeMatchingAs(ACL.SYSTEM, jenkins, StandardCredentials.class,
+                    .includeMatchingAs(ACL.SYSTEM2, jenkins, StandardCredentials.class,
                             Collections.<DomainRequirement>emptyList(),
                             CredentialsMatchers.instanceOf(OpenstackCredential.class))
                     .includeEmptyValue();
@@ -617,7 +618,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
     }
 
-    /*package*/ static final class LoginFailure extends RuntimeException {
+    public static final class LoginFailure extends RuntimeException {
 
         private static final long serialVersionUID = 4085466675398031930L;
 

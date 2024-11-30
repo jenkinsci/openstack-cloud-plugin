@@ -188,6 +188,9 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             String publicAddress;
             try {
                 publicAddress = slave.getPublicAddress();
+                if (publicAddress == null) {
+                    throw new JCloudsCloud.ProvisioningFailedException("No accessible address provided for agent " + slave.getNodeName());
+                }
             } catch (NoSuchElementException ex) {
                 throw new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex);
             }
@@ -220,13 +223,13 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         public static final class Desc extends Descriptor<LauncherFactory> {
             @Restricted(DoNotUse.class)
             @RequirePOST
-            public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
+            public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup<?> context) {
                 if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.get()).hasPermission(Computer.CONFIGURE)) {
                     return new ListBoxModel();
                 }
 
                 return new StandardUsernameListBoxModel()
-                        .includeMatchingAs(ACL.SYSTEM, context, StandardUsernameCredentials.class,
+                        .includeMatchingAs(ACL.SYSTEM2, context, StandardUsernameCredentials.class,
                                 Collections.singletonList(SSHLauncher.SSH_SCHEME), SSHAuthenticator.matcher(Connection.class))
                         .includeEmptyValue();
             }

@@ -520,6 +520,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
+        @Nonnull
         @Override
         public String getDisplayName() {
             return clazz.getSimpleName();
