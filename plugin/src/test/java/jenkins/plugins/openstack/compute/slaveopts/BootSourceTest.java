@@ -40,7 +40,9 @@ import org.openstack4j.model.storage.block.VolumeSnapshot;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Locale.US;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -66,28 +68,28 @@ public class BootSourceTest {
     @Test
     public void constructorInvariants() {
         try {
-            new BootSource.Image(null);
+            new BootSource.Image(null, null, false);
             fail();
         } catch (NullPointerException e) {
             assertThat(e.getMessage(), containsString("Image name missing"));
         }
 
         try {
-            new BootSource.VolumeSnapshot(null);
+            new BootSource.VolumeSnapshot(null, null, false);
             fail();
         } catch (NullPointerException e) {
             assertThat(e.getMessage(), containsString("Volume snapshot name missing"));
         }
 
         try {
-            new BootSource.VolumeFromImage(null, 1);
+            new BootSource.VolumeFromImage(null, 1, null, false);
             fail();
         } catch (NullPointerException e) {
             assertThat(e.getMessage(), containsString("Image name missing"));
         }
 
         try {
-            new BootSource.VolumeFromImage("foo", 0);
+            new BootSource.VolumeFromImage("foo", 0, null, false);
             fail();
         } catch (IllegalArgumentException e) {
             assertThat(e.getMessage(), containsString("Volume size must be positive, got 0"));
@@ -106,7 +108,34 @@ public class BootSourceTest {
 
         doReturn(Collections.singletonMap(imageName, Collections.singletonList(image))).when(os).getImages();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone", null);
+        assertEquals(2, list.size());
+        assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
+        ListBoxModel.Option item = list.get(1);
+        assertEquals("menu item name", imageName, item.name);
+        assertEquals("menu item value", imageName, item.value);
+    }
+
+    @Test
+    public void doFillImageNameItemsPopulatesImageNamesWithFilter() {
+        Image image = mock(Image.class);
+        when(image.getId()).thenReturn("image-id");
+        final String imageName = "image-name";
+        when(image.getName()).thenReturn(imageName);
+
+        Image imageFiltered = mock(Image.class);
+        when(imageFiltered.getId()).thenReturn("filtered-id");
+        final String imageFilteredName = "filtered-name";
+        when(imageFiltered.getName()).thenReturn(imageFilteredName);
+
+        Openstack os = j.fakeOpenstackFactory();
+        final String credentialsId = j.dummyCredentials();
+        Map<String, List> images = new HashMap();
+        images.put(imageName, Collections.singletonList(image));
+        images.put(imageFilteredName, Collections.singletonList(imageFiltered));
+        doReturn(images).when(os).getImages();
+
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone", "image-.*");
         assertEquals(2, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         ListBoxModel.Option item = list.get(1);
@@ -125,11 +154,39 @@ public class BootSourceTest {
         Openstack os = j.fakeOpenstackFactory();
         when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", Collections.singletonList(volumeSnapshot)));
 
-        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone");
+        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone", null);
         assertEquals(3, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         assertEquals("Second menu entry is the VS OpenStack can see", "vs-name", list.get(1).name);
         assertEquals("Second menu entry is the VS OpenStack can see", "vs-name", list.get(1).value);
+        assertEquals("Third menu entry is the existing value", "existing-vs-name", list.get(2).name);
+        assertEquals("Third menu entry is the existing value", "existing-vs-name", list.get(2).value);
+    }
+
+    @Test
+    public void doFillSnapshotNameItemsPopulatesVolumeSnapshotNamesWithFilter() {
+        VolumeSnapshot volumeSnapshot = mock(VolumeSnapshot.class);
+        when(volumeSnapshot.getId()).thenReturn("vs-id");
+        when(volumeSnapshot.getName()).thenReturn("vs-name");
+        when(volumeSnapshot.getStatus()).thenReturn(Volume.Status.AVAILABLE);
+
+        VolumeSnapshot volumeSnapshotFiltered = mock(VolumeSnapshot.class);
+        when(volumeSnapshotFiltered.getId()).thenReturn("vs-filtered-id");
+        when(volumeSnapshotFiltered.getName()).thenReturn("vs-filtered-name");
+        when(volumeSnapshotFiltered.getStatus()).thenReturn(Volume.Status.AVAILABLE);
+        final String credentialsId = j.dummyCredentials();
+
+        Openstack os = j.fakeOpenstackFactory();
+        Map<String, List<VolumeSnapshot>> volumes = new HashMap();
+        volumes.put("vs-name", Collections.singletonList(volumeSnapshot));
+        volumes.put("vs-filtered-name", Collections.singletonList(volumeSnapshot));
+        when(os.getVolumeSnapshots()).thenReturn(volumes);
+
+        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone", "vs-filtered.*");
+        assertEquals(3, list.size());
+        assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
+        assertEquals("Second menu entry is the VS OpenStack can see", "vs-filtered-name", list.get(1).name);
+        assertEquals("Second menu entry is the VS OpenStack can see", "vs-filtered-name", list.get(1).value);
         assertEquals("Third menu entry is the existing value", "existing-vs-name", list.get(2).name);
         assertEquals("Third menu entry is the existing value", "existing-vs-name", list.get(2).value);
     }
@@ -148,7 +205,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(new Openstack(osClient));
         final String credentialsId = j.dummyCredentials();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone", null);
         assertThat(list.get(0).name, list, Matchers.iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
