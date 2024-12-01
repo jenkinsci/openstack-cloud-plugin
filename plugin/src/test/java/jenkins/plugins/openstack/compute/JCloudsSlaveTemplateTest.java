@@ -36,6 +36,7 @@ import static jenkins.plugins.openstack.PluginTestRule.dummySlaveOptions;
 
 import static jenkins.plugins.openstack.compute.JCloudsSlaveTemplate.parseSecurityGroups;
 import static jenkins.plugins.openstack.compute.JCloudsSlaveTemplate.selectNetworkIds;
+import static jenkins.plugins.openstack.compute.JCloudsSlaveTemplate.selectNetworkOrder;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
@@ -515,4 +516,66 @@ public class JCloudsSlaveTemplateTest {
         // If we have not utilization info, result will likely be suboptimal
         assertEquals(Arrays.asList("uuid-empty", "uuid-full", "uuid-loaded", "uuid-empty"), selectNetworkIds(os, "empty|full,full,loaded|empty,empty"));
     }
+
+    @Test
+    public void selectNetworkOrderTest() {
+        JCloudsSlaveTemplate t = j.dummySlaveTemplate("foo");
+        JCloudsCloud c = j.dummyCloud(t);
+        j.configureSlaveProvisioning(c, Collections.emptyList());
+
+        Network fullNet = mockNetwork("full");
+        Network emptyNet = mockNetwork("empty");
+        Network loadedNet = mockNetwork("loaded");
+        Map<String, Network> networkMap = new HashMap<>();
+        Stream.of(fullNet, emptyNet, loadedNet).forEach(n -> {
+            networkMap.put(n.getId(), n );
+            networkMap.put(n.getName(), n);
+        });
+
+        Openstack os = c.getOpenstack();
+        doAnswer(i -> {
+            Map<String, Network> ret = new HashMap<>();
+
+            for (String netSpec : ((List<String>) i.getArguments()[0])) {
+                Network n = networkMap.get(netSpec);
+                ret.put(n.getId(), n);
+            }
+            return ret;
+        }).when(os).getNetworks(any());
+        doAnswer(i -> {
+            Map<String, Network> requestedNets = (Map<String, Network>) i.getArguments()[0];
+
+            Map<Network, Integer> ret = new HashMap<>();
+            if (requestedNets.containsKey(fullNet.getId())) {
+                ret.put(fullNet, 0);
+            }
+            if (requestedNets.containsKey(emptyNet.getId())) {
+                ret.put(emptyNet, 10);
+            }
+            if (requestedNets.containsKey(loadedNet.getId())) {
+                ret.put(loadedNet, 5);
+            }
+            return ret;
+        }).when(os).getNetworksCapacity(any());
+
+        assertEquals(singletonList("empty"), selectNetworkOrder(os, "empty"));
+        assertEquals(singletonList("loaded"), selectNetworkOrder(os, "loaded"));
+        assertEquals(singletonList("full"), selectNetworkOrder(os, "full"));
+        assertEquals(singletonList("empty"), selectNetworkOrder(os, "uuid-empty"));
+        assertEquals(singletonList("loaded"), selectNetworkOrder(os, "uuid-loaded"));
+        assertEquals(singletonList("full"), selectNetworkOrder(os, "uuid-full"));
+        assertEquals(Arrays.asList("empty", "full", "loaded"), selectNetworkOrder(os, "empty,uuid-full,loaded"));
+        assertEquals(Arrays.asList("empty"), selectNetworkOrder(os, "empty,uuid-empty,empty"));
+
+        assertEquals(Arrays.asList("empty","full"), selectNetworkOrder(os, "empty|full"));
+        assertEquals(Arrays.asList("empty","loaded"), selectNetworkOrder(os, "empty|loaded"));
+        assertEquals(Arrays.asList("loaded","full"), selectNetworkOrder(os, "loaded|full"));
+        assertEquals(Arrays.asList("empty", "loaded", "full"), selectNetworkOrder(os, "empty|loaded|full"));
+        assertEquals(Arrays.asList("full", "loaded", "empty"), selectNetworkOrder(os, "full|loaded|empty"));
+
+        assertEquals(Arrays.asList("empty", "full", "loaded"), selectNetworkOrder(os, "empty|full,full,loaded|empty,empty"));
+        assertEquals(Arrays.asList("empty", "loaded"), selectNetworkOrder(os, "empty|empty,loaded|loaded,empty|empty"));
+    }
+
+
 }
