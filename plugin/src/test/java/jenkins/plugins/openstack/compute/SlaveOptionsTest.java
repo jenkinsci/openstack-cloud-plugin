@@ -34,6 +34,7 @@ public class SlaveOptionsTest {
         assertEquals("sg", unmodified.getSecurityGroups());
         assertEquals("az", unmodified.getAvailabilityZone());
         assertEquals(1, (int) unmodified.getStartTimeout());
+        assertEquals(Node.Mode.NORMAL, unmodified.getMode());
         assertEquals(10, (int) unmodified.getNumExecutors());
         assertEquals("jvmo", unmodified.getJvmOptions());
         assertEquals("fsRoot", unmodified.getFsRoot());
@@ -53,6 +54,7 @@ public class SlaveOptionsTest {
                 .securityGroups("SG")
                 .availabilityZone("AZ")
                 .startTimeout(4)
+                .mode(Node.Mode.NORMAL)
                 .numExecutors(2)
                 .jvmOptions("JVMO")
                 .fsRoot("FSROOT")
@@ -74,6 +76,7 @@ public class SlaveOptionsTest {
         assertEquals("SG", overridden.getSecurityGroups());
         assertEquals("AZ", overridden.getAvailabilityZone());
         assertEquals(4, (int) overridden.getStartTimeout());
+        assertEquals(Node.Mode.NORMAL, overridden.getMode());
         assertEquals(2, (int) overridden.getNumExecutors());
         assertEquals("JVMO", overridden.getJvmOptions());
         assertEquals("FSROOT", overridden.getFsRoot());
@@ -99,7 +102,7 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null, null, null
+                null, "", "", "", null, null, "", "", "", null, "", null, null, "", "", null, null, null, null
         );
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .hardwareId("")

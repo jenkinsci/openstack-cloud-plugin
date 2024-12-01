@@ -95,7 +95,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         this.cache = makeCache();
 
         setNumExecutors(slaveOptions.getNumExecutors());
-        setMode(Mode.NORMAL);
+        setMode(slaveOptions.getMode() != null ? slaveOptions.getMode() : Node.Mode.NORMAL);
         setLabelString(labelString);
         setRetentionStrategy(new JCloudsRetentionStrategy());
         setNodeProperties(mkNodeProperties(Openstack.getAccessIpAddress(metadata), slaveOptions.getNodeProperties()));

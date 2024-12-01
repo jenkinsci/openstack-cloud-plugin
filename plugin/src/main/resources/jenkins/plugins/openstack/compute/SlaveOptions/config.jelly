@@ -17,6 +17,7 @@
         <div name="slaveOptions" descriptorid="${descriptor.id}">
             <rh:blockWrapper>
                 <f:section title="Cloud Server Options">
+                    <f:slave-mode name="mode" node="${instance}"/>
                     <f:dropdownDescriptorSelector field="bootSource" title="Boot Source"/>
                     <f:entry title="Hardware" field="hardwareId">
                         <f:select checkMethod="post"/>
