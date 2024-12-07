@@ -27,6 +27,9 @@
                     <f:entry title="User Data" field="userDataId">
                         <f:select checkMethod="post"/>
                     </f:entry>
+                    <f:entry title="Custom Metadata" field="customMetaData">
+                        <f:textbox checkMethod="post"/>
+                    </f:entry>
                     <f:entry title="Max. No. of Instances" field="instanceCap">
                         <f:number checkMethod="post"/>
                     </f:entry>
