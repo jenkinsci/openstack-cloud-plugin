@@ -26,6 +26,7 @@ package jenkins.plugins.openstack.compute;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.model.Describable;
+import hudson.model.Node;
 import hudson.slaves.NodeProperty;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
@@ -54,7 +55,7 @@ import java.util.Objects;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
@@ -70,6 +71,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final @CheckForNull String keyPairName;
 
     // Slave launch attributes
+    private final @Nonnull Node.Mode mode;
     private final Integer numExecutors;
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
@@ -138,6 +140,10 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return keyPairName;
     }
 
+    public @Nonnull Node.Mode getMode() {
+        return mode;
+    }
+
     public Integer getNumExecutors() {
         return numExecutors;
     }
@@ -173,6 +179,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.availabilityZone,
                 b.startTimeout,
                 b.keyPairName,
+                b.mode,
                 b.numExecutors,
                 b.jvmOptions,
                 b.fsRoot,
@@ -196,6 +203,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             String availabilityZone,
             Integer startTimeout,
             String keyPairName,
+            Node.Mode mode,
             Integer numExecutors,
             String jvmOptions,
             String fsRoot,
@@ -215,6 +223,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.availabilityZone = Util.fixEmpty(availabilityZone);
         this.startTimeout = startTimeout;
         this.keyPairName = Util.fixEmpty(keyPairName);
+        this.mode = mode;
         this.numExecutors = numExecutors;
         this.jvmOptions = Util.fixEmpty(jvmOptions);
         this.fsRoot = Util.fixEmpty(fsRoot);
@@ -252,6 +261,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .availabilityZone(_override(this.availabilityZone, o.availabilityZone))
                 .startTimeout(_override(this.startTimeout, o.startTimeout))
                 .keyPairName(_override(this.keyPairName, o.keyPairName))
+                .mode(_override(this.mode, o.mode))
                 .numExecutors(_override(this.numExecutors, o.numExecutors))
                 .jvmOptions(_override(this.jvmOptions, o.jvmOptions))
                 .fsRoot(_override(this.fsRoot, o.fsRoot))
@@ -283,6 +293,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .availabilityZone(_erase(this.availabilityZone, defaults.availabilityZone))
                 .startTimeout(_erase(this.startTimeout, defaults.startTimeout))
                 .keyPairName(_erase(this.keyPairName, defaults.keyPairName))
+                .mode(_erase(this.mode, defaults.mode))
                 .numExecutors(_erase(this.numExecutors, defaults.numExecutors))
                 .jvmOptions(_erase(this.jvmOptions, defaults.jvmOptions))
                 .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
@@ -315,6 +326,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("availabilityZone", availabilityZone)
                 .append("startTimeout", startTimeout)
                 .append("keyPairName", keyPairName)
+                .append("mode", mode)
                 .append("numExecutors", numExecutors)
                 .append("jvmOptions", jvmOptions)
                 .append("fsRoot", fsRoot)
@@ -344,6 +356,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         if (!Objects.equals(availabilityZone, that.availabilityZone)) return false;
         if (!Objects.equals(startTimeout, that.startTimeout)) return false;
         if (!Objects.equals(keyPairName, that.keyPairName)) return false;
+        if (!Objects.equals(mode, that.mode)) return false;
         if (!Objects.equals(numExecutors, that.numExecutors)) return false;
         if (!Objects.equals(jvmOptions, that.jvmOptions)) return false;
         if (!Objects.equals(fsRoot, that.fsRoot)) return false;
@@ -366,6 +379,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         result = 31 * result + (availabilityZone != null ? availabilityZone.hashCode() : 0);
         result = 31 * result + (startTimeout != null ? startTimeout.hashCode() : 0);
         result = 31 * result + (keyPairName != null ? keyPairName.hashCode() : 0);
+        result = 31 * result + (mode != null ? mode.hashCode() : 0);
         result = 31 * result + (numExecutors != null ? numExecutors.hashCode() : 0);
         result = 31 * result + (jvmOptions != null ? jvmOptions.hashCode() : 0);
         result = 31 * result + (fsRoot != null ? fsRoot.hashCode() : 0);
@@ -392,6 +406,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .availabilityZone(availabilityZone)
                 .startTimeout(startTimeout)
                 .keyPairName(keyPairName)
+                .mode(mode)
                 .numExecutors(numExecutors)
                 .jvmOptions(jvmOptions)
                 .fsRoot(fsRoot)
@@ -426,6 +441,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         private @CheckForNull Integer startTimeout;
         private @CheckForNull String keyPairName;
 
+        private @CheckForNull Node.Mode mode;
         private @CheckForNull Integer numExecutors;
         private @CheckForNull String jvmOptions;
         private @CheckForNull String fsRoot;
@@ -493,6 +509,11 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         public @Nonnull Builder keyPairName(String keyPairName) {
             this.keyPairName = keyPairName;
+            return this;
+        }
+
+        public @Nonnull Builder mode(Node.Mode mode) {
+            this.mode = mode;
             return this;
         }
 
