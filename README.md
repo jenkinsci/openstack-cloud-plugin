@@ -38,7 +38,7 @@ in effect is printed under the field on hte config page). In case required
 field do not have a default nor current value, it will be reported.
 
 The exception is here is the *Instance Cap* field that determines the maximal
-ammount of maches to be running either per whole cloud or per template. This is
+amount of machines to be running either per whole cloud or per template. This is
 so one can limit the total number and number per individual template at the same time.
 
 ### User data
