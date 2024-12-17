@@ -3,11 +3,13 @@ package jenkins.plugins.openstack.compute;
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.RelativePath;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Failure;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
@@ -91,7 +93,6 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public JCloudsSlaveTemplate(final @Nonnull String name, final @Nonnull String labels, final @CheckForNull SlaveOptions slaveOptions) {
         this.name = Util.fixNull(name).trim();
         this.labelString = Util.fixNull(labels).trim();
-
         this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions;
 
         readResolve();
@@ -195,7 +196,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     public boolean canProvision(final Label label) {
-        return label == null || label.matches(labelSet);
+        return label == null
+            ? slaveOptions.getMode() == null || slaveOptions.getMode() == Node.Mode.NORMAL
+            : label.matches(labelSet);
     }
 
     /*package*/ boolean hasProvisioned(@Nonnull Server server) {
@@ -535,6 +538,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             } catch (Failure ex) {
                 return FormValidation.error(ex.getMessage());
             }
+        }
+
+        @Restricted(DoNotUse.class)
+        @RequirePOST
+        public FormValidation doCheckLabels(@QueryParameter String value, @RelativePath("slaveOptions") @QueryParameter Node.Mode mode) {
+            if ((value == null || value.trim().isEmpty()) && mode == Node.Mode.EXCLUSIVE) {
+                return FormValidation.warning("Nodes without any labels and running in exclusive mode will never be provisioned");
+            }
+            return FormValidation.ok();
         }
     }
 }
