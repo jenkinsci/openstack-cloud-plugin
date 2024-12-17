@@ -26,6 +26,8 @@ import hudson.model.TaskListener;
 import org.openstack4j.api.exceptions.ClientResponseException;
 import org.openstack4j.api.exceptions.StatusCode;
 import org.openstack4j.model.compute.Server;
+import java.util.concurrent.TimeUnit;
+
 
 import javax.annotation.Nonnull;
 
@@ -41,14 +43,17 @@ import javax.annotation.Nonnull;
 @Extension @Restricted(NoExternalUse.class)
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(JCloudsCleanupThread.class.getName());
+    private final Long recurrencePeriod;
 
     public JCloudsCleanupThread() {
         super("OpenStack slave cleanup");
+        recurrencePeriod = Long.getLong("jenkins.openstack.cleanupPeriod", TimeUnit.MINUTES.toMillis(10));
+        LOGGER.log(Level.FINE, "OpenStack cleanup recurrence period is {0}ms", recurrencePeriod);
     }
 
     @Override
     public long getRecurrencePeriod() {
-        return MIN * 10;
+        return recurrencePeriod;
     }
 
     @Override
