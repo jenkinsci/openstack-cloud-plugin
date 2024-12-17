@@ -5,8 +5,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.414.x</artifactId>
-                <version>2516.v113cb_3d00317</version>
+                <artifactId>bom-2.462.x</artifactId>
+                <version>3234.v5ca_5154341ef</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.55</version>
+        <version>4.87</version>
         <relativePath />
     </parent>
 
@@ -35,8 +35,7 @@
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
-        <jenkins.version>2.414.1</jenkins.version>
-        <java.level>11</java.level>
+        <jenkins.version>2.462.2</jenkins.version>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
         <spotbugs.failOnError>false</spotbugs.failOnError>
@@ -49,7 +48,7 @@
         <openstack4j.version>3.11</openstack4j.version>
         <okhttp.version>3.9.1</okhttp.version>
         <!-- Upper bound io.jenkins.configuration-as-code:test-harness -->
-        <jenkins-test-harness.version>2064.vcd3b_b_8f3f2b_a_</jenkins-test-harness.version>
+        <jenkins-test-harness.version>2265.v3da_49c8134d6</jenkins-test-harness.version>
     </properties>
 
     <developers>
@@ -105,12 +104,10 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>3.7.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>320.v96b_65297a_4b_b_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>

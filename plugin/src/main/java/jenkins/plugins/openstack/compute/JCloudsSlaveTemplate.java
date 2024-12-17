@@ -269,6 +269,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     ) throws Openstack.ActionFailed {
         final String serverName = getServerName();
         final SlaveOptions opts = getEffectiveSlaveOptions();
+        final String customMetaData = opts.getCustomMetaData();
         final ServerCreateBuilder builder = Builders.server();
 
         builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, getName());
@@ -305,6 +306,25 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             List<String> networks = selectNetworkIds(openstack, nid);
             LOGGER.fine("Setting networks to " + networks);
             builder.networks(networks);
+        }
+
+        String metaData = opts.getCustomMetaData();
+        if (Util.fixEmpty(metaData) != null) {
+            if (metaData != null) {
+                List<List<String>> metadat = TokenGroup.from(metaData, ',', '=');
+                for (List<String> keyvalue: metadat) {
+                    if (keyvalue.size() == 2) {
+                        LOGGER.fine("Setting metadata to " + customMetaData);
+                        builder.addMetadataItem(keyvalue.get(0), keyvalue.get(1));    
+                    }
+                    else {
+                        LOGGER.warning("Invalid MetaData");    
+                        if (keyvalue.size() == 1) {
+                            LOGGER.warning("Invalid empty value for MetaData " + keyvalue.get(0));
+                        }
+                    }
+                } 
+            }
         }
 
         String securityGroups = opts.getSecurityGroups();

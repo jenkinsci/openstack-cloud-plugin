@@ -54,12 +54,13 @@ import java.util.Objects;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
     private final @CheckForNull String hardwareId;
     private final @CheckForNull String networkId; // csv list of networkIds, in fact
+    private final @CheckForNull String customMetaData;  // csv list of keyvalue, in fact
     private final @CheckForNull String userDataId;
     private final Integer instanceCap;
     private final Integer instancesMin;
@@ -104,6 +105,10 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     public @CheckForNull String getNetworkId() {
         return networkId;
+    }
+
+    public @CheckForNull String getCustomMetaData() {
+        return customMetaData;
     }
 
     public @CheckForNull String getUserDataId() {
@@ -165,6 +170,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.bootSource,
                 b.hardwareId,
                 b.networkId,
+                b.customMetaData,
                 b.userDataId,
                 b.instanceCap,
                 b.instancesMin,
@@ -188,6 +194,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             @CheckForNull BootSource bootSource,
             String hardwareId,
             String networkId,
+            String customMetaData,
             String userDataId,
             Integer instanceCap,
             Integer instancesMin,
@@ -207,6 +214,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         this.bootSource = bootSource;
         this.hardwareId = Util.fixEmpty(hardwareId);
         this.networkId = Util.fixEmpty(networkId);
+        this.customMetaData = Util.fixEmpty(customMetaData);
         this.userDataId = Util.fixEmpty(userDataId);
         this.instanceCap = instanceCap;
         this.instancesMin = instancesMin;
@@ -244,6 +252,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .bootSource(_override(this.bootSource, o.bootSource))
                 .hardwareId(_override(this.hardwareId, o.hardwareId))
                 .networkId(_override(this.networkId, o.networkId))
+                .customMetaData(_override(this.customMetaData, o.customMetaData))
                 .userDataId(_override(this.userDataId, o.userDataId))
                 .instanceCap(_override(this.instanceCap, o.instanceCap))
                 .instancesMin(_override(this.instancesMin, o.instancesMin))
@@ -275,6 +284,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .bootSource(_erase(this.bootSource, defaults.bootSource))
                 .hardwareId(_erase(this.hardwareId, defaults.hardwareId))
                 .networkId(_erase(this.networkId, defaults.networkId))
+                .customMetaData(_erase(this.customMetaData, defaults.customMetaData))
                 .userDataId(_erase(this.userDataId, defaults.userDataId))
                 .instanceCap(_erase(this.instanceCap, defaults.instanceCap))
                 .instancesMin(_erase(this.instancesMin, defaults.instancesMin))
@@ -307,6 +317,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("bootSource", bootSource)
                 .append("hardwareId", hardwareId)
                 .append("networkId", networkId)
+                .append("customMetaData", customMetaData)
                 .append("userDataId", userDataId)
                 .append("instanceCap", instanceCap)
                 .append("instancesMin", instancesMin)
@@ -336,6 +347,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         if (!Objects.equals(bootSource, that.bootSource)) return false;
         if (!Objects.equals(hardwareId, that.hardwareId)) return false;
         if (!Objects.equals(networkId, that.networkId)) return false;
+        if (!Objects.equals(customMetaData, that.customMetaData)) return false;
         if (!Objects.equals(userDataId, that.userDataId)) return false;
         if (!Objects.equals(instanceCap, that.instanceCap)) return false;
         if (!Objects.equals(instancesMin, that.instancesMin)) return false;
@@ -358,6 +370,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         int result = bootSource != null ? bootSource.hashCode() : 0;
         result = 31 * result + (hardwareId != null ? hardwareId.hashCode() : 0);
         result = 31 * result + (networkId != null ? networkId.hashCode() : 0);
+        result = 31 * result + (customMetaData != null ? customMetaData.hashCode() : 0);
         result = 31 * result + (userDataId != null ? userDataId.hashCode() : 0);
         result = 31 * result + (instanceCap != null ? instanceCap.hashCode() : 0);
         result = 31 * result + (instancesMin != null ? instancesMin.hashCode() : 0);
@@ -384,6 +397,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .bootSource(bootSource)
                 .hardwareId(hardwareId)
                 .networkId(networkId)
+                .customMetaData(customMetaData)
                 .userDataId(userDataId)
                 .instanceCap(instanceCap)
                 .instancesMin(instancesMin)
@@ -417,6 +431,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         private @CheckForNull BootSource bootSource;
         private @CheckForNull String hardwareId;
         private @CheckForNull String networkId;
+        private @CheckForNull String customMetaData;
         private @CheckForNull String userDataId;
         private @CheckForNull Integer instanceCap;
         private @CheckForNull Integer instancesMin;
@@ -453,6 +468,11 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         public @Nonnull Builder networkId(String networkId) {
             this.networkId = networkId;
+            return this;
+        }
+
+        public @Nonnull Builder customMetaData(String customMetaData) {
+            this.customMetaData = customMetaData;
             return this;
         }
 
