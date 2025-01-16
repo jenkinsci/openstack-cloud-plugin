@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static jenkins.plugins.openstack.compute.internal.Openstack.FINGERPRINT_KEY_FINGERPRINT;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -329,8 +330,9 @@ public class ProvisioningTest {
 
     @Test
     public void timeoutLaunchingJnlp() throws Exception {
-        final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(7000).build();
+        final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(10).build();
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
+        cloud.setCleanfreq(20); // 20 secondes > 7 sec for timeout
         final Iterable<NodeProvisioner.PlannedNode> pns = cloud.provision(new Cloud.CloudState(Label.get("asdf"), 0), 1);
         assertThat(pns, iterableWithSize(1));
         final PlannedNode pn = pns.iterator().next();
@@ -360,6 +362,7 @@ public class ProvisioningTest {
         LauncherFactory.SSH sshLaunch = new LauncherFactory.SSH("no-such-creds");
         final SlaveOptions opts = j.defaultSlaveOptions().getBuilder().startTimeout(3000).launcherFactory(sshLaunch).build();
         final JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(opts, j.dummySlaveTemplate("asdf")));
+        cloud.setCleanfreq(2);
         JCloudsSlave agent = j.provision(cloud, "asdf");
         JCloudsComputer computer = agent.getComputer();
         assertFalse(agent.isLaunchTimedOut());
@@ -386,6 +389,7 @@ public class ProvisioningTest {
         //assertThat("Cause not fatal after ms " + aliveFor, computer.getFatalOfflineCause(), instanceOf(OfflineCause.LaunchFailed.class));
         assertThat("Cause not fatal after ms " + aliveFor, ofc, instanceOf(OfflineCause.LaunchFailed.class));
 
+        TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
         j.triggerOpenstackSlaveCleanup();
 
         // Wait for the server to be disposed
@@ -398,9 +402,12 @@ public class ProvisioningTest {
 
     @Test
     public void reportOfflineCauseInCloudStats() throws Exception {
-        SlaveOptions so = j.defaultSlaveOptions().getBuilder().startTimeout(100).build();
+        SlaveOptions so = j.defaultSlaveOptions().getBuilder().startTimeout(10000).build(); // 200 for windows test
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(so,"label")));
+        cloud.setCleanfreq(30); // clean freq set to 30 secondes not to be run during the test
         JCloudsSlave slave = j.provision(cloud, "label");
+        JCloudsComputer computer = slave.getComputer();
+        computer.waitUntilOnline();
         slave.toComputer().setTemporarilyOffline(true, new DiskSpaceMonitorDescriptor.DiskSpace("/Fake/it", 42));
         slave.getComputer().deleteSlave();
 
@@ -411,7 +418,7 @@ public class ProvisioningTest {
         assertEquals("0.000GB left on /Fake/it.", att.getTitle());
 
         slave = j.provision(cloud, "label");
-        Thread.sleep(100); // This relies on being past the startTimeout
+        Thread.sleep(200); // This relies on being past the startTimeout
         slave.toComputer().setTemporarilyOffline(true, new OfflineCause.ChannelTermination(new RuntimeException("Broken alright")));
         slave.getComputer().deleteSlave();
 
@@ -422,9 +429,9 @@ public class ProvisioningTest {
         assertThat(att.getTitle(), startsWith("Connection was broken"));
 
         slave = j.provision(cloud, "label");
-        Thread.sleep(100); // This relies on being past the startTimeout
         slave.toComputer().disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
         slave.getComputer().deleteSlave();
+        Thread.sleep(200); // This relies on being past the startTimeout
 
         pa = CloudStatistics.get().getActivityFor(slave);
         attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
@@ -476,14 +483,15 @@ public class ProvisioningTest {
         assertThat(cs.getActivities(), Matchers.iterableWithSize(0));
         j.autoconnectJnlpSlaves();
         JCloudsCloud cloud = j.configureSlaveProvisioning(j.dummyCloud(j.dummySlaveTemplate("label")), addresses);
+	cloud.setCleanfreq(30);
 
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
         assertThat(computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith(expectedAddress));
+        assertThat(cs.getActivities(), Matchers.iterableWithSize(1));
         assertEquals(computer.getName(), CloudStatistics.get().getActivityFor(computer).getName());
 
-        assertThat(cs.getActivities(), Matchers.iterableWithSize(1));
         ProvisioningActivity activity = cs.getActivities().get(0);
 
         waitForCloudStatistics(activity, ProvisioningActivity.Phase.OPERATING);

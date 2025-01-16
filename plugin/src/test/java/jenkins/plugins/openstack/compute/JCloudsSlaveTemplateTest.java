@@ -78,6 +78,7 @@ public class JCloudsSlaveTemplateTest {
 
         JCloudsCloud originalCloud = new JCloudsCloud(
                 "my-openstack", "endPointUrl", false, "zone",
+                10000,
                 SlaveOptions.empty(),
                 Arrays.asList(jnlpTemplate, sshTemplate),
                 j.dummyCredentials()
@@ -90,7 +91,7 @@ public class JCloudsSlaveTemplateTest {
         j.submit(form);
 
         final JCloudsCloud actualCloud = JCloudsCloud.getByName("my-openstack");
-        j.assertEqualBeans(originalCloud, actualCloud, "name,credentialsId,zone");
+        j.assertEqualBeans(originalCloud, actualCloud, "name,credentialsId,zone,cleanfreq");
         assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 
@@ -117,6 +118,7 @@ public class JCloudsSlaveTemplateTest {
 
         JCloudsCloud cloud = new JCloudsCloud(
                 "my-openstack", "credential", false, "zone",
+                10000,
                 cloudOpts,
                 singletonList(template),
                 j.dummyCredentials()

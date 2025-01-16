@@ -257,6 +257,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
         @Override
         public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+            terminated = false;
             Jenkins.get().addNode(slave);
             return new JNLPLauncher(false);
         }
