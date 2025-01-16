@@ -106,7 +106,7 @@ public class BootSourceTest {
 
         doReturn(Collections.singletonMap(imageName, Collections.singletonList(image))).when(os).getImages();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone", 10000);
         assertEquals(2, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         ListBoxModel.Option item = list.get(1);
@@ -125,7 +125,7 @@ public class BootSourceTest {
         Openstack os = j.fakeOpenstackFactory();
         when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", Collections.singletonList(volumeSnapshot)));
 
-        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone");
+        ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone", 10000);
         assertEquals(3, list.size());
         assertEquals("First menu entry is 'nothing selected'", "", list.get(0).value);
         assertEquals("Second menu entry is the VS OpenStack can see", "vs-name", list.get(1).name);
@@ -148,7 +148,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(new Openstack(osClient));
         final String credentialsId = j.dummyCredentials();
 
-        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone");
+        ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone", 10000);
         assertThat(list.get(0).name, list, Matchers.iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
@@ -167,7 +167,7 @@ public class BootSourceTest {
         final String credentialsIdCloud = j.dummyCredentials();
         final String credentialsIdTemplate = j.dummyCredentials();
 
-        final FormValidation actual = id.doCheckName("", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
         assertThat(actual, j.validateAs(VALIDATION_REQUIRED));
     }
 
@@ -183,7 +183,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.error("Not found");
 
-        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
         assertThat(actual, j.validateAs(expected));
     }
 
@@ -198,7 +198,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = id.doCheckName("imageFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
         assertThat(actual, j.validateAs(expected));
     }
 
@@ -213,7 +213,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.warning("Multiple matching results");
 
-        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
+        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
         assertThat("imageAmbiguous", actual, j.validateAs(expected));
     }
 
@@ -228,7 +228,7 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT);
+        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
         assertThat("vsFound", actual, j.validateAs(expected));
     }
 }

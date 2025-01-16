@@ -37,6 +37,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -51,6 +52,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
+import java.lang.NumberFormatException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -84,6 +86,12 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     private final boolean ignoreSsl;
 
     private final @CheckForNull String zone; // OpenStack4j requires null when there is no zone configured
+
+    // Clean frequency in seconds. Default 10s
+    private @Nonnull long cleanfreq = 10;
+
+    private long lastCleanTime = System.currentTimeMillis();
+
 
     // Make sure only diff of defaults is saved so when plugin defaults will change users are not stuck with outdated config
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
@@ -128,6 +136,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             final @Nonnull String endPointUrl,
             final boolean ignoreSsl,
             final @CheckForNull String zone,
+            final long cleanfreq,
             final @CheckForNull SlaveOptions slaveOptions,
             final @CheckForNull List<JCloudsSlaveTemplate> templates,
             final @Nonnull String credentialsId
@@ -138,6 +147,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         this.ignoreSsl = TRUE.equals(ignoreSsl);
         this.zone = Util.fixEmptyAndTrim(zone);
         this.credentialId = credentialsId;
+        this.cleanfreq = cleanfreq == 0 ? 10 : cleanfreq;
         this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
         this.templates = templates == null ? Collections.emptyList() : Collections.unmodifiableList(templates);
@@ -234,6 +244,27 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public @CheckForNull String getZone() {
         return zone;
+    }
+
+    public void setLastCleanTime(long timeMillis) {
+        this.lastCleanTime = timeMillis;
+    }
+
+    public long getLastCleanTime() {
+        return lastCleanTime;
+    }
+
+    public @CheckForNull long getCleanfreq() {
+        return cleanfreq;
+    }
+
+    public @CheckForNull long getCleanfreqToMillis() {
+        return cleanfreq * 1000;
+    }
+
+    @DataBoundSetter
+    public void setCleanfreq(@Nonnull long cleanfreq) {
+        this.cleanfreq = cleanfreq;
     }
 
     /**
@@ -490,7 +521,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             if (credential == null) {
                 throw new LoginFailure("No credentials found for cloud " + name + " (id=" + getCredentialsId() + ")");
             }
-            return Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone);
+            return Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone, cleanfreq);
         } catch (AuthenticationException ex) {
             throw new LoginFailure(name, ex);
         } catch (FormValidation ex) {
@@ -555,13 +586,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 @QueryParameter boolean ignoreSsl,
                 @QueryParameter String credentialsId,
                 @QueryParameter String endPointUrl,
-                @QueryParameter String zone
+                @QueryParameter String zone,
+                @QueryParameter long cleanfreq
         ) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
                 OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
                 if (openstackCredential == null) throw FormValidation.error("No credential found for " + credentialsId);
-                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
+                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 Throwable ex = openstack.sanityCheck();
 
                 if (ex != null) {
@@ -585,6 +617,23 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 new URL(value);
             } catch (MalformedURLException ex) {
                 return FormValidation.error(ex, "The endpoint must be URL");
+            }
+            return FormValidation.ok();
+        }
+
+        @Restricted(DoNotUse.class)
+        @RequirePOST
+        public FormValidation doCheckCleanfreq(@QueryParameter String value) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+
+            try {
+                long parsedCleanFreq = Long.parseLong(value);
+                if (parsedCleanFreq == 0) {
+                    NumberFormatException nfe = new NumberFormatException("cleanfreq should be strictly greater than 0");
+                    throw nfe;
+                }
+            } catch (NumberFormatException ex) {
+                return FormValidation.error(ex, "Clean frequency must be an integer strictly greater than 0 (>=1)");
             }
             return FormValidation.ok();
         }

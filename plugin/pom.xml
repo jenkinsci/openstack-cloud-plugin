@@ -35,7 +35,7 @@
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
-        <jenkins.version>2.414.1</jenkins.version>
+        <jenkins.version>2.419</jenkins.version>
         <java.level>11</java.level>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
@@ -110,7 +110,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>320.v96b_65297a_4b_b_</version>
+            <version>336.v788e4055508b_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>

@@ -82,6 +82,7 @@ public class SingleUseSlaveTest {
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
                 "label"
         )));
+        cloud.setCleanfreq(20); // the clean should not happen during the test
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
@@ -102,7 +103,9 @@ public class SingleUseSlaveTest {
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(0).build(),
                 "label"
         )));
+        cloud.setCleanfreq(2);
         JCloudsSlave slave = j.provision(cloud, "label");
+        Thread.sleep(3000);
         verifyOneOffContract(slave);
     }
 
@@ -112,6 +115,7 @@ public class SingleUseSlaveTest {
                 j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
                 "label"
         )));
+        cloud.setCleanfreq(2);
         JCloudsSlave slave = j.provision(cloud, "label");
         verifyOneOffContract(slave);
     }
@@ -128,6 +132,7 @@ public class SingleUseSlaveTest {
         j.buildAndAssertSuccess(p);
 
         j.waitUntilNoActivity();
+        Thread.sleep(3000);
         j.triggerOpenstackSlaveCleanup();
 
         assertThat(JCloudsComputer.getAll(), emptyIterable());
@@ -136,7 +141,7 @@ public class SingleUseSlaveTest {
     @Test
     public void preserveAgentOfflineByUser() throws Exception {
         j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
+                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).instanceCap(1).build(),
                 "label"
         )));
         FreeStyleProject p = j.createFreeStyleProject();

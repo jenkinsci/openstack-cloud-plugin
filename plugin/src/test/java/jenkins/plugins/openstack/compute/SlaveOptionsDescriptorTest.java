@@ -33,6 +33,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -122,7 +123,7 @@ public class SlaveOptionsDescriptorTest {
         final Openstack os = j.fakeOpenstackFactory();
         doReturn(azs).when(os).getAvailabilityZones();
 
-        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", false, openstackAuth, "OSzone");
+        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", false, openstackAuth, "OSzone", 10000);
 
         assertEquals(2, actual.size());
         final String az1Option = actual.get(0);
@@ -137,7 +138,7 @@ public class SlaveOptionsDescriptorTest {
         final String openstackAuth = j.dummyCredentials();
         doThrow(new RuntimeException("OpenStack said no")).when(os).getAvailabilityZones();
 
-        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", false, openstackAuth, "OSzone");
+        final ComboBoxModel actual = d.doFillAvailabilityZoneItems("az2Name", "OSurl", false, openstackAuth, "OSzone", 10000);
 
         assertEquals(0, actual.size());
     }
@@ -147,7 +148,7 @@ public class SlaveOptionsDescriptorTest {
         final Openstack os = j.fakeOpenstackFactory();
         final String openstackAuth = j.dummyCredentials();
 
-        final FormValidation actual = d.doCheckAvailabilityZone("chosenAZ", "", "OSurl", false,"OSurl", openstackAuth,openstackAuth,"OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone("chosenAZ", "", "OSurl", false,"OSurl", openstackAuth,openstackAuth,"OSzone", "OSzone", 10000, 10000);
 
         assertThat(actual, j.validateAs(FormValidation.ok()));
         verifyNoMoreInteractions(os);
@@ -160,7 +161,7 @@ public class SlaveOptionsDescriptorTest {
         final Openstack os = j.fakeOpenstackFactory();
         final String openstackAuth = j.dummyCredentials();
 
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def,  "OSurl", false,"OSurl", openstackAuth,openstackAuth,"OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def,  "OSurl", false,"OSurl", openstackAuth,openstackAuth,"OSzone", "OSzone", 10000, 10000);
 
         assertThat(actual, j.validateAs(OK, "Inherited value: " + def));
         verifyNoMoreInteractions(os);
@@ -175,7 +176,7 @@ public class SlaveOptionsDescriptorTest {
         doReturn(azs).when(os).getAvailabilityZones();
         final String openstackAuth = j.dummyCredentials();
 
-        final FormValidation actual = d.doCheckAvailabilityZone("", "", "OSurl", false,"OSurl", openstackAuth,openstackAuth, "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone("", "", "OSurl", false,"OSurl", openstackAuth,openstackAuth, "OSzone", "OSzone", 10000, 10000);
 
         assertThat(actual, j.validateAs(FormValidation.ok()));
     }
@@ -188,7 +189,7 @@ public class SlaveOptionsDescriptorTest {
         final String def = "";
         final String openstackAuth = j.dummyCredentials();
 
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", openstackAuth, openstackAuth, "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false,"OSurl", openstackAuth, openstackAuth, "OSzone", "OSzone", 10000, 10000);
 
         assertThat(actual, j.validateAs(FormValidation.ok()));
     }
@@ -205,7 +206,7 @@ public class SlaveOptionsDescriptorTest {
         final String value = "";
         final String def = "";
         final String openstackAuth = j.dummyCredentials();
-        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false, "OSurl",openstackAuth, openstackAuth, "OSzone", "OSzone");
+        final FormValidation actual = d.doCheckAvailabilityZone(value, def, "OSurl", false, "OSurl",openstackAuth, openstackAuth, "OSzone", "OSzone", 10000, 10000);
 
         assertThat(actual, j.validateAs(FormValidation.warning("Ambiguity warning: Multiple zones found.")));
     }
@@ -216,7 +217,8 @@ public class SlaveOptionsDescriptorTest {
                 "../endPointUrl", "../../endPointUrl",
                 "../ignoreSsl", "../../ignoreSsl",
                 "../credentialsId", "../../credentialsId",
-                "../zone", "../../zone"
+                "../zone", "../../zone",
+                "../cleanfreq", "../../cleanfreq"
         );
 
         assertThat(getFillDependencies("keyPairName"), equalTo(expected));
@@ -233,9 +235,10 @@ public class SlaveOptionsDescriptorTest {
         final Boolean IGNORE_SSL = false;
         final String CREDENTIALSID = j.dummyCredentials();
         final String REGION = "REGION";
+        final long CLEANFREQ = 10000;
         final String QUERY_STRING = String.format(
-                "?endPointUrl=%s&ignoreSsl=%s&credentialsId=%s&zone=%s",
-                END_POINT, IGNORE_SSL, CREDENTIALSID, REGION
+                "?endPointUrl=%s&ignoreSsl=%s&credentialsId=%s&zone=%s&cleanfreq=%s",
+                END_POINT, IGNORE_SSL, CREDENTIALSID, REGION, CLEANFREQ
         );
 
         String contextPath = j.getURL().getFile();
@@ -245,7 +248,7 @@ public class SlaveOptionsDescriptorTest {
 
         Openstack.FactoryEP factory = j.mockOpenstackFactory();
         when(
-                factory.getOpenstack(anyString(), anyBoolean(), any(OpenstackCredential.class), anyString())
+                factory.getOpenstack(anyString(), anyBoolean(), any(OpenstackCredential.class), anyString(), anyLong())
         ).thenThrow(
                 new AuthenticationException("No one cares as we are testing if correct credentials are passed in", 42)
         );
@@ -254,7 +257,7 @@ public class SlaveOptionsDescriptorTest {
         JenkinsRule.WebClient wc = j.createWebClient();
         wc.getPage(wc.addCrumb(new WebRequest(url, HttpMethod.POST)));
 
-        verify(factory).getOpenstack(eq(END_POINT), eq(IGNORE_SSL), eq(OpenstackCredentials.getCredential(CREDENTIALSID)), eq(REGION));
+        verify(factory).getOpenstack(eq(END_POINT), eq(IGNORE_SSL), eq(OpenstackCredentials.getCredential(CREDENTIALSID)), eq(REGION), eq(CLEANFREQ));
         verifyNoMoreInteractions(factory);
     }
 

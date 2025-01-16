@@ -79,6 +79,7 @@ public class JCloudsRetentionStrategyTest {
                 j.defaultSlaveOptions().getBuilder().retentionTime(1 /*disposable asap*/).build(),
                 "label"
         )));
+        cloud.setCleanfreq(5);
         cloud.provision(Label.get("label"), 1);
 
         do {
