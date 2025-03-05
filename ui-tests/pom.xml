@@ -5,16 +5,12 @@
         <groupId>org.jenkins-ci.plugins.openstack-cloud</groupId>
         <artifactId>parent</artifactId>
         <version>2.67-SNAPSHOT</version>
+        <relativePath />
     </parent>
 
     <artifactId>ui-tests</artifactId>
     <packaging>jar</packaging>
     <version>2.67-SNAPSHOT</version>
-
-    <properties>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <maven.compiler.source>1.8</maven.compiler.source>
-    </properties>
 
     <dependencies>
         <dependency>
