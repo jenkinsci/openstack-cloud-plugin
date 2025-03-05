@@ -5,8 +5,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.414.x</artifactId>
-                <version>2516.v113cb_3d00317</version>
+                <artifactId>bom-${jenkins.baseline}.x</artifactId>
+                <version>4228.v0a_71308d905b_</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.55</version>
+        <version>4.88</version>
         <relativePath />
     </parent>
 
@@ -35,8 +35,9 @@
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
-        <jenkins.version>2.414.1</jenkins.version>
-        <java.level>11</java.level>
+        <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
+        <jenkins.baseline>2.462</jenkins.baseline>
+        <jenkins.version>${jenkins.baseline}.3</jenkins.version>
         <concurrency>1C</concurrency>
         <surefire.useFile>false</surefire.useFile>
         <spotbugs.failOnError>false</spotbugs.failOnError>
@@ -49,16 +50,8 @@
         <openstack4j.version>3.11</openstack4j.version>
         <okhttp.version>3.9.1</okhttp.version>
         <!-- Upper bound io.jenkins.configuration-as-code:test-harness -->
-        <jenkins-test-harness.version>2064.vcd3b_b_8f3f2b_a_</jenkins-test-harness.version>
+        <jenkins-test-harness.version>2225.v04fa_3929c9b_5</jenkins-test-harness.version>
     </properties>
-
-    <developers>
-        <developer>
-            <id>olivergondza</id>
-            <name>Oliver Gondža</name>
-            <email>ogondza@gmail.com</email>
-        </developer>
-    </developers>
 
     <dependencies>
         <dependency>
@@ -100,17 +93,14 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>1305.v04f5ec1f3743</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>3.7.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloud-stats</artifactId>
-            <version>320.v96b_65297a_4b_b_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -162,7 +152,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>jackson2-api</artifactId>
-            <version>2.14.1-313.v504cdd45c18b</version>
         </dependency>
 
         <!-- Test Dependencies -->
@@ -170,7 +159,6 @@
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
             <scope>test</scope>
-            <version>2.2</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -278,7 +266,7 @@
     </build>
 
     <scm>
-        <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
+        <connection>scm:git:https://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/openstack-cloud-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
         <tag>parent-2.66</tag>
