@@ -12,3 +12,4 @@ release.properties
 **/dependency-reduced-pom.xml
 **/target
 .DS_Store
+tags
