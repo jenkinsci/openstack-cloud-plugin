@@ -81,6 +81,7 @@ jenkins:
         endPointUrl: "https://acme.com:5000"
         credentialsId: "openstack_service_credentials"
         ignoreSsl: false
+        cleanfreq: 30
         zone: foo
         slaveOptions:
           bootSource:
