@@ -12,11 +12,13 @@ import org.junit.Test;
 
 public class InstancesToRunTest {
 
-    @Rule public PluginTestRule j = new PluginTestRule();
+    @Rule
+    public PluginTestRule j = new PluginTestRule();
 
     @Test
     public void descriptorUiMethods() {
-        InstancesToRun.DescriptorImpl desc = (InstancesToRun.DescriptorImpl) j.jenkins.getDescriptorOrDie(InstancesToRun.class);
+        InstancesToRun.DescriptorImpl desc =
+                (InstancesToRun.DescriptorImpl) j.jenkins.getDescriptorOrDie(InstancesToRun.class);
         assertEquals(FormValidation.Kind.ERROR, desc.doCheckCount("0").kind);
         assertEquals(FormValidation.Kind.OK, desc.doCheckCount("1").kind);
 

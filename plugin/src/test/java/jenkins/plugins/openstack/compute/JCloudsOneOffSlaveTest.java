@@ -1,13 +1,13 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.junit.Assert.*;
+
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.junit.Rule;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class JCloudsOneOffSlaveTest {
 

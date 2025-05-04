@@ -23,8 +23,18 @@
  */
 package jenkins.plugins.openstack.compute.slaveopts;
 
+import static java.util.Locale.US;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.*;
+
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.hamcrest.Matchers;
@@ -38,19 +48,9 @@ import org.openstack4j.model.image.v2.Image;
 import org.openstack4j.model.storage.block.Volume;
 import org.openstack4j.model.storage.block.VolumeSnapshot;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import static java.util.Locale.US;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.*;
-
 public class BootSourceTest {
-    private static final FormValidation VALIDATION_REQUIRED = FormValidation.error(hudson.util.Messages._FormValidation_ValidateRequired().toString(US));
+    private static final FormValidation VALIDATION_REQUIRED = FormValidation.error(
+            hudson.util.Messages._FormValidation_ValidateRequired().toString(US));
 
     public @Rule PluginTestRule j = new PluginTestRule();
 
@@ -104,7 +104,9 @@ public class BootSourceTest {
         Openstack os = j.fakeOpenstackFactory();
         final String credentialsId = j.dummyCredentials();
 
-        doReturn(Collections.singletonMap(imageName, Collections.singletonList(image))).when(os).getImages();
+        doReturn(Collections.singletonMap(imageName, Collections.singletonList(image)))
+                .when(os)
+                .getImages();
 
         ListBoxModel list = id.doFillNameItems("", "OSurl", false, credentialsId, "OSzone", 10000);
         assertEquals(2, list.size());
@@ -123,7 +125,8 @@ public class BootSourceTest {
         final String credentialsId = j.dummyCredentials();
 
         Openstack os = j.fakeOpenstackFactory();
-        when(os.getVolumeSnapshots()).thenReturn(Collections.singletonMap("vs-name", Collections.singletonList(volumeSnapshot)));
+        when(os.getVolumeSnapshots())
+                .thenReturn(Collections.singletonMap("vs-name", Collections.singletonList(volumeSnapshot)));
 
         ListBoxModel list = vsd.doFillNameItems("existing-vs-name", "OSurl", false, credentialsId, "OSzone", 10000);
         assertEquals(3, list.size());
@@ -134,7 +137,8 @@ public class BootSourceTest {
         assertEquals("Third menu entry is the existing value", "existing-vs-name", list.get(2).value);
     }
 
-    @Test @Issue("JENKINS-29993")
+    @Test
+    @Issue("JENKINS-29993")
     public void doFillImageIdItemsAcceptsNullAsImageName() {
         Image image = mock(Image.class);
         when(image.getId()).thenReturn("image-id");
@@ -162,19 +166,20 @@ public class BootSourceTest {
     @Test
     public void doCheckImageIdWhenNoValueSet() throws Exception {
         final String urlC, urlT, zoneC, zoneT;
-        urlC= urlT= zoneC= zoneT= "dummy";
+        urlC = urlT = zoneC = zoneT = "dummy";
 
         final String credentialsIdCloud = j.dummyCredentials();
         final String credentialsIdTemplate = j.dummyCredentials();
 
-        final FormValidation actual = id.doCheckName("", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
+        final FormValidation actual = id.doCheckName(
+                "", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
         assertThat(actual, j.validateAs(VALIDATION_REQUIRED));
     }
 
     @Test
     public void doCheckImageIdWhenImageIsNotFoundInOpenstack() throws Exception {
-        final String urlC, urlT,zoneC, zoneT;
-        urlC= urlT= zoneC= zoneT= "dummy";
+        final String urlC, urlT, zoneC, zoneT;
+        urlC = urlT = zoneC = zoneT = "dummy";
         final Openstack os = mock(Openstack.class);
         final List<String> noIDs = Collections.emptyList();
         final String credentialsIdCloud = j.dummyCredentials();
@@ -183,14 +188,25 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.error("Not found");
 
-        final FormValidation actual = id.doCheckName("imageNotFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
+        final FormValidation actual = id.doCheckName(
+                "imageNotFound",
+                urlC,
+                urlT,
+                false,
+                false,
+                credentialsIdCloud,
+                credentialsIdTemplate,
+                zoneC,
+                zoneT,
+                10000,
+                10000);
         assertThat(actual, j.validateAs(expected));
     }
 
     @Test
     public void doCheckImageIdWhenOneImageIsFound() throws Exception {
         final String urlC, urlT, zoneC, zoneT;
-        urlC= urlT= zoneC= zoneT= "dummy";
+        urlC = urlT = zoneC = zoneT = "dummy";
         final Openstack os = mock(Openstack.class);
         final String credentialsIdCloud = j.dummyCredentials();
         final String credentialsIdTemplate = j.dummyCredentials();
@@ -198,14 +214,25 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = id.doCheckName("imageFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
+        final FormValidation actual = id.doCheckName(
+                "imageFound",
+                urlC,
+                urlT,
+                false,
+                false,
+                credentialsIdCloud,
+                credentialsIdTemplate,
+                zoneC,
+                zoneT,
+                10000,
+                10000);
         assertThat(actual, j.validateAs(expected));
     }
 
     @Test
     public void doCheckImageIdWhenMultipleImagesAreFoundForTheName() throws Exception {
         final String urlC, urlT, zoneC, zoneT;
-        urlC= urlT= zoneC= zoneT= "dummy";
+        urlC = urlT = zoneC = zoneT = "dummy";
         final Openstack os = mock(Openstack.class);
         final String credentialsIdCloud = j.dummyCredentials();
         final String credentialsIdTemplate = j.dummyCredentials();
@@ -213,14 +240,25 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.warning("Multiple matching results");
 
-        final FormValidation actual = id.doCheckName("imageAmbiguous", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
+        final FormValidation actual = id.doCheckName(
+                "imageAmbiguous",
+                urlC,
+                urlT,
+                false,
+                false,
+                credentialsIdCloud,
+                credentialsIdTemplate,
+                zoneC,
+                zoneT,
+                10000,
+                10000);
         assertThat("imageAmbiguous", actual, j.validateAs(expected));
     }
 
     @Test
     public void doCheckImageIdWhenOneVolumeSnapshotIsFound() throws Exception {
         final String urlC, urlT, zoneC, zoneT;
-        urlC= urlT= zoneC= zoneT= "dummy";
+        urlC = urlT = zoneC = zoneT = "dummy";
         final Openstack os = mock(Openstack.class);
         final String credentialsIdCloud = j.dummyCredentials();
         final String credentialsIdTemplate = j.dummyCredentials();
@@ -228,7 +266,18 @@ public class BootSourceTest {
         j.fakeOpenstackFactory(os);
         final FormValidation expected = FormValidation.ok();
 
-        final FormValidation actual = vsd.doCheckName("vsFound", urlC, urlT, false, false, credentialsIdCloud, credentialsIdTemplate, zoneC, zoneT, 10000, 10000);
+        final FormValidation actual = vsd.doCheckName(
+                "vsFound",
+                urlC,
+                urlT,
+                false,
+                false,
+                credentialsIdCloud,
+                credentialsIdTemplate,
+                zoneC,
+                zoneT,
+                10000,
+                10000);
         assertThat("vsFound", actual, j.validateAs(expected));
     }
 }

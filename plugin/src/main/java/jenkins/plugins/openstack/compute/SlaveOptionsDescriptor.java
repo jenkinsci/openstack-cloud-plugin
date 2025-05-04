@@ -24,20 +24,27 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.Extension;
-import hudson.ExtensionList;
 import hudson.RelativePath;
 import hudson.Util;
 import hudson.slaves.NodePropertyDescriptor;
 import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsSlave.JCloudsSlaveDescriptor;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import net.sf.json.JSONObject;
-import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.configfiles.ConfigFiles;
 import org.kohsuke.accmod.Restricted;
@@ -51,20 +58,11 @@ import org.openstack4j.api.exceptions.ConnectionException;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.ext.AvailabilityZone;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 /**
  * @author ogondza.
  */
-@Extension @Restricted(NoExternalUse.class)
+@Extension
+@Restricted(NoExternalUse.class)
 public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions> {
     private static final Logger LOGGER = Logger.getLogger(SlaveOptionsDescriptor.class.getName());
     public static final FormValidation OK = FormValidation.ok();
@@ -87,8 +85,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckInstanceCap(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("instanceCap") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("instanceCap") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getInstanceCap());
@@ -102,8 +99,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckInstancesMin(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("instancesMin") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("instancesMin") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getInstancesMin());
@@ -117,8 +113,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckStartTimeout(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("startTimeout") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("startTimeout") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getStartTimeout());
@@ -132,8 +127,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckNumExecutors(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("numExecutors") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("numExecutors") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getNumExecutors());
@@ -147,8 +141,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckRetentionTime(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("retentionTime") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("retentionTime") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getRetentionTime());
@@ -156,8 +149,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             return REQUIRED;
         }
         try {
-            if (Integer.parseInt(value) == -1)
-                return FormValidation.ok("Keep forever");
+            if (Integer.parseInt(value) == -1) return FormValidation.ok("Keep forever");
         } catch (NumberFormatException e) {
         }
         return FormValidation.validateNonNegativeInteger(value);
@@ -168,9 +160,11 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
-            @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialsId, @QueryParameter String zone, @QueryParameter long cleanfreq
-    ) {
+            @QueryParameter String endPointUrl,
+            @QueryParameter boolean ignoreSsl,
+            @QueryParameter String credentialsId,
+            @QueryParameter String zone,
+            @QueryParameter long cleanfreq) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
@@ -178,7 +172,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         try {
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
+                final Openstack openstack =
+                        Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 for (String p : openstack.getSortedIpPools()) {
                     m.add(p);
                 }
@@ -198,8 +193,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckFloatingIpPool(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("floatingIpPool") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("floatingIpPool") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getFloatingIpPool());
@@ -213,10 +207,12 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     @RequirePOST
     public ListBoxModel doFillHardwareIdItems(
-            @QueryParameter String hardwareId, @QueryParameter String endPointUrl,
+            @QueryParameter String hardwareId,
+            @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialsId, @QueryParameter String zone, @QueryParameter long cleanfreq
-    ) {
+            @QueryParameter String credentialsId,
+            @QueryParameter String zone,
+            @QueryParameter long cleanfreq) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
@@ -224,7 +220,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         try {
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
+                final Openstack openstack =
+                        Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 for (Flavor flavor : openstack.getSortedFlavors()) {
                     final String value = flavor.getId();
                     final String displayText = Openstack.getFlavorInfo(flavor);
@@ -246,8 +243,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckHardwareId(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("hardwareId") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("hardwareId") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getHardwareId());
@@ -271,8 +267,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             @RelativePath("..") @QueryParameter("zone") String zoneCloud,
             @RelativePath("../..") @QueryParameter("zone") String zoneTemplate,
             @RelativePath("..") @QueryParameter("cleanfreq") long cleanfreqCloud,
-            @RelativePath("../..") @QueryParameter("cleanfreq") long cleanfreqTemplate
-    ) {
+            @RelativePath("../..") @QueryParameter("cleanfreq") long cleanfreqTemplate) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getNetworkId());
@@ -287,7 +282,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         final long cleanfreq = cleanfreqCloud + cleanfreqTemplate;
         if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
             try {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
+                final Openstack openstack =
+                        Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 List<String> nids = JCloudsSlaveTemplate.selectNetworkIds(openstack, value);
                 return FormValidation.ok("Will connect to " + nids.size() + " network(s). Ex.: " + nids);
             } catch (IllegalArgumentException | NoSuchElementException ex) {
@@ -307,7 +303,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
-        for (Config config : ConfigFiles.getConfigsInContext(Jenkins.get(), UserDataConfig.UserDataConfigProvider.class)) {
+        for (Config config :
+                ConfigFiles.getConfigsInContext(Jenkins.get(), UserDataConfig.UserDataConfigProvider.class)) {
             m.add(config.name, config.id);
         }
         return m;
@@ -317,8 +314,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckUserDataId(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("userDataId") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("userDataId") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getUserDataId());
@@ -337,8 +333,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public ListBoxModel doFillConfigDriveItems(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("configDrive") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("configDrive") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("Inherited / Override later", "");
@@ -349,16 +344,15 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
 
     private FormValidation getUserDataLink(String id, String name) {
         return FormValidation.okWithMarkup(
-                "<a target='_blank' href='" + Jenkins.get().getRootUrl() + "configfiles/editConfig?id=" + Util.escape(id) + "'>" + Util.escape(name) + "</a>"
-        );
+                "<a target='_blank' href='" + Jenkins.get().getRootUrl() + "configfiles/editConfig?id="
+                        + Util.escape(id) + "'>" + Util.escape(name) + "</a>");
     }
 
     @Restricted(DoNotUse.class)
     @RequirePOST
     public FormValidation doCheckSecurityGroups(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("securityGroups") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("securityGroups") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getSecurityGroups());
@@ -372,10 +366,12 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @InjectOsAuth
     @RequirePOST
     public ComboBoxModel doFillAvailabilityZoneItems(
-            @QueryParameter String availabilityZone, @QueryParameter String endPointUrl,
+            @QueryParameter String availabilityZone,
+            @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialsId, @QueryParameter String zone, @QueryParameter long cleanfreq
-    ) {
+            @QueryParameter String credentialsId,
+            @QueryParameter String zone,
+            @QueryParameter long cleanfreq) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         // Support for availabilityZones is optional in OpenStack, so this is a f:combobox not f:select field.
         // Therefore we suggest some options if we can, but if we can't then we assume it's because they're not needed.
@@ -383,7 +379,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         try {
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
+                final Openstack openstack =
+                        Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 for (final AvailabilityZone az : openstack.getAvailabilityZones()) {
                     final String value = az.getZoneName();
                     m.add(value);
@@ -411,8 +408,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             @RelativePath("..") @QueryParameter("zone") String zoneCloud,
             @RelativePath("../..") @QueryParameter("zone") String zoneTemplate,
             @RelativePath("..") @QueryParameter("cleanfreq") long cleanfreqCloud,
-            @RelativePath("../..") @QueryParameter("cleanfreq") long cleanfreqTemplate
-    ) {
+            @RelativePath("../..") @QueryParameter("cleanfreq") long cleanfreqTemplate) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         // Warn user if they've not selected anything AND there's multiple availability zones
         // as this can lead to non-deterministic behavior.
@@ -421,14 +417,15 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         if (Util.fixEmpty(value) == null) {
             final String d = getDefault(def, opts().getAvailabilityZone());
             if (d != null) return FormValidation.ok(def(d));
-            final String endPointUrl = getDefault(endPointUrlCloud,endPointUrlTemplate);
-            final String credentialsId = getDefault(credentialsIdCloud,credentialsIdTemplate);
+            final String endPointUrl = getDefault(endPointUrlCloud, endPointUrlTemplate);
+            final String credentialsId = getDefault(credentialsIdCloud, credentialsIdTemplate);
             final OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             final String zone = getDefault(zoneCloud, zoneTemplate);
             final long cleanfreq = cleanfreqCloud + cleanfreqTemplate;
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
                 try {
-                    final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
+                    final Openstack openstack =
+                            Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                     final int numberOfAZs = openstack.getAvailabilityZones().size();
                     if (numberOfAZs > 1) {
                         return FormValidation.warning("Ambiguity warning: Multiple zones found.");
@@ -450,8 +447,9 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
             @QueryParameter String keyPairName,
             @QueryParameter String endPointUrl,
             @QueryParameter boolean ignoreSsl,
-            @QueryParameter String credentialsId, @QueryParameter String zone, @QueryParameter long cleanfreq
-    ) {
+            @QueryParameter String credentialsId,
+            @QueryParameter String zone,
+            @QueryParameter long cleanfreq) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
@@ -459,7 +457,8 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         try {
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
-                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
+                Openstack openstack =
+                        Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 for (String value : openstack.getSortedKeyPairNames()) {
                     m.add(value);
                 }
@@ -479,8 +478,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckKeyPairName(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("keyPairName") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("keyPairName") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getKeyPairName());
@@ -494,8 +492,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @RequirePOST
     public FormValidation doCheckJvmOptions(
             @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("jvmOptions") String def
-    ) {
+            @RelativePath("../../slaveOptions") @QueryParameter("jvmOptions") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getJvmOptions());
@@ -508,9 +505,7 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     @Restricted(DoNotUse.class)
     @RequirePOST
     public FormValidation doCheckFsRoot(
-            @QueryParameter String value,
-            @RelativePath("../../slaveOptions") @QueryParameter("fsRoot") String def
-    ) {
+            @QueryParameter String value, @RelativePath("../../slaveOptions") @QueryParameter("fsRoot") String def) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getFsRoot());
@@ -553,9 +548,11 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
         // f:optionalBlock does not adhere to its documented contract when inline=true. The expected behavior here is
         // nodeProperties=null when the block is collapsed (no matter what is in). However, it is being sent even when
         // collapsed so SlaveOptions constructor is forced to consult the dummy property to tell null from value on the
-        // real property making the API awful. When inline=false, the field is always wrapped in extra level of json object forcing extra
+        // real property making the API awful. When inline=false, the field is always wrapped in extra level of json
+        // object forcing extra
         // describable to be created (between SlaveOptions and properties list) making the API awful again.
-        // Therefore, nodeProperties is only propagated to @DBC when hasNodeProperties is true and hasNodeProperties is only processed here.
+        // Therefore, nodeProperties is only propagated to @DBC when hasNodeProperties is true and hasNodeProperties is
+        // only processed here.
         final String NODE_PROPERTIES = "nodeProperties";
         final String HAS_NODE_PROPERTIES = "hasNodeProperties";
         if (!formData.optBoolean(HAS_NODE_PROPERTIES)) {

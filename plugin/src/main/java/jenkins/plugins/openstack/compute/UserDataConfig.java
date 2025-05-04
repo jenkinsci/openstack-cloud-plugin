@@ -1,6 +1,10 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.Extension;
+import java.util.ArrayList;
+import java.util.Collection;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.lib.configprovider.AbstractConfigProviderImpl;
@@ -11,11 +15,6 @@ import org.jenkinsci.plugins.configfiles.ConfigFiles;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import javax.annotation.Nonnull;
-import javax.annotation.CheckForNull;
-import java.util.ArrayList;
-import java.util.Collection;
 
 public class UserDataConfig extends Config {
     private static final long serialVersionUID = -1136594228956429772L;
@@ -37,15 +36,17 @@ public class UserDataConfig extends Config {
         if (userDataId == null) return null;
 
         Config userData = ConfigFiles.getByIdOrNull(Jenkins.get(), userDataId);
-        if (userData == null) throw new IllegalArgumentException("Unable to locate OpenStack user-data named '" + userDataId + "'");
-        if (!(userData instanceof UserDataConfig)) throw new IllegalArgumentException(
-                "The config file used for user-data is not of the correct type: " + userData.getClass()
-        );
+        if (userData == null)
+            throw new IllegalArgumentException("Unable to locate OpenStack user-data named '" + userDataId + "'");
+        if (!(userData instanceof UserDataConfig))
+            throw new IllegalArgumentException(
+                    "The config file used for user-data is not of the correct type: " + userData.getClass());
 
-        return userData.content.isEmpty() ? null : userData.content ;
+        return userData.content.isEmpty() ? null : userData.content;
     }
 
-    @Extension(ordinal = 70) @Symbol("openstackUserData")
+    @Extension(ordinal = 70)
+    @Symbol("openstackUserData")
     public static class UserDataConfigProvider extends AbstractConfigProviderImpl {
 
         @SuppressWarnings("deprecation") // https://github.com/jenkinsci/config-file-provider-plugin/pull/114

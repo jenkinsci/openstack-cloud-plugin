@@ -1,8 +1,26 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.startsWith;
+import static org.jenkinsci.plugins.cloudstats.ProvisioningActivity.Id;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.util.OneShotEvent;
+import java.util.Collections;
+import java.util.Date;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -12,35 +30,19 @@ import org.junit.Test;
 import org.jvnet.hudson.test.WithoutJenkins;
 import org.openstack4j.model.compute.Server;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.util.Collections;
-import java.util.Date;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.hamcrest.Matchers.startsWith;
-import static org.jenkinsci.plugins.cloudstats.ProvisioningActivity.Id;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class ServerScopeTest {
-    @Rule public PluginTestRule j = new PluginTestRule();
+    @Rule
+    public PluginTestRule j = new PluginTestRule();
 
     private static final Server mockServer = mock(Server.class);
+
     static {
         // Old enough so node scope consider it applicable
         when(mockServer.getCreated()).thenReturn(new Date(System.currentTimeMillis() - 1000 * 60 * 61));
     }
 
-    @Test @WithoutJenkins
+    @Test
+    @WithoutJenkins
     public void parse() {
         ServerScope.Node node = (ServerScope.Node) ServerScope.parse("node:asdf");
         assertEquals("asdf", node.getName());
@@ -64,7 +66,8 @@ public class ServerScopeTest {
         assertEquals("time:2017-01-11 14:09:25", time.getValue());
         assertEquals(time, time2);
 
-        ServerScope.Unlimited unlimited = (ServerScope.Unlimited) ServerScope.parse("unlimited:Custom reason specified here if needed");
+        ServerScope.Unlimited unlimited =
+                (ServerScope.Unlimited) ServerScope.parse("unlimited:Custom reason specified here if needed");
         assertEquals("unlimited:unlimited", unlimited.getValue());
         assertEquals(unlimited, ServerScope.parse(unlimited.getValue()));
     }
@@ -72,12 +75,12 @@ public class ServerScopeTest {
     @Test
     public void nodeScope() throws Exception {
         final Id id = new Id("foo", "bar", "baz");
-        final JCloudsSlave js = new JCloudsSlave(id, j.mockServer().withFixedIPv4("1.1.1.1").name("foo").get(), "foo", j.defaultSlaveOptions());
+        final JCloudsSlave js = new JCloudsSlave(
+                id, j.mockServer().withFixedIPv4("1.1.1.1").name("foo").get(), "foo", j.defaultSlaveOptions());
         Server mock = mock(Server.class);
-        when(mock.getMetadata()).thenReturn(Collections.singletonMap(
-                ServerScope.METADATA_KEY,
-                new ServerScope.Node(id.getNodeName(), id).getValue())
-        );
+        when(mock.getMetadata())
+                .thenReturn(Collections.singletonMap(
+                        ServerScope.METADATA_KEY, new ServerScope.Node(id.getNodeName(), id).getValue()));
 
         assertTrue(new ServerScope.Node(js.getNodeName() + "nonono").isOutOfScope(mock));
         assertTrue(new ServerScope.Node(js.getNodeName(), new Id("foo", "bar", "baz")).isOutOfScope(mock));
@@ -90,9 +93,12 @@ public class ServerScopeTest {
         OneShotEvent provisioning = new OneShotEvent();
 
         LauncherFactory lf = new BlockingCommandLauncherFactory(provisioning);
-        SlaveOptions slaveOptions = j.defaultSlaveOptions().getBuilder().launcherFactory(lf).build();
-        JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(slaveOptions, "label")));
-        ScheduledFuture<JCloudsSlave> provisionFuture = Timer.get().schedule(() -> j.provision(cloud, "label"), 0, TimeUnit.SECONDS);
+        SlaveOptions slaveOptions =
+                j.defaultSlaveOptions().getBuilder().launcherFactory(lf).build();
+        JCloudsCloud cloud =
+                j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(slaveOptions, "label")));
+        ScheduledFuture<JCloudsSlave> provisionFuture =
+                Timer.get().schedule(() -> j.provision(cloud, "label"), 0, TimeUnit.SECONDS);
 
         final Openstack os = cloud.getOpenstack();
         while (os.getRunningNodes().size() == 0) {
@@ -136,10 +142,10 @@ public class ServerScopeTest {
             bb.signalDone();
             j.waitForCompletion(build);
         }
-
     }
 
-    @Test @WithoutJenkins
+    @Test
+    @WithoutJenkins
     public void timeScope() throws Exception {
         ServerScope.Time alive = new ServerScope.Time(1, TimeUnit.DAYS);
         assertFalse(alive.isOutOfScope(mockServer));
@@ -151,7 +157,8 @@ public class ServerScopeTest {
         assertThat(timedOut.getValue(), startsWith("time:20"));
     }
 
-    @Test @WithoutJenkins
+    @Test
+    @WithoutJenkins
     public void unlimitedScope() {
         ServerScope.Unlimited alive = ServerScope.Unlimited.getInstance();
         assertFalse(alive.isOutOfScope(mockServer));
@@ -167,8 +174,9 @@ public class ServerScopeTest {
         }
 
         @Override
-        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException {
-            return provisioning.isSignaled() ? null: "blocked";
+        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave)
+                throws JCloudsCloud.ProvisioningFailedException {
+            return provisioning.isSignaled() ? null : "blocked";
         }
     }
 }
