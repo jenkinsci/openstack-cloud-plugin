@@ -23,13 +23,12 @@
  */
 package jenkins.plugins.openstack.compute.internal;
 
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.Nonnull;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-
-import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Split string based on delimiters.
@@ -45,11 +44,11 @@ public class TokenGroup {
      * Get list of tokens separated by delim.
      */
     public static @Nonnull List<String> from(@Nonnull final String input, char delim) {
-        List<String> strings = breakInput(input, new char[] { delim });
+        List<String> strings = breakInput(input, new char[] {delim});
 
         ArrayList<String> ret = new ArrayList<>(strings.size() / 2 + 1);
         // Remove delimiters - odd members
-        for (int i = 0; i < strings.size(); i+=2) {
+        for (int i = 0; i < strings.size(); i += 2) {
             ret.add(clean(strings.get(i)));
         }
 
@@ -65,10 +64,10 @@ public class TokenGroup {
     public static @Nonnull List<List<String>> from(@Nonnull final String input, char delim1, char delim2) {
         ArrayList<List<String>> ret = new ArrayList<>();
 
-        List<String> strings = breakInput(input, new char[] { delim1, delim2 });
+        List<String> strings = breakInput(input, new char[] {delim1, delim2});
 
         ArrayList<String> chunks = new ArrayList<>();
-        for (int i = 0; i < strings.size(); i+=2) {
+        for (int i = 0; i < strings.size(); i += 2) {
             String token = strings.get(i);
             chunks.add(clean(token));
 

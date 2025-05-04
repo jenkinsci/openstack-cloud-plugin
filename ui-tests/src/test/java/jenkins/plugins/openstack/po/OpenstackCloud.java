@@ -23,6 +23,7 @@
  */
 package jenkins.plugins.openstack.po;
 
+import java.util.concurrent.Callable;
 import org.jenkinsci.test.acceptance.plugins.ssh_credentials.SshCredentialDialog;
 import org.jenkinsci.test.acceptance.po.Cloud;
 import org.jenkinsci.test.acceptance.po.Control;
@@ -30,8 +31,6 @@ import org.jenkinsci.test.acceptance.po.Describable;
 import org.jenkinsci.test.acceptance.po.FormValidation;
 import org.jenkinsci.test.acceptance.po.PageObject;
 import org.openqa.selenium.NoSuchElementException;
-
-import java.util.concurrent.Callable;
 
 /**
  * Openstack Cloud.
@@ -57,20 +56,25 @@ public class OpenstackCloud extends Cloud {
         return this;
     }
 
-    public OpenstackCloud credential(String user, String userDomain, String project, String projectDomain, String password) {
+    public OpenstackCloud credential(
+            String user, String userDomain, String project, String projectDomain, String password) {
         boolean keystoneV3 = userDomain != null || projectDomain != null;
         try {
-            String identity = keystoneV3
-                    ? user + ":" + project + ":" + projectDomain
-                    : user + ":" + project
-            ;
+            String identity = keystoneV3 ? user + ":" + project + ":" + projectDomain : user + ":" + project;
             control("identity").set(identity);
             control("credential").set(password);
         } catch (NoSuchElementException ex) {
             // 2.30+
             Control creds = control("credentialsId", "credentialId");
-            creds.resolve().findElement(by.xpath("./following-sibling::span/*/button[contains(@class,'credentials-add-menu')]")).click();
-            creds.resolve().findElement(by.xpath("./following-sibling::div[contains(@class,'credentials-add-menu-items')]//*[normalize-space(text())='Jenkins']")).click();
+            creds.resolve()
+                    .findElement(
+                            by.xpath("./following-sibling::span/*/button[contains(@class,'credentials-add-menu')]"))
+                    .click();
+            creds.resolve()
+                    .findElement(
+                            by.xpath(
+                                    "./following-sibling::div[contains(@class,'credentials-add-menu-items')]//*[normalize-space(text())='Jenkins']"))
+                    .click();
             SshCredentialDialog d = new SshCredentialDialog(getPage(), "/credentials");
             if (keystoneV3) {
                 getPage().control("/").select("OpenStack auth v3");
@@ -98,12 +102,17 @@ public class OpenstackCloud extends Cloud {
             // Prior 2.1
             control("floatingIps").check();
         } catch (NoSuchElementException ex) {
-            waitFor().withMessage("Floating IP pool select populates").ignoring(NoSuchElementException.class).until(new Callable<Boolean>() {
-                @Override public Boolean call() throws Exception {
-                    control("slaveOptions/floatingIpPool", "floatingIpPool").select(pool);
-                    return true;
-                }
-            });
+            waitFor()
+                    .withMessage("Floating IP pool select populates")
+                    .ignoring(NoSuchElementException.class)
+                    .until(new Callable<Boolean>() {
+                        @Override
+                        public Boolean call() throws Exception {
+                            control("slaveOptions/floatingIpPool", "floatingIpPool")
+                                    .select(pool);
+                            return true;
+                        }
+                    });
         }
         return this;
     }
@@ -129,7 +138,8 @@ public class OpenstackCloud extends Cloud {
 
     public OpenstackSlaveTemplate addSlaveTemplate() {
         String newPath = createPageArea("templates", new Runnable() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 control("repeatable-add").click();
             }
         });

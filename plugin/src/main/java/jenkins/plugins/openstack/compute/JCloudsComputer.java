@@ -3,7 +3,6 @@ package jenkins.plugins.openstack.compute;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Queue;
-import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.remoting.Channel;
 import hudson.security.Permission;
 import hudson.slaves.AbstractCloudComputer;
@@ -11,6 +10,15 @@ import hudson.slaves.OfflineCause;
 import hudson.slaves.OfflineCause.SimpleOfflineCause;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
@@ -22,16 +30,6 @@ import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Logger;
 
 /**
  * OpenStack version of Jenkins {@link SlaveComputer} - responsible for terminating an instance.
@@ -80,7 +78,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
 
         LOGGER.info("Setting " + getName() + " pending delete status to " + newVal);
         // PendingTermination has a timestamp attached so cannot use a singleton instance
-        setTemporarilyOffline(newVal, newVal ? new PendingTermination(): null);
+        setTemporarilyOffline(newVal, newVal ? new PendingTermination() : null);
     }
 
     /**
@@ -149,7 +147,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
-    @Override @Restricted(NoExternalUse.class)
+    @Override
+    @Restricted(NoExternalUse.class)
     @RequirePOST
     public HttpResponse doDoDelete() {
         checkPermission(Permission.DELETE);
@@ -187,13 +186,13 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         }
     }
 
-
-    public void setChannel(Channel channel, OutputStream launchLog, Channel.Listener listener) throws IOException, InterruptedException {
+    public void setChannel(Channel channel, OutputStream launchLog, Channel.Listener listener)
+            throws IOException, InterruptedException {
         super.setChannel(channel, launchLog, listener);
         connectedSince = System.currentTimeMillis();
     }
 
-    public long getConnectedSince(){
+    public long getConnectedSince() {
         return connectedSince;
     }
 

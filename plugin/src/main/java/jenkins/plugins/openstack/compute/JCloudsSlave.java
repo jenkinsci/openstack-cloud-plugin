@@ -17,6 +17,19 @@ import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -35,20 +48,6 @@ import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Flavor;
 import org.openstack4j.model.compute.Server;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 /**
  * Jenkins Slave node.
  */
@@ -62,8 +61,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             Openstack.FINGERPRINT_KEY_URL,
             JCloudsSlaveTemplate.OPENSTACK_CLOUD_NAME_KEY,
             JCloudsSlaveTemplate.OPENSTACK_TEMPLATE_NAME_KEY,
-            ServerScope.METADATA_KEY
-    );
+            ServerScope.METADATA_KEY);
 
     private final @Nonnull String cloudName;
     // Full/effective options
@@ -83,10 +81,16 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private transient @Deprecated Server metadata;
 
     public JCloudsSlave(
-            @Nonnull ProvisioningActivity.Id id, @Nonnull Server metadata, @Nonnull String labelString, @Nonnull SlaveOptions slaveOptions
-    ) throws IOException, Descriptor.FormException {
+            @Nonnull ProvisioningActivity.Id id,
+            @Nonnull Server metadata,
+            @Nonnull String labelString,
+            @Nonnull SlaveOptions slaveOptions)
+            throws IOException, Descriptor.FormException {
 
-        super(Objects.requireNonNull(metadata.getName()), slaveOptions.getFsRoot(), null /*needs to be set later via setter*/);
+        super(
+                Objects.requireNonNull(metadata.getName()),
+                slaveOptions.getFsRoot(),
+                null /*needs to be set later via setter*/);
 
         this.cloudName = id.getCloudName(); // TODO deprecate field
         this.provisioningId = id;
@@ -102,11 +106,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         setLauncher(new JCloudsLauncher(getLauncherFactory().createLauncher(this)));
     }
 
-    private static @Nonnull List<NodeProperty<? extends Node>> mkNodeProperties(@CheckForNull String vmIpAddressOrNull,
+    private static @Nonnull List<NodeProperty<? extends Node>> mkNodeProperties(
+            @CheckForNull String vmIpAddressOrNull,
             @CheckForNull final List<? extends NodeProperty<?>> templateNPsOrNull) {
         final String vmIpAddressOrEmpty = Util.fixNull(vmIpAddressOrNull);
-        final EnvironmentVariablesNodeProperty.Entry ipAddressEnvVar = new EnvironmentVariablesNodeProperty.Entry(
-                "OPENSTACK_PUBLIC_IP", vmIpAddressOrEmpty);
+        final EnvironmentVariablesNodeProperty.Entry ipAddressEnvVar =
+                new EnvironmentVariablesNodeProperty.Entry("OPENSTACK_PUBLIC_IP", vmIpAddressOrEmpty);
         final List<? extends NodeProperty<?>> templateNPsOrEmpty = Util.fixNull(templateNPsOrNull);
         final List<NodeProperty<? extends Node>> result = mergeNodeProperties(templateNPsOrEmpty, ipAddressEnvVar);
         return result;
@@ -145,7 +150,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return (T) copy;
     }
 
-    // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId" again.
+    // In 2.0, "nodeId" was removed and replaced by "metadata". Then metadata was deprecated in favour of "nodeId"
+    // again.
     // The configurations stored are expected to have at least one of them.
     @SuppressWarnings({"unused", "deprecation"})
     @SuppressFBWarnings({"RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", "The fields are non-null after readResolve"})
@@ -155,14 +161,11 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         if (options == null) {
             // Node options are not of override of anything so we need to ensure this fill all mandatory fields
             // We base the outdated config on current plugin defaults to increase the chance it will work.
-            SlaveOptions.Builder builder = JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder()
-                    .jvmOptions(Util.fixEmpty(jvmOptions))
-            ;
+            SlaveOptions.Builder builder =
+                    JCloudsCloud.DescriptorImpl.getDefaultOptions().getBuilder().jvmOptions(Util.fixEmpty(jvmOptions));
 
-            LauncherFactory lf = "SSH".equals(slaveType)
-                    ? new LauncherFactory.SSH(credentialsId)
-                    : LauncherFactory.JNLP.JNLP
-            ;
+            LauncherFactory lf =
+                    "SSH".equals(slaveType) ? new LauncherFactory.SSH(credentialsId) : LauncherFactory.JNLP.JNLP;
             builder.launcherFactory(lf);
 
             if (overrideRetentionTime > 0) {
@@ -180,7 +183,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             metadata = null;
         }
 
-        nodeId =  nodeId.replaceFirst(".*/", ""); // Remove region prefix
+        nodeId = nodeId.replaceFirst(".*/", ""); // Remove region prefix
 
         return this;
     }
@@ -206,7 +209,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         putIfNotNullOrEmpty(result, "Security Groups", slaveOptions.getSecurityGroups());
         putIfNotNullOrEmpty(result, "Start Timeout (ms)", slaveOptions.getStartTimeout());
         final Object launcherFactory = slaveOptions.getLauncherFactory();
-        putIfNotNullOrEmpty(result, "Launcher Factory",
+        putIfNotNullOrEmpty(
+                result,
+                "Launcher Factory",
                 launcherFactory == null ? null : launcherFactory.getClass().getSimpleName());
         putIfNotNullOrEmpty(result, "JVM Options", slaveOptions.getJvmOptions());
         return result;
@@ -231,13 +236,19 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         final Addresses addresses = s.getAddresses();
         if (addresses != null) {
             StringBuilder sb = new StringBuilder();
-            for (Map.Entry<String, List<? extends Address>> e: addresses.getAddresses().entrySet()) {
+            for (Map.Entry<String, List<? extends Address>> e :
+                    addresses.getAddresses().entrySet()) {
                 String networkName = e.getKey();
                 for (Address address : e.getValue()) {
                     if (sb.length() != 0) {
                         sb.append(", ");
                     }
-                    sb.append(address.getAddr()).append(" (").append(address.getType()).append(" in ").append(networkName).append(")");
+                    sb.append(address.getAddr())
+                            .append(" (")
+                            .append(address.getType())
+                            .append(" in ")
+                            .append(networkName)
+                            .append(")");
                 }
             }
             putIfNotNullOrEmpty(result, "Addresses", sb.toString());
@@ -283,8 +294,10 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         } catch (NoSuchElementException ex) {
             // just return empty
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING,
-                    "Unable to read details of server '" + nodeId + "' from cloud '" + cloudName + "'.", ex);
+            LOGGER.log(
+                    Level.WARNING,
+                    "Unable to read details of server '" + nodeId + "' from cloud '" + cloudName + "'.",
+                    ex);
         }
         return null;
     }
@@ -292,8 +305,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     private static void putIfNotNullOrEmpty(
             @Nonnull final Map<String, String> mapToBeAddedTo,
             @Nonnull final String fieldName,
-            @CheckForNull final Object fieldValue
-    ) {
+            @CheckForNull final Object fieldValue) {
         if (fieldValue != null) {
             final String valueString = Util.fixEmptyAndTrim(fieldValue.toString());
             if (valueString != null) {
@@ -303,7 +315,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
     }
 
     /** Gets something from the cache, loading it into the cache if necessary. */
-    private @Nonnull Map<String, String> getCachableData(@Nonnull final String key, @Nonnull final Function<String, Map<String, String>> dataloader) {
+    private @Nonnull Map<String, String> getCachableData(
+            @Nonnull final String key, @Nonnull final Function<String, Map<String, String>> dataloader) {
         try {
             return Objects.requireNonNull(cache.get(key, dataloader));
         } catch (RuntimeException e) { // Propagated from cacheMissFunction
@@ -376,7 +389,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return existsFor > getSlaveOptions().getStartTimeout();
     }
 
-    @Override public JCloudsComputer getComputer() {
+    @Override
+    public JCloudsComputer getComputer() {
         return (JCloudsComputer) super.getComputer();
     }
 
@@ -403,7 +417,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             // Attach what is likely a reason for the termination
             OfflineCause offlineCause = getFatalOfflineCause();
             if (offlineCause != null) {
-                PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(ProvisioningActivity.Status.WARN, offlineCause.toString());
+                PhaseExecutionAttachment attachment =
+                        new PhaseExecutionAttachment(ProvisioningActivity.Status.WARN, offlineCause.toString());
                 cloudStatistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, attachment);
             }
         }
@@ -411,12 +426,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         getLauncherFactory().onNodeTerminated();
 
         // Wrap deletion disposables into statistics tracking disposables
-        AsyncResourceDisposer.get().dispose(
-                new RecordDisposal(
-                        new DestroyMachine(cloudName, nodeId),
-                        provisioningId
-                )
-        );
+        AsyncResourceDisposer.get().dispose(new RecordDisposal(new DestroyMachine(cloudName, nodeId), provisioningId));
     }
 
     /**
@@ -424,21 +434,18 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      *
      * @return value if should be discarded, null if online or offline with non-fatal cause.
      */
-    /*package*/ @CheckForNull OfflineCause getFatalOfflineCause() {
+    /*package*/ @CheckForNull
+    OfflineCause getFatalOfflineCause() {
         JCloudsComputer computer = getComputer();
 
         // Computer might be gone yet, so use the offline cause attached to node when that happens
-        OfflineCause oc = computer != null
-                ? computer.getOfflineCause()
-                : getTemporaryOfflineCause()
-        ;
+        OfflineCause oc = computer != null ? computer.getOfflineCause() : getTemporaryOfflineCause();
 
         if (isLaunchTimedOut() && (oc instanceof OfflineCause.LaunchFailed)) return oc;
 
         return oc instanceof DiskSpaceMonitorDescriptor.DiskSpace || oc instanceof OfflineCause.ChannelTermination
                 ? oc
-                : null
-        ;
+                : null;
     }
 
     private static Openstack getOpenstack(String cloudName) {
@@ -450,7 +457,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
      *
      * @see DestroyMachine
      */
-    private final static class RecordDisposal implements Disposable {
+    private static final class RecordDisposal implements Disposable {
         private static final long serialVersionUID = -3623764445481732365L;
 
         private final @Nonnull Disposable inner;
@@ -469,9 +476,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                 CloudStatistics statistics = CloudStatistics.get();
                 ProvisioningActivity activity = statistics.getPotentiallyCompletedActivityFor(provisioningId);
                 if (activity != null) {
-                    PhaseExecutionAttachment.ExceptionAttachment attachment = new PhaseExecutionAttachment.ExceptionAttachment(
-                            ProvisioningActivity.Status.WARN, ex
-                    );
+                    PhaseExecutionAttachment.ExceptionAttachment attachment =
+                            new PhaseExecutionAttachment.ExceptionAttachment(ProvisioningActivity.Status.WARN, ex);
                     statistics.attach(activity, ProvisioningActivity.Phase.COMPLETED, attachment);
                 }
 

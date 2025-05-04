@@ -1,5 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
+import hudson.Extension;
+import hudson.model.AsyncPeriodicWork;
+import hudson.model.Executor;
+import hudson.model.Result;
+import hudson.model.TaskListener;
+import hudson.slaves.OfflineCause;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,27 +13,14 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-import hudson.model.Executor;
-import hudson.model.Result;
-import hudson.slaves.OfflineCause;
+import javax.annotation.Nonnull;
 import jenkins.model.CauseOfInterruption;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-
-import hudson.Extension;
-import hudson.model.AsyncPeriodicWork;
-import hudson.model.TaskListener;
-import org.openstack4j.api.exceptions.ClientResponseException;
-import org.openstack4j.api.exceptions.StatusCode;
 import org.openstack4j.model.compute.Server;
-
-import javax.annotation.Nonnull;
 
 /**
  * Periodically ensure Jenkins and resources it manages in OpenStacks are not leaked.
@@ -38,7 +31,8 @@ import javax.annotation.Nonnull;
  * - Servers that are running longer than declared are terminated.
  * - Nodes with server missing are terminated.
  */
-@Extension @Restricted(NoExternalUse.class)
+@Extension
+@Restricted(NoExternalUse.class)
 public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(JCloudsCleanupThread.class.getName());
 
@@ -89,17 +83,20 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                 try {
                     openstack.destroyFip(fip);
                 } catch (Exception ex) {
-                    LOGGER.log(Level.WARNING, "Unable to release floating IP " + fip + " leaked from cloud " + cloud.name, ex);
+                    LOGGER.log(
+                            Level.WARNING,
+                            "Unable to release floating IP " + fip + " leaked from cloud " + cloud.name,
+                            ex);
                 }
             }
         }
     }
 
     private void setCloudLastCleanTime() {
-            for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
-                if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
-                cloud.setLastCleanTime(System.currentTimeMillis());
-            }
+        for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+            if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
+            cloud.setLastCleanTime(System.currentTimeMillis());
+        }
     }
 
     private void terminateNodesPendingDeletion() {
@@ -110,10 +107,14 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
             final OfflineCause offlineCause = comp.getNode().getFatalOfflineCause();
             if (comp.isPendingDelete()) {
-                LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
+                LOGGER.log(
+                        Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                 deleteComputer(comp);
             } else if (offlineCause != null) {
-                LOGGER.log(Level.WARNING, "Deleting broken node " + comp.getName() + " (" + getTerminalDiagnosis(comp) + "). Reason: " + comp.getOfflineCause());
+                LOGGER.log(
+                        Level.WARNING,
+                        "Deleting broken node " + comp.getName() + " (" + getTerminalDiagnosis(comp) + "). Reason: "
+                                + comp.getOfflineCause());
 
                 deleteComputer(comp);
             }
@@ -158,7 +159,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             for (Executor e : comp.getExecutors()) {
                 e.interrupt(Result.ABORTED, coi);
             }
-            for(Executor e : comp.getOneOffExecutors()){
+            for (Executor e : comp.getOneOffExecutors()) {
                 e.interrupt(Result.ABORTED, coi);
             }
             comp.deleteSlave();
@@ -179,7 +180,8 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             for (Server server : servers) {
                 ServerScope scope = ServerScope.extract(server);
                 if (scope.isOutOfScope(server)) {
-                    LOGGER.info("Server " + server.getName() + " run out of its scope " + scope + ". Terminating: " + server);
+                    LOGGER.info("Server " + server.getName() + " run out of its scope " + scope + ". Terminating: "
+                            + server);
                     AsyncResourceDisposer.get().dispose(new DestroyMachine(jc.name, server.getId()));
                 } else {
                     runningServers.get(jc).add(server);
@@ -192,7 +194,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     private void terminatesNodesWithoutServers(@Nonnull HashMap<JCloudsCloud, List<Server>> runningServers) {
         Map<String, JCloudsComputer> jenkinsComputers = new HashMap<>();
-        for (JCloudsComputer computer: JCloudsComputer.getAll()) {
+        for (JCloudsComputer computer : JCloudsComputer.getAll()) {
             JCloudsCloud cloud = JCloudsCloud.getByName(computer.getId().getCloudName());
             if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
 
@@ -203,7 +205,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
 
         // Eliminate computers we have servers for
-        for (Map.Entry<JCloudsCloud, List<Server>> e: runningServers.entrySet()) {
+        for (Map.Entry<JCloudsCloud, List<Server>> e : runningServers.entrySet()) {
             for (Server server : e.getValue()) {
                 jenkinsComputers.remove(server.getId());
             }
@@ -226,21 +228,30 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             try { // Double check server does not exist before interrupting jobs
                 Server explicitLookup = cloud.getOpenstack().getServerById(id);
                 if (Openstack.isOccupied(explicitLookup)) {
-                    LOGGER.severe(getClass().getSimpleName() + " incorrectly detected orphaned computer for " + explicitLookup);
+                    LOGGER.severe(getClass().getSimpleName() + " incorrectly detected orphaned computer for "
+                            + explicitLookup);
                     continue; // Do not kill it
                 }
             } catch (NoSuchElementException expected) {
                 // Gone as expected
             }
 
-            String msg = "OpenStack server (" + id + ") is not running for computer " + computer.getName() + ". Terminating!";
+            String msg = "OpenStack server (" + id + ") is not running for computer " + computer.getName()
+                    + ". Terminating!";
             LOGGER.warning(msg);
             deleteComputer(computer, new MessageInterruption(msg));
         }
     }
 
-    @Override protected Level getNormalLoggingLevel() { return Level.OFF; }
-    @Override protected Level getSlowLoggingLevel() { return Level.INFO; }
+    @Override
+    protected Level getNormalLoggingLevel() {
+        return Level.OFF;
+    }
+
+    @Override
+    protected Level getSlowLoggingLevel() {
+        return Level.INFO;
+    }
 
     private static class MessageInterruption extends CauseOfInterruption {
         private static final long serialVersionUID = 7125610351278586647L;
@@ -251,7 +262,8 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             this.msg = msg;
         }
 
-        @Override public String getShortDescription() {
+        @Override
+        public String getShortDescription() {
             return msg;
         }
     }

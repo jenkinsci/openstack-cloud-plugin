@@ -24,6 +24,13 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.iterableWithSize;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -37,24 +44,16 @@ import hudson.model.queue.CauseOfBlockage;
 import hudson.model.queue.QueueTaskDispatcher;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.slaves.OfflineCause;
-import jenkins.plugins.openstack.PluginTestRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.TestBuilder;
-import org.jvnet.hudson.test.TestExtension;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import jenkins.plugins.openstack.PluginTestRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.TestBuilder;
+import org.jvnet.hudson.test.TestExtension;
 
 public class SingleUseSlaveTest {
 
@@ -64,9 +63,12 @@ public class SingleUseSlaveTest {
     @Test
     public void doNotDeleteNewSlaveIfInstanceRequired() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instancesMin(1)
+                        .build(),
+                "label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();
@@ -79,9 +81,12 @@ public class SingleUseSlaveTest {
     @Test
     public void deleteUsedSlaveWhenOnlyNewInstancesAreRequired() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instancesMin(1)
+                        .build(),
+                "label")));
         cloud.setCleanfreq(20); // the clean should not happen during the test
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
@@ -100,9 +105,12 @@ public class SingleUseSlaveTest {
     @Test
     public void discardSlaveImmediately() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(0).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instancesMin(0)
+                        .build(),
+                "label")));
         cloud.setCleanfreq(2);
         JCloudsSlave slave = j.provision(cloud, "label");
         Thread.sleep(3000);
@@ -112,9 +120,12 @@ public class SingleUseSlaveTest {
     @Test
     public void discardSlaveImmediatelyDespiteOfInstanceMinRequirement() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instancesMin(1)
+                        .build(),
+                "label")));
         cloud.setCleanfreq(2);
         JCloudsSlave slave = j.provision(cloud, "label");
         verifyOneOffContract(slave);
@@ -141,15 +152,21 @@ public class SingleUseSlaveTest {
     @Test
     public void preserveAgentOfflineByUser() throws Exception {
         j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).instanceCap(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instancesMin(1)
+                        .instanceCap(1)
+                        .build(),
+                "label")));
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedLabel(Label.get("label"));
         p.getBuildersList().add(new TestBuilder() {
             @Override
             public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
-                build.getBuiltOn().toComputer().setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Keep me"));
+                build.getBuiltOn()
+                        .toComputer()
+                        .setTemporarilyOffline(true, new OfflineCause.UserCause(User.current(), "Keep me"));
                 return true;
             }
         });
@@ -166,9 +183,12 @@ public class SingleUseSlaveTest {
     @Test
     public void sequenceOfJobsWillNotReuse() throws Exception {
         j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instanceCap(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instanceCap(1)
+                        .build(),
+                "label")));
 
         Thread thread = new Thread(() -> {
             while (true) {
@@ -183,14 +203,12 @@ public class SingleUseSlaveTest {
 
         thread.start();
         try {
-            Stream<FreeStyleProject> projects = Stream.of(
-                    tiedProject(), tiedProject(), tiedProject(), tiedProject(), tiedProject()
-            );
+            Stream<FreeStyleProject> projects =
+                    Stream.of(tiedProject(), tiedProject(), tiedProject(), tiedProject(), tiedProject());
 
-            Stream<QueueTaskFuture<FreeStyleBuild>> scheduled = projects.map(p -> p.scheduleBuild2(0)).collect(Collectors.toList()).stream();
-            Stream<FreeStyleBuild> built = scheduled
-                    .map(this::awaitBuild)
-                    .collect(Collectors.toList()).stream();
+            Stream<QueueTaskFuture<FreeStyleBuild>> scheduled =
+                    projects.map(p -> p.scheduleBuild2(0)).collect(Collectors.toList()).stream();
+            Stream<FreeStyleBuild> built = scheduled.map(this::awaitBuild).collect(Collectors.toList()).stream();
 
             List<Node> nodes = built.map(AbstractBuild::getBuiltOn).collect(Collectors.toList());
 
@@ -217,27 +235,32 @@ public class SingleUseSlaveTest {
     @Test
     public void doNotPendingDeleteBeforeItIsUsedIfRetentionTimeZeroAndMinInstancesZero() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(0).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instancesMin(0)
+                        .build(),
+                "label")));
+        cloud.setCleanfreq(120); // do not run cleaning during test
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
 
         FreeStyleProject p = j.createFreeStyleProject();
         p.setAssignedNode(slave);
 
-        //block item to simulate state, that item is prepared to be executed (BuildableItem), but executor has still not taken it.
+        // block item to simulate state, that item is prepared to be executed (BuildableItem), but executor has still
+        // not taken it.
         QueueTaskDispatcher.all().get(QueueTaskDispatcherTest.class).waiting(true);
         QueueTaskFuture future = p.scheduleBuild2(0);
 
-        //wait transferring a task from waiting items into buildable items can take some time
+        // wait transferring a task from waiting items into buildable items can take some time
         Thread.sleep(500);
 
-        //call check computer whether it should be marked pending delete.
+        // call check computer whether it should be marked pending delete.
         computer.getRetentionStrategy().check(computer);
         assertFalse(computer.isPendingDelete());
 
-        //allow execute the task in the queue
+        // allow execute the task in the queue
         QueueTaskDispatcher.all().get(QueueTaskDispatcherTest.class).waiting(false);
 
         future.get();
@@ -252,7 +275,7 @@ public class SingleUseSlaveTest {
         private boolean wait = false;
 
         public CauseOfBlockage canTake(Node node, Queue.BuildableItem item) {
-            if(wait) {
+            if (wait) {
                 return new CauseOfBlockage() {
                     @Override
                     public String getShortDescription() {
@@ -263,7 +286,7 @@ public class SingleUseSlaveTest {
             return null;
         }
 
-        public void waiting(boolean wait){
+        public void waiting(boolean wait) {
             this.wait = wait;
         }
     }

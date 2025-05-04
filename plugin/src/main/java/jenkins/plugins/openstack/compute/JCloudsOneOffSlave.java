@@ -2,25 +2,22 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.Extension;
 import hudson.Launcher;
-import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.BuildListener;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
-
 import java.io.IOException;
 import java.util.logging.Logger;
-
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class JCloudsOneOffSlave extends BuildWrapper {
     private static final Logger LOGGER = Logger.getLogger(JCloudsOneOffSlave.class.getName());
 
     @DataBoundConstructor
-    public JCloudsOneOffSlave() {
-    }
+    public JCloudsOneOffSlave() {}
 
     //
     // convert Jenkins static stuff into pojos; performing as little critical stuff here as
@@ -35,7 +32,8 @@ public class JCloudsOneOffSlave extends BuildWrapper {
             if (c instanceof JCloudsComputer) {
                 return new Environment() {
                     @Override
-                    public boolean tearDown(AbstractBuild build, final BuildListener listener) throws IOException, InterruptedException {
+                    public boolean tearDown(AbstractBuild build, final BuildListener listener)
+                            throws IOException, InterruptedException {
                         ((JCloudsComputer) c).setPendingDelete(true);
                         return true;
                     }

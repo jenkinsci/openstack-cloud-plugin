@@ -1,47 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.jenkins-ci.plugins</groupId>
+    <artifactId>plugin</artifactId>
+    <version>5.16</version>
+    <relativePath />
+  </parent>
 
-    <groupId>org.jenkins-ci.plugins.openstack-cloud</groupId>
-    <artifactId>parent</artifactId>
-    <packaging>pom</packaging>
-    <version>2.67-SNAPSHOT</version>
+  <groupId>org.jenkins.plugins.openstack-cloud</groupId>
+  <artifactId>parent</artifactId>
+  <version>${changelist}</version>
+  <packaging>pom</packaging>
+  <name>Jenkins Openstack Cloud plugin</name>
+  <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/license/mit/</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
-    <properties>
-        <jenkins.version>2.414.1</jenkins.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+  <modules>
+    <module>plugin</module>
+    <module>ui-tests</module>
+  </modules>
 
-    <modules>
-        <module>plugin</module>
-        <module>ui-tests</module>
-    </modules>
+  <scm>
+    <connection>scm:git:https://github.com/${gitHubRepo}.git</connection>
+    <developerConnection>scm:git:https://github.com/${gitHubRepo}.git</developerConnection>
+    <tag>${scmTag}</tag>
+    <url>https://github.com/${gitHubRepo}</url>
+  </scm>
+  <properties>
 
-    <scm>
-        <connection>scm:git:ssh://github.com/jenkinsci/openstack-cloud-plugin.git</connection>
-        <developerConnection>scm:git:git@github.com:jenkinsci/openstack-cloud-plugin.git</developerConnection>
-        <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
-        <tag>parent-2.66</tag>
-    </scm>
+    <changelist>999999-SNAPSHOT</changelist>
+    <jenkins.baseline>2.504</jenkins.baseline>
+    <jenkins.version>${jenkins.baseline}.1</jenkins.version>
+    <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
+    <tagNameFormat>openstack-cloud-@{project.version}</tagNameFormat>
+    <no-test-jar>false</no-test-jar>
+    <useBeta>true</useBeta>
+    <spotbugs.effort>Max</spotbugs.effort>
+    <spotbugs.threshold>High</spotbugs.threshold>
+    <spotless.check.skip>false</spotless.check.skip>
+    <openstack4j.version>3.12</openstack4j.version>
+    <guava.version>32.1.1-jre</guava.version>
+    <!-- version compatible with openstack4j -->
+    <jsr305.version>1.3.9</jsr305.version>
+    <okhttp.version>4.11.0-183.va_87fc7a_89810</okhttp.version>
+    <argLine>--add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+  </properties>
 
-    <developers>
-        <developer>
-            <id>olivergondza</id>
-            <name>Oliver Gondža</name>
-            <email>ogondza@gmail.com</email>
-        </developer>
-    </developers>
+  <repositories>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </repository>
+  </repositories>
 
-    <build>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>InjectedTest.java</exclude>
+          </excludes>
+          <systemPropertyVariables>
+            <hudson.slaves.NodeProvisioner.initialDelay>0</hudson.slaves.NodeProvisioner.initialDelay>
+            <hudson.slaves.NodeProvisioner.recurrencePeriod>3000</hudson.slaves.NodeProvisioner.recurrencePeriod>
+            <org.jenkinsci.plugins.workflow.support.pickles.ExecutorPickle.timeoutForNodeMillis>60000</org.jenkinsci.plugins.workflow.support.pickles.ExecutorPickle.timeoutForNodeMillis>
+            <!-- have pods connect to this address for Jenkins -->
+            <jenkins.host.address>${jenkins.host.address}</jenkins.host.address>
+            <slaveAgentPort>${slaveAgentPort}</slaveAgentPort>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.jenkins-ci.tools</groupId>
+        <artifactId>maven-hpi-plugin</artifactId>
+        <version>3.65</version>
+        <configuration>
+          <systemProperties>
+            <hudson.slaves.NodeProvisioner.initialDelay>0</hudson.slaves.NodeProvisioner.initialDelay>
+            <hudson.slaves.NodeProvisioner.MARGIN>50</hudson.slaves.NodeProvisioner.MARGIN>
+            <hudson.slaves.NodeProvisioner.MARGIN0>0.85</hudson.slaves.NodeProvisioner.MARGIN0>
+            <jenkins.host.address>${jenkins.host.address}</jenkins.host.address>
+            <port>${port}</port>
+          </systemProperties>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-okhttp-consistency</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireSameVersions>
+                  <dependencies>
+                    <dependency>com.squareup.okhttp3:mockwebserver</dependency>
+                    <dependency>com.squareup.okhttp3:okhttp:jar</dependency>
+                    <dependency>com.squareup.okhttp3:logging-interceptor</dependency>
+                  </dependencies>
+                </requireSameVersions>
+                <requireSameVersions>
+                  <dependencies>
+                    <dependency>io.fabric8:kubernetes-server-mock</dependency>
+                    <dependency>io.fabric8:kubernetes-client</dependency>
+                  </dependencies>
+                </requireSameVersions>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!--
+  Skip the injected test to avoid: 
+  
+  org.jvnet.hudson.test.JellyTestSuiteBuilder$JellyTestSuite(org.jvnet.hudson.test.junit.FailedTest)  Time elapsed: 0.023 sec  <<< ERROR!
+java.lang.NoClassDefFoundError: org/apache/http/cookie/CookieSpecProvider -->
+  <profiles>
+    <profile>
+      <id>merge-jacoco-reports</id>
+      <build>
         <plugins>
-            <!-- Do not deploy anything except for the plugin -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.1.1</version>
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>merge</goal>
+                </goals>
+                <phase>validate</phase>
                 <configuration>
-                    <skip>true</skip>
+                  <fileSets>
+                    <fileSet>
+                      <directory>${project.build.directory}</directory>
+                      <includes>
+                        <include>jacoco-*.exec</include>
+                      </includes>
+                    </fileSet>
+                  </fileSets>
                 </configuration>
-            </plugin>
+              </execution>
+              <execution>
+                <id>build-report</id>
+                <goals>
+                  <goal>report</goal>
+                </goals>
+                <phase>validate</phase>
+                <configuration>
+                  <formats>XML</formats>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
         </plugins>
-    </build>
+      </build>
+    </profile>
+  </profiles>
+
 </project>

@@ -6,6 +6,10 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.slaves.Cloud;
 import hudson.util.ListBoxModel;
+import java.util.Collections;
+import java.util.Set;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
@@ -17,11 +21,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.util.Collections;
-import java.util.Set;
 
 /**
  * Provision auxiliary server not to be connected to Jenkins.
@@ -43,8 +42,7 @@ public class OpenStackMachineStep extends Step {
     private @Nonnull String scope = "run";
 
     @DataBoundConstructor
-    public OpenStackMachineStep() {
-    }
+    public OpenStackMachineStep() {}
 
     @DataBoundSetter
     public void setCloud(@Nonnull String cloud) {
@@ -67,15 +65,18 @@ public class OpenStackMachineStep extends Step {
         }
     }
 
-    @Nonnull public String getCloud() {
+    @Nonnull
+    public String getCloud() {
         return cloud;
     }
 
-    @Nonnull public String getTemplate() {
+    @Nonnull
+    public String getTemplate() {
         return template;
     }
 
-    @Nonnull public String getScope() {
+    @Nonnull
+    public String getScope() {
         return scope;
     }
 
@@ -85,7 +86,7 @@ public class OpenStackMachineStep extends Step {
             scope = new ServerScope.Build(context.get(Run.class)).getValue();
         }
         ServerScope.parse(scope);
-        return new OpenStackMachineStep.Execution( this, context);
+        return new OpenStackMachineStep.Execution(this, context);
     }
 
     @Extension(optional = true)
@@ -106,7 +107,7 @@ public class OpenStackMachineStep extends Step {
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
             Jenkins.CloudList clouds = jenkins.model.Jenkins.get().clouds;
-            for (Cloud cloud: clouds) {
+            for (Cloud cloud : clouds) {
                 if (cloud instanceof JCloudsCloud) {
                     r.add(cloud.getDisplayName(), cloud.getDisplayName());
                 }
@@ -121,7 +122,7 @@ public class OpenStackMachineStep extends Step {
             for (Cloud cl : jenkins.model.Jenkins.get().clouds) {
                 if (cl.getDisplayName().equals(cloud) && (cl instanceof JCloudsCloud)) {
                     for (JCloudsSlaveTemplate template : ((JCloudsCloud) cl).getTemplates()) {
-                       r.add(template.getName());
+                        r.add(template.getName());
                     }
                 }
             }

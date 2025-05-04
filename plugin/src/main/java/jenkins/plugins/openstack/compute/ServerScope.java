@@ -25,20 +25,19 @@ package jenkins.plugins.openstack.compute;
 
 import hudson.model.Job;
 import hudson.model.Run;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 /**
  * Server can be scoped to certain Jenkins entities to constrain its lifetime.
@@ -141,7 +140,7 @@ public abstract class ServerScope {
     /**
      * Determine whether the server is out of scope or not.
      */
-    abstract public boolean isOutOfScope(@Nonnull Server server);
+    public abstract boolean isOutOfScope(@Nonnull Server server);
 
     /**
      * Server is scoped to Jenkins node of the name equal to the specifier.
@@ -160,22 +159,24 @@ public abstract class ServerScope {
                 case 1:
                     name = specifier;
                     cloudStatsFingerprint = null;
-                break;
+                    break;
                 case 2:
                     name = split[0];
                     cloudStatsFingerprint = Integer.parseInt(split[1]);
-                break;
-                default: throw new IllegalArgumentException("Invalid node scope specifier " + specifier);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Invalid node scope specifier " + specifier);
             }
         }
 
         public Node(@Nonnull String serverName, @Nonnull ProvisioningActivity.Id id) {
-            super("node", serverName+":"+id.getFingerprint());
+            super("node", serverName + ":" + id.getFingerprint());
             name = serverName;
             cloudStatsFingerprint = id.getFingerprint();
         }
 
-        @Nonnull public String getName() {
+        @Nonnull
+        public String getName() {
             return name;
         }
 
@@ -198,7 +199,7 @@ public abstract class ServerScope {
                             case COMPLETED:
                                 return true;
                         }
-                        assert false: "Unreachable";
+                        assert false : "Unreachable";
                     }
                 }
             }
@@ -220,7 +221,8 @@ public abstract class ServerScope {
             hudson.model.Node node = Jenkins.get().getNode(getName());
             if (!(node instanceof JCloudsSlave)) return false; // Node does not exists or is not our node
 
-            if (cloudStatsFingerprint == null) return true; // CloudStats id not reported during provisioning - not deeper verification
+            if (cloudStatsFingerprint == null)
+                return true; // CloudStats id not reported during provisioning - not deeper verification
 
             final JCloudsSlave slave = ((JCloudsSlave) node);
             return cloudStatsFingerprint == slave.getId().getFingerprint();
@@ -243,9 +245,7 @@ public abstract class ServerScope {
             project = chunks[0];
             run = Integer.parseInt(chunks[1]);
 
-            if (project.isEmpty() || run < 0) throw new IllegalArgumentException(
-                    "Invalid run specifier: " + specifier
-            );
+            if (project.isEmpty() || run < 0) throw new IllegalArgumentException("Invalid run specifier: " + specifier);
         }
 
         public @Nonnull String getProject() {
@@ -259,7 +259,8 @@ public abstract class ServerScope {
         @Override
         public boolean isOutOfScope(@Nonnull Server server) {
             Job job = Jenkins.get().getItemByFullName(project, Job.class);
-            if (job == null) return true; // Presuming it was deleted/renamed, either way the build do not need the server anymore
+            if (job == null)
+                return true; // Presuming it was deleted/renamed, either way the build do not need the server anymore
             hudson.model.Run run = job.getBuildByNumber(this.run);
             if (run == null) return true; // Presuming it was deleted already
 
