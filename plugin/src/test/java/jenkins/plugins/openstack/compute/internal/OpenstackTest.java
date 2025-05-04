@@ -6,6 +6,16 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -34,21 +44,7 @@ import org.openstack4j.model.storage.block.VolumeSnapshot;
 import org.openstack4j.openstack.networking.domain.NeutronFloatingIP;
 import org.openstack4j.openstack.networking.domain.NeutronNetwork;
 
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-@SuppressWarnings({
-        "rawtypes",
-        "unchecked"
-})
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class OpenstackTest {
 
     private OSClient osClient;
@@ -82,20 +78,20 @@ public class OpenstackTest {
         when(mockImageNamedBar3.getName()).thenReturn("Bar");
         when(mockImageNamedBar3.getUpdatedAt()).thenReturn(new Date(11111));
         when(mockImageNamedBar3.getCreatedAt()).thenReturn(new Date(1000));
-        final List images = Arrays.asList(mockImageNamedBar1, mockImageWithNullName, mockImageNamedBar2,
-                mockImageNamedFoo, mockImageNamedBar3);
+        final List images = Arrays.asList(
+                mockImageNamedBar1, mockImageWithNullName, mockImageNamedBar2, mockImageNamedFoo, mockImageNamedBar3);
 
         when(osClient.imagesV2().list(any())).thenReturn(images);
-        final Collection<Image> images0 = new ArrayList<>(
-                Arrays.asList(mockImageNamedBar2, mockImageNamedBar3, mockImageNamedBar1));
+        final Collection<Image> images0 =
+                new ArrayList<>(Arrays.asList(mockImageNamedBar2, mockImageNamedBar3, mockImageNamedBar1));
         final Collection<Image> images1 = new ArrayList<>(Arrays.asList(mockImageNamedFoo));
         final Collection<Image> images2 = new ArrayList<>(Arrays.asList(mockImageWithNullName));
-
 
         final Map<String, List<Image>> actual = openstack.getImages();
 
         // Result keys should be in name order
-        final Iterator<Map.Entry<String, List<Image>>> iterator = actual.entrySet().iterator();
+        final Iterator<Map.Entry<String, List<Image>>> iterator =
+                actual.entrySet().iterator();
         final Map.Entry<String, List<Image>> entry0 = iterator.next();
         assertThat(entry0.getKey(), equalTo("Bar"));
         assertThat(new ArrayList<>(entry0.getValue()), equalTo(images0));
@@ -137,21 +133,26 @@ public class OpenstackTest {
         when(mockVolumeSnapshotUnavailable.getName()).thenReturn("ShouldNotBeInResult");
         when(mockVolumeSnapshotUnavailable.getCreated()).thenReturn(new Date(123));
         when(mockVolumeSnapshotUnavailable.getStatus()).thenReturn(Volume.Status.ATTACHING);
-        final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedBar1, mockVolumeSnapshotWithNullName,
-                mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar3, mockVolumeSnapshotUnavailable);
+        final List volumeSnapshots = Arrays.asList(
+                mockVolumeSnapshotNamedBar1,
+                mockVolumeSnapshotWithNullName,
+                mockVolumeSnapshotNamedBar2,
+                mockVolumeSnapshotNamedFoo,
+                mockVolumeSnapshotNamedBar3,
+                mockVolumeSnapshotUnavailable);
 
         when(osClient.blockStorage().snapshots().list()).thenReturn(volumeSnapshots);
         final Collection<VolumeSnapshot> volumeSnapshots0 = new ArrayList<>(
                 Arrays.asList(mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3, mockVolumeSnapshotNamedBar1));
         final Collection<VolumeSnapshot> volumeSnapshots1 = new ArrayList<>(Arrays.asList(mockVolumeSnapshotNamedFoo));
-        final Collection<VolumeSnapshot> volumeSnapshots2 = new ArrayList<>(
-                Arrays.asList(mockVolumeSnapshotWithNullName));
-
+        final Collection<VolumeSnapshot> volumeSnapshots2 =
+                new ArrayList<>(Arrays.asList(mockVolumeSnapshotWithNullName));
 
         final Map<String, List<VolumeSnapshot>> actual = openstack.getVolumeSnapshots();
 
         // Result keys should be in name order
-        final Iterator<Map.Entry<String, List<VolumeSnapshot>>> iterator = actual.entrySet().iterator();
+        final Iterator<Map.Entry<String, List<VolumeSnapshot>>> iterator =
+                actual.entrySet().iterator();
         final Map.Entry<String, List<VolumeSnapshot>> entry0 = iterator.next();
         assertThat(entry0.getKey(), equalTo("Bar"));
         assertThat(new ArrayList<>(entry0.getValue()), equalTo(volumeSnapshots0));
@@ -184,11 +185,10 @@ public class OpenstackTest {
         final ImageService mockIS = mock(ImageService.class);
         final List images = Arrays.asList(mockImageNamedBar1, mockImageNamedBar2, mockImageNamedBar3);
         when(mockIS.list(anyMap())).thenReturn(images);
-        final ArrayList<String> expected = new ArrayList<>(
-                Arrays.asList("mockImageNamedBar2Id", "mockImageNamedBar3Id", "mockImageNamedBar1Id"));
+        final ArrayList<String> expected =
+                new ArrayList<>(Arrays.asList("mockImageNamedBar2Id", "mockImageNamedBar3Id", "mockImageNamedBar1Id"));
 
         when(osClient.imagesV2()).thenReturn(mockIS);
-
 
         final List<String> actual = openstack.getImageIdsFor("Bar");
 
@@ -207,7 +207,6 @@ public class OpenstackTest {
 
         when(osClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>();
-
 
         final List<String> actual = openstack.getImageIdsFor("NameNotFound");
 
@@ -232,7 +231,6 @@ public class OpenstackTest {
 
         when(osClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList(mockImageNamedFoo.getId()));
-
 
         final List<String> actual = openstack.getImageIdsFor(imageId);
 
@@ -264,14 +262,16 @@ public class OpenstackTest {
         when(mockVolumeSnapshotNamedBar3.getCreated()).thenReturn(new Date(11110));
         when(mockVolumeSnapshotNamedBar3.getStatus()).thenReturn(Volume.Status.AVAILABLE);
         final BlockVolumeSnapshotService mockBVSS = mock(BlockVolumeSnapshotService.class);
-        final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar1,
-                mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3);
+        final List volumeSnapshots = Arrays.asList(
+                mockVolumeSnapshotNamedFoo,
+                mockVolumeSnapshotNamedBar1,
+                mockVolumeSnapshotNamedBar2,
+                mockVolumeSnapshotNamedBar3);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
 
         when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
-        final ArrayList<String> expected = new ArrayList<>(Arrays.asList("mockVolumeSnapshotNamedBar2Id",
-                "mockVolumeSnapshotNamedBar3Id", "mockVolumeSnapshotNamedBar1Id"));
-
+        final ArrayList<String> expected = new ArrayList<>(Arrays.asList(
+                "mockVolumeSnapshotNamedBar2Id", "mockVolumeSnapshotNamedBar3Id", "mockVolumeSnapshotNamedBar1Id"));
 
         final List<String> actual = openstack.getVolumeSnapshotIdsFor("Bar");
 
@@ -305,13 +305,15 @@ public class OpenstackTest {
         when(mockVolumeSnapshotNamedBar3.getCreated()).thenReturn(new Date(11110));
         when(mockVolumeSnapshotNamedBar3.getStatus()).thenReturn(Volume.Status.AVAILABLE);
         final BlockVolumeSnapshotService mockBVSS = mock(BlockVolumeSnapshotService.class);
-        final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar1,
-                mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3);
+        final List volumeSnapshots = Arrays.asList(
+                mockVolumeSnapshotNamedFoo,
+                mockVolumeSnapshotNamedBar1,
+                mockVolumeSnapshotNamedBar2,
+                mockVolumeSnapshotNamedBar3);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
 
         when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>();
-
 
         final List<String> actual = openstack.getVolumeSnapshotIdsFor("NameNotFound");
 
@@ -342,15 +344,17 @@ public class OpenstackTest {
         when(mockVolumeSnapshotNamedBar3.getName()).thenReturn("Bar");
         when(mockVolumeSnapshotNamedBar3.getCreated()).thenReturn(new Date(11110));
         when(mockVolumeSnapshotNamedBar3.getStatus()).thenReturn(Volume.Status.AVAILABLE);
-        final List volumeSnapshots = Arrays.asList(mockVolumeSnapshotNamedFoo, mockVolumeSnapshotNamedBar1,
-                mockVolumeSnapshotNamedBar2, mockVolumeSnapshotNamedBar3);
+        final List volumeSnapshots = Arrays.asList(
+                mockVolumeSnapshotNamedFoo,
+                mockVolumeSnapshotNamedBar1,
+                mockVolumeSnapshotNamedBar2,
+                mockVolumeSnapshotNamedBar3);
         final BlockVolumeSnapshotService mockBVSS = mock(BlockVolumeSnapshotService.class);
         when(mockBVSS.list()).thenReturn(volumeSnapshots);
         when(mockBVSS.get(volumeSnapshotId)).thenReturn(mockVolumeSnapshotNamedFoo);
 
         when(osClient.blockStorage().snapshots()).thenReturn(mockBVSS);
         final ArrayList<String> expected = new ArrayList<>(Arrays.asList(mockVolumeSnapshotNamedFoo.getId()));
-
 
         final List<String> actual = openstack.getVolumeSnapshotIdsFor(volumeSnapshotId);
 
@@ -451,7 +455,9 @@ public class OpenstackTest {
             os.bootAndWaitActive(mock(ServerCreateBuilder.class), 1);
             fail();
         } catch (Openstack.ActionFailed ex) {
-            assertThat(ex.getMessage(), containsString("status=ERROR vmState=null fault=42: It is broken! (I told you once)"));
+            assertThat(
+                    ex.getMessage(),
+                    containsString("status=ERROR vmState=null fault=42: It is broken! (I told you once)"));
             assertThat(ex.getSuppressed()[0].getMessage(), containsString("Fake deletion failure"));
         }
 
@@ -490,10 +496,8 @@ public class OpenstackTest {
      */
     private static class DeleteMachineSequencer {
         private volatile Server server;
-        private final List<NetFloatingIP> fips = new ArrayList<>(Arrays.asList(
-                fip("keep-me", "someone-elses", "0.0.0.0"),
-                fip("release-me", "port-id", "1.1.1.1")
-        ));
+        private final List<NetFloatingIP> fips = new ArrayList<>(
+                Arrays.asList(fip("keep-me", "someone-elses", "0.0.0.0"), fip("release-me", "port-id", "1.1.1.1")));
         private ActionResponse success = ActionResponse.actionSuccess();
         private ActionResponse failure = ActionResponse.actionFailed("fake", 500);
 
@@ -511,7 +515,8 @@ public class OpenstackTest {
 
         private Answer<Server> getServer() {
             return new Answer<Server>() {
-                @Override public Server answer(InvocationOnMock invocation) throws Throwable {
+                @Override
+                public Server answer(InvocationOnMock invocation) throws Throwable {
                     return server;
                 }
             };
@@ -519,7 +524,8 @@ public class OpenstackTest {
 
         private Answer<ActionResponse> deleteServer() {
             return new Answer<ActionResponse>() {
-                @Override public ActionResponse answer(InvocationOnMock invocation) throws Throwable {
+                @Override
+                public ActionResponse answer(InvocationOnMock invocation) throws Throwable {
                     server = null;
                     return success;
                 }
@@ -528,7 +534,8 @@ public class OpenstackTest {
 
         private Answer<List<NetFloatingIP>> getAllFips() {
             return new Answer<List<NetFloatingIP>>() {
-                @Override public List<NetFloatingIP> answer(InvocationOnMock invocation) throws Throwable {
+                @Override
+                public List<NetFloatingIP> answer(InvocationOnMock invocation) throws Throwable {
                     return new ArrayList<>(fips); // Defensive copy so deleteFip can modify this
                 }
             };
@@ -536,7 +543,8 @@ public class OpenstackTest {
 
         private Answer<ActionResponse> deleteFip() {
             return new Answer<ActionResponse>() {
-                @Override public ActionResponse answer(InvocationOnMock invocation) throws Throwable {
+                @Override
+                public ActionResponse answer(InvocationOnMock invocation) throws Throwable {
                     String id = (String) invocation.getArguments()[0];
                     Iterator<NetFloatingIP> iter = fips.iterator();
                     while (iter.hasNext()) {
@@ -553,7 +561,8 @@ public class OpenstackTest {
 
         public Answer<List<? extends Port>> getAllPorts() {
             return new Answer<List<? extends Port>>() {
-                @Override public List<? extends Port> answer(InvocationOnMock invocation) throws Throwable {
+                @Override
+                public List<? extends Port> answer(InvocationOnMock invocation) throws Throwable {
                     Port port = mock(Port.class);
                     when(port.getId()).thenReturn("port-id");
                     return Collections.singletonList(port);

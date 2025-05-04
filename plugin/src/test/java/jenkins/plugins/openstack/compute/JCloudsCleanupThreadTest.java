@@ -1,5 +1,20 @@
 package jenkins.plugins.openstack.compute;
 
+import static hudson.model.Label.get;
+import static java.util.Collections.emptyList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -10,6 +25,14 @@ import hudson.model.User;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.OfflineCause;
 import hudson.util.OneShotEvent;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.InterruptedBuildAction;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -22,30 +45,6 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.TestBuilder;
 import org.openstack4j.model.compute.Server;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static hudson.model.Label.get;
-import static java.util.Collections.emptyList;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * @author ogondza.
@@ -70,28 +69,32 @@ public class JCloudsCleanupThreadTest {
 
         TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
         j.triggerOpenstackSlaveCleanup();
-        assertNull(AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
+        assertNull(
+                AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
     }
 
     @Test
     public void discardDisconnectedSlave() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
-        cloud.setCleanfreq(2);
+        cloud.setCleanfreq(2); // dont run during tests
         JCloudsComputer computer = j.provision(cloud, "label").getComputer();
 
-        TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
+        TimeUnit.SECONDS.sleep(4); // 4 seconds in order to go over cleanFreq
         j.triggerOpenstackSlaveCleanup();
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
 
         computer.disconnect(new OfflineCause.ChannelTermination(new IOException("Broken badly")));
         assertNotNull(j.jenkins.getComputer(computer.getDisplayName()));
 
-        TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
+        TimeUnit.SECONDS.sleep(4); // 4 seconds in order to go over cleanFreq
         j.triggerOpenstackSlaveCleanup();
-        assertNull(AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
+        assertNull(
+                AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
     }
 
-    @Test @Issue("JENKINS-50313") @Ignore("Not jet fixed")
+    @Test
+    @Issue("JENKINS-50313")
+    @Ignore("Not jet fixed")
     public void doNotDiscardDisconnectedSlaveTemporarilyOfflineBySomeone() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate("label")));
         cloud.setCleanfreq(2);
@@ -107,7 +110,8 @@ public class JCloudsCleanupThreadTest {
 
         TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
         j.triggerOpenstackSlaveCleanup();
-        assertNotNull(AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
+        assertNotNull(
+                AsyncResourceDisposer.get().getBacklog().toString(), j.jenkins.getComputer(computer.getDisplayName()));
     }
 
     @Test
@@ -150,42 +154,42 @@ public class JCloudsCleanupThreadTest {
 
     @Test
     public void deleteMachinesNotConnectedToAnySlave() {
-      try {
-        JCloudsCloud cloud = j.dummyCloud();
-        cloud.setCleanfreq(2);
-        Server server = mock(Server.class);
-        when(server.getId()).thenReturn("424242");
-        when(server.getMetadata()).thenReturn(Collections.singletonMap(
-                ServerScope.METADATA_KEY, new ServerScope.Build("deleted:42").toString()
-        ));
-        Openstack os = cloud.getOpenstack();
-        when(os.getServerById(eq("424242"))).thenReturn(server);
-        when(os.getRunningNodes()).thenReturn(Collections.singletonList(server));
+        try {
+            JCloudsCloud cloud = j.dummyCloud();
+            cloud.setCleanfreq(2);
+            Server server = mock(Server.class);
+            when(server.getId()).thenReturn("424242");
+            when(server.getMetadata())
+                    .thenReturn(Collections.singletonMap(
+                            ServerScope.METADATA_KEY, new ServerScope.Build("deleted:42").toString()));
+            Openstack os = cloud.getOpenstack();
+            when(os.getServerById(eq("424242"))).thenReturn(server);
+            when(os.getRunningNodes()).thenReturn(Collections.singletonList(server));
 
-        TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
-        j.triggerOpenstackSlaveCleanup();
+            TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
+            j.triggerOpenstackSlaveCleanup();
 
-        verify(os).destroyServer(server);
-      } catch (Exception ex) {
-          LOGGER.log(Level.WARNING, "Unable to delete leaked fips");
-      }
+            verify(os).destroyServer(server);
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Unable to delete leaked fips");
+        }
     }
 
     @Test
     public void deleteLeakedFip() {
         try {
-                  JCloudsCloud cloud = j.dummyCloud();
-                  Openstack os = cloud.getOpenstack();
-                  when(os.getFreeFipIds()).thenReturn(Arrays.asList("leaked1", "leaked2"));
+            JCloudsCloud cloud = j.dummyCloud();
+            Openstack os = cloud.getOpenstack();
+            when(os.getFreeFipIds()).thenReturn(Arrays.asList("leaked1", "leaked2"));
 
-                  TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
-                  j.triggerOpenstackSlaveCleanup();
-                  
-                  verify(os).destroyFip("leaked1");
-                  verify(os).destroyFip("leaked2");
-         } catch (Exception ex) {
-                  LOGGER.log(Level.WARNING, "Unable to delete leaked fips");
-	 }
+            TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
+            j.triggerOpenstackSlaveCleanup();
+
+            verify(os).destroyFip("leaked1");
+            verify(os).destroyFip("leaked2");
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Unable to delete leaked fips");
+        }
     }
 
     @Test
@@ -214,15 +218,19 @@ public class JCloudsCleanupThreadTest {
         j.assertBuildStatus(Result.ABORTED, build);
         assertThat(
                 build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
-                startsWith("OpenStack server (" + serverId + ") is not running for computer ")
-        );
+                startsWith("OpenStack server (" + serverId + ") is not running for computer "));
     }
 
     @Test
     public void terminateNodeWithShutoffServer() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(0).instancesMin(1).instanceCap(1).build(),
-		"label")));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(0)
+                        .instancesMin(1)
+                        .instanceCap(1)
+                        .build(),
+                "label")));
         cloud.setCleanfreq(2);
         Openstack os = cloud.getOpenstack();
 
@@ -250,15 +258,20 @@ public class JCloudsCleanupThreadTest {
         j.assertBuildStatus(Result.ABORTED, build);
         assertThat(
                 build.getAction(InterruptedBuildAction.class).getCauses().get(0).getShortDescription(),
-                startsWith("OpenStack server (" + builtOn.getId() + ") is not running for computer ")
-        );
+                startsWith("OpenStack server (" + builtOn.getId() + ") is not running for computer "));
     }
 
-    @Test @Issue("jenkinsci/openstack-cloud-plugin#149")
+    @Test
+    @Issue("jenkinsci/openstack-cloud-plugin#149")
     public void doNotTerminateNodeThatIsBeingProvisioned() throws Exception {
         // Simulate node stuck launching
-        SlaveOptions options = j.defaultSlaveOptions().getBuilder().launcherFactory(LauncherFactory.JNLP.JNLP).instanceCap(1).build();
-        JCloudsCloud cloud = j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+        SlaveOptions options = j.defaultSlaveOptions()
+                .getBuilder()
+                .launcherFactory(LauncherFactory.JNLP.JNLP)
+                .instanceCap(1)
+                .build();
+        JCloudsCloud cloud =
+                j.configureSlaveProvisioningWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
         cloud.setCleanfreq(2);
 
         FreeStyleProject p = j.createFreeStyleProject();
@@ -280,7 +293,8 @@ public class JCloudsCleanupThreadTest {
         private final OneShotEvent exit = new OneShotEvent();
 
         @Override
-        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException {
+        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
+                throws InterruptedException {
             enter.signal();
             exit.block();
             return true;

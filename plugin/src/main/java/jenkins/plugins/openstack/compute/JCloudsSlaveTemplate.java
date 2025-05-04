@@ -11,6 +11,21 @@ import hudson.model.Label;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
@@ -30,22 +45,6 @@ import org.openstack4j.api.Builders;
 import org.openstack4j.model.compute.Server;
 import org.openstack4j.model.compute.builder.ServerCreateBuilder;
 import org.openstack4j.model.network.Network;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * @author Vijay Kiran
@@ -84,11 +83,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String networkId;
     private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String securityGroups;
     private transient @Deprecated String credentialsId;
-    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String slaveType; // Converted to string long after deprecated while converting enum to describable
+    private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String
+            slaveType; // Converted to string long after deprecated while converting enum to describable
     private transient @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") String availabilityZone;
 
     @DataBoundConstructor
-    public JCloudsSlaveTemplate(final @Nonnull String name, final @Nonnull String labels, final @CheckForNull SlaveOptions slaveOptions) {
+    public JCloudsSlaveTemplate(
+            final @Nonnull String name, final @Nonnull String labels, final @CheckForNull SlaveOptions slaveOptions) {
         this.name = Util.fixNull(name).trim();
         this.labelString = Util.fixNull(labels).trim();
 
@@ -122,15 +123,25 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             LauncherFactory lf = null;
             if ("SSH".equals(slaveType) || credentialsId != null) {
                 lf = new LauncherFactory.SSH(credentialsId);
-            } else if("JNLP".equals(slaveType)) {
+            } else if ("JNLP".equals(slaveType)) {
                 lf = LauncherFactory.JNLP.JNLP;
             }
 
             BootSource.Image bs = imageId == null ? null : new BootSource.Image(imageId);
-            slaveOptions = SlaveOptions.builder().bootSource(bs).hardwareId(hardwareId).numExecutors(Integer.getInteger(numExecutors)).jvmOptions(jvmOptions).userDataId(userDataId)
-                    .fsRoot(fsRoot).retentionTime(overrideRetentionTime).keyPairName(keyPairName).networkId(networkId).securityGroups(securityGroups)
-                    .launcherFactory(lf).availabilityZone(availabilityZone).build()
-            ;
+            slaveOptions = SlaveOptions.builder()
+                    .bootSource(bs)
+                    .hardwareId(hardwareId)
+                    .numExecutors(Integer.getInteger(numExecutors))
+                    .jvmOptions(jvmOptions)
+                    .userDataId(userDataId)
+                    .fsRoot(fsRoot)
+                    .retentionTime(overrideRetentionTime)
+                    .keyPairName(keyPairName)
+                    .networkId(networkId)
+                    .securityGroups(securityGroups)
+                    .launcherFactory(lf)
+                    .availabilityZone(availabilityZone)
+                    .build();
 
             this.hardwareId = null;
             this.numExecutors = null;
@@ -172,7 +183,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     public @Nonnull SlaveOptions getEffectiveSlaveOptions() {
-        // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated config
+        // Make sure only diff of defaults is saved so when defaults will change users are not stuck with outdated
+        // config
         return cloud.getEffectiveSlaveOptions().override(slaveOptions);
     }
 
@@ -210,9 +222,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
      * @throws Openstack.ActionFailed Provisioning failed.
      * @throws JCloudsCloud.ProvisioningFailedException Provisioning failed.
      */
-    public @Nonnull JCloudsSlave provisionSlave(
-            @Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id
-    ) throws JCloudsCloud.ProvisioningFailedException {
+    public @Nonnull JCloudsSlave provisionSlave(@Nonnull JCloudsCloud cloud, @Nonnull ProvisioningActivity.Id id)
+            throws JCloudsCloud.ProvisioningFailedException {
         SlaveOptions opts = getEffectiveSlaveOptions();
         int timeout = opts.getStartTimeout();
         Server server = provisionServer(null, id);
@@ -226,7 +237,9 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             while ((cause = cloud.slaveIsWaitingFor(node)) != null) {
                 if (node.isLaunchTimedOut()) {
 
-                    String timeoutMessage = String.format("Failed to connect agent %s within timeout (%d ms): %s", node.getNodeName(), timeout, cause);
+                    String timeoutMessage = String.format(
+                            "Failed to connect agent %s within timeout (%d ms): %s",
+                            node.getNodeName(), timeout, cause);
                     Error errorQuerying = null;
                     try {
                         Server freshServer = cloud.getOpenstack().getServerById(server.getId());
@@ -238,7 +251,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                         errorQuerying = ex;
                     }
                     LOGGER.warning(timeoutMessage);
-                    JCloudsCloud.ProvisioningFailedException ex = new JCloudsCloud.ProvisioningFailedException(timeoutMessage);
+                    JCloudsCloud.ProvisioningFailedException ex =
+                            new JCloudsCloud.ProvisioningFailedException(timeoutMessage);
                     if (errorQuerying != null) {
                         ex.addSuppressed(errorQuerying);
                     }
@@ -252,8 +266,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         } catch (Throwable ex) {
             JCloudsCloud.ProvisioningFailedException cause = ex instanceof JCloudsCloud.ProvisioningFailedException
                     ? (JCloudsCloud.ProvisioningFailedException) ex
-                    : new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex)
-            ;
+                    : new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex);
 
             if (node != null) {
                 // No need to call AbstractCloudSlave#terminate() as this was never added to Jenkins
@@ -264,9 +277,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     @Restricted(NoExternalUse.class)
-    public @Nonnull Server provisionServer(
-            @CheckForNull ServerScope scope, @CheckForNull ProvisioningActivity.Id id
-    ) throws Openstack.ActionFailed {
+    public @Nonnull Server provisionServer(@CheckForNull ServerScope scope, @CheckForNull ProvisioningActivity.Id id)
+            throws Openstack.ActionFailed {
         final String serverName = getServerName();
         final SlaveOptions opts = getEffectiveSlaveOptions();
         final ServerCreateBuilder builder = Builders.server();
@@ -274,10 +286,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         builder.addMetadataItem(OPENSTACK_TEMPLATE_NAME_KEY, getName());
         builder.addMetadataItem(OPENSTACK_CLOUD_NAME_KEY, cloud.name);
         if (scope == null) {
-            scope = id == null
-                    ? new ServerScope.Node(serverName)
-                    : new ServerScope.Node(serverName, id)
-            ;
+            scope = id == null ? new ServerScope.Node(serverName) : new ServerScope.Node(serverName, id);
         }
         builder.addMetadataItem(ServerScope.METADATA_KEY, scope.getValue());
 
@@ -288,7 +297,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         final Openstack openstack = cloud.getOpenstack();
         final BootSource bootSource = opts.getBootSource();
         if (bootSource == null) {
-            LOGGER.warning("No " + BootSource.class.getSimpleName() + " set for " + getClass().getSimpleName() + " with name='" + getName() + "'.");
+            LOGGER.warning("No " + BootSource.class.getSimpleName() + " set for "
+                    + getClass().getSimpleName() + " with name='" + getName() + "'.");
         } else {
             LOGGER.fine("Setting boot options to " + bootSource);
             bootSource.setServerBootSource(builder, openstack);
@@ -310,7 +320,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         String securityGroups = opts.getSecurityGroups();
         if (Util.fixEmpty(securityGroups) != null) {
             LOGGER.fine("Setting security groups to " + securityGroups);
-            for (String sg: parseSecurityGroups(securityGroups)) {
+            for (String sg : parseSecurityGroups(securityGroups)) {
                 builder.addSecurityGroup(sg);
             }
         }
@@ -369,7 +379,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     // Try harder to ensure node name is unique
     private String getServerName() {
         CloudStatistics cs = CloudStatistics.get();
-        next_number: for (;;) {
+        next_number:
+        for (; ; ) {
             // Using static counter to ensure colliding template names (between clouds) will not cause a clash
             String nameCandidate = getName() + "-" + nodeCounter.getAndIncrement();
 
@@ -409,14 +420,16 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         List<List<String>> declared = TokenGroup.from(spec, ',', '|');
 
-        List<String> allDeclaredNetworks = declared.stream().flatMap(Collection::stream).collect(Collectors.toList());
+        List<String> allDeclaredNetworks =
+                declared.stream().flatMap(Collection::stream).collect(Collectors.toList());
 
         if (declared.isEmpty() || declared.contains(Collections.emptyList()) || allDeclaredNetworks.contains("")) {
             throw new IllegalArgumentException("Networks declaration contains blank '" + declared + "'");
         }
 
         Map<String, Network> osNetworksById = openstack.getNetworks(allDeclaredNetworks);
-        Map<String, Network> osNetworksByName = osNetworksById.values().stream().collect(Collectors.toMap(Network::getName, n -> n));
+        Map<String, Network> osNetworksByName =
+                osNetworksById.values().stream().collect(Collectors.toMap(Network::getName, n -> n));
 
         final Function<String, String> RESOLVE_NAMES_TO_IDS = n -> {
             if (osNetworksById.containsKey(n)) return n;
@@ -432,46 +445,54 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
         Map<Network, Integer> capacities = openstack.getNetworksCapacity(osNetworksById);
         if (capacities.isEmpty()) {
-            LOGGER.warning("OpenStack network-ip-availability endpoint is inaccessible, unable to balance the load for " + spec);
+            LOGGER.warning("OpenStack network-ip-availability endpoint is inaccessible, unable to balance the load for "
+                    + spec);
             // Return first of the alternatives
-            return declared.stream().map(l -> l.get(0)).map(RESOLVE_NAMES_TO_IDS).collect(Collectors.toList());
+            return declared.stream()
+                    .map(l -> l.get(0))
+                    .map(RESOLVE_NAMES_TO_IDS)
+                    .collect(Collectors.toList());
         }
 
         ArrayList<Network> ret = new ArrayList<>(declared.size());
         for (List<String> alternativeList : declared) { // All networks to connect to
 
-            Optional<Network> emptiest = alternativeList.stream().map(RESOLVE_NAMES_TO_IDS).map(osNetworksById::get).min((l, r) -> {
-                Integer lCap = capacities.get(l);
-                Integer rCap = capacities.get(r);
-                return rCap.compareTo(lCap);
-            });
+            Optional<Network> emptiest = alternativeList.stream()
+                    .map(RESOLVE_NAMES_TO_IDS)
+                    .map(osNetworksById::get)
+                    .min((l, r) -> {
+                        Integer lCap = capacities.get(l);
+                        Integer rCap = capacities.get(r);
+                        return rCap.compareTo(lCap);
+                    });
 
-            assert emptiest.isPresent(): "Alternative set empty";
+            assert emptiest.isPresent() : "Alternative set empty";
 
             Network network = emptiest.get();
             ret.add(network);
         }
 
         Function<Network, String> DESCRIBE_NETWORK = n -> n.getName() + "/" + n.getId();
-        Map<String, Integer> userTokenBasedCapacities = capacities.keySet().stream().collect(Collectors.toMap(
-                DESCRIBE_NETWORK,
-                capacities::get
-        ));
+        Map<String, Integer> userTokenBasedCapacities =
+                capacities.keySet().stream().collect(Collectors.toMap(DESCRIBE_NETWORK, capacities::get));
         List<String> networks = ret.stream().map(DESCRIBE_NETWORK).collect(Collectors.toList());
-        LOGGER.fine("Resolving network spec '" + spec + "' to '" + networks + " given free capacity " + userTokenBasedCapacities);
+        LOGGER.fine("Resolving network spec '" + spec + "' to '" + networks + " given free capacity "
+                + userTokenBasedCapacities);
 
         // Report shortage
-        Map<String, Long> exhaustedPools = ret.stream().collect(
-                // Group selected networks by requested capacity
-                Collectors.groupingBy(n -> n, Collectors.counting())
-        ).entrySet().stream().filter(
-                // Filter those with insufficient capacity
-                nle -> capacities.get(nle.getKey()) < nle.getValue()
-        ).collect(Collectors.toMap(
-                // name -> capacity
-                nle -> nle.getKey().getName() + "/" + nle.getKey().getId(),
-                Map.Entry::getValue
-        ));
+        Map<String, Long> exhaustedPools = ret.stream()
+                .collect(
+                        // Group selected networks by requested capacity
+                        Collectors.groupingBy(n -> n, Collectors.counting()))
+                .entrySet()
+                .stream()
+                .filter(
+                        // Filter those with insufficient capacity
+                        nle -> capacities.get(nle.getKey()) < nle.getValue())
+                .collect(Collectors.toMap(
+                        // name -> capacity
+                        nle -> nle.getKey().getName() + "/" + nle.getKey().getId(),
+                        Map.Entry::getValue));
         if (!exhaustedPools.isEmpty()) {
             LOGGER.warning("Not enough fixed IPs for " + spec + " with capacity " + exhaustedPools);
         }
@@ -479,7 +500,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         return ret.stream().map(Network::getId).collect(Collectors.toList());
     }
 
-    /*package for testing*/ @CheckForNull String getUserData() {
+    /*package for testing*/ @CheckForNull
+    String getUserData() {
         return UserDataConfig.resolve(getEffectiveSlaveOptions().getUserDataId());
     }
 

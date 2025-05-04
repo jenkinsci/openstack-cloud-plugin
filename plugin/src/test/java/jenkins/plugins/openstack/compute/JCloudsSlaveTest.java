@@ -1,16 +1,21 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import hudson.model.Node;
+import hudson.slaves.EnvironmentVariablesNodeProperty;
+import hudson.slaves.NodeProperty;
 import java.util.List;
 import java.util.Map;
-
+import jenkins.plugins.openstack.PluginTestRule;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,16 +23,9 @@ import org.openstack4j.model.compute.Address;
 import org.openstack4j.model.compute.Addresses;
 import org.openstack4j.model.compute.Server;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
-import hudson.model.Node;
-import hudson.slaves.EnvironmentVariablesNodeProperty;
-import hudson.slaves.NodeProperty;
-import jenkins.plugins.openstack.PluginTestRule;
-
 public class JCloudsSlaveTest {
     private static final String EXPECTED_IP_ADDRESS_ENV_VAR_NAME = "OPENSTACK_PUBLIC_IP";
+
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
@@ -42,8 +40,8 @@ public class JCloudsSlaveTest {
         final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
         when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
         when(mockSlaveOptions.getNodeProperties()).thenReturn(null);
-        final Map<String, String> expectedEnvVars = ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
-                expectedIpAddress);
+        final Map<String, String> expectedEnvVars =
+                ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
         // When
         JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
@@ -72,8 +70,8 @@ public class JCloudsSlaveTest {
         final NodeProperty<Node> stubNP2 = PluginTestRule.mkNodeProperty(2);
         final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(stubNP1, stubNP2);
         when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
-        final Map<String, String> expectedEnvVars = ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
-                expectedIpAddress);
+        final Map<String, String> expectedEnvVars =
+                ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
         // When
         JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
@@ -110,8 +108,13 @@ public class JCloudsSlaveTest {
         final NodeProperty<Node> stubNP3 = PluginTestRule.mkNodeProperty(3);
         final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(stubNP1, envVarNP, stubNP3);
         when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
-        final Map<String, String> expectedEnvVars = ImmutableMap.of(envVar1Name, envVar1Value, envVar2Name,
-                envVar2Value, EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
+        final Map<String, String> expectedEnvVars = ImmutableMap.of(
+                envVar1Name,
+                envVar1Value,
+                envVar2Name,
+                envVar2Value,
+                EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
+                expectedIpAddress);
 
         // When
         JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
@@ -141,8 +144,8 @@ public class JCloudsSlaveTest {
         final NodeProperty<Node> templateNP2 = PluginTestRule.mkNodeProperty(2);
         final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(templateNP1, templateNP2);
         when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
-        final Map<String, String> expectedEnvVars = ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME,
-                expectedIpAddress);
+        final Map<String, String> expectedEnvVars =
+                ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
         // When
         JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
@@ -160,8 +163,8 @@ public class JCloudsSlaveTest {
         assertIsEnvVarNPContaining(actualNP3, expectedEnvVars);
     }
 
-    private static void assertIsEnvVarNPContaining(final NodeProperty<?> actual,
-            final Map<String, String> expectedEnvVars) {
+    private static void assertIsEnvVarNPContaining(
+            final NodeProperty<?> actual, final Map<String, String> expectedEnvVars) {
         assertThat(actual, instanceOf(EnvironmentVariablesNodeProperty.class));
         final EnvironmentVariablesNodeProperty actualEnvVarNP = (EnvironmentVariablesNodeProperty) actual;
         final Map<String, String> actualEnvVars = ImmutableMap.copyOf(actualEnvVarNP.getEnvVars());

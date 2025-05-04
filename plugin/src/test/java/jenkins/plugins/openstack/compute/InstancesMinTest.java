@@ -25,18 +25,17 @@
 
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.iterableWithSize;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+
+import java.util.List;
 import jenkins.plugins.openstack.PluginTestRule;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Rule;
 import org.junit.Test;
-
-import java.util.List;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 
 public class InstancesMinTest {
 
@@ -46,9 +45,7 @@ public class InstancesMinTest {
     @Test
     public void createSlavesUpToLimit() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().instancesMin(2).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions().getBuilder().instancesMin(2).build(), "label")));
         j.provision(cloud, "label");
 
         balanceRetentionAndPrecreation(); // Should add one more
@@ -64,9 +61,7 @@ public class InstancesMinTest {
     @Test
     public void doNotCreateNorDeleteWhenSatisfied() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().instancesMin(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions().getBuilder().instancesMin(1).build(), "label")));
         j.provision(cloud, "label");
 
         balanceRetentionAndPrecreation(); // Should do nothing as we have exactly one
@@ -92,9 +87,14 @@ public class InstancesMinTest {
     @Test
     public void removeSlavesOverLimit() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(1).instancesMin(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(1)
+                        .instancesMin(1)
+                        .build(),
+                "label")));
+        cloud.setCleanfreq(120); // dont run during test
+
         JCloudsSlave s1 = j.provision(cloud, "label");
         JCloudsSlave s2 = j.provision(cloud, "label");
 
@@ -111,8 +111,8 @@ public class InstancesMinTest {
         assertThat(JCloudsComputer.getAll(), iterableWithSize(2));
         assertNotEquals(
                 "One slave should be scheduled for deletion",
-                s1.getComputer().isPendingDelete(), s2.getComputer().isPendingDelete()
-        );
+                s1.getComputer().isPendingDelete(),
+                s2.getComputer().isPendingDelete());
 
         balanceRetentionAndPrecreation();
 
@@ -120,16 +120,19 @@ public class InstancesMinTest {
         assertThat(JCloudsComputer.getAll(), iterableWithSize(2));
         assertNotEquals(
                 "One slave should be scheduled for deletion",
-                s1.getComputer().isPendingDelete(), s2.getComputer().isPendingDelete()
-        );
+                s1.getComputer().isPendingDelete(),
+                s2.getComputer().isPendingDelete());
     }
 
     @Test
     public void doNotOverprovision() {
         j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(1).instancesMin(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(1)
+                        .instancesMin(1)
+                        .build(),
+                "label")));
 
         j.triggerSlavePreCreation();
         j.triggerSlavePreCreation();
@@ -151,6 +154,7 @@ public class InstancesMinTest {
     }
 
     private void enforceRetention() {
-        JCloudsComputer.getAll().stream().map(JCloudsComputer::getNode).forEach(n -> n.getRetentionStrategy().check(n.getComputer()));
+        JCloudsComputer.getAll().stream().map(JCloudsComputer::getNode).forEach(n -> n.getRetentionStrategy()
+                .check(n.getComputer()));
     }
 }

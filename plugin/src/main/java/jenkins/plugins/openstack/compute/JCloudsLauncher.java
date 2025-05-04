@@ -1,18 +1,17 @@
 package jenkins.plugins.openstack.compute;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.model.Descriptor;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
-import hudson.model.Descriptor;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.DelegatingComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import hudson.slaves.SlaveComputer;
-
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 
 /*
  * This class as designed, is not supposed to be shared among multiple computers.
@@ -26,10 +25,12 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
     }
 
     @Override
-    public void launch(@Nonnull SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
+    public void launch(@Nonnull SlaveComputer computer, TaskListener listener)
+            throws IOException, InterruptedException {
         Slave n = computer.getNode();
         if (!(n instanceof JCloudsSlave)) {
-            LOGGER.warning(getClass().getSimpleName() + " used to launch incompatible computer type " + computer.getClass());
+            LOGGER.warning(
+                    getClass().getSimpleName() + " used to launch incompatible computer type " + computer.getClass());
             return;
         }
 
@@ -73,8 +74,8 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
     }
 
     @SuppressFBWarnings({
-            "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
-            "Since 2.1, tha launcher is injected in constructor but we need this as a fallback for the slaves that survived the upgrade."
+        "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
+        "Since 2.1, tha launcher is injected in constructor but we need this as a fallback for the slaves that survived the upgrade."
     })
     private ComputerLauncher launcher(SlaveComputer computer) throws IOException {
         if (launcher != null) return launcher;
@@ -83,7 +84,6 @@ public class JCloudsLauncher extends DelegatingComputerLauncher {
 
         return launcher = slave == null
                 ? new JNLPLauncher(false) // Return something harmless to prevent NPE
-                : slave.getLauncherFactory().createLauncher(slave)
-        ;
+                : slave.getLauncherFactory().createLauncher(slave);
     }
 }

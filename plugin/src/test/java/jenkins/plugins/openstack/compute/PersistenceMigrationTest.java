@@ -1,10 +1,19 @@
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.cloudbees.plugins.credentials.CredentialsNameProvider;
 import hudson.model.TaskListener;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
+import java.io.IOException;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentials;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv2;
@@ -15,16 +24,6 @@ import org.junit.Test;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.openstack4j.api.exceptions.ConnectionException;
 
-import java.io.IOException;
-
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
  * @author ogondza.
  */
@@ -33,7 +32,8 @@ public class PersistenceMigrationTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
 
-    @Test @LocalData
+    @Test
+    @LocalData
     public void loadConfigFromV20() throws Exception {
         JCloudsSlave s = (JCloudsSlave) j.jenkins.getNode("cloud-slave");
         try {
@@ -51,7 +51,8 @@ public class PersistenceMigrationTest {
         assertEquals("8f3da277-c60e-444c-ab86-517e96ffe508", slaveType.getCredentialsId());
     }
 
-    @Test @LocalData
+    @Test
+    @LocalData
     public void loadConfigFromV18() throws Exception {
         j.dummySshCredentials("2040d591-062a-4ccf-8f36-0a3340a1c51b");
         // Node persisted
@@ -77,7 +78,8 @@ public class PersistenceMigrationTest {
         assertThat(launcherOf(template), instanceOf(SSHLauncher.class));
     }
 
-    @Test @LocalData
+    @Test
+    @LocalData
     public void loadConfigFromV24() throws Exception {
         JCloudsCloud jnlpCloud = JCloudsCloud.getByName("JNLP");
         JCloudsCloud sshCloud = JCloudsCloud.getByName("SSH");
@@ -96,19 +98,23 @@ public class PersistenceMigrationTest {
         assertThat(launcherOf(inheritedCloud.getTemplate("ssh")), instanceOf(SSHLauncher.class));
     }
 
-
-    @Test @LocalData
+    @Test
+    @LocalData
     public void loadConfigFromV29() {
         JCloudsCloud v2Cloud = JCloudsCloud.getByName("v2");
         JCloudsCloud v3Cloud = JCloudsCloud.getByName("v3");
 
-        OpenstackCredentialv2 v2 = (OpenstackCredentialv2) OpenstackCredentials.getCredential(v2Cloud.getCredentialsId());
-        assertEquals("tenant:user/******",CredentialsNameProvider.name(v2));
-        assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v2.getPassword().getPlainText());
+        OpenstackCredentialv2 v2 =
+                (OpenstackCredentialv2) OpenstackCredentials.getCredential(v2Cloud.getCredentialsId());
+        assertEquals("tenant:user/******", CredentialsNameProvider.name(v2));
+        assertEquals(
+                "OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=", v2.getPassword().getPlainText());
 
-        OpenstackCredentialv3 v3 = (OpenstackCredentialv3) OpenstackCredentials.getCredential(v3Cloud.getCredentialsId());
-        assertEquals("domain:project:domain:user/******",CredentialsNameProvider.name(v3));
-        assertEquals("OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=",v3.getPassword().getPlainText());
+        OpenstackCredentialv3 v3 =
+                (OpenstackCredentialv3) OpenstackCredentials.getCredential(v3Cloud.getCredentialsId());
+        assertEquals("domain:project:domain:user/******", CredentialsNameProvider.name(v3));
+        assertEquals(
+                "OSQmsm29pf2vGWZEBlhAjUiJo/jhTfsUcMCgdIvwyXc=", v3.getPassword().getPlainText());
     }
 
     private static ComputerLauncher launcherOf(SlaveOptions.Holder holder) throws IOException {

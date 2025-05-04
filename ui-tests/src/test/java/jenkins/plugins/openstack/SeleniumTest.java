@@ -27,28 +27,27 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.startsWith;
 import static org.jenkinsci.test.acceptance.Matchers.*;
-import static org.jenkinsci.test.acceptance.po.FormValidation.Kind.OK;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeThat;
+import static org.junit.Assume.assumeTrue;
 
 import hudson.util.VersionNumber;
+import java.net.URL;
+import java.util.List;
+import java.util.function.Consumer;
 import jenkins.plugins.openstack.po.OpenstackBuildWrapper;
 import jenkins.plugins.openstack.po.OpenstackCloud;
 import jenkins.plugins.openstack.po.OpenstackOneOffSlave;
 import jenkins.plugins.openstack.po.OpenstackSlaveTemplate;
 import jenkins.plugins.openstack.po.UserDataConfig;
-
 import org.jenkinsci.test.acceptance.junit.AbstractJUnitTest;
 import org.jenkinsci.test.acceptance.junit.WithCredentials;
 import org.jenkinsci.test.acceptance.junit.WithPlugins;
 import org.jenkinsci.test.acceptance.plugins.config_file_provider.ConfigFileProvider;
-import org.jenkinsci.test.acceptance.plugins.credentials.CredentialsPage;
-import org.jenkinsci.test.acceptance.plugins.credentials.ManagedCredentials;
-import org.jenkinsci.test.acceptance.plugins.credentials.UserPwdCredential;
 import org.jenkinsci.test.acceptance.po.Build;
 import org.jenkinsci.test.acceptance.po.ConfigurablePageObject;
-import org.jenkinsci.test.acceptance.po.FormValidation;
 import org.jenkinsci.test.acceptance.po.FreeStyleJob;
 import org.jenkinsci.test.acceptance.po.Jenkins;
 import org.jenkinsci.test.acceptance.po.MatrixBuild;
@@ -56,21 +55,11 @@ import org.jenkinsci.test.acceptance.po.MatrixProject;
 import org.jenkinsci.test.acceptance.po.MatrixRun;
 import org.jenkinsci.test.acceptance.po.Node;
 import org.jenkinsci.test.acceptance.po.Slave;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.internal.AssumptionViolatedException;
 import org.jvnet.hudson.test.Issue;
 import org.openqa.selenium.WebElement;
-
-import java.net.URL;
-import java.util.List;
-import java.util.function.Consumer;
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
-import static org.junit.Assume.assumeTrue;
 
 @WithPlugins("openstack-cloud")
 public class SeleniumTest extends AbstractJUnitTest {
@@ -123,7 +112,7 @@ public class SeleniumTest extends AbstractJUnitTest {
         if ("".equals(OS_PROJECT_DOMAIN_NAME)) OS_PROJECT_DOMAIN_NAME = null;
     }
 
-    //@After // Terminate all nodes
+    // @After // Terminate all nodes
     public void tearDown() {
         // We have never left the config - no nodes to terminate
         if (getCurrentUrl().endsWith("/configure") || getCurrentUrl().endsWith("/configureClouds")) return;
@@ -131,12 +120,16 @@ public class SeleniumTest extends AbstractJUnitTest {
         sleep(5000);
         String s;
         do {
-            s = jenkins.runScript("os = Jenkins.instance.clouds[0]?.openstack; if (os) { os.runningNodes.each { os.destroyServer(it) }; return os.runningNodes.size() }; return 0");
+            s = jenkins.runScript(
+                    "os = Jenkins.instance.clouds[0]?.openstack; if (os) { os.runningNodes.each { os.destroyServer(it) }; return os.runningNodes.size() }; return 0");
         } while (!"0".equals(s));
     }
 
     @Test
-    @WithCredentials(credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY, values = {MACHINE_USERNAME, SSH_KEY_PATH}, id = SSH_CRED_ID)
+    @WithCredentials(
+            credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY,
+            values = {MACHINE_USERNAME, SSH_KEY_PATH},
+            id = SSH_CRED_ID)
     public void provisionSshSlave() {
         configureCloudInit("cloud-init");
         configureProvisioning("SSH", "label");
@@ -149,7 +142,10 @@ public class SeleniumTest extends AbstractJUnitTest {
     }
 
     @Test
-    @WithCredentials(credentialType = WithCredentials.USERNAME_PASSWORD, values = {MACHINE_USERNAME, "ath"}, id = SSH_CRED_ID)
+    @WithCredentials(
+            credentialType = WithCredentials.USERNAME_PASSWORD,
+            values = {MACHINE_USERNAME, "ath"},
+            id = SSH_CRED_ID)
     public void provisionSshSlaveWithPasswdAuth() {
         configureCloudInit("cloud-init");
         configureProvisioning("SSH", "label");
@@ -162,7 +158,10 @@ public class SeleniumTest extends AbstractJUnitTest {
     }
 
     @Test
-    @WithCredentials(credentialType = WithCredentials.USERNAME_PASSWORD, values = {MACHINE_USERNAME, "ath"}, id = SSH_CRED_ID)
+    @WithCredentials(
+            credentialType = WithCredentials.USERNAME_PASSWORD,
+            values = {MACHINE_USERNAME, "ath"},
+            id = SSH_CRED_ID)
     public void provisionSshSlaveWithPasswdAuthRetryOnFailedAuth() {
         configureCloudInit("cloud-init-authfix");
         configureProvisioning("SSH", "label");
@@ -176,9 +175,14 @@ public class SeleniumTest extends AbstractJUnitTest {
 
     @Test
     // TODO: JENKINS-30784 Do not bother with credentials for jnlp slaves
-    @WithCredentials(credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY, values = {MACHINE_USERNAME, SSH_KEY_PATH}, id = SSH_CRED_ID)
+    @WithCredentials(
+            credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY,
+            values = {MACHINE_USERNAME, SSH_KEY_PATH},
+            id = SSH_CRED_ID)
     public void provisionJnlpSlave() {
-        assumeTrue("Skipping JNLP test as the test host is not reachable from OS. Set OS_REACHABLE in case it is.", OS_REACHABLE);
+        assumeTrue(
+                "Skipping JNLP test as the test host is not reachable from OS. Set OS_REACHABLE in case it is.",
+                OS_REACHABLE);
 
         configureCloudInit("cloud-init-jnlp");
         configureProvisioning("JNLP", "label");
@@ -190,8 +194,12 @@ public class SeleniumTest extends AbstractJUnitTest {
         job.scheduleBuild().waitUntilFinished(PROVISIONING_TIMEOUT).shouldSucceed();
     }
 
-    @Test @Issue("JENKINS-29998")
-    @WithCredentials(credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY, values = {MACHINE_USERNAME, SSH_KEY_PATH}, id = SSH_CRED_ID)
+    @Test
+    @Issue("JENKINS-29998")
+    @WithCredentials(
+            credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY,
+            values = {MACHINE_USERNAME, SSH_KEY_PATH},
+            id = SSH_CRED_ID)
     @WithPlugins("matrix-project")
     public void scheduleMatrixWithoutLabel() {
         configureCloudInit("cloud-init");
@@ -204,14 +212,20 @@ public class SeleniumTest extends AbstractJUnitTest {
         job.configure();
         job.save();
 
-        MatrixBuild pb = job.scheduleBuild().waitUntilFinished(PROVISIONING_TIMEOUT).shouldSucceed().as(MatrixBuild.class);
+        MatrixBuild pb = job.scheduleBuild()
+                .waitUntilFinished(PROVISIONING_TIMEOUT)
+                .shouldSucceed()
+                .as(MatrixBuild.class);
         assertThat(pb.getNode(), equalTo((Node) jenkins));
         MatrixRun cb = pb.getConfiguration("default");
         assertThat(cb.getNode(), not(equalTo((Node) jenkins)));
     }
 
     @Test
-    @WithCredentials(credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY, values = {MACHINE_USERNAME, SSH_KEY_PATH}, id = SSH_CRED_ID)
+    @WithCredentials(
+            credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY,
+            values = {MACHINE_USERNAME, SSH_KEY_PATH},
+            id = SSH_CRED_ID)
     public void usePerBuildInstance() {
         configureCloudInit("cloud-init");
         configureProvisioning("SSH", "unused");
@@ -230,7 +244,10 @@ public class SeleniumTest extends AbstractJUnitTest {
     }
 
     @Test
-    @WithCredentials(credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY, values = {MACHINE_USERNAME, SSH_KEY_PATH}, id = SSH_CRED_ID)
+    @WithCredentials(
+            credentialType = WithCredentials.SSH_USERNAME_PRIVATE_KEY,
+            values = {MACHINE_USERNAME, SSH_KEY_PATH},
+            id = SSH_CRED_ID)
     public void useSingleUseSlave() {
         configureCloudInit("cloud-init");
         configureProvisioning("SSH", "label");
@@ -241,12 +258,16 @@ public class SeleniumTest extends AbstractJUnitTest {
         job.addBuildWrapper(OpenstackOneOffSlave.class);
         job.save();
 
-        Build build = job.scheduleBuild().waitUntilFinished(PROVISIONING_TIMEOUT).shouldSucceed();
+        Build build =
+                job.scheduleBuild().waitUntilFinished(PROVISIONING_TIMEOUT).shouldSucceed();
         assertTrue(build.getNode().isTemporarillyOffline());
     }
 
     @Test
-    @WithCredentials(credentialType = WithCredentials.USERNAME_PASSWORD, values = {MACHINE_USERNAME, "ath"}, id = SSH_CRED_ID)
+    @WithCredentials(
+            credentialType = WithCredentials.USERNAME_PASSWORD,
+            values = {MACHINE_USERNAME, "ath"},
+            id = SSH_CRED_ID)
     public void sshSlaveShouldSurviveRestart() {
         assumeTrue("This test requires a restartable Jenkins", jenkins.canRestart());
         configureCloudInit("cloud-init");
@@ -257,11 +278,17 @@ public class SeleniumTest extends AbstractJUnitTest {
         job.setLabelExpression("label");
         job.addShellStep("uname -a");
         job.save();
-        Node created = job.scheduleBuild().waitUntilFinished(PROVISIONING_TIMEOUT).shouldSucceed().getNode();
+        Node created = job.scheduleBuild()
+                .waitUntilFinished(PROVISIONING_TIMEOUT)
+                .shouldSucceed()
+                .getNode();
 
         jenkins.restart();
 
-        Node reconnected = job.scheduleBuild().waitUntilFinished(PROVISIONING_TIMEOUT).shouldSucceed().getNode();
+        Node reconnected = job.scheduleBuild()
+                .waitUntilFinished(PROVISIONING_TIMEOUT)
+                .shouldSucceed()
+                .getNode();
 
         assertEquals(created, reconnected);
 
