@@ -31,7 +31,6 @@
     <version>2.67-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>OpenStack Cloud Plugin</name>
-    <description>Allows Jenkins to build on OpenStack nodes</description>
     <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
 
     <properties>
