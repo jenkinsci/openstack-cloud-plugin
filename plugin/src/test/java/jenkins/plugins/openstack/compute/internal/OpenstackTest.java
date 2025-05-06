@@ -4,9 +4,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyMapOf;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.*;
 
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
@@ -189,7 +186,7 @@ public class OpenstackTest {
         when(mockImageNamedBar3.getCreatedAt()).thenReturn(new Date(1000));
         final ImageService mockIS = mock(ImageService.class);
         final List images = Arrays.asList(mockImageNamedBar1, mockImageNamedBar2, mockImageNamedBar3);
-        when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(images);
+        when(mockIS.list(anyMap())).thenReturn(images);
         final ArrayList<String> expected = new ArrayList<>(
                 Arrays.asList("mockImageNamedBar2Id", "mockImageNamedBar3Id", "mockImageNamedBar1Id"));
 
@@ -209,7 +206,7 @@ public class OpenstackTest {
     @Test
     public void getImageIdsForGivenUnknownThenReturnsEmpty() {
         final ImageService mockIS = mock(ImageService.class);
-        when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
+        when(mockIS.list(anyMap())).thenReturn(Collections.EMPTY_LIST);
 
         when(osClient.imagesV2()).thenReturn(mockIS);
         final ArrayList<String> expected = new ArrayList<>();
@@ -233,7 +230,7 @@ public class OpenstackTest {
         when(mockImageNamedFoo.getName()).thenReturn("Foo");
         when(mockImageNamedFoo.getStatus()).thenReturn(Image.ImageStatus.ACTIVE);
         final ImageService mockIS = mock(ImageService.class);
-        when(mockIS.list(anyMapOf(String.class, String.class))).thenReturn(Collections.EMPTY_LIST);
+        when(mockIS.list(anyMap())).thenReturn(Collections.EMPTY_LIST);
         when(mockIS.get(imageId)).thenReturn(mockImageNamedFoo);
 
         when(osClient.imagesV2()).thenReturn(mockIS);
@@ -242,7 +239,7 @@ public class OpenstackTest {
 
         final List<String> actual = openstack.getImageIdsFor(imageId);
 
-        verify(mockIS).list(anyMapOf(String.class, String.class));
+        verify(mockIS).list(anyMap());
         verify(mockIS).get(imageId);
         verifyNoMoreInteractions(mockIS);
         assertThat(new ArrayList<>(actual), equalTo(expected));
@@ -449,9 +446,9 @@ public class OpenstackTest {
         when(fault.getDetails()).thenReturn("I told you once");
         when(server.getFault()).thenReturn(fault);
 
-        doReturn(server).when(os)._bootAndWaitActive(any(ServerCreateBuilder.class), any(Integer.class));
+        doReturn(server).when(os)._bootAndWaitActive((ServerCreateBuilder) any(ServerCreateBuilder.class), anyInt());
         doThrow(new Openstack.ActionFailed("Fake deletion failure")).when(os).destroyServer(server);
-        doNothing().when(os).attachFingerprint(any(ServerCreateBuilder.class));
+        doNothing().when(os).attachFingerprint((ServerCreateBuilder) any(ServerCreateBuilder.class));
 
         try {
             os.bootAndWaitActive(mock(ServerCreateBuilder.class), 1);
@@ -479,9 +476,9 @@ public class OpenstackTest {
 
         NetFloatingIPService fips = client.networking().floatingip();
         when(fips.list()).thenAnswer(sequencer.getAllFips());
-        when(fips.delete(any(String.class))).thenAnswer(sequencer.deleteFip());
+        when(fips.delete(anyString())).thenAnswer(sequencer.deleteFip());
         PortService ports = client.networking().port();
-        when(ports.list(any(PortListOptions.class))).thenAnswer(sequencer.getAllPorts());
+        when(ports.list((PortListOptions) any(PortListOptions.class))).thenAnswer(sequencer.getAllPorts());
 
         Openstack os = new Openstack(client);
         os.destroyServer(server);

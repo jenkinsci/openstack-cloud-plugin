@@ -48,11 +48,15 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return MIN * 10;
+        // fixed value: 1000 millis
+        long cleanFreq = 1000;
+
+        return cleanFreq;
     }
 
     @Override
     public void execute(TaskListener listener) {
+
         try {
             terminateNodesPendingDeletion();
 
@@ -61,6 +65,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             terminatesNodesWithoutServers(runningServers);
 
             cleanOrphanedFips();
+
+            setCloudLastCleanTime();
+
         } catch (JCloudsCloud.LoginFailure ex) {
             LOGGER.log(Level.WARNING, "Unable to authenticate: " + ex.getMessage());
         } catch (Throwable ex) {
@@ -70,6 +77,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     private void cleanOrphanedFips() {
         for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+            if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
             Openstack openstack = cloud.getOpenstack();
 
             List<String> leaked = openstack.getFreeFipIds();
@@ -87,11 +95,20 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
         }
     }
 
+    private void setCloudLastCleanTime() {
+            for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+                if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
+                cloud.setLastCleanTime(System.currentTimeMillis());
+            }
+    }
+
     private void terminateNodesPendingDeletion() {
         for (final JCloudsComputer comp : JCloudsComputer.getAll()) {
+            JCloudsCloud cloud = JCloudsCloud.getByName(comp.getId().getCloudName());
+            if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
             if (!comp.isIdle()) continue;
 
-            final OfflineCause offlineCause = comp.getFatalOfflineCause();
+            final OfflineCause offlineCause = comp.getNode().getFatalOfflineCause();
             if (comp.isPendingDelete()) {
                 LOGGER.log(Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                 deleteComputer(comp);
@@ -156,6 +173,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private @Nonnull HashMap<JCloudsCloud, List<Server>> destroyServersOutOfScope() {
         HashMap<JCloudsCloud, List<Server>> runningServers = new HashMap<>();
         for (JCloudsCloud jc : JCloudsCloud.getClouds()) {
+            if ((System.currentTimeMillis() - jc.getLastCleanTime()) < jc.getCleanfreqToMillis()) continue;
             runningServers.put(jc, new ArrayList<>());
             List<Server> servers = jc.getOpenstack().getRunningNodes();
             for (Server server : servers) {
@@ -175,6 +193,9 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private void terminatesNodesWithoutServers(@Nonnull HashMap<JCloudsCloud, List<Server>> runningServers) {
         Map<String, JCloudsComputer> jenkinsComputers = new HashMap<>();
         for (JCloudsComputer computer: JCloudsComputer.getAll()) {
+            JCloudsCloud cloud = JCloudsCloud.getByName(computer.getId().getCloudName());
+            if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
+
             JCloudsSlave node = computer.getNode();
             if (node != null) {
                 jenkinsComputers.put(node.getServerId(), computer);

@@ -143,7 +143,7 @@ public class Openstack {
             = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.SECONDS).build()
     ;
 
-    private Openstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region) {
+    private Openstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region, @Nonnull long cleanfreq) {
 
         final IOSClientBuilder<? extends OSClient<?>, ?> builder = auth.getBuilder(endPointUrl);
 
@@ -893,19 +893,19 @@ public class Openstack {
         ;
 
         public abstract @Nonnull Openstack getOpenstack(
-                @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
+                @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region, @Nonnull long cleanfreq
         ) throws FormValidation;
 
         /**
          * Instantiate Openstack client.
          */
         public static @Nonnull Openstack get(
-                @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @CheckForNull final String region
+                @Nonnull final String endPointUrl, final boolean ignoreSsl, @Nonnull final OpenstackCredential auth, @CheckForNull final String region, @Nonnull final long cleanfreq
         ) throws FormValidation {
             final FactoryEP ep = ExtensionList.lookup(FactoryEP.class).get(0);
             final Function<String, Openstack> cacheMissFunction = (String unused) -> {
                 try {
-                    return ep.getOpenstack(endPointUrl, ignoreSsl, auth, region);
+                    return ep.getOpenstack(endPointUrl, ignoreSsl, auth, region, cleanfreq);
                 } catch (FormValidation ex) {
                     throw new RuntimeException(ex);
                 }
@@ -962,14 +962,14 @@ public class Openstack {
 
     @Extension
     public static final class Factory extends FactoryEP {
-        public @Nonnull Openstack getOpenstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region) throws FormValidation {
+        public @Nonnull Openstack getOpenstack(@Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential auth, @CheckForNull String region, @Nonnull long cleanfreq) throws FormValidation {
             endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
             region = Util.fixEmptyAndTrim(region);
 
             if (endPointUrl == null) throw FormValidation.error("No endPoint specified");
             if (auth == null) throw FormValidation.error("No credential specified");
 
-            return new Openstack(endPointUrl, ignoreSsl, auth, region);
+            return new Openstack(endPointUrl, ignoreSsl, auth, region, cleanfreq);
         }
     }
 

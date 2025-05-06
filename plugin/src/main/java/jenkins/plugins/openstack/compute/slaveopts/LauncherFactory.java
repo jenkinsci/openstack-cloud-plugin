@@ -98,6 +98,14 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
     public abstract @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException;
 
     /**
+     * Callback run when the node is being terminated.
+     *
+     * This is before the resources are removed.
+     */
+    public void onNodeTerminated() {
+    }
+
+    /**
      * Launch nodes via ssh-slaves plugin.
      */
     public static final class SSH extends LauncherFactory {
@@ -180,6 +188,9 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             String publicAddress;
             try {
                 publicAddress = slave.getPublicAddress();
+                if (publicAddress == null) {
+                    throw new JCloudsCloud.ProvisioningFailedException("No accessible address provided for agent " + slave.getNodeName());
+                }
             } catch (NoSuchElementException ex) {
                 throw new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex);
             }
@@ -212,13 +223,13 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         public static final class Desc extends Descriptor<LauncherFactory> {
             @Restricted(DoNotUse.class)
             @RequirePOST
-            public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
+            public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup<?> context) {
                 if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.get()).hasPermission(Computer.CONFIGURE)) {
                     return new ListBoxModel();
                 }
 
                 return new StandardUsernameListBoxModel()
-                        .includeMatchingAs(ACL.SYSTEM, context, StandardUsernameCredentials.class,
+                        .includeMatchingAs(ACL.SYSTEM2, context, StandardUsernameCredentials.class,
                                 Collections.singletonList(SSHLauncher.SSH_SCHEME), SSHAuthenticator.matcher(Connection.class))
                         .includeEmptyValue();
             }
@@ -233,11 +244,20 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
 
         public static final LauncherFactory JNLP = new JNLP();
 
+        /**
+         * Track the termination.
+         *
+         * This is needed so JNLP#isWaitingFor() reports completion when node is terminated before
+         * JCloudsSlaveTEmplate#provisionSlave() detects provisioning is completed.
+         */
+        private transient boolean terminated = false;
+
         @DataBoundConstructor // Needed for JCasC
         public JNLP() {}
 
         @Override
         public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) throws IOException {
+            terminated = false;
             Jenkins.get().addNode(slave);
             return new JNLPLauncher(false);
         }
@@ -245,7 +265,16 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         @Override
         public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
             // The address might not be visible at all so let's just wait for connection.
-            return slave.getChannel() != null ? null : "JNLP connection was not established yet";
+            return terminated || slave.getChannel() != null
+                    ? null
+                    : "JNLP connection was not established yet"
+            ;
+        }
+
+        @Override
+        public void onNodeTerminated() {
+            terminated = true;
+            super.onNodeTerminated();
         }
 
         @Override

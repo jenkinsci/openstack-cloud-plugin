@@ -11,11 +11,14 @@
     </f:entry>
     <f:entry title="Credential" field="credentialsId">
         <c:select/>
-     </f:entry>
+    </f:entry>
     <f:entry title="Region" field="zone">
         <f:textbox/>
     </f:entry>
-    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,ignoreSsl,credentialsId,zone"/>
+    <f:entry title="Cleanup frequency (seconds)" field="cleanfreq">
+        <f:number min="10" max="1200" default="10"/>
+    </f:entry>
+    <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="endPointUrl,ignoreSsl,credentialsId,zone,cleanfreq"/>
 
     <f:advanced title="Default slave options">
         <j:set var="defaultOpts" value="${descriptor.defaultOptions}"/>
@@ -25,7 +28,8 @@
 
     <f:entry title="Templates">
         <!-- Propagate cloud opts as defaultOpts to templates -->
-        <j:set var="defaultOpts" value="${instance == null ? descriptor.defaultOptions : instance.effectiveSlaveOptions}"/>
+        <!-- Instance is JCloudsCloud on 'update' page, but [sigh] JSONObject on 'create' page, so `instance == null` will not do -->
+        <j:set var="defaultOpts" value="${instance.effectiveSlaveOptions ?: descriptor.defaultOptions}"/>
         <f:repeatable field="templates" header="${%Template}" add="${%Add template}">
             <st:include page="config.jelly" class="${descriptor.clazz}"/>
         </f:repeatable>

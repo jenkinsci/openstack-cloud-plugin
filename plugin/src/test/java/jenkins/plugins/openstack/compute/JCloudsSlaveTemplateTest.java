@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlForm;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 
@@ -79,6 +79,7 @@ public class JCloudsSlaveTemplateTest {
 
         JCloudsCloud originalCloud = new JCloudsCloud(
                 "my-openstack", "endPointUrl", false, "zone",
+                10000,
                 SlaveOptions.empty(),
                 Arrays.asList(jnlpTemplate, sshTemplate),
                 j.dummyCredentials()
@@ -86,12 +87,12 @@ public class JCloudsSlaveTemplateTest {
 
         j.jenkins.clouds.add(originalCloud);
 
-        HtmlForm form = j.createWebClient().goTo("configure").getFormByName("config");
+        HtmlForm form = j.createWebClient().goTo("cloud/my-openstack/configure").getFormByName("config");
 
         j.submit(form);
 
         final JCloudsCloud actualCloud = JCloudsCloud.getByName("my-openstack");
-        j.assertEqualBeans(originalCloud, actualCloud, "name,credentialsId,zone");
+        j.assertEqualBeans(originalCloud, actualCloud, "name,credentialsId,zone,cleanfreq");
         assertThat(actualCloud.getEffectiveSlaveOptions(), equalTo(originalCloud.getEffectiveSlaveOptions()));
         assertThat(actualCloud.getRawSlaveOptions(), equalTo(originalCloud.getRawSlaveOptions()));
 
@@ -118,6 +119,7 @@ public class JCloudsSlaveTemplateTest {
 
         JCloudsCloud cloud = new JCloudsCloud(
                 "my-openstack", "credential", false, "zone",
+                10000,
                 cloudOpts,
                 singletonList(template),
                 j.dummyCredentials()

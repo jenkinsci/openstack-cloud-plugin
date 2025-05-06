@@ -10,6 +10,7 @@ import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.Node;
 import hudson.model.TaskListener;
+import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
@@ -407,6 +408,8 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             }
         }
 
+        getLauncherFactory().onNodeTerminated();
+
         // Wrap deletion disposables into statistics tracking disposables
         AsyncResourceDisposer.get().dispose(
                 new RecordDisposal(
@@ -416,12 +419,27 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         );
     }
 
-    private @CheckForNull OfflineCause getFatalOfflineCause() {
+    /**
+     * Get computer {@link OfflineCause} provided it is severe enough the computer should be discarded.
+     *
+     * @return value if should be discarded, null if online or offline with non-fatal cause.
+     */
+    /*package*/ @CheckForNull OfflineCause getFatalOfflineCause() {
         JCloudsComputer computer = getComputer();
-        if (computer == null) return null;
-        return computer.getFatalOfflineCause();
-    }
 
+        // Computer might be gone yet, so use the offline cause attached to node when that happens
+        OfflineCause oc = computer != null
+                ? computer.getOfflineCause()
+                : getTemporaryOfflineCause()
+        ;
+
+        if (isLaunchTimedOut() && (oc instanceof OfflineCause.LaunchFailed)) return oc;
+
+        return oc instanceof DiskSpaceMonitorDescriptor.DiskSpace || oc instanceof OfflineCause.ChannelTermination
+                ? oc
+                : null
+        ;
+    }
 
     private static Openstack getOpenstack(String cloudName) {
         return JCloudsCloud.getByName(cloudName).getOpenstack();

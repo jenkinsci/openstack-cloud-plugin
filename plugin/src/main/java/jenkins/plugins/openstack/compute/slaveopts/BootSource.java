@@ -132,14 +132,14 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return Arrays.asList("../..", "../../..");
         }
 
-        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialsId, String zone) {
+        protected ListBoxModel makeListBoxModelOfAllNames(String existingValue, String endPointUrl, boolean ignoreSsl, String credentialsId, String zone, long cleanfreq) {
             ListBoxModel m = new ListBoxModel();
             final String valueOrEmpty = Util.fixNull(existingValue);
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             m.add(new ListBoxModel.Option("None specified", "", valueOrEmpty.isEmpty()));
             try {
                 if (haveAuthDetails(endPointUrl, openstackCredential, zone)) {
-                    final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
+                    final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                     final List<String> values = listAllNames(openstack);
                     for (String value : values) {
                         final String displayText = value;
@@ -157,7 +157,7 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             return m;
         }
 
-        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl1, boolean ignoreSsl2, String credentialsId1, String credentialsId2, String zone1, String zone2) {
+        protected FormValidation checkNameMatchesOnlyOnce(String value, String endPointUrl1, String endPointUrl2, boolean ignoreSsl1, boolean ignoreSsl2, String credentialsId1, String credentialsId2, String zone1, String zone2, long cleanfreq1, long cleanfreq2) {
             if (Util.fixEmpty(value) == null)
                 return REQUIRED;
             final String endPointUrl = getDefault(endPointUrl1, endPointUrl2);
@@ -165,12 +165,13 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             final boolean ignoreSsl = ignoreSsl1 || ignoreSsl2;
             OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
             final String zone = getDefault(zone1, zone2);
+            final long cleanfreq = cleanfreq1 + cleanfreq2;
             if (!haveAuthDetails(endPointUrl, openstackCredential, zone))
                 return FormValidation.ok();
 
             final List<String> matches;
             try {
-                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
+                final Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 matches = findMatchingIds(openstack, value);
             } catch (AuthenticationException | FormValidation | ConnectionException ex) {
                 LOGGER.log(Level.FINEST, "Openstack call failed", ex);
@@ -287,8 +288,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                                                 @QueryParameter String endPointUrl,
                                                 @QueryParameter boolean ignoreSsl,
                                                 @QueryParameter String credentialsId,
-                                                @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
+                                                @QueryParameter String zone,
+                                                @QueryParameter long cleanfreq
+						) {
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone, cleanfreq);
             }
 
             @Restricted(DoNotUse.class)
@@ -302,8 +305,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                                               @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdCloud,
                                               @RelativePath("../../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
                                               @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
-                                              @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate);
+                                              @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate,
+                                              @RelativePath("../..") @QueryParameter("cleanfreq") long cleanFreqCloud,
+                                              @RelativePath("../../..") @QueryParameter("cleanfreq") long cleanFreqTemplate) {
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate, cleanFreqCloud, cleanFreqTemplate);
             }
         }
     }
@@ -499,8 +504,8 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
             @Restricted(DoNotUse.class)
             @OsAuthDescriptor.InjectOsAuth
             @RequirePOST
-            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialsId, @QueryParameter String zone) {
-                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone);
+            public ListBoxModel doFillNameItems(@QueryParameter String name, @QueryParameter String endPointUrl, @QueryParameter boolean ignoreSsl, @QueryParameter String credentialsId, @QueryParameter String zone, @QueryParameter long cleanfreq) {
+                return makeListBoxModelOfAllNames(name, endPointUrl, ignoreSsl, credentialsId, zone, cleanfreq);
             }
 
             @Restricted(DoNotUse.class)
@@ -515,8 +520,10 @@ public abstract class BootSource extends AbstractDescribableImpl<BootSource> imp
                     @RelativePath("../..") @QueryParameter("credentialsId") String credentialsIdCloud,
                     @RelativePath("../../..") @QueryParameter("credentialsId") String credentialsIdTemplate,
                     @RelativePath("../..") @QueryParameter("zone") String zoneCloud,
-                    @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate) {
-                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate);
+                    @RelativePath("../../..") @QueryParameter("zone") String zoneTemplate,
+                    @RelativePath("../..") @QueryParameter("cleanfreq") long cleanFreqCloud,
+                    @RelativePath("../../..") @QueryParameter("cleanfreq") long cleanFreqTemplate) {
+                return checkNameMatchesOnlyOnce(value, endPointUrlCloud, endPointUrlTemplate, ignoreSslCloud, ignoreSslTemplate, credentialsIdCloud, credentialsIdTemplate, zoneCloud, zoneTemplate, cleanFreqCloud, cleanFreqTemplate);
             }
         }
     }

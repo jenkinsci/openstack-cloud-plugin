@@ -25,7 +25,6 @@ import hudson.slaves.ComputerListener;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodeProvisioner.NodeProvisionerInvoker;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import hudson.util.ProcessTree;
 import hudson.util.Secret;
@@ -33,7 +32,6 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
-import jenkins.plugins.openstack.compute.JCloudsComputer;
 import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
 import jenkins.plugins.openstack.compute.JCloudsSlave;
 import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
@@ -90,13 +88,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.RETURNS_SMART_NULLS;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
+import static org.mockito.Mockito.*;
+
 
 /**
  * Test utils for plugin functional testing.
@@ -367,7 +360,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsCloud configureSlaveProvisioning(JCloudsCloud cloud, Collection<NetworkAddress> networks) {
-        if (cloud.getTemplates().size() == 0) throw new Error("Unable to provision - no templates provided");
+        if (cloud.getTemplates().isEmpty()) throw new Error("Unable to provision - no templates provided");
 
         final List<Server> running = new ArrayList<>();
         Openstack os = cloud.getOpenstack();
@@ -432,7 +425,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public JCloudsSlave provision(JCloudsCloud cloud, String label) throws ExecutionException, InterruptedException, IOException {
-        Collection<PlannedNode> slaves = cloud.provision(Label.get(label), 1);
+        Collection<PlannedNode> slaves = cloud.provision(new Cloud.CloudState(Label.get(label), 1), 1);
         if (slaves.size() != 1) throw new AssertionError("One slave expected to be provisioned, was " + slaves.size());
 
         PlannedNode plannedNode = slaves.iterator().next();
@@ -476,7 +469,7 @@ public final class PluginTestRule extends JenkinsRule {
         Openstack.FactoryEP.replace(new Openstack.FactoryEP() {
             @Override
             public @Nonnull Openstack getOpenstack(
-                    @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region
+                    @Nonnull String endPointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, @CheckForNull String region, @Nonnull long cleanfreq
             ) {
                 return os;
             }
@@ -494,9 +487,9 @@ public final class PluginTestRule extends JenkinsRule {
 
             @Override
             public @Nonnull Openstack getOpenstack(
-                    @Nonnull String endpointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, String region
+                    @Nonnull String endpointUrl, boolean ignoreSsl, @Nonnull OpenstackCredential openstackCredential, String region, long cleanfreq
             ) throws FormValidation {
-                return factory.getOpenstack(endpointUrl, ignoreSsl, openstackCredential, region);
+                return factory.getOpenstack(endpointUrl, ignoreSsl, openstackCredential, region, cleanfreq);
             }
         });
         return factory;
@@ -648,7 +641,7 @@ public final class PluginTestRule extends JenkinsRule {
         }
 
         public MockJCloudsCloud(SlaveOptions opts, JCloudsSlaveTemplate... templates) {
-            super("openstack", "endPointUrl", false,"zone", opts, Arrays.asList(templates), "credentialsId");
+            super("openstack", "endPointUrl", false,"zone", 2, opts, Arrays.asList(templates), "credentialsId");
         }
 
         @Override
@@ -677,7 +670,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public TypeSafeMatcher<FormValidation> validateAs(final FormValidation.Kind kind, final String msg) {
-        return new TypeSafeMatcher<FormValidation>() {
+        return new TypeSafeMatcher<>() {
             @Override
             public void describeTo(org.hamcrest.Description description) {
                 description.appendText(kind.toString() + ": " + msg);
@@ -696,7 +689,7 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public TypeSafeMatcher<FormValidation> validateAs(final FormValidation expected) {
-        return new TypeSafeMatcher<FormValidation>() {
+        return new TypeSafeMatcher<>() {
             @Override
             public void describeTo(org.hamcrest.Description description) {
                 description.appendText(expected.kind.toString() + ": " + expected.getMessage());

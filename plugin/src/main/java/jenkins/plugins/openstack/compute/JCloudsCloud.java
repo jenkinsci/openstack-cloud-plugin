@@ -29,7 +29,6 @@ import jenkins.plugins.openstack.compute.auth.OpenstackCredentialv3;
 import jenkins.plugins.openstack.compute.internal.Openstack;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import jenkins.util.Timer;
-import org.acegisecurity.Authentication;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -38,12 +37,14 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.openstack4j.api.exceptions.AuthenticationException;
 import org.openstack4j.model.compute.Server;
+import org.springframework.security.core.Authentication;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -51,6 +52,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
+import java.lang.NumberFormatException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -85,12 +87,20 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private final @CheckForNull String zone; // OpenStack4j requires null when there is no zone configured
 
+    // Clean frequency in seconds. Default 10s
+    private @Nonnull long cleanfreq = 10;
+
+    private long lastCleanTime = System.currentTimeMillis();
+
+
     // Make sure only diff of defaults is saved so when plugin defaults will change users are not stuck with outdated config
     private /*final*/ @Nonnull SlaveOptions slaveOptions;
 
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
 
     private /*final*/ @Nonnull String credentialId; // Name differs from property name not to break the persistence
+
+    private static final int MaxProvisioningExcessWorkLoadCap = 10;
 
     // Backward compatibility
     private transient @Deprecated Integer instanceCap;
@@ -126,6 +136,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             final @Nonnull String endPointUrl,
             final boolean ignoreSsl,
             final @CheckForNull String zone,
+            final long cleanfreq,
             final @CheckForNull SlaveOptions slaveOptions,
             final @CheckForNull List<JCloudsSlaveTemplate> templates,
             final @Nonnull String credentialsId
@@ -136,6 +147,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         this.ignoreSsl = TRUE.equals(ignoreSsl);
         this.zone = Util.fixEmptyAndTrim(zone);
         this.credentialId = credentialsId;
+        this.cleanfreq = cleanfreq == 0 ? 10 : cleanfreq;
         this.slaveOptions = slaveOptions == null ? SlaveOptions.empty() : slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
 
         this.templates = templates == null ? Collections.emptyList() : Collections.unmodifiableList(templates);
@@ -234,6 +246,27 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         return zone;
     }
 
+    public void setLastCleanTime(long timeMillis) {
+        this.lastCleanTime = timeMillis;
+    }
+
+    public long getLastCleanTime() {
+        return lastCleanTime;
+    }
+
+    public @CheckForNull long getCleanfreq() {
+        return cleanfreq;
+    }
+
+    public @CheckForNull long getCleanfreqToMillis() {
+        return cleanfreq * 1000;
+    }
+
+    @DataBoundSetter
+    public void setCleanfreq(@Nonnull long cleanfreq) {
+        this.cleanfreq = cleanfreq;
+    }
+
     /**
      * Get a queue of templates to be used to provision slaves of label.
      *
@@ -291,7 +324,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     @Override
-    public Collection<NodeProvisioner.PlannedNode> provision(Label label, int excessWorkload) {
+    public Collection<NodeProvisioner.PlannedNode> provision(CloudState cs, int excessWorkload) {
+        Label label = cs.getLabel();
+        excessWorkload = Math.min(excessWorkload, MaxProvisioningExcessWorkLoadCap);
         Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
@@ -342,9 +377,9 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     @Override
-    public boolean canProvision(final Label label) {
+    public boolean canProvision(final CloudState cs) {
         for (JCloudsSlaveTemplate t : templates)
-            if (t.canProvision(label))
+            if (t.canProvision(cs.getLabel()))
                 return true;
         return false;
     }
@@ -421,10 +456,10 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     private void provisionAsynchronouslyNotToBlockTheRequestThread(JCloudsSlaveTemplate t) throws Throwable {
-        Authentication auth = Jenkins.getAuthentication();
+        Authentication auth = Jenkins.getAuthentication2();
         Callable<Void> performProvisioning = () -> {
             // Impersonate current identity inside the worker thread not to lose the owner info
-            try (ACLContext ignored = ACL.as(auth)) {
+            try (ACLContext ignored = ACL.as2(auth)) {
                 try {
                     provisionSlaveExplicitly(t);
                     return null;
@@ -486,7 +521,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
             if (credential == null) {
                 throw new LoginFailure("No credentials found for cloud " + name + " (id=" + getCredentialsId() + ")");
             }
-            return Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone);
+            return Openstack.Factory.get(endPointUrl, ignoreSsl, credential, zone, cleanfreq);
         } catch (AuthenticationException ex) {
             throw new LoginFailure(name, ex);
         } catch (FormValidation ex) {
@@ -551,13 +586,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
                 @QueryParameter boolean ignoreSsl,
                 @QueryParameter String credentialsId,
                 @QueryParameter String endPointUrl,
-                @QueryParameter String zone
+                @QueryParameter String zone,
+                @QueryParameter long cleanfreq
         ) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
                 OpenstackCredential openstackCredential = OpenstackCredentials.getCredential(credentialsId);
                 if (openstackCredential == null) throw FormValidation.error("No credential found for " + credentialsId);
-                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone);
+                Openstack openstack = Openstack.Factory.get(endPointUrl, ignoreSsl, openstackCredential, zone, cleanfreq);
                 Throwable ex = openstack.sanityCheck();
 
                 if (ex != null) {
@@ -587,12 +623,29 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Restricted(DoNotUse.class)
         @RequirePOST
+        public FormValidation doCheckCleanfreq(@QueryParameter String value) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+
+            try {
+                long parsedCleanFreq = Long.parseLong(value);
+                if (parsedCleanFreq == 0) {
+                    NumberFormatException nfe = new NumberFormatException("cleanfreq should be strictly greater than 0");
+                    throw nfe;
+                }
+            } catch (NumberFormatException ex) {
+                return FormValidation.error(ex, "Clean frequency must be an integer strictly greater than 0 (>=1)");
+            }
+            return FormValidation.ok();
+        }
+
+        @Restricted(DoNotUse.class)
+        @RequirePOST
         public ListBoxModel doFillCredentialsIdItems() {
             Jenkins jenkins = Jenkins.get();
             jenkins.checkPermission(Jenkins.ADMINISTER);
 
             return new StandardListBoxModel()
-                    .includeMatchingAs(ACL.SYSTEM, jenkins, StandardCredentials.class,
+                    .includeMatchingAs(ACL.SYSTEM2, jenkins, StandardCredentials.class,
                             Collections.<DomainRequirement>emptyList(),
                             CredentialsMatchers.instanceOf(OpenstackCredential.class))
                     .includeEmptyValue();
@@ -614,7 +667,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
         }
     }
 
-    /*package*/ static final class LoginFailure extends RuntimeException {
+    public static final class LoginFailure extends RuntimeException {
 
         private static final long serialVersionUID = 4085466675398031930L;
 

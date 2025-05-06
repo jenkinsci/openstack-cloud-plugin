@@ -20,8 +20,8 @@ public class OpenstackCredentials {
     public static @CheckForNull OpenstackCredential getCredential(@CheckForNull String credentialsId) {
         if (credentialsId == null) return null;
 
-        List<OpenstackCredential> credentials = CredentialsProvider.lookupCredentials(
-                        OpenstackCredential.class, Jenkins.get(), ACL.SYSTEM,
+        List<OpenstackCredential> credentials = CredentialsProvider.lookupCredentialsInItemGroup(
+                        OpenstackCredential.class, Jenkins.get(), ACL.SYSTEM2,
                         Collections.emptyList()
         );
         return CredentialsMatchers.firstOrNull(credentials, CredentialsMatchers.withId(credentialsId));
