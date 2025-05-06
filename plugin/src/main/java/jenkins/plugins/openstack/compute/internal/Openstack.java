@@ -34,6 +34,7 @@ import hudson.ExtensionPoint;
 import hudson.Util;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.JCloudsSlaveTemplate;
 import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -72,6 +73,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -735,7 +737,18 @@ public class Openstack {
         Address fixedIPv4 = null;
         Address fixedIPv6 = null;
         Address floatingIPv6 = null;
-        Collection<List<? extends Address>> addressMap = server.getAddresses().getAddresses().values();
+        String order= server.getMetadata().get(JCloudsSlaveTemplate.OPENSTACK_NETWORK_ORDER);
+        Collection<List<? extends Address>> addressMap;
+        if (order != null && !order.isEmpty()) {
+            final List<String> listOrder = Arrays.asList(order.split(","));
+
+            TreeMap<String, List<? extends Address>> sortedAddress = new TreeMap<>(Comparator.comparingInt(listOrder::indexOf));
+            sortedAddress.putAll(server.getAddresses().getAddresses());
+            addressMap = sortedAddress.values();
+        } else {
+            addressMap = server.getAddresses().getAddresses().values();
+        }
+
         for (List<? extends Address> addresses: addressMap) {
             for (Address addr: addresses) {
                 String type = addr.getType();
