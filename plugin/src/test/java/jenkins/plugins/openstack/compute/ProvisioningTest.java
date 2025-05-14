@@ -415,7 +415,7 @@ public class ProvisioningTest {
         List<PhaseExecutionAttachment> attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         PhaseExecutionAttachment att = attachments.get(0);
-        String expected = "42 B out of 0 \[\]B left on /Fake/it.";
+        String expected = "42 B out of 0 \\[]B left on /Fake/it.";
         assertEquals(expected, att.getTitle());
 
         slave = j.provision(cloud, "label");
