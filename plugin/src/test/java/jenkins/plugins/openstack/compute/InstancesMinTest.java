@@ -95,6 +95,8 @@ public class InstancesMinTest {
                 j.defaultSlaveOptions().getBuilder().retentionTime(1).instancesMin(1).build(),
                 "label"
         )));
+	cloud.setCleanfreq(2);
+
         JCloudsSlave s1 = j.provision(cloud, "label");
         JCloudsSlave s2 = j.provision(cloud, "label");
 
