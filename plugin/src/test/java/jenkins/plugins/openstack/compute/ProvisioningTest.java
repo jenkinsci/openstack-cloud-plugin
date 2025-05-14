@@ -415,7 +415,7 @@ public class ProvisioningTest {
         List<PhaseExecutionAttachment> attachments = pa.getPhaseExecution(ProvisioningActivity.Phase.COMPLETED).getAttachments();
         assertThat(attachments, Matchers.iterableWithSize(1));
         PhaseExecutionAttachment att = attachments.get(0);
-        assertEquals("0.000GB left on /Fake/it.", att.getTitle());
+        assertEquals("42 B out of 0 ]B left on /Fake/it.", att.getTitle());
 
         slave = j.provision(cloud, "label");
         Thread.sleep(200); // This relies on being past the startTimeout
