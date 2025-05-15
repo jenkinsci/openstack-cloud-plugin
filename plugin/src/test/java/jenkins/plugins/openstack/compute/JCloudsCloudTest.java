@@ -284,8 +284,7 @@ public class JCloudsCloudTest {
         assertNull(JCloudsCloud.getByName("openstack").getZone());
     }
 
-    /*
-    @Test
+    // @Test
     @LocalData
     public void globalConfigMigrationFromV1() throws Exception {
         JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
@@ -360,7 +359,6 @@ public class JCloudsCloudTest {
         HtmlPage newForm = j.submit(configForm);
         j.submit(newForm.getForms().get(1));
     }
-*/
 
     private HtmlPage clickAction(HtmlPage configfiles, String action) throws IOException {
         List<HtmlElement> edits =
