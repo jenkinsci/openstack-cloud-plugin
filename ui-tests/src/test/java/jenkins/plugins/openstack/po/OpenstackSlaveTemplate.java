@@ -52,10 +52,13 @@ public class OpenstackSlaveTemplate extends PageAreaImpl {
 
     public OpenstackSlaveTemplate hardwareId(final String value) {
         ensureAdvancedOpened();
-        waitFor().withMessage("Hardware ID select populates").ignoring(NoSuchElementException.class).until(() -> {
-            control("slaveOptions/hardwareId", "hardwareId").select(value);
-            return true;
-        });
+        waitFor()
+                .withMessage("Hardware ID select populates")
+                .ignoring(NoSuchElementException.class)
+                .until(() -> {
+                    control("slaveOptions/hardwareId", "hardwareId").select(value);
+                    return true;
+                });
         return this;
     }
 
@@ -64,21 +67,25 @@ public class OpenstackSlaveTemplate extends PageAreaImpl {
         String[] pathComponents;
         try {
             control("slaveOptions").select("Image");
-            pathComponents = new String[] { "slaveOptions/bootSource/name" };
-        }  catch (NoSuchElementException ex) {
-            pathComponents = new String[] { "slaveOptions/imageId", "imageId" };
+            pathComponents = new String[] {"slaveOptions/bootSource/name"};
+        } catch (NoSuchElementException ex) {
+            pathComponents = new String[] {"slaveOptions/imageId", "imageId"};
         }
         final String[] pc = pathComponents;
-        waitFor().withMessage("Image ID select populates").ignoring(NoSuchElementException.class).until(() -> {
-            control(pc).select(value);
-            return true;
-        });
+        waitFor()
+                .withMessage("Image ID select populates")
+                .ignoring(NoSuchElementException.class)
+                .until(() -> {
+                    control(pc).select(value);
+                    return true;
+                });
         return this;
     }
 
     public OpenstackSlaveTemplate sshCredentials(String value) {
         ensureAdvancedOpened();
-        control("slaveOptions/launcherFactory/credentialsId", "slaveOptions/credentialsId", "credentialsId").select(value);
+        control("slaveOptions/launcherFactory/credentialsId", "slaveOptions/credentialsId", "credentialsId")
+                .select(value);
         return this;
     }
 
@@ -101,10 +108,13 @@ public class OpenstackSlaveTemplate extends PageAreaImpl {
         if (we.getTagName().equals("input") && we.getAttribute("type").equals("text")) {
             control.set(id);
         } else {
-            waitFor().withMessage("Network ID select populates").ignoring(NoSuchElementException.class).until(() -> {
-                control.select(id);
-                return true;
-            });
+            waitFor()
+                    .withMessage("Network ID select populates")
+                    .ignoring(NoSuchElementException.class)
+                    .until(() -> {
+                        control.select(id);
+                        return true;
+                    });
         }
         return this;
     }
@@ -127,6 +137,7 @@ public class OpenstackSlaveTemplate extends PageAreaImpl {
     }
 
     private boolean advanced = false;
+
     private void ensureAdvancedOpened() {
         if (advanced) return;
         control("advanced-button").click();

@@ -23,15 +23,13 @@
  */
 package jenkins.plugins.openstack.compute.internal;
 
+import java.util.NoSuchElementException;
+import javax.annotation.Nonnull;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
-
-import javax.annotation.Nonnull;
-import java.util.NoSuchElementException;
-import java.util.logging.Logger;
 
 /**
  * Dispose OpenStack VM *without* cleaning up the Jenkins computer.
@@ -56,8 +54,10 @@ public final class DestroyMachine implements Disposable {
         try {
             cloud = JCloudsCloud.getByName(cloudName);
         } catch (IllegalArgumentException ex) {
-            // As a possible improvement, cloud can be identified by url and some project/account identifier not to loose
-            // the track of machine when cloud is renamed. (When deleted or reconfigured - there is nothing plugin can do).
+            // As a possible improvement, cloud can be identified by url and some project/account identifier not to
+            // loose
+            // the track of machine when cloud is renamed. (When deleted or reconfigured - there is nothing plugin can
+            // do).
             throw new CloudGoneException("Cloud " + cloudName + " does no longer exists", ex);
         }
 
@@ -103,6 +103,7 @@ public final class DestroyMachine implements Disposable {
      */
     public static final class CloudGoneException extends RuntimeException {
         private static final long serialVersionUID = 2390778289323999027L;
+
         public CloudGoneException(String message, IllegalArgumentException ex) {
             super(message, ex);
         }

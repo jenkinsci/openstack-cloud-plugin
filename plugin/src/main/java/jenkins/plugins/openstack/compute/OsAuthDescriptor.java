@@ -23,16 +23,14 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.util.ListBoxModel;
 import hudson.util.ReflectionUtils;
-import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.springframework.util.StringUtils;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.lang.reflect.Method;
@@ -41,9 +39,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import jenkins.plugins.openstack.compute.auth.OpenstackCredential;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.springframework.util.StringUtils;
 
 /**
  * Helper descriptor abstraction for classes with AJAX methods depending on OS auth parameters.
@@ -67,7 +66,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
     public abstract List<String> getAuthFieldsOffsets();
 
     protected static boolean hasValue(ListBoxModel m, String value) {
-        for(final ListBoxModel.Option o : m) {
+        for (final ListBoxModel.Option o : m) {
             if (Objects.equals(value, o.value)) {
                 return true;
             }
@@ -94,7 +93,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
 
         // Replace direct reference to references to possible relative paths
         if (method.getAnnotation(InjectOsAuth.class) != null) {
-            for (String attr: Arrays.asList("endPointUrl", "ignoreSsl", "credentialsId", "zone", "cleanfreq")) {
+            for (String attr : Arrays.asList("endPointUrl", "ignoreSsl", "credentialsId", "zone", "cleanfreq")) {
                 deps.remove(attr);
                 for (String offset : getAuthFieldsOffsets()) {
                     deps.add(offset + "/" + attr);
@@ -108,7 +107,7 @@ public abstract class OsAuthDescriptor<DESCRIBABLE extends Describable<DESCRIBAB
     }
 
     protected static boolean haveAuthDetails(String endPointUrl, OpenstackCredential openstackCredential, String zone) {
-        return Util.fixEmpty(endPointUrl)!=null && openstackCredential != null;
+        return Util.fixEmpty(endPointUrl) != null && openstackCredential != null;
     }
 
     public static String getDefault(String d1, Object d2) {

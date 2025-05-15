@@ -23,32 +23,28 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.labels.LabelAtom;
 import hudson.slaves.NodeProvisioner;
-import jenkins.plugins.openstack.PluginTestRule;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.Matchers;
-import org.jenkinsci.plugins.cloudstats.CloudStatistics;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.LoggerRule;
-import org.openstack4j.model.compute.Server;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import jenkins.plugins.openstack.PluginTestRule;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.LoggerRule;
+import org.openstack4j.model.compute.Server;
 
 public class InstanceCapacityTest {
 
@@ -64,14 +60,13 @@ public class InstanceCapacityTest {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(
                 j.dummySlaveTemplate(opts, "label 1"),
                 j.dummySlaveTemplate(opts, "label 2"),
-                j.dummySlaveTemplate(opts, "label 3")
-        ));
+                j.dummySlaveTemplate(opts, "label 3")));
 
         Collection<NodeProvisioner.PlannedNode> plan = cloud.provision(Label.get("label"), 4);
         assertEquals(3, plan.size());
 
         int cntr = 1;
-        for (NodeProvisioner.PlannedNode pn: plan) {
+        for (NodeProvisioner.PlannedNode pn : plan) {
             LabelAtom expectedLabel = LabelAtom.get(String.valueOf(cntr));
 
             Set<LabelAtom> assignedLabels = pn.future.get().getAssignedLabels();
@@ -83,36 +78,44 @@ public class InstanceCapacityTest {
     @Test
     public void reportInstanceCapBasedOnSlaves() throws IOException, Descriptor.FormException {
         SlaveOptions init = j.defaultSlaveOptions();
-        JCloudsSlaveTemplate restrictedTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
-        JCloudsSlaveTemplate openTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
+        JCloudsSlaveTemplate restrictedTmplt =
+                j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
+        JCloudsSlaveTemplate openTmplt =
+                j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
         JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(2).build(), restrictedTmplt, openTmplt);
         j.configureSlaveLaunchingWithFloatingIP(cloud);
 
         Server server = j.mockServer().name("foo0").withFixedIPv4("0.0.0.0").get();
         ProvisioningActivity.Id id = new ProvisioningActivity.Id(cloud.name, restrictedTmplt.getName());
-        j.jenkins.addNode(new JCloudsSlave(id, server, "restricted common", restrictedTmplt.getEffectiveSlaveOptions()));
+        j.jenkins.addNode(
+                new JCloudsSlave(id, server, "restricted common", restrictedTmplt.getEffectiveSlaveOptions()));
 
         lr.capture(5);
         lr.record(JCloudsCloud.class, Level.INFO);
 
         assertEquals(0, cloud.provision(Label.get("restricted"), 1).size());
         List<String> restrictedMessages = lr.getMessages();
-        assertThat(restrictedMessages, hasItem("Instance cap exceeded for cloud openstack while provisioning for label restricted"));
+        assertThat(
+                restrictedMessages,
+                hasItem("Instance cap exceeded for cloud openstack while provisioning for label restricted"));
         assertThat(restrictedMessages, hasSize(1));
-
 
         assertEquals(1, cloud.provision(Label.get("open||open"), 3).size());
         List<String> openMessages = new ArrayList<>(lr.getMessages());
         openMessages.removeAll(restrictedMessages);
-        assertThat(openMessages, hasItem("Instance cap exceeded for cloud openstack while provisioning for label open||open"));
+        assertThat(
+                openMessages,
+                hasItem("Instance cap exceeded for cloud openstack while provisioning for label open||open"));
         assertThat(openMessages, hasSize(1));
     }
 
     @Test
     public void doNotProvisionOnceInstanceCapReached() throws Exception {
         SlaveOptions init = j.defaultSlaveOptions();
-        JCloudsSlaveTemplate restrictedTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
-        JCloudsSlaveTemplate openTmplt = j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
+        JCloudsSlaveTemplate restrictedTmplt =
+                j.dummySlaveTemplate(init.getBuilder().instanceCap(1).build(), "restricted common");
+        JCloudsSlaveTemplate openTmplt =
+                j.dummySlaveTemplate(init.getBuilder().instanceCap(null).build(), "open common");
         JCloudsCloud cloud = j.dummyCloud(init.getBuilder().instanceCap(4).build(), restrictedTmplt, openTmplt);
         j.configureSlaveLaunchingWithFloatingIP(cloud);
 

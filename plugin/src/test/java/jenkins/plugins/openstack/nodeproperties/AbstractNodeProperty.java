@@ -5,8 +5,7 @@ import hudson.slaves.NodeProperty;
 import hudson.slaves.NodePropertyDescriptor;
 
 public abstract class AbstractNodeProperty extends NodeProperty<Node> {
-    protected AbstractNodeProperty() {
-    }
+    protected AbstractNodeProperty() {}
 
     @Override
     public int hashCode() {

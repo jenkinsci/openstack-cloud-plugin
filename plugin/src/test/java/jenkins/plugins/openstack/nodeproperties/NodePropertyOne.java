@@ -1,18 +1,16 @@
 package jenkins.plugins.openstack.nodeproperties;
 
-import org.jenkinsci.Symbol;
-import org.kohsuke.stapler.DataBoundConstructor;
-
 import hudson.Extension;
 import hudson.slaves.NodePropertyDescriptor;
+import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * Node property used for test purposes.
  */
 public class NodePropertyOne extends AbstractNodeProperty {
     @DataBoundConstructor
-    public NodePropertyOne() {
-    }
+    public NodePropertyOne() {}
 
     private static final DescriptorImpl DESCRIPTOR = new DescriptorImpl();
 

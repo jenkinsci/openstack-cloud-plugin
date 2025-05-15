@@ -45,7 +45,7 @@
     <no-test-jar>false</no-test-jar>
     <useBeta>true</useBeta>
     <spotbugs.effort>Max</spotbugs.effort>
-    <spotbugs.threshold>Low</spotbugs.threshold>
+    <spotbugs.threshold>High</spotbugs.threshold>
     <spotless.check.skip>false</spotless.check.skip>
     <openstack4j.version>3.12</openstack4j.version>
     <guava.version>32.1.1-jre</guava.version>

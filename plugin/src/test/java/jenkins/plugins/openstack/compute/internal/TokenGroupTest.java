@@ -23,13 +23,12 @@
  */
 package jenkins.plugins.openstack.compute.internal;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 /**
  * @author ogondza.
@@ -67,7 +66,9 @@ public class TokenGroupTest {
         assertEquals(l(l("foo\\bar")), TokenGroup.from("foo\\\\bar", ',', '|'));
 
         assertEquals(l(l("foo"), l("bar", "baz")), TokenGroup.from("foo,bar|baz", ',', '|'));
-        assertEquals(l(l("doo", "foo"), l("xoo"), l("bar", "baz"), l("bax")), TokenGroup.from("doo|foo,xoo,bar|baz,bax", ',', '|'));
+        assertEquals(
+                l(l("doo", "foo"), l("xoo"), l("bar", "baz"), l("bax")),
+                TokenGroup.from("doo|foo,xoo,bar|baz,bax", ',', '|'));
         assertEquals(l(l("foo bar", "baz")), TokenGroup.from("foo bar|baz", ',', '|'));
     }
 

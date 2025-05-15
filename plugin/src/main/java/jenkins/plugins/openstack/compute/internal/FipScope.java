@@ -22,14 +22,13 @@
 
 package jenkins.plugins.openstack.compute.internal;
 
+import java.util.Objects;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import net.sf.json.JSONObject;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.openstack4j.model.compute.Server;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.util.Objects;
 
 /**
  * Scope of FIP for deletion.
@@ -41,22 +40,20 @@ public class FipScope {
     /*package*/ static final int MAX_DESCRIPTION_LENGTH = 250;
 
     public static @Nonnull String getDescription(
-            @Nonnull String url, @Nonnull String identity, @Nonnull Server server
-    ) {
+            @Nonnull String url, @Nonnull String identity, @Nonnull Server server) {
         String description = "{ '" + Openstack.FINGERPRINT_KEY_URL + "': '" + url + "', '"
                 + Openstack.FINGERPRINT_KEY_FINGERPRINT + "': '" + identity
-                + "', 'jenkins-scope': 'server:" + server.getId() + "' }"
-        ;
+                + "', 'jenkins-scope': 'server:" + server.getId() + "' }";
 
         if (description.length() < MAX_DESCRIPTION_LENGTH) return description;
 
         // Avoid URL that is used only for human consumption anyway
-        return "{ '" + Openstack.FINGERPRINT_KEY_FINGERPRINT + "': '" + identity
-                + "', 'jenkins-scope': 'server:" + server.getId() + "' }"
-        ;
+        return "{ '" + Openstack.FINGERPRINT_KEY_FINGERPRINT + "': '" + identity + "', 'jenkins-scope': 'server:"
+                + server.getId() + "' }";
     }
 
-    public static @CheckForNull String getServerId(@Nonnull String url, @Nonnull String identity, @CheckForNull String description) {
+    public static @CheckForNull String getServerId(
+            @Nonnull String url, @Nonnull String identity, @CheckForNull String description) {
         String scope = getScopeString(url, identity, description);
         if (scope == null) return null;
 
@@ -66,7 +63,8 @@ public class FipScope {
         return scope.substring(7);
     }
 
-    private static @CheckForNull String getScopeString(@Nonnull String url, @Nonnull String identity, @CheckForNull String description) {
+    private static @CheckForNull String getScopeString(
+            @Nonnull String url, @Nonnull String identity, @CheckForNull String description) {
         try {
             JSONObject jsonObject = JSONObject.fromObject(description);
 

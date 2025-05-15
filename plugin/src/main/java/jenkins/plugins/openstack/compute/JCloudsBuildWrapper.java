@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import hudson.Extension;
 import hudson.Functions;
 import hudson.Launcher;
@@ -15,7 +16,6 @@ import hudson.model.BuildListener;
 import hudson.model.Computer;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,19 +24,14 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nonnull;
-
 import jenkins.plugins.openstack.compute.internal.DestroyMachine;
 import jenkins.plugins.openstack.compute.internal.Openstack;
-
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.openstack4j.model.compute.Server;
-
-import com.google.common.util.concurrent.MoreExecutors;
 
 public class JCloudsBuildWrapper extends BuildWrapper {
     private final List<InstancesToRun> instancesToRun;
@@ -60,13 +55,16 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         final ServerScope.Build scope = new ServerScope.Build(build);
 
         // eagerly lookup node supplier so that errors occur before we attempt to provision things
-        Iterable<NodePlan> nodePlans = instancesToRun.stream().map(instance -> {
-            JCloudsCloud cloud = JCloudsCloud.getByName(Objects.requireNonNull(instance.cloudName));
-            String templateName = Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
-            JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
-            if (template == null) throw new IllegalArgumentException("No such template " + templateName);
-            return new NodePlan(cloud, template, instance.count, scope);
-        }).collect(Collectors.toList());
+        Iterable<NodePlan> nodePlans = instancesToRun.stream()
+                .map(instance -> {
+                    JCloudsCloud cloud = JCloudsCloud.getByName(Objects.requireNonNull(instance.cloudName));
+                    String templateName =
+                            Util.replaceMacro(instance.getActualTemplateName(), build.getBuildVariableResolver());
+                    JCloudsSlaveTemplate template = cloud.getTemplate(templateName);
+                    if (template == null) throw new IllegalArgumentException("No such template " + templateName);
+                    return new NodePlan(cloud, template, instance.count, scope);
+                })
+                .collect(Collectors.toList());
 
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
         final ImmutableList.Builder<RunningNode> cloudTemplateNodeBuilder = ImmutableList.builder();
@@ -78,10 +76,10 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         for (final NodePlan nodePlan : nodePlans) {
             for (int i = 0; i < nodePlan.getCount(); i++) {
                 final int index = i;
-                listener.getLogger().printf(
-                        "Queuing cloud instance: #%d %s %s%n",
-                        index, nodePlan.getCloud(), nodePlan.getTemplate()
-                );
+                listener.getLogger()
+                        .printf(
+                                "Queuing cloud instance: #%d %s %s%n",
+                                index, nodePlan.getCloud(), nodePlan.getTemplate());
 
                 ListenableFuture<Server> provisionTemplate = executor.submit(nodePlan.getNodeSupplier());
 
@@ -101,8 +99,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
                         failedLaunches.incrementAndGet();
                         listener.error(
                                 "Error while launching instance: #%d, %s %s:%n%s%n",
-                                index, nodePlan.getCloud(), nodePlan.getTemplate(), Functions.printThrowable(t)
-                        );
+                                index, nodePlan.getCloud(), nodePlan.getTemplate(), Functions.printThrowable(t));
                     }
                 };
                 Futures.addCallback(provisionTemplate, callback, MoreExecutors.directExecutor());
@@ -112,7 +109,8 @@ public class JCloudsBuildWrapper extends BuildWrapper {
         }
 
         // block until all complete
-        List<Server> nodesActuallyLaunched = Futures.getUnchecked(Futures.successfulAsList(plannedInstancesBuilder.build()));
+        List<Server> nodesActuallyLaunched =
+                Futures.getUnchecked(Futures.successfulAsList(plannedInstancesBuilder.build()));
 
         final ImmutableList<RunningNode> runningNode = cloudTemplateNodeBuilder.build();
 
@@ -121,10 +119,11 @@ public class JCloudsBuildWrapper extends BuildWrapper {
             throw new IllegalStateException("One or more instances failed to launch.");
         }
 
-        assert runningNode.size() == nodesActuallyLaunched.size() : String.format(
-                "expected nodes from callbacks to be the same count as those from the list of futures!%n" + "fromCallbacks:%s%nfromFutures%s%n",
-                runningNode, nodesActuallyLaunched);
-
+        assert runningNode.size() == nodesActuallyLaunched.size()
+                : String.format(
+                        "expected nodes from callbacks to be the same count as those from the list of futures!%n"
+                                + "fromCallbacks:%s%nfromFutures%s%n",
+                        runningNode, nodesActuallyLaunched);
 
         final String ipsString = getIpsString(runningNode);
         return new Environment() {
@@ -134,7 +133,8 @@ public class JCloudsBuildWrapper extends BuildWrapper {
             }
 
             @Override
-            public boolean tearDown(AbstractBuild build, final BuildListener listener) throws IOException, InterruptedException {
+            public boolean tearDown(AbstractBuild build, final BuildListener listener)
+                    throws IOException, InterruptedException {
                 terminateNodes(runningNode);
                 return true;
             }
@@ -159,7 +159,7 @@ public class JCloudsBuildWrapper extends BuildWrapper {
 
     private static void terminateNodes(Iterable<RunningNode> runningNodes) {
         AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-        for (RunningNode rn: runningNodes) {
+        for (RunningNode rn : runningNodes) {
             disposer.dispose(new DestroyMachine(rn.getCloudName(), rn.getNode().getId()));
         }
     }

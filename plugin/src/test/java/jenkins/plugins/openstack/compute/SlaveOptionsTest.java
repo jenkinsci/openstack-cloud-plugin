@@ -4,15 +4,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 
+import hudson.model.Node;
+import hudson.slaves.NodeProperty;
 import java.util.List;
-
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 import org.junit.Test;
-
-import hudson.model.Node;
-import hudson.slaves.NodeProperty;
 
 /**
  * @author ogondza.
@@ -60,8 +58,7 @@ public class SlaveOptionsTest {
                 .launcherFactory(new LauncherFactory.SSH(""))
                 .nodeProperties(PluginTestRule.mkListOfNodeProperties(3))
                 .retentionTime(3)
-                .build()
-        ;
+                .build();
         SlaveOptions overridden = PluginTestRule.dummySlaveOptions().override(override);
 
         assertEquals(new BootSource.Image("iid"), overridden.getBootSource());
@@ -85,12 +82,27 @@ public class SlaveOptionsTest {
 
     @Test
     public void eraseDefaults() {
-        SlaveOptions defaults = SlaveOptions.builder().bootSource(new BootSource.Image("ID")).hardwareId("hw").networkId(null).floatingIpPool("a").build();
-        SlaveOptions configured = SlaveOptions.builder().bootSource(new BootSource.Image("ID")).hardwareId("hw").networkId("MW").floatingIpPool("A").build();
+        SlaveOptions defaults = SlaveOptions.builder()
+                .bootSource(new BootSource.Image("ID"))
+                .hardwareId("hw")
+                .networkId(null)
+                .floatingIpPool("a")
+                .build();
+        SlaveOptions configured = SlaveOptions.builder()
+                .bootSource(new BootSource.Image("ID"))
+                .hardwareId("hw")
+                .networkId("MW")
+                .floatingIpPool("A")
+                .build();
 
         SlaveOptions actual = configured.eraseDefaults(defaults);
 
-        SlaveOptions expected = SlaveOptions.builder().bootSource(null).hardwareId(null).networkId("MW").floatingIpPool("A").build();
+        SlaveOptions expected = SlaveOptions.builder()
+                .bootSource(null)
+                .hardwareId(null)
+                .networkId("MW")
+                .floatingIpPool("A")
+                .build();
         assertEquals(expected, actual);
         assertEquals(configured, defaults.override(actual));
     }
@@ -99,8 +111,7 @@ public class SlaveOptionsTest {
     public void emptyStrings() {
         SlaveOptions nulls = SlaveOptions.empty();
         SlaveOptions emptyStrings = new SlaveOptions(
-                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null, null, null
-        );
+                null, "", "", "", null, null, "", "", "", null, "", null, "", "", null, null, null, null);
         SlaveOptions emptyBuilt = SlaveOptions.builder()
                 .hardwareId("")
                 .networkId("")
@@ -111,8 +122,7 @@ public class SlaveOptionsTest {
                 .jvmOptions("")
                 .fsRoot("")
                 .keyPairName("")
-                .build()
-        ;
+                .build();
         assertEquals(nulls, emptyStrings);
         assertEquals(nulls, emptyBuilt);
 
@@ -129,7 +139,9 @@ public class SlaveOptionsTest {
 
     @Test
     public void modifyThroughBuilder() {
-        assertEquals(PluginTestRule.dummySlaveOptions(), PluginTestRule.dummySlaveOptions().getBuilder().build());
+        assertEquals(
+                PluginTestRule.dummySlaveOptions(),
+                PluginTestRule.dummySlaveOptions().getBuilder().build());
     }
 
     @Test
@@ -137,8 +149,10 @@ public class SlaveOptionsTest {
         // Given
         List<NodeProperty<Node>> expected = PluginTestRule.mkListOfNodeProperties();
         List<NodeProperty<Node>> unexpected = PluginTestRule.mkListOfNodeProperties(2, 3);
-        SlaveOptions baseOptions = SlaveOptions.builder().nodeProperties(unexpected).build();
-        SlaveOptions overridingOptions = SlaveOptions.builder().nodeProperties(expected).build();
+        SlaveOptions baseOptions =
+                SlaveOptions.builder().nodeProperties(unexpected).build();
+        SlaveOptions overridingOptions =
+                SlaveOptions.builder().nodeProperties(expected).build();
         // When
         SlaveOptions effectiveOptions = baseOptions.override(overridingOptions);
         List<NodeProperty<?>> actual = effectiveOptions.getNodeProperties();
@@ -151,8 +165,10 @@ public class SlaveOptionsTest {
         // Given
         List<NodeProperty<Node>> expected = PluginTestRule.mkListOfNodeProperties(1, 2);
         List<NodeProperty<Node>> unexpected = PluginTestRule.mkListOfNodeProperties(2, 3);
-        SlaveOptions baseOptions = SlaveOptions.builder().nodeProperties(unexpected).build();
-        SlaveOptions overridingOptions = SlaveOptions.builder().nodeProperties(expected).build();
+        SlaveOptions baseOptions =
+                SlaveOptions.builder().nodeProperties(unexpected).build();
+        SlaveOptions overridingOptions =
+                SlaveOptions.builder().nodeProperties(expected).build();
         // When
         SlaveOptions effectiveOptions = baseOptions.override(overridingOptions);
         List<NodeProperty<?>> actual = effectiveOptions.getNodeProperties();
@@ -164,7 +180,8 @@ public class SlaveOptionsTest {
     public void nullNodePropertiesDoNotOverride() {
         // Given
         List<NodeProperty<Node>> expected = PluginTestRule.mkListOfNodeProperties(1, 2);
-        SlaveOptions baseOptions = SlaveOptions.builder().nodeProperties(expected).build();
+        SlaveOptions baseOptions =
+                SlaveOptions.builder().nodeProperties(expected).build();
         SlaveOptions overridingOptions = SlaveOptions.builder().build();
         // When
         SlaveOptions effectiveOptions = baseOptions.override(overridingOptions);

@@ -40,6 +40,20 @@ import hudson.security.AccessControlled;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import hudson.util.ListBoxModel;
+import java.io.IOException;
+import java.io.Serializable;
+import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.NoRouteToHostException;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.util.Collections;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsSlave;
@@ -53,21 +67,6 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.interceptor.RequirePOST;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.io.IOException;
-import java.io.Serializable;
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
-import java.net.NoRouteToHostException;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
-import java.util.Collections;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Node launcher factory.
@@ -95,15 +94,15 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
      * @throws jenkins.plugins.openstack.compute.JCloudsCloud.ProvisioningFailedException If the provisioning needs to
      *      be aborted right away without waiting for the timeout.
      */
-    public abstract @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException;
+    public abstract @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave)
+            throws JCloudsCloud.ProvisioningFailedException;
 
     /**
      * Callback run when the node is being terminated.
      *
      * This is before the resources are removed.
      */
-    public void onNodeTerminated() {
-    }
+    public void onNodeTerminated() {}
 
     /**
      * Launch nodes via ssh-slaves plugin.
@@ -144,18 +143,21 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             timeout = timeout == null ? 0 : (timeout / 1000); // Never propagate null - always set some timeout
 
             return new SSHLauncher(
-                    publicAddress, 22,
+                    publicAddress,
+                    22,
                     credentialsId,
                     opts.getJvmOptions(),
                     javaPath,
-                    "", "",
+                    "",
+                    "",
                     timeout,
-                    maxNumRetries, retryWaitTime,
-                    new NonVerifyingKeyVerificationStrategy()
-            );
+                    maxNumRetries,
+                    retryWaitTime,
+                    new NonVerifyingKeyVerificationStrategy());
         }
 
-        @Override public boolean equals(Object o) {
+        @Override
+        public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
 
@@ -164,11 +166,13 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             return Objects.equals(credentialsId, ssh.credentialsId) && Objects.equals(javaPath, ssh.javaPath);
         }
 
-        @Override public int hashCode() {
+        @Override
+        public int hashCode() {
             return Objects.hash(credentialsId, javaPath);
         }
 
-        @Override public String toString() {
+        @Override
+        public String toString() {
             return "LauncherFactory.SSH: credId:" + credentialsId + ", javaPath:" + javaPath;
         }
 
@@ -189,7 +193,8 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             try {
                 publicAddress = slave.getPublicAddress();
                 if (publicAddress == null) {
-                    throw new JCloudsCloud.ProvisioningFailedException("No accessible address provided for agent " + slave.getNodeName());
+                    throw new JCloudsCloud.ProvisioningFailedException(
+                            "No accessible address provided for agent " + slave.getNodeName());
                 }
             } catch (NoSuchElementException ex) {
                 throw new JCloudsCloud.ProvisioningFailedException(ex.getMessage(), ex);
@@ -224,13 +229,18 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
             @Restricted(DoNotUse.class)
             @RequirePOST
             public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup<?> context) {
-                if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.get()).hasPermission(Computer.CONFIGURE)) {
+                if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.get())
+                        .hasPermission(Computer.CONFIGURE)) {
                     return new ListBoxModel();
                 }
 
                 return new StandardUsernameListBoxModel()
-                        .includeMatchingAs(ACL.SYSTEM2, context, StandardUsernameCredentials.class,
-                                Collections.singletonList(SSHLauncher.SSH_SCHEME), SSHAuthenticator.matcher(Connection.class))
+                        .includeMatchingAs(
+                                ACL.SYSTEM2,
+                                context,
+                                StandardUsernameCredentials.class,
+                                Collections.singletonList(SSHLauncher.SSH_SCHEME),
+                                SSHAuthenticator.matcher(Connection.class))
                         .includeEmptyValue();
             }
         }
@@ -265,10 +275,7 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
         @Override
         public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
             // The address might not be visible at all so let's just wait for connection.
-            return terminated || slave.getChannel() != null
-                    ? null
-                    : "JNLP connection was not established yet"
-            ;
+            return terminated || slave.getChannel() != null ? null : "JNLP connection was not established yet";
         }
 
         @Override
@@ -307,23 +314,29 @@ public abstract class LauncherFactory extends AbstractDescribableImpl<LauncherFa
     // Therefore, no one refers to this as a symbol or tries to serialize it, ever.
     @SuppressWarnings({"unused", "serial"})
     public static final class Unspecified extends LauncherFactory {
+        private static final long serialVersionUID = -2723193057734405816L;
+
         private Unspecified() {} // Never instantiate
 
-        @Override public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
+        @Override
+        public ComputerLauncher createLauncher(@Nonnull JCloudsSlave slave) {
             throw new UnsupportedOperationException();
         }
 
-        @Override public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
+        @Override
+        public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) {
             throw new UnsupportedOperationException();
         }
 
         @Extension(ordinal = Double.MAX_VALUE)
         public static final class Desc extends Descriptor<LauncherFactory> {
-            @Override public @Nonnull String getDisplayName() {
+            @Override
+            public @Nonnull String getDisplayName() {
                 return "Inherit / Override later";
             }
 
-            @Override public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
+            @Override
+            public LauncherFactory newInstance(StaplerRequest req, @Nonnull JSONObject formData) {
                 return null; // Make sure this is never instantiated and hence will be treated as absent
             }
         }

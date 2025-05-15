@@ -3,10 +3,6 @@ package jenkins.plugins.openstack.compute;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
-import jenkins.model.Jenkins;
-import org.kohsuke.stapler.DataBoundConstructor;
-
-import javax.annotation.Nonnull;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Date;
@@ -14,6 +10,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import jenkins.model.Jenkins;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * @author Vijay Kiran
@@ -49,7 +48,8 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
 
     private void doCheck(JCloudsComputer c) {
         if (c.isPendingDelete()) return; // No need to do it again
-        if (c.isConnecting()) return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
+        if (c.isConnecting())
+            return; // Do not discard slave while launching for the first time when "idle time" does not make much sense
         if (!c.isIdle() || c.isUserOffline()) return; // Occupied by user initiated activity
 
         final JCloudsSlave node = c.getNode();
@@ -61,10 +61,11 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         final long idleMilliseconds = getNow() - idleSince;
         if (idleMilliseconds > TimeUnit.MINUTES.toMillis(retentionTime)) {
             if (JCloudsPreCreationThread.isNeededReadyComputer(node.getComputer())) {
-                LOGGER.fine("Keeping " + c .getName() + " to meet minimum requirements");
+                LOGGER.fine("Keeping " + c.getName() + " to meet minimum requirements");
                 return;
             }
-            LOGGER.info("Scheduling " + c .getName() + " for termination after " +  retentionTime+ " minutes as it was idle since " + new Date(idleSince));
+            LOGGER.info("Scheduling " + c.getName() + " for termination after " + retentionTime
+                    + " minutes as it was idle since " + new Date(idleSince));
             if (LOGGER.isLoggable(Level.FINE)) {
                 try {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();

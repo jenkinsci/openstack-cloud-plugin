@@ -23,10 +23,17 @@
  */
 package jenkins.plugins.openstack.compute;
 
+import com.google.common.collect.Lists;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.slaves.NodeProperty;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
@@ -34,15 +41,6 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import com.google.common.collect.Lists;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Configured options for a slave to create.
@@ -54,7 +52,8 @@ import java.util.Objects;
  */
 public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private static final long serialVersionUID = -1L;
-    private static final SlaveOptions EMPTY = new SlaveOptions(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private static final SlaveOptions EMPTY = new SlaveOptions(
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     // Provisioning attributes
     private /*final*/ @CheckForNull BootSource bootSource;
@@ -74,13 +73,18 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final @CheckForNull String jvmOptions;
     private final String fsRoot;
     private final LauncherFactory launcherFactory;
+
     @SuppressFBWarnings("SE_BAD_FIELD")
     private final @CheckForNull ArrayList<NodeProperty<?>> nodeProperties;
 
-    // Moved into LauncherFactory. Converted to string for the ease of conversion. Note that due to inheritance implemented,
+    // Moved into LauncherFactory. Converted to string for the ease of conversion. Note that due to inheritance
+    // implemented,
     // the migration needs to be implemented by the holder so this is package protected.
-    /*package*/ @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") transient String slaveType;
-    /*package*/ @Deprecated transient String credentialsId;
+    /*package*/ @Deprecated
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    transient String slaveType;
+    /*package*/ @Deprecated
+    transient String credentialsId;
 
     // Slave attributes
     private final Integer retentionTime;
@@ -88,7 +92,9 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
     private final @CheckForNull Boolean configDrive;
 
     // Replaced by BootSource
-    @Deprecated @SuppressWarnings("DeprecatedIsStillUsed") private transient @CheckForNull String imageId;
+    @Deprecated
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    private transient @CheckForNull String imageId;
 
     public @CheckForNull String getFsRoot() {
         return fsRoot;
@@ -158,7 +164,9 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return retentionTime;
     }
 
-    public @CheckForNull Boolean getConfigDrive() { return configDrive; }
+    public @CheckForNull Boolean getConfigDrive() {
+        return configDrive;
+    }
 
     public SlaveOptions(Builder b) {
         this(
@@ -179,11 +187,11 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.launcherFactory,
                 b.nodeProperties,
                 b.retentionTime,
-                b.configDrive
-        );
+                b.configDrive);
     }
 
-    @DataBoundConstructor @Restricted(NoExternalUse.class)
+    @DataBoundConstructor
+    @Restricted(NoExternalUse.class)
     public SlaveOptions(
             @CheckForNull BootSource bootSource,
             String hardwareId,
@@ -202,8 +210,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
             LauncherFactory launcherFactory,
             @CheckForNull List<? extends NodeProperty<?>> nodeProperties,
             Integer retentionTime,
-            @CheckForNull Boolean configDrive
-    ) {
+            @CheckForNull Boolean configDrive) {
         this.bootSource = bootSource;
         this.hardwareId = Util.fixEmpty(hardwareId);
         this.networkId = Util.fixEmpty(networkId);
@@ -259,8 +266,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .nodeProperties(_override(this.nodeProperties, o.nodeProperties))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
                 .configDrive(_override(this.configDrive, o.configDrive))
-                .build()
-        ;
+                .build();
     }
 
     private @CheckForNull <T> T _override(@CheckForNull T base, @CheckForNull T override) {
@@ -290,8 +296,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .nodeProperties(_erase(this.nodeProperties, defaults.nodeProperties))
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
                 .configDrive(_erase(this.configDrive, defaults.configDrive))
-                .build()
-        ;
+                .build();
     }
 
     /** Returns null if our <code>base</code> value is the same as the <code>def</code>ault value. */
@@ -322,8 +327,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .append("nodeProperties", nodeProperties)
                 .append("retentionTime", retentionTime)
                 .append("configDrive", configDrive)
-                .toString()
-        ;
+                .toString();
     }
 
     @Override
@@ -398,8 +402,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .launcherFactory(launcherFactory)
                 .nodeProperties(nodeProperties)
                 .retentionTime(retentionTime)
-                .configDrive(configDrive)
-        ;
+                .configDrive(configDrive);
     }
 
     public static @Nonnull SlaveOptions empty() {
@@ -543,14 +546,16 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
          *
          * This is supposed to correctly evaluate all the overriding.
          */
-        @Nonnull SlaveOptions getEffectiveSlaveOptions();
+        @Nonnull
+        SlaveOptions getEffectiveSlaveOptions();
 
         /**
          * Get configured options held by this object.
          *
          * This holds only the user configured diffs compared to parent.
          */
-        @Nonnull SlaveOptions getRawSlaveOptions();
+        @Nonnull
+        SlaveOptions getRawSlaveOptions();
     }
 
     @Override
