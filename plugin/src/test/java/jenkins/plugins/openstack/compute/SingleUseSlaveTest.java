@@ -241,6 +241,7 @@ public class SingleUseSlaveTest {
                         .instancesMin(0)
                         .build(),
                 "label")));
+	cloud.setCleanfreq(2);
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
 
