@@ -1,6 +1,11 @@
 package jenkins.plugins.openstack.pipeline;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.instanceOf;
+
 import hudson.model.Result;
+import java.util.List;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.ServerScope;
@@ -12,20 +17,15 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.*;
 import org.openstack4j.model.compute.Server;
 
-import java.util.List;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.instanceOf;
-
 public class OpenstackMachineStepTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
+
     private Openstack openstack;
 
     @Before
-    public void setup () {
+    public void setup() {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP("whatever");
         j.jenkins.clouds.add(cloud);
         openstack = cloud.getOpenstack();
@@ -36,13 +36,13 @@ public class OpenstackMachineStepTest {
 
         WorkflowJob boot = j.jenkins.createProject(WorkflowJob.class, "boot");
         boot.setDefinition(new CpsFlowDefinition(
-                                "def srv = openstackMachine cloud: 'openstack', template: 'template0'\n" +
-                                "echo srv.getAddress()\n" +
-                                "echo srv.id\n" +
-                                "echo srv.status\n" +
-                                "srv.destroy()\n" +
-                                "assert srv.status == null\n" +
-                                "assert srv.address == null" , true));
+                "def srv = openstackMachine cloud: 'openstack', template: 'template0'\n" + "echo srv.getAddress()\n"
+                        + "echo srv.id\n"
+                        + "echo srv.status\n"
+                        + "srv.destroy()\n"
+                        + "assert srv.status == null\n"
+                        + "assert srv.address == null",
+                true));
         WorkflowRun b = j.assertBuildStatusSuccess(boot.scheduleBuild2(0));
         j.assertLogContains("42.42.42", b);
         j.assertLogContains("ACTIVE", b);
@@ -55,8 +55,9 @@ public class OpenstackMachineStepTest {
 
         WorkflowJob bootUnmanaged = j.jenkins.createProject(WorkflowJob.class, "boot Unmanaged");
         bootUnmanaged.setDefinition(new CpsFlowDefinition(
-                "def srv = openstackMachine cloud: 'openstack', template: 'template0', scope: 'unlimited:I will take care of it'\n" +
-                "echo srv.address" , true));
+                "def srv = openstackMachine cloud: 'openstack', template: 'template0', scope: 'unlimited:I will take care of it'\n"
+                        + "echo srv.address",
+                true));
         WorkflowRun b = j.assertBuildStatusSuccess(bootUnmanaged.scheduleBuild2(0));
         j.assertLogContains("42.42.42", b);
 
@@ -70,8 +71,9 @@ public class OpenstackMachineStepTest {
 
         WorkflowJob bootInvalidScope = j.jenkins.createProject(WorkflowJob.class, "bootInvalidScope");
         bootInvalidScope.setDefinition(new CpsFlowDefinition(
-                        "def srv = openstackMachine cloud: 'openstack', template: 'template0', scope: 'invalidScope'\n" +
-                        "echo 'shouldnt reach'" , true));
+                "def srv = openstackMachine cloud: 'openstack', template: 'template0', scope: 'invalidScope'\n"
+                        + "echo 'shouldnt reach'",
+                true));
         WorkflowRun b = j.assertBuildStatus(Result.FAILURE, bootInvalidScope.scheduleBuild2(0));
         j.assertLogNotContains("shouldnt reach", b);
         j.assertLogContains("Invalid scope", b);
@@ -84,8 +86,9 @@ public class OpenstackMachineStepTest {
 
         WorkflowJob bootInvalidTemplate = j.jenkins.createProject(WorkflowJob.class, "bootInvalidTemplate");
         bootInvalidTemplate.setDefinition(new CpsFlowDefinition(
-                " def srv = openstackMachine cloud: 'openstack', template: 'OtherTemplate'\n" +
-                " echo 'shouldnt reach'" , true));
+                " def srv = openstackMachine cloud: 'openstack', template: 'OtherTemplate'\n"
+                        + " echo 'shouldnt reach'",
+                true));
         WorkflowRun b = j.assertBuildStatus(Result.FAILURE, bootInvalidTemplate.scheduleBuild2(0));
         j.assertLogNotContains("shouldnt reach", b);
         j.assertLogContains("Invalid template", b);
@@ -98,11 +101,11 @@ public class OpenstackMachineStepTest {
 
         WorkflowJob bootSerializableCheck = j.jenkins.createProject(WorkflowJob.class, "bootSerializableCheck");
         bootSerializableCheck.setDefinition(new CpsFlowDefinition(
-                "def srv = openstackMachine cloud: 'openstack', template: 'template0'\n" +
-                "node () {\n" +
-                "  echo \"Instance IP: ${srv.address}\"\n" +
-                "}\n" +
-                "srv.destroy()", true));
+                "def srv = openstackMachine cloud: 'openstack', template: 'template0'\n" + "node () {\n"
+                        + "  echo \"Instance IP: ${srv.address}\"\n"
+                        + "}\n"
+                        + "srv.destroy()",
+                true));
         WorkflowRun b = j.assertBuildStatusSuccess(bootSerializableCheck.scheduleBuild2(0));
         j.assertLogContains("Instance IP: 42.42.42", b);
 

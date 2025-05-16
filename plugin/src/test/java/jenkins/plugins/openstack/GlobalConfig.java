@@ -23,6 +23,7 @@
  */
 package jenkins.plugins.openstack;
 
+import java.io.IOException;
 import org.htmlunit.SgmlPage;
 import org.htmlunit.html.DomElement;
 import org.htmlunit.html.HtmlButton;
@@ -31,8 +32,6 @@ import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlFormUtil;
 import org.htmlunit.html.HtmlInput;
 import org.htmlunit.html.HtmlPage;
-
-import java.io.IOException;
 
 /**
  * @author ogondza.
@@ -58,7 +57,7 @@ public class GlobalConfig {
         }
     }
 
-    private static abstract class Holder {
+    private abstract static class Holder {
         protected final String wrapper;
         private final Object form;
         private final SgmlPage page;
@@ -89,8 +88,7 @@ public class GlobalConfig {
                 HtmlDivision validation = page.getFirstByXPath(xpathExpr);
                 return new Element(
                         fixEmpty(validation.getTextContent().replace("Inherited value: ", "")),
-                        fixEmpty(input.getAttribute("value"))
-                );
+                        fixEmpty(input.getAttribute("value")));
             }
 
             return null; // TODO

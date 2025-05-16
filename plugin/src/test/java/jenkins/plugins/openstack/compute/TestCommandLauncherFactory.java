@@ -28,14 +28,13 @@ package jenkins.plugins.openstack.compute;
 import hudson.EnvVars;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
-import jenkins.model.Jenkins;
-import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jenkins.model.Jenkins;
+import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
 
 public class TestCommandLauncherFactory extends LauncherFactory {
     private static final long serialVersionUID = -1430772041065953918L;
@@ -64,7 +63,8 @@ public class TestCommandLauncherFactory extends LauncherFactory {
     }
 
     @Override
-    public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave) throws JCloudsCloud.ProvisioningFailedException {
+    public @CheckForNull String isWaitingFor(@Nonnull JCloudsSlave slave)
+            throws JCloudsCloud.ProvisioningFailedException {
         return null;
     }
 }

@@ -1,18 +1,18 @@
 package jenkins.plugins.openstack.compute;
 
-import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
-import jenkins.plugins.openstack.PluginTestRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule.WebClient;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import jenkins.plugins.openstack.PluginTestRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule.WebClient;
 
 public class JCloudsComputerTest {
     @Rule
@@ -42,9 +42,12 @@ public class JCloudsComputerTest {
     @Test
     public void slaveWithRetentionTimeNonZeroStillAcceptsTasksAfterFirstTaskRun() throws Exception {
         JCloudsCloud cloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(
-                j.defaultSlaveOptions().getBuilder().retentionTime(10).instancesMin(1).build(),
-                "label"
-        )));
+                j.defaultSlaveOptions()
+                        .getBuilder()
+                        .retentionTime(10)
+                        .instancesMin(1)
+                        .build(),
+                "label")));
         JCloudsSlave slave = j.provision(cloud, "label");
         JCloudsComputer computer = slave.getComputer();
         computer.waitUntilOnline();

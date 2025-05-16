@@ -4,8 +4,9 @@
 buildPlugin(
   useContainerAgent: true,
   failFast: false,
+  timeout: 360,
   configurations: [
-    [platform: 'linux', jdk: 11],
     [platform: 'linux', jdk: 17],
-    [platform: 'windows', jdk: 11],
+    [platform: 'linux', jdk: 21],
+    [platform: 'windows', jdk: 17],
 ])

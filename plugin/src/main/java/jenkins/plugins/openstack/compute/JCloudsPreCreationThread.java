@@ -1,18 +1,15 @@
 package jenkins.plugins.openstack.compute;
 
-import java.lang.Math;
+import hudson.Extension;
+import hudson.Functions;
+import hudson.model.AsyncPeriodicWork;
+import hudson.model.TaskListener;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-
-import hudson.Extension;
-import hudson.Functions;
-import hudson.model.TaskListener;
-import hudson.model.AsyncPeriodicWork;
 
 /**
  * Periodically ensure enough slaves are created.
@@ -34,7 +31,8 @@ import hudson.model.AsyncPeriodicWork;
  * The pre-provisioning always respects the instance capacity (either global or
  * per template).
  */
-@Extension @Restricted(NoExternalUse.class)
+@Extension
+@Restricted(NoExternalUse.class)
 public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(JCloudsPreCreationThread.class.getName());
 
@@ -80,12 +78,16 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
             int desired = min - available;
             int toProvision = Math.min(desired, permitted);
             if (toProvision > 0) {
-                LOGGER.log(Level.INFO, "Pre-creating " + toProvision + " instance(s) for template " + template.getName() + " in cloud " + cloud.name);
+                LOGGER.log(
+                        Level.INFO,
+                        "Pre-creating " + toProvision + " instance(s) for template " + template.getName() + " in cloud "
+                                + cloud.name);
                 for (int i = 0; i < toProvision; i++) {
                     try {
                         cloud.provisionSlaveExplicitly(template);
                     } catch (Throwable ex) {
-                        LOGGER.log(Level.SEVERE, "Failed to pre-create instance from template " + template.getName(), ex);
+                        LOGGER.log(
+                                Level.SEVERE, "Failed to pre-create instance from template " + template.getName(), ex);
                     }
                 }
             }
@@ -115,6 +117,13 @@ public final class JCloudsPreCreationThread extends AsyncPeriodicWork {
         return false;
     }
 
-    @Override protected Level getNormalLoggingLevel() { return Level.FINE; }
-    @Override protected Level getSlowLoggingLevel() { return Level.INFO; }
+    @Override
+    protected Level getNormalLoggingLevel() {
+        return Level.FINE;
+    }
+
+    @Override
+    protected Level getSlowLoggingLevel() {
+        return Level.INFO;
+    }
 }
