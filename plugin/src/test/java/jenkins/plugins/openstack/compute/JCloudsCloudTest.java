@@ -376,10 +376,11 @@ public class JCloudsCloudTest {
         final JCloudsSlaveTemplate template = j.dummySlaveTemplate("asdf");
 
         final JCloudsCloud cloudProvision = getCloudWhereUserIsAuthorizedTo(Cloud.PROVISION, template);
-        cloudProvision.setCleanfreq(30); // to be sure not runned during test
+        cloudProvision.setCleanfreq(60); // to be sure not runned during test
         j.executeOnServer(new DoProvision(cloudProvision, template));
 
         final JCloudsCloud itemConfigure = getCloudWhereUserIsAuthorizedTo(Item.CONFIGURE, template);
+        itemConfigure.setCleanfreq(60); // to be sure not runned during test
         j.executeOnServer(new DoProvision(itemConfigure, template));
 
         final JCloudsCloud jenkinsRead = getCloudWhereUserIsAuthorizedTo(Jenkins.READ, template);
