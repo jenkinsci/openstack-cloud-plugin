@@ -1,5 +1,6 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler"
+         xmlns:l="/lib/layout" xmlns:dd="/lib/layout/dropdowns" xmlns:f="/lib/form">
     <!--
         Temporary workaround for https://issues.jenkins-ci.org/browse/JENKINS-37616
         Using Item.CONFIGURE as users authorized to do so can provision via job execution.
@@ -8,52 +9,35 @@
     <j:getStatic var="buildPermission" className="hudson.model.Item" field="CONFIGURE"/>
     <j:if test="${it.hasPermission(buildPermission) or it.hasPermission(it.PROVISION)}">
 
+        <j:set var="formId" value="${h.generateId()}"/>
+
         <tr>
             <td/>
             <td colspan="${monitors.size()+2}" id="os-notifications">
+                <l:overflowButton icon="symbol-add"
+                                  text="${%Provision via} ${it.displayName}"
+                                  tooltip="${null}"
+                                  clazz="jenkins-!-margin-top-2">
 
-                    <input type="submit" class="jclouds-provision-button" value="${%Provision via OpenStack Cloud Plugin} - ${it.name}" name="${it.name}"/>
-                    <st:once>
-                        <script>
-                            var templates = [];
-                            Behaviour.register({
-                                ".jclouds-provision-button" : function (e) {
-                                    var notification = document.getElementById("os-notifications")
-                                    var submitHandler = function(type, args, item) {
-                                        fetch("${rootURL}/cloud/"+item.value.cloud+"/provision", {
-                                            method: "POST",
-                                            headers: crumb.wrap({}),
-                                            body: new URLSearchParams({ name: item.value.template })
-                                        }).then((rsp) => {
-                                            if (!rsp.ok) {
-                                                rsp.text().then((responseText) => {
-                                                    alert('Provisioning failed: ' + responseText)
-                                                    console.log('Provisioning failed: ' + rsp.status + " " + rsp.statusText + ": " + responseText)
-                                                })
-                                            } else {
-                                                hoverNotification('Provisioning started', notification);
-                                            }
-                                        });
-                                    };
-                                    var items = templates[e.name].map(function (template) {
-                                        return {
-                                            text: template,
-                                            value: {template: template, cloud: e.name},
-                                            onclick: {fn: submitHandler}
-                                        }
-                                    });
-                                    var menu = new YAHOO.widget.Button(e, { type: "menu", menu: items, name: "name" });
-                                }
-                            });
-                        </script>
-                    </st:once>
-                    <script>
-                        templates["${it.name}"] = [
-                            <j:forEach var="t" items="${it.templates}">
-                                "${t.name}",
-                            </j:forEach>
-                        ];
-                    </script>
+                   <j:forEach var="t" items="${it.templates}">
+                      <dd:custom>
+                          <button class="jenkins-dropdown__item"
+                                  data-type="os-provision"
+                                  data-form="${formId}"
+                                  data-url="${t.description}">
+                              ${t.displayName}
+                          </button>
+                      </dd:custom>
+                   </j:forEach>
+
+               </l:overflowButton>
+
+               <f:form action="${rootURL}/${it.url}/provision" method="post" name="provision" id="${formId}">
+                   <input name="template" type="hidden"/>
+               </f:form>
+
+               <st:adjunct includes="jenkins.plugins.openstack.compute.JCloudsCloud.provision"/>
+
             </td>
         </tr>
     </j:if>
