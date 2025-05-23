@@ -3,12 +3,12 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.jenkins.plugins.openstack-cloud</groupId>
+    <groupId>org.jenkins-ci.plugins.openstack-cloud</groupId>
     <artifactId>parent</artifactId>
     <version>${changelist}</version>
   </parent>
 
-  <groupId>org.jenkins.plugins</groupId>
+  <groupId>org.jenkins-ci.plugins</groupId>
   <artifactId>ui-tests</artifactId>
   <version>${changelist}</version>
   <packaging>jar</packaging>
