@@ -8,7 +8,7 @@
     <relativePath />
   </parent>
 
-  <groupId>org.jenkins.plugins.openstack-cloud</groupId>
+  <groupId>org.jenkins-ci.plugins.openstack-cloud</groupId>
   <artifactId>parent</artifactId>
   <version>${changelist}</version>
   <packaging>pom</packaging>
