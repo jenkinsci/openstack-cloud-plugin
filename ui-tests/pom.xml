@@ -13,12 +13,15 @@
   <version>${changelist}</version>
   <packaging>jar</packaging>
 
-  <properties>
-    <maven.deploy.skip>true</maven.deploy.skip>
-  </properties>
-
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>io.jenkins.tools.bom</groupId>
+        <artifactId>bom-${jenkins.baseline}.x</artifactId>
+        <version>4740.v75a_90f6fefb_7</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <dependency>
         <groupId>com.browserup</groupId>
         <artifactId>browserup-proxy-core</artifactId>
@@ -36,20 +39,7 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
       </dependency>
-      <!--
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-annotations</artifactId>
-        <version>2.18.0</version>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-core</artifactId>
-        <version>2.18.0</version>
-      </dependency>
-      -->
       <dependency>
         <groupId>org.javassist</groupId>
         <artifactId>javassist</artifactId>
@@ -72,20 +62,12 @@
     <dependency>
       <groupId>org.jenkins-ci</groupId>
       <artifactId>acceptance-test-harness</artifactId>
-      <!--
-      <version>1.101</version>
-      -->
       <version>5699.v27deb_ef5796c</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents.client5</groupId>
       <artifactId>httpclient5</artifactId>
       <version>5.4.4</version>
-      <!--
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <version>4.5.13</version>
-      -->
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -119,6 +101,14 @@
             <LOCAL_JARS>../plugin/target/openstack-cloud.hpi</LOCAL_JARS>
             <BROWSER>firefox-container</BROWSER>
           </environmentVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <version>2.7</version>
+        <configuration>
+          <skip>true</skip>
         </configuration>
       </plugin>
     </plugins>
