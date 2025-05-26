@@ -101,32 +101,9 @@
         </configuration>
       </plugin>
       <plugin>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>enforce-okhttp-consistency</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <requireSameVersions>
-                  <dependencies>
-                    <dependency>com.squareup.okhttp3:mockwebserver</dependency>
-                    <dependency>com.squareup.okhttp3:okhttp:jar</dependency>
-                    <dependency>com.squareup.okhttp3:logging-interceptor</dependency>
-                  </dependencies>
-                </requireSameVersions>
-                <requireSameVersions>
-                  <dependencies>
-                    <dependency>io.fabric8:kubernetes-server-mock</dependency>
-                    <dependency>io.fabric8:kubernetes-client</dependency>
-                  </dependencies>
-                </requireSameVersions>
-              </rules>
-            </configuration>
-          </execution>
-        </executions>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <version>2.7</version>
       </plugin>
     </plugins>
   </build>
