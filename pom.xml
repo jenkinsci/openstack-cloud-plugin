@@ -173,6 +173,24 @@ java.lang.NoClassDefFoundError: org/apache/http/cookie/CookieSpecProvider -->
               </execution>
             </executions>
           </plugin>
+          <plugin>
+            <groupId>org.openrewrite.maven</groupId>
+            <artifactId>rewrite-maven-plugin</artifactId>
+            <version>6.9.0</version>
+            <configuration>
+              <exportDatatables>true</exportDatatables>
+              <activeRecipes>
+                <recipe>org.openrewrite.jenkins.github.AddTeamToCodeowners</recipe>
+              </activeRecipes>
+            </configuration>
+            <dependencies>
+              <dependency>
+                <groupId>org.openrewrite.recipe</groupId>
+                <artifactId>rewrite-jenkins</artifactId>
+                <version>0.25.0</version>
+              </dependency>
+            </dependencies>
+          </plugin>
         </plugins>
       </build>
     </profile>
