@@ -255,7 +255,7 @@ java.lang.NoClassDefFoundError: org/apache/http/cookie/CookieSpecProvider -->
       <plugin>
         <groupId>org.jenkins-ci.tools</groupId>
         <artifactId>maven-hpi-plugin</artifactId>
-        <version>3.61</version>
+        <version>3.65</version>
         <configuration>
           <systemProperties>
             <hudson.slaves.NodeProvisioner.initialDelay>0</hudson.slaves.NodeProvisioner.initialDelay>
