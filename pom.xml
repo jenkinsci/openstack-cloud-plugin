@@ -159,7 +159,7 @@ java.lang.NoClassDefFoundError: org/apache/http/cookie/CookieSpecProvider -->
               <dependency>
                 <groupId>org.openrewrite.recipe</groupId>
                 <artifactId>rewrite-jenkins</artifactId>
-                <version>0.25.0</version>
+                <version>0.30.0</version>
               </dependency>
             </dependencies>
           </plugin>
