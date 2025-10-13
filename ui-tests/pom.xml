@@ -67,7 +67,7 @@
     <dependency>
       <groupId>org.jenkins-ci</groupId>
       <artifactId>acceptance-test-harness</artifactId>
-      <version>5699.v27deb_ef5796c</version>
+      <version>6388.v40780b_42e87e</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents.client5</groupId>
