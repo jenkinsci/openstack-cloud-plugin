@@ -101,8 +101,11 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     private void terminateNodesPendingDeletion() {
         for (final JCloudsComputer comp : JCloudsComputer.getAll()) {
-            JCloudsCloud cloud = JCloudsCloud.getByName(comp.getId().getCloudName());
-            if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
+            try {
+                JCloudsCloud cloud = JCloudsCloud.getByName(comp.getId().getCloudName());
+                if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
+            } catch (IllegalArgumentException e) {
+            }
             if (!comp.isIdle()) continue;
 
             final OfflineCause offlineCause = comp.getNode().getFatalOfflineCause();
@@ -195,8 +198,11 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     private void terminatesNodesWithoutServers(@Nonnull HashMap<JCloudsCloud, List<Server>> runningServers) {
         Map<String, JCloudsComputer> jenkinsComputers = new HashMap<>();
         for (JCloudsComputer computer : JCloudsComputer.getAll()) {
-            JCloudsCloud cloud = JCloudsCloud.getByName(computer.getId().getCloudName());
-            if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
+            try {
+                JCloudsCloud cloud = JCloudsCloud.getByName(computer.getId().getCloudName());
+                if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
+            } catch (IllegalArgumentException e) {
+            }
 
             JCloudsSlave node = computer.getNode();
             if (node != null) {
