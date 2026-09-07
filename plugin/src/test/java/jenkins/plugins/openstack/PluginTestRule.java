@@ -53,7 +53,6 @@ import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
-import jenkins.util.Timer;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
@@ -692,26 +691,13 @@ public final class PluginTestRule extends JenkinsRule {
             return;
         }
         try {
-            drainJenkinsTimer();
             CloudStatistics.get().save();
-            drainJenkinsTimer();
+            // Let already-queued Timer persist() calls finish, then write a final
+            // snapshot so JenkinsRule.after() does not race a late XML rewrite.
+            Thread.sleep(300);
             CloudStatistics.get().save();
         } catch (Exception e) {
             // Jenkins may already be shutting down
-        }
-    }
-
-    private static void drainJenkinsTimer() throws InterruptedException {
-        var executor = Timer.get();
-        if (!(executor instanceof java.util.concurrent.ScheduledThreadPoolExecutor pool)) {
-            Thread.sleep(200);
-            return;
-        }
-        for (int i = 0; i < 40; i++) {
-            if (pool.getQueue().isEmpty() && pool.getActiveCount() == 0) {
-                return;
-            }
-            Thread.sleep(50);
         }
     }
 
