@@ -53,6 +53,7 @@ import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import jenkins.plugins.openstack.compute.JCloudsPreCreationThread;
@@ -626,10 +627,8 @@ public final class PluginTestRule extends JenkinsRule {
                 try {
                     base.evaluate();
                 } finally {
-                    cleanupProvisionedAgents();
-
-                    // ProcessTree is expected to be called from Remoting thread so we set the result here to prevent
-                    // failure in detecting
+                    // Stop JNLP agents first so ComputerListeners cannot persist
+                    // CloudStatistics.xml while JenkinsRule deletes $JENKINS_HOME.
                     Field vetoersExist = ProcessTree.class.getDeclaredField("vetoersExist");
                     vetoersExist.setAccessible(true);
                     vetoersExist.set(null, Boolean.FALSE);
@@ -637,6 +636,9 @@ public final class PluginTestRule extends JenkinsRule {
                         killJnlpAgentProcess(slave.getKey(), slave.getValue());
                     }
                     slavesToKill.clear();
+
+                    cleanupProvisionedAgents();
+                    flushCloudStatistics();
                 }
             }
         };
@@ -676,6 +678,40 @@ public final class PluginTestRule extends JenkinsRule {
             }
         } catch (Exception e) {
             // Jenkins may already be shutting down
+        }
+    }
+
+    /**
+     * CloudStatistics.save() is also invoked from Timer threads (onComplete) and
+     * ComputerListeners. A write that lands while TemporaryDirectoryAllocator is
+     * deleting $JENKINS_HOME leaves org.jenkinsci.plugins.cloudstats.CloudStatistics.xml
+     * behind and fails the test with DirectoryNotEmptyException.
+     */
+    private void flushCloudStatistics() {
+        if (jenkins == null) {
+            return;
+        }
+        try {
+            drainJenkinsTimer();
+            CloudStatistics.get().save();
+            drainJenkinsTimer();
+            CloudStatistics.get().save();
+        } catch (Exception e) {
+            // Jenkins may already be shutting down
+        }
+    }
+
+    private static void drainJenkinsTimer() throws InterruptedException {
+        var executor = Timer.get();
+        if (!(executor instanceof java.util.concurrent.ScheduledThreadPoolExecutor pool)) {
+            Thread.sleep(200);
+            return;
+        }
+        for (int i = 0; i < 40; i++) {
+            if (pool.getQueue().isEmpty() && pool.getActiveCount() == 0) {
+                return;
+            }
+            Thread.sleep(50);
         }
     }
 
