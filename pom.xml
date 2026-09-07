@@ -34,9 +34,8 @@
     <url>https://github.com/${gitHubRepo}</url>
   </scm>
   <properties>
-
     <changelist>999999-SNAPSHOT</changelist>
-    <jenkins.baseline>2.516</jenkins.baseline>
+    <jenkins.baseline>2.541</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <tagNameFormat>openstack-cloud-@{project.version}</tagNameFormat>
