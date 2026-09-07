@@ -71,6 +71,7 @@ import jenkins.plugins.openstack.nodeproperties.NodePropertyThree;
 import jenkins.plugins.openstack.nodeproperties.NodePropertyTwo;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.configfiles.GlobalConfigFiles;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.runner.Description;
@@ -464,6 +465,10 @@ public final class PluginTestRule extends JenkinsRule {
             for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
                 cl.onComplete(plannedNode, slave);
             }
+            // CloudStatistics.ProvisioningListener.onComplete(PlannedNode, Node) only
+            // schedules rename() asynchronously. Call the synchronous path so tests
+            // observing activity names do not race the Timer thread.
+            CloudStatistics.ProvisioningListener.get().onComplete(slave.getId(), slave);
             jenkins.addNode(slave);
             // Wait for node to be added fully - for computer to be created. This does not necessarily wait for it to be
             // online
@@ -618,15 +623,20 @@ public final class PluginTestRule extends JenkinsRule {
         final Statement inner = new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                base.evaluate();
+                try {
+                    base.evaluate();
+                } finally {
+                    cleanupProvisionedAgents();
 
-                // ProcessTree is expected to be called from Remoting thread so we set the result here to prevent
-                // failure in detecting
-                Field vetoersExist = ProcessTree.class.getDeclaredField("vetoersExist");
-                vetoersExist.setAccessible(true);
-                vetoersExist.set(null, Boolean.FALSE);
-                for (Map.Entry<String, Proc> slave : slavesToKill.entrySet()) {
-                    killJnlpAgentProcess(slave.getKey(), slave.getValue());
+                    // ProcessTree is expected to be called from Remoting thread so we set the result here to prevent
+                    // failure in detecting
+                    Field vetoersExist = ProcessTree.class.getDeclaredField("vetoersExist");
+                    vetoersExist.setAccessible(true);
+                    vetoersExist.set(null, Boolean.FALSE);
+                    for (Map.Entry<String, Proc> slave : slavesToKill.entrySet()) {
+                        killJnlpAgentProcess(slave.getKey(), slave.getValue());
+                    }
+                    slavesToKill.clear();
                 }
             }
         };
@@ -641,11 +651,41 @@ public final class PluginTestRule extends JenkinsRule {
         };
     }
 
+    /**
+     * Tear down cloud agents before JenkinsRule deletes its temporary home.
+     * Leftover JNLP processes keep files open and cause DirectoryNotEmptyException
+     * on Java 21+ (especially macOS).
+     */
+    private void cleanupProvisionedAgents() {
+        if (jenkins == null) {
+            return;
+        }
+        for (Node node : new ArrayList<>(jenkins.getNodes())) {
+            if (node instanceof JCloudsSlave slave) {
+                try {
+                    slave.terminate();
+                } catch (Exception e) {
+                    System.err.println("Failed to clean up agent " + node.getNodeName() + ": " + e);
+                }
+            }
+        }
+        try {
+            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+            for (int i = 0; i < 20 && disposer.isActivated(); i++) {
+                Thread.sleep(100);
+            }
+        } catch (Exception e) {
+            // Jenkins may already be shutting down
+        }
+    }
+
     private void killJnlpAgentProcess(String name, Proc p) throws IOException, InterruptedException {
         while (p.isAlive()) {
             System.err.println("Killing agent " + p + " for " + name);
             p.kill();
         }
+        // Give the OS a moment to release file handles before JenkinsRule deletes $JENKINS_HOME
+        Thread.sleep(100);
     }
 
     @Extension
