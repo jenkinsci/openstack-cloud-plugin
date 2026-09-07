@@ -51,6 +51,8 @@
     <okhttp.version>4.11.0-183.va_87fc7a_89810</okhttp.version>
     <license-maven-plugin.version>210.v568d0b_a_2b_e44</license-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.10.4.0</spotbugs-maven-plugin.version>
+    <!-- Palantir 2.57 (Spotless 2.44.4 default on JDK 21+) calls getDiagnostics() as Queue; JDK 25 returns List. -->
+    <palantir-java-format.version>2.73.0</palantir-java-format.version>
     <argLine>--add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED</argLine>
   </properties>
 
@@ -85,6 +87,17 @@
             <jenkins.host.address>${jenkins.host.address}</jenkins.host.address>
             <slaveAgentPort>${slaveAgentPort}</slaveAgentPort>
           </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <java>
+            <palantirJavaFormat>
+              <version>${palantir-java-format.version}</version>
+            </palantirJavaFormat>
+          </java>
         </configuration>
       </plugin>
       <plugin>

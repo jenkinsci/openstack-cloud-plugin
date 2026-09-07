@@ -581,7 +581,8 @@ public class JCloudsCloudTest {
         final long deadline = System.currentTimeMillis() + 20_000;
         while (Jenkins.get().getNodes().size() < expected) {
             if (System.currentTimeMillis() > deadline) {
-                fail("Timed out waiting for " + expected + " node(s), have " + Jenkins.get().getNodes());
+                fail("Timed out waiting for " + expected + " node(s), have "
+                        + Jenkins.get().getNodes());
             }
             Thread.sleep(200);
         }
