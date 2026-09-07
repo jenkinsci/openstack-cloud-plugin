@@ -36,6 +36,8 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -650,6 +652,60 @@ public final class PluginTestRule extends JenkinsRule {
                 jenkinsRuleStatement.evaluate();
             }
         };
+    }
+
+    @Override
+    public void after() throws Exception {
+        File root = jenkins != null ? jenkins.getRootDir() : null;
+        try {
+            super.after();
+        } catch (IOException e) {
+            if (root != null && isCloudStatisticsTeardownRace(e)) {
+                deleteRecursively(root);
+                return;
+            }
+            throw e;
+        }
+    }
+
+    private static boolean isCloudStatisticsTeardownRace(IOException e) {
+        if (mentionsCloudStatisticsXml(e)) {
+            return true;
+        }
+        for (Throwable suppressed : e.getSuppressed()) {
+            if (mentionsCloudStatisticsXml(suppressed)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean mentionsCloudStatisticsXml(Throwable t) {
+        while (t != null) {
+            String message = t.getMessage();
+            if (message != null && message.contains("CloudStatistics.xml")) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
+    }
+
+    private static void deleteRecursively(File root) {
+        if (!root.exists()) {
+            return;
+        }
+        try (var walk = Files.walk(root.toPath())) {
+            walk.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // Best-effort cleanup of a shutdown race leftover
+                }
+            });
+        } catch (IOException ignored) {
+            // Best-effort cleanup of a shutdown race leftover
+        }
     }
 
     /**
