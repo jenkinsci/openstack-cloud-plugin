@@ -105,7 +105,10 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
             if (!comp.isIdle()) continue;
 
-            final OfflineCause offlineCause = comp.getNode().getFatalOfflineCause();
+            final JCloudsSlave node = comp.getNode();
+            if (node == null) continue;
+
+            final OfflineCause offlineCause = node.getFatalOfflineCause();
             if (comp.isPendingDelete()) {
                 LOGGER.log(
                         Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());

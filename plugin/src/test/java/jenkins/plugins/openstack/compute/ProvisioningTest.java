@@ -42,7 +42,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.PluginTestRule.NetworkAddress;
@@ -417,14 +416,8 @@ public class ProvisioningTest {
         // instanceOf(OfflineCause.LaunchFailed.class));
         assertThat("Cause not fatal after ms " + aliveFor, ofc, instanceOf(OfflineCause.LaunchFailed.class));
 
-        TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
         j.triggerOpenstackSlaveCleanup();
-
-        // Wait for the server to be disposed
-        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-        while (!disposer.getBacklog().isEmpty()) {
-            Thread.sleep(1000);
-        }
+        waitForAsyncResourceDisposer();
         verify(cloud.getOpenstack()).destroyServer(any(Server.class));
     }
 
