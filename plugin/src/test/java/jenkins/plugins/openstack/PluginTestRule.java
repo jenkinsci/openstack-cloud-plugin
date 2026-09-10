@@ -284,9 +284,9 @@ public final class PluginTestRule extends JenkinsRule {
      * Force idle slave cleanup now.
      */
     public void triggerOpenstackSlaveCleanup() {
-        // lastCleanTime is initialized at cloud construction and refreshed by the
-        // periodic thread. Without resetting it, this "force" path is skipped whenever
-        // cleanup last ran inside the configured cleanfreq window.
+        // lastCleanTime is initialized at cloud construction. Without resetting
+        // it, this "force" path is skipped whenever cleanup last ran inside the
+        // configured cleanfreq window.
         for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
             cloud.setLastCleanTime(0);
         }

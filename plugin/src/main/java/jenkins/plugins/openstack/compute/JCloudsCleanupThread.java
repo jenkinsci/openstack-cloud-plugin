@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Executor;
 import hudson.model.Result;
@@ -42,10 +43,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        // fixed value: 1000 millis
-        long cleanFreq = 1000;
-
-        return cleanFreq;
+        return Functions.getIsUnitTest() ? Long.MAX_VALUE : 1000;
     }
 
     @Override
