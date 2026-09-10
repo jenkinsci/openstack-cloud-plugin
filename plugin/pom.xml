@@ -15,6 +15,11 @@
   <name>Jenkins Openstack Cloud plugin</name>
   <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
+  <properties>
+    <!-- Only this module should be published to repo.jenkins-ci.org/releases -->
+    <maven.deploy.skip>false</maven.deploy.skip>
+  </properties>
+
   <scm>
     <connection>scm:git:https://github.com/${gitHubRepo}.git</connection>
     <developerConnection>scm:git:https://github.com/${gitHubRepo}.git</developerConnection>

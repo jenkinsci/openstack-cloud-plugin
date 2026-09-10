@@ -14,7 +14,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <!-- no need to be deployed during release, this is a test-only module -->
+    <!-- ATH module is not a released artifact; skip even with deployAllAtOnce -->
     <maven.deploy.skip>true</maven.deploy.skip>
   </properties>
 
@@ -106,6 +106,13 @@
             <LOCAL_JARS>../plugin/target/openstack-cloud.hpi</LOCAL_JARS>
             <BROWSER>firefox-container</BROWSER>
           </environmentVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
         </configuration>
       </plugin>
     </plugins>
