@@ -36,10 +36,12 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +73,7 @@ import jenkins.plugins.openstack.nodeproperties.NodePropertyThree;
 import jenkins.plugins.openstack.nodeproperties.NodePropertyTwo;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.configfiles.GlobalConfigFiles;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.junit.runner.Description;
@@ -281,6 +284,12 @@ public final class PluginTestRule extends JenkinsRule {
      * Force idle slave cleanup now.
      */
     public void triggerOpenstackSlaveCleanup() {
+        // lastCleanTime is initialized at cloud construction. Without resetting
+        // it, this "force" path is skipped whenever cleanup last ran inside the
+        // configured cleanfreq window.
+        for (JCloudsCloud cloud : JCloudsCloud.getClouds()) {
+            cloud.setLastCleanTime(0);
+        }
         jenkins.getExtensionList(AsyncPeriodicWork.class)
                 .get(JCloudsCleanupThread.class)
                 .execute(TaskListener.NULL);
@@ -464,6 +473,10 @@ public final class PluginTestRule extends JenkinsRule {
             for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
                 cl.onComplete(plannedNode, slave);
             }
+            // CloudStatistics.ProvisioningListener.onComplete(PlannedNode, Node) only
+            // schedules rename() asynchronously. Call the synchronous path so tests
+            // observing activity names do not race the Timer thread.
+            CloudStatistics.ProvisioningListener.get().onComplete(slave.getId(), slave);
             jenkins.addNode(slave);
             // Wait for node to be added fully - for computer to be created. This does not necessarily wait for it to be
             // online
@@ -618,15 +631,21 @@ public final class PluginTestRule extends JenkinsRule {
         final Statement inner = new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                base.evaluate();
+                try {
+                    base.evaluate();
+                } finally {
+                    // Stop JNLP agents first so ComputerListeners cannot persist
+                    // CloudStatistics.xml while JenkinsRule deletes $JENKINS_HOME.
+                    Field vetoersExist = ProcessTree.class.getDeclaredField("vetoersExist");
+                    vetoersExist.setAccessible(true);
+                    vetoersExist.set(null, Boolean.FALSE);
+                    for (Map.Entry<String, Proc> slave : slavesToKill.entrySet()) {
+                        killJnlpAgentProcess(slave.getKey(), slave.getValue());
+                    }
+                    slavesToKill.clear();
 
-                // ProcessTree is expected to be called from Remoting thread so we set the result here to prevent
-                // failure in detecting
-                Field vetoersExist = ProcessTree.class.getDeclaredField("vetoersExist");
-                vetoersExist.setAccessible(true);
-                vetoersExist.set(null, Boolean.FALSE);
-                for (Map.Entry<String, Proc> slave : slavesToKill.entrySet()) {
-                    killJnlpAgentProcess(slave.getKey(), slave.getValue());
+                    cleanupProvisionedAgents();
+                    flushCloudStatistics();
                 }
             }
         };
@@ -641,11 +660,116 @@ public final class PluginTestRule extends JenkinsRule {
         };
     }
 
+    @Override
+    public void after() throws Exception {
+        File root = jenkins != null ? jenkins.getRootDir() : null;
+        try {
+            super.after();
+        } catch (IOException e) {
+            if (root != null && isCloudStatisticsTeardownRace(e)) {
+                deleteRecursively(root);
+                return;
+            }
+            throw e;
+        }
+    }
+
+    private static boolean isCloudStatisticsTeardownRace(IOException e) {
+        if (mentionsCloudStatisticsXml(e)) {
+            return true;
+        }
+        for (Throwable suppressed : e.getSuppressed()) {
+            if (mentionsCloudStatisticsXml(suppressed)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean mentionsCloudStatisticsXml(Throwable t) {
+        while (t != null) {
+            String message = t.getMessage();
+            if (message != null && message.contains("CloudStatistics.xml")) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
+    }
+
+    private static void deleteRecursively(File root) {
+        if (!root.exists()) {
+            return;
+        }
+        try (var walk = Files.walk(root.toPath())) {
+            walk.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // Best-effort cleanup of a shutdown race leftover
+                }
+            });
+        } catch (IOException ignored) {
+            // Best-effort cleanup of a shutdown race leftover
+        }
+    }
+
+    /**
+     * Tear down cloud agents before JenkinsRule deletes its temporary home.
+     * Leftover JNLP processes keep files open and cause DirectoryNotEmptyException
+     * on Java 21+ (especially macOS).
+     */
+    private void cleanupProvisionedAgents() {
+        if (jenkins == null) {
+            return;
+        }
+        for (Node node : new ArrayList<>(jenkins.getNodes())) {
+            if (node instanceof JCloudsSlave slave) {
+                try {
+                    slave.terminate();
+                } catch (Exception e) {
+                    System.err.println("Failed to clean up agent " + node.getNodeName() + ": " + e);
+                }
+            }
+        }
+        try {
+            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
+            for (int i = 0; i < 20 && disposer.isActivated(); i++) {
+                Thread.sleep(100);
+            }
+        } catch (Exception e) {
+            // Jenkins may already be shutting down
+        }
+    }
+
+    /**
+     * CloudStatistics.save() is also invoked from Timer threads (onComplete) and
+     * ComputerListeners. A write that lands while TemporaryDirectoryAllocator is
+     * deleting $JENKINS_HOME leaves org.jenkinsci.plugins.cloudstats.CloudStatistics.xml
+     * behind and fails the test with DirectoryNotEmptyException.
+     */
+    private void flushCloudStatistics() {
+        if (jenkins == null) {
+            return;
+        }
+        try {
+            CloudStatistics.get().save();
+            // Let already-queued Timer persist() calls finish, then write a final
+            // snapshot so JenkinsRule.after() does not race a late XML rewrite.
+            Thread.sleep(300);
+            CloudStatistics.get().save();
+        } catch (Exception e) {
+            // Jenkins may already be shutting down
+        }
+    }
+
     private void killJnlpAgentProcess(String name, Proc p) throws IOException, InterruptedException {
         while (p.isAlive()) {
             System.err.println("Killing agent " + p + " for " + name);
             p.kill();
         }
+        // Give the OS a moment to release file handles before JenkinsRule deletes $JENKINS_HOME
+        Thread.sleep(100);
     }
 
     @Extension

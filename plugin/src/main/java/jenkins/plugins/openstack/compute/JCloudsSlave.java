@@ -441,7 +441,12 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         // Computer might be gone yet, so use the offline cause attached to node when that happens
         OfflineCause oc = computer != null ? computer.getOfflineCause() : getTemporaryOfflineCause();
 
-        if (isLaunchTimedOut() && (oc instanceof OfflineCause.LaunchFailed)) return oc;
+        // After startTimeout, keep treating the agent as failed even if Jenkins
+        // cleared LaunchFailed while retrying SSH. Otherwise cleanup never
+        // destroys the server.
+        if (isLaunchTimedOut() && (oc == null || oc instanceof OfflineCause.LaunchFailed)) {
+            return oc != null ? oc : new OfflineCause.LaunchFailed();
+        }
 
         return oc instanceof DiskSpaceMonitorDescriptor.DiskSpace || oc instanceof OfflineCause.ChannelTermination
                 ? oc

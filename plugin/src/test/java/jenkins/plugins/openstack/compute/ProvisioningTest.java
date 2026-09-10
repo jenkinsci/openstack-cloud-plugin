@@ -42,7 +42,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.PluginTestRule.NetworkAddress;
@@ -417,14 +416,8 @@ public class ProvisioningTest {
         // instanceOf(OfflineCause.LaunchFailed.class));
         assertThat("Cause not fatal after ms " + aliveFor, ofc, instanceOf(OfflineCause.LaunchFailed.class));
 
-        TimeUnit.SECONDS.sleep(3); // 3 seconds in order to go over cleanFreq
         j.triggerOpenstackSlaveCleanup();
-
-        // Wait for the server to be disposed
-        AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-        while (!disposer.getBacklog().isEmpty()) {
-            Thread.sleep(1000);
-        }
+        waitForAsyncResourceDisposer();
         verify(cloud.getOpenstack()).destroyServer(any(Server.class));
     }
 
@@ -522,8 +515,11 @@ public class ProvisioningTest {
         assertThat(
                 computer.buildEnvironment(TaskListener.NULL).get("OPENSTACK_PUBLIC_IP"), startsWith(expectedAddress));
         assertThat(cs.getActivities(), Matchers.iterableWithSize(1));
+        // CloudStatistics renames the activity from the template name to the node
+        // display name on a Timer thread; wait so this assertion is not racy.
+        waitForActivityName(slave);
         assertEquals(
-                computer.getName(),
+                slave.getDisplayName(),
                 CloudStatistics.get().getActivityFor(computer).getName());
 
         ProvisioningActivity activity = cs.getActivities().get(0);
@@ -543,6 +539,31 @@ public class ProvisioningTest {
         assertEquals("Slave is discarded", null, j.jenkins.getComputer("provisioned"));
         waitForCloudStatistics(activity, ProvisioningActivity.Phase.COMPLETED);
         assertThat(activity.getCurrentPhase(), equalTo(ProvisioningActivity.Phase.COMPLETED));
+    }
+
+    /**
+     * Waits until CloudStatistics has applied the node display name to the activity.
+     */
+    private static void waitForActivityName(JCloudsSlave slave) throws InterruptedException {
+        final String expected = slave.getDisplayName();
+        final int millisecondsToWaitBetweenPolls = 100;
+        final int maxTimeToWaitInMilliseconds = 20000;
+        final long timestampBeforeWaiting = System.nanoTime();
+        while (true) {
+            ProvisioningActivity activity = CloudStatistics.get().getActivityFor(slave);
+            String actual = activity != null ? activity.getName() : null;
+            if (expected.equals(actual)) {
+                return;
+            }
+            final long timestampNow = System.nanoTime();
+            final long timeSpentWaitingInMilliseconds = (timestampNow - timestampBeforeWaiting) / 1000000L;
+            if (timeSpentWaitingInMilliseconds >= maxTimeToWaitInMilliseconds) {
+                fail("Timed out waiting " + timeSpentWaitingInMilliseconds + " milliseconds, for activity name of "
+                        + slave.getId() + " to become " + expected + ". Actually " + actual);
+            }
+            Thread.sleep(Math.min(
+                    millisecondsToWaitBetweenPolls, maxTimeToWaitInMilliseconds - timeSpentWaitingInMilliseconds));
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Executor;
 import hudson.model.Result;
@@ -42,10 +43,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        // fixed value: 1000 millis
-        long cleanFreq = 1000;
-
-        return cleanFreq;
+        return Functions.getIsUnitTest() ? Long.MAX_VALUE : 1000;
     }
 
     @Override
@@ -105,7 +103,10 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
             if (!comp.isIdle()) continue;
 
-            final OfflineCause offlineCause = comp.getNode().getFatalOfflineCause();
+            final JCloudsSlave node = comp.getNode();
+            if (node == null) continue;
+
+            final OfflineCause offlineCause = node.getFatalOfflineCause();
             if (comp.isPendingDelete()) {
                 LOGGER.log(
                         Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
