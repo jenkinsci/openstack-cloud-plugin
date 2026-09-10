@@ -114,6 +114,15 @@
           </systemProperties>
         </configuration>
       </plugin>
+      <!-- Aggregator only. inherited=false so plugin/ still deploys the HPI. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <inherited>false</inherited>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
