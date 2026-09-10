@@ -8,12 +8,12 @@
     <relativePath />
   </parent>
 
-  <groupId>org.jenkins-ci.plugins.openstack-cloud</groupId>
-  <artifactId>parent</artifactId>
+  <groupId>org.jenkins-ci.plugins</groupId>
+  <artifactId>openstack-cloud-parent</artifactId>
   <version>${changelist}</version>
   <packaging>pom</packaging>
   <name>Jenkins Openstack Cloud plugin</name>
-  <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
+  <url>https://github.com/jenkinsci/openstack-cloud-plugin</url>
   <licenses>
     <license>
       <name>MIT License</name>
@@ -37,7 +37,7 @@
     <changelist>999999-SNAPSHOT</changelist>
     <jenkins.baseline>2.541</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
-    <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
+    <gitHubRepo>jenkinsci/openstack-cloud-plugin</gitHubRepo>
     <tagNameFormat>openstack-cloud-@{project.version}</tagNameFormat>
     <no-test-jar>false</no-test-jar>
     <useBeta>true</useBeta>
