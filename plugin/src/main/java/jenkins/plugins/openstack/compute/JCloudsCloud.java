@@ -635,13 +635,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             try {
                 long parsedCleanFreq = Long.parseLong(value);
-                if (parsedCleanFreq == 0) {
-                    NumberFormatException nfe =
-                            new NumberFormatException("cleanfreq should be strictly greater than 0");
+                // Keep server-side validation consistent with the bounds in config.jelly.
+                if (parsedCleanFreq < 10 || parsedCleanFreq > 1200) {
+                    NumberFormatException nfe = new NumberFormatException("cleanfreq must be between 10 and 1200");
                     throw nfe;
                 }
             } catch (NumberFormatException ex) {
-                return FormValidation.error(ex, "Clean frequency must be an integer strictly greater than 0 (>=1)");
+                return FormValidation.error(
+                        ex, "Cleanup frequency must be a whole number between 10 and 1200 seconds.");
             }
             return FormValidation.ok();
         }

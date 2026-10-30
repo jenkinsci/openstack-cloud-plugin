@@ -81,6 +81,33 @@ public class JCloudsCloudTest {
     public PluginTestRule j = new PluginTestRule();
 
     @Test
+    public void validateCleanupFrequency() {
+        DescriptorImpl desc = j.getCloudDescriptor();
+
+        for (String value : new String[] {
+            "-1",
+            "-10",
+            "-9223372036854775808",
+            "0",
+            "1",
+            "9",
+            "1201",
+            "3600",
+            "9223372036854775807",
+            "",
+            " ",
+            "abc",
+            "1.5",
+            "9223372036854775808"
+        }) {
+            assertEquals(value, FormValidation.Kind.ERROR, desc.doCheckCleanfreq(value).kind);
+        }
+        for (String value : new String[] {"10", "11", "60", "1199", "1200"}) {
+            assertEquals(value, FormValidation.Kind.OK, desc.doCheckCleanfreq(value).kind);
+        }
+    }
+
+    @Test
     public void failToTestConnection() {
         DescriptorImpl desc = j.getCloudDescriptor();
         FormValidation v;
