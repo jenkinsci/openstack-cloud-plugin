@@ -81,6 +81,27 @@ public class JCloudsCloudTest {
     public PluginTestRule j = new PluginTestRule();
 
     @Test
+    public void provisioningContinuesAfterCloudLoginFailure() throws Exception {
+        String label = "shared";
+        JCloudsCloud cloud = new JCloudsCloud(
+                "unavailable",
+                "https://example.com",
+                false,
+                "zone",
+                10000,
+                j.defaultSlaveOptions(),
+                List.of(j.dummySlaveTemplate(label)),
+                "missing-credentials");
+
+        j.jenkins.clouds.add(cloud);
+        JCloudsCloud healthyCloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(label)));
+
+        Cloud.CloudState state = new Cloud.CloudState(Label.get(label), 0);
+        assertEquals(0, cloud.provision(state, 1).size());
+        assertEquals(healthyCloud.name, j.provision(healthyCloud, label).getId().getCloudName());
+    }
+
+    @Test
     public void validateCleanupFrequency() {
         DescriptorImpl desc = j.getCloudDescriptor();
 

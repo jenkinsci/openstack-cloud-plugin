@@ -328,7 +328,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public Collection<NodeProvisioner.PlannedNode> provision(CloudState cs, int excessWorkload) {
         Label label = cs.getLabel();
         excessWorkload = Math.min(excessWorkload, MaxProvisioningExcessWorkLoadCap);
-        Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
+        Queue<JCloudsSlaveTemplate> templateProvider;
+        try {
+            templateProvider = getAvailableTemplateProvider(label, excessWorkload);
+        } catch (LoginFailure ex) {
+            LOGGER.log(Level.WARNING, "Skipping provisioning for OpenStack cloud " + name + ": " + ex.getMessage());
+            return Collections.emptyList();
+        }
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
         while (excessWorkload > 0
