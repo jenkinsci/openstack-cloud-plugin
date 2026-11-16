@@ -156,6 +156,15 @@ public final class SlaveOptionsDescriptor extends OsAuthDescriptor<SlaveOptions>
     }
 
     @Restricted(DoNotUse.class)
+    @RequirePOST
+    public FormValidation doCheckDisconnectGraceHours(@QueryParameter String value) {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        return Util.fixEmptyAndTrim(value) == null
+                ? FormValidation.ok()
+                : FormValidation.validateNonNegativeInteger(value);
+    }
+
+    @Restricted(DoNotUse.class)
     @InjectOsAuth
     @RequirePOST
     public ListBoxModel doFillFloatingIpPoolItems(

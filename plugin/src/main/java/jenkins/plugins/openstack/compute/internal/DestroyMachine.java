@@ -25,6 +25,7 @@ package jenkins.plugins.openstack.compute.internal;
 
 import java.util.NoSuchElementException;
 import javax.annotation.Nonnull;
+import jenkins.plugins.openstack.compute.JCloudsCleanupThread;
 import jenkins.plugins.openstack.compute.JCloudsCloud;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.kohsuke.accmod.Restricted;
@@ -68,6 +69,9 @@ public final class DestroyMachine implements Disposable {
             server = os.getServerById(nodeId);
         } catch (NoSuchElementException ex) {
             return State.PURGED; // Disappeared in the meantime.
+        }
+        if (JCloudsCleanupThread.isHeld(cloudName, nodeId)) {
+            return State.TO_DISPOSE;
         }
         os.destroyServer(server);
         return State.PURGED; // If not thrown

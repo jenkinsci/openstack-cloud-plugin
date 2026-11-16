@@ -105,6 +105,7 @@ jenkins:
               credentialsId: "openstack_ssh_key"
               javaPath: "/bin/true"
           retentionTime: 42
+          disconnectGraceHours: 4 # Optional. Defaults to 0 (normal cleanup).
         templates:
           - name: "empty"
             labels: "linux"

@@ -7,12 +7,14 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
+import hudson.slaves.ComputerListener;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
@@ -451,6 +453,63 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return oc instanceof DiskSpaceMonitorDescriptor.DiskSpace || oc instanceof OfflineCause.ChannelTermination
                 ? oc
                 : null;
+    }
+
+    private volatile long disconnectGraceDeadline;
+
+    boolean hasDisconnectGracePeriod() {
+        return disconnectGraceDeadline > System.currentTimeMillis();
+    }
+
+    boolean hasExpiredDisconnectGracePeriod() {
+        return disconnectGraceDeadline != 0 && !hasDisconnectGracePeriod();
+    }
+
+    synchronized void recordDisconnectGracePeriod(long disconnectedAt) {
+        Integer hours = getSlaveOptions().getDisconnectGraceHours();
+        if (hours == null || hours <= 0 || disconnectGraceDeadline != 0) {
+            return;
+        }
+        disconnectGraceDeadline = disconnectedAt + TimeUnit.HOURS.toMillis(hours);
+        LOGGER.log(Level.INFO, "Holding OpenStack instance {0} for {1} hours after agent disconnect", new Object[] {
+            getServerId(), hours
+        });
+        saveDisconnectGracePeriod();
+    }
+
+    synchronized void clearDisconnectGracePeriod() {
+        if (disconnectGraceDeadline != 0) {
+            disconnectGraceDeadline = 0;
+            saveDisconnectGracePeriod();
+        }
+    }
+
+    private void saveDisconnectGracePeriod() {
+        try {
+            save();
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Could not save disconnect grace period for " + getServerId(), e);
+        }
+    }
+
+    @Extension
+    public static final class DisconnectGraceListener extends ComputerListener {
+        @Override
+        public void onOffline(Computer computer, OfflineCause cause) {
+            if (computer instanceof JCloudsComputer agent
+                    && agent.getConnectedSince() > 0
+                    && cause instanceof OfflineCause.ChannelTermination) {
+                JCloudsSlave node = agent.getNode();
+                if (node != null) node.recordDisconnectGracePeriod(cause.getTimestamp());
+            }
+        }
+
+        @Override
+        public void onOnline(Computer computer, TaskListener listener) {
+            if (computer.getNode() instanceof JCloudsSlave node) {
+                node.clearDisconnectGracePeriod();
+            }
+        }
     }
 
     private static Openstack getOpenstack(String cloudName) {

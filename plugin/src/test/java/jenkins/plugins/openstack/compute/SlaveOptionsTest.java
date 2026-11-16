@@ -17,6 +17,16 @@ import org.junit.Test;
  */
 public class SlaveOptionsTest {
 
+    @Test
+    public void disconnectGracePeriodInheritsAndAllowsExplicitZero() {
+        SlaveOptions cloud = SlaveOptions.builder().disconnectGraceHours(4).build();
+        SlaveOptions disabled = SlaveOptions.builder().disconnectGraceHours(0).build();
+
+        assertEquals(Integer.valueOf(4), cloud.override(SlaveOptions.empty()).getDisconnectGraceHours());
+        assertEquals(Integer.valueOf(0), cloud.override(disabled).getDisconnectGraceHours());
+        assertEquals(Integer.valueOf(0), disabled.eraseDefaults(disabled).getDisconnectGraceHours());
+    }
+
     @Test // instanceCap is a subject of different overriding rules
     public void defaultOverrides() {
         SlaveOptions dummySlaveOptions = PluginTestRule.dummySlaveOptions();

@@ -53,7 +53,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
         if (!c.isIdle() || c.isUserOffline()) return; // Occupied by user initiated activity
 
         final JCloudsSlave node = c.getNode();
-        if (node == null) return; // Node is gone already
+        if (node == null || node.hasDisconnectGracePeriod()) return;
 
         final int retentionTime = node.getSlaveOptions().getRetentionTime();
         if (retentionTime <= 0) return; // 0 is handled in JCloudsComputer, negative values needs no handling
