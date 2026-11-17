@@ -61,6 +61,7 @@ public class JCloudsCleanupThreadTest {
     public void keepPreviouslyConnectedAgentAfterChannelTermination() throws Exception {
         SlaveOptions options = SlaveOptions.builder()
                 .launcherFactory(LauncherFactory.JNLP.JNLP)
+                .fsRoot(j.jenkins.getRootDir().toPath().resolve("agent").toString())
                 .disconnectGraceHours(4)
                 .build();
         JCloudsCloud cloud =
@@ -93,6 +94,7 @@ public class JCloudsCleanupThreadTest {
     public void cleanUpDisconnectedAgentAfterGracePeriodExpires() throws Exception {
         SlaveOptions options = SlaveOptions.builder()
                 .launcherFactory(LauncherFactory.JNLP.JNLP)
+                .fsRoot(j.jenkins.getRootDir().toPath().resolve("agent").toString())
                 .disconnectGraceHours(1)
                 .build();
         JCloudsCloud cloud =
