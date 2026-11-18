@@ -257,6 +257,12 @@ public final class PluginTestRule extends JenkinsRule {
         return proc;
     }
 
+    public void stopJnlpSlave(String slaveName) throws IOException, InterruptedException {
+        Proc proc = slavesToKill.get(slaveName);
+        killJnlpAgentProcess(slaveName, proc);
+        slavesToKill.remove(slaveName);
+    }
+
     private static final class DecoratingOutputStream extends FilterOutputStream {
 
         private final byte[] prefix;

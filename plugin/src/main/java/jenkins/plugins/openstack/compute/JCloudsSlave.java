@@ -465,9 +465,9 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         return disconnectGraceDeadline != 0 && !hasDisconnectGracePeriod();
     }
 
-    synchronized void recordDisconnectGracePeriod(long disconnectedAt) {
+    private synchronized void recordDisconnectGracePeriod(JCloudsComputer computer, long disconnectedAt) {
         Integer hours = getSlaveOptions().getDisconnectGraceHours();
-        if (hours == null || hours <= 0 || disconnectGraceDeadline != 0) {
+        if (hours == null || hours <= 0 || disconnectGraceDeadline != 0 || computer.isPendingDelete()) {
             return;
         }
         disconnectGraceDeadline = disconnectedAt + TimeUnit.HOURS.toMillis(hours);
@@ -500,7 +500,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
                     && agent.getConnectedSince() > 0
                     && cause instanceof OfflineCause.ChannelTermination) {
                 JCloudsSlave node = agent.getNode();
-                if (node != null) node.recordDisconnectGracePeriod(cause.getTimestamp());
+                if (node != null) node.recordDisconnectGracePeriod(agent, cause.getTimestamp());
             }
         }
 

@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import hudson.Launcher;
+import hudson.XmlFile;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
@@ -77,8 +78,7 @@ public class JCloudsCleanupThreadTest {
 
         Server server = cloud.getOpenstack().getServerById(node.getServerId());
         when(server.getStatus()).thenReturn(Server.Status.PAUSED);
-        JCloudsSlave restored = (JCloudsSlave) Jenkins.XSTREAM2.fromXML(Jenkins.XSTREAM2.toXML(node));
-        assertTrue(restored.hasDisconnectGracePeriod());
+        assertTrue(readSavedAgent(node).hasDisconnectGracePeriod());
 
         // The pending deletion marker can replace the channel termination cause.
         computer.setPendingDelete(true);
@@ -91,15 +91,62 @@ public class JCloudsCleanupThreadTest {
     }
 
     @Test
+    public void scheduledTerminationPreventsNewGracePeriod() throws Exception {
+        JCloudsComputer computer = provisionAgentWithGracePeriod().getComputer();
+        JCloudsSlave node = computer.getNode();
+        assertNotNull(node);
+        computer.doScheduleTermination();
+        assertTrue(computer.isPendingDelete());
+
+        computer.disconnect(new OfflineCause.ChannelTermination(new IOException("Lost connection")))
+                .get(10, TimeUnit.SECONDS);
+
+        assertFalse(node.hasDisconnectGracePeriod());
+    }
+
+    @Test
+    public void savesGraceDeadlineAndResetsItOnReconnect() throws Exception {
+        JCloudsSlave node = provisionAgentWithGracePeriod();
+        JCloudsComputer computer = node.getComputer();
+        var deadline = JCloudsSlave.class.getDeclaredField("disconnectGraceDeadline");
+        deadline.setAccessible(true);
+        var firstLoss = new OfflineCause.ChannelTermination(new IOException("First connection loss"));
+        computer.disconnect(firstLoss).get(10, TimeUnit.SECONDS);
+        long firstDeadline = deadline.getLong(readSavedAgent(node));
+        assertEquals(deadline.getLong(node), firstDeadline);
+        assertTrue(firstDeadline >= firstLoss.getTimestamp() + TimeUnit.HOURS.toMillis(1));
+
+        j.stopJnlpSlave(computer.getName());
+        j.connectJnlpSlave(computer.getName());
+        // The channel can be visible before the online listener finishes saving.
+        long reconnectTimeout = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        while (deadline.getLong(readSavedAgent(node)) != 0 && System.nanoTime() < reconnectTimeout) {
+            Thread.sleep(100);
+        }
+        assertTrue(computer.isOnline());
+        assertEquals(0, deadline.getLong(readSavedAgent(node)));
+
+        var nextLoss = new OfflineCause.ChannelTermination(new IOException("Second connection loss"));
+        computer.disconnect(nextLoss).get(10, TimeUnit.SECONDS);
+        long nextDeadline = deadline.getLong(readSavedAgent(node));
+        assertEquals(deadline.getLong(node), nextDeadline);
+        assertTrue(nextDeadline >= nextLoss.getTimestamp() + TimeUnit.HOURS.toMillis(1));
+        assertTrue(nextDeadline > firstDeadline);
+    }
+
+    private JCloudsSlave readSavedAgent(JCloudsSlave node) throws IOException {
+        var config = j.jenkins
+                .getRootDir()
+                .toPath()
+                .resolve("nodes")
+                .resolve(node.getNodeName())
+                .resolve("config.xml");
+        return (JCloudsSlave) new XmlFile(Jenkins.XSTREAM2, config.toFile()).read();
+    }
+
+    @Test
     public void cleanUpDisconnectedAgentAfterGracePeriodExpires() throws Exception {
-        SlaveOptions options = SlaveOptions.builder()
-                .launcherFactory(LauncherFactory.JNLP.JNLP)
-                .fsRoot(j.jenkins.getRootDir().toPath().resolve("agent").toString())
-                .disconnectGraceHours(1)
-                .build();
-        JCloudsCloud cloud =
-                j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
-        JCloudsSlave node = j.provision(cloud, "label");
+        JCloudsSlave node = provisionAgentWithGracePeriod();
         JCloudsComputer computer = node.getComputer();
         computer.disconnect(new OfflineCause.ChannelTermination(new IOException("Lost connection")))
                 .get(10, TimeUnit.SECONDS);
@@ -111,6 +158,17 @@ public class JCloudsCleanupThreadTest {
         assertTrue(node.hasExpiredDisconnectGracePeriod());
         j.triggerOpenstackSlaveCleanup();
         assertNull(j.jenkins.getComputer(computer.getName()));
+    }
+
+    private JCloudsSlave provisionAgentWithGracePeriod() throws Exception {
+        SlaveOptions options = SlaveOptions.builder()
+                .launcherFactory(LauncherFactory.JNLP.JNLP)
+                .fsRoot(j.jenkins.getRootDir().toPath().resolve("agent").toString())
+                .disconnectGraceHours(1)
+                .build();
+        JCloudsCloud cloud =
+                j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+        return j.provision(cloud, "label");
     }
 
     @Test
