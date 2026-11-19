@@ -6,7 +6,6 @@ import hudson.model.AsyncPeriodicWork;
 import hudson.model.Executor;
 import hudson.model.Result;
 import hudson.model.TaskListener;
-import hudson.slaves.OfflineCause;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -104,14 +103,12 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             if (!comp.isIdle()) continue;
 
             final JCloudsSlave node = comp.getNode();
-            if (node == null || node.hasDisconnectGracePeriod()) continue;
-
-            final OfflineCause offlineCause = node.getFatalOfflineCause();
+            if (node == null || !node.claimCleanupDeletion(comp)) continue;
             if (comp.isPendingDelete()) {
                 LOGGER.log(
                         Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                 deleteComputer(comp);
-            } else if (offlineCause != null || (comp.isOffline() && node.hasExpiredDisconnectGracePeriod())) {
+            } else {
                 LOGGER.log(
                         Level.WARNING,
                         "Deleting broken node " + comp.getName() + " (" + getTerminalDiagnosis(comp) + "). Reason: "
@@ -162,9 +159,11 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     }
 
     private void deleteComputer(JCloudsComputer comp) {
+        JCloudsSlave node = comp.getNode();
         try {
             comp.deleteSlave();
         } catch (Throwable e) {
+            if (node != null) node.releaseCleanupDeletion();
             LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + comp.getName(), e);
         }
     }

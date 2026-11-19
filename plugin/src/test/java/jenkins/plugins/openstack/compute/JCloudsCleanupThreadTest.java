@@ -145,6 +145,49 @@ public class JCloudsCleanupThreadTest {
     }
 
     @Test
+    public void cleanupObservesDisconnectBeforeOfflineListener() throws Exception {
+        JCloudsSlave node = provisionAgentWithGracePeriod();
+        JCloudsComputer computer = mock(JCloudsComputer.class);
+        var cause = new OfflineCause.ChannelTermination(new IOException("Listener has not run yet"));
+        when(computer.getConnectedSince()).thenReturn(1L);
+        when(computer.getOfflineCause()).thenReturn(cause);
+
+        assertFalse(node.claimCleanupDeletion(computer));
+        assertTrue(readSavedAgent(node).hasDisconnectGracePeriod());
+    }
+
+    @Test
+    public void cleanupRechecksDisconnectAfterInspectingOfflineCause() throws Exception {
+        JCloudsSlave node = provisionAgentWithGracePeriod();
+        JCloudsComputer computer = mock(JCloudsComputer.class);
+        var cause = new OfflineCause.ChannelTermination(new IOException("Connection lost during cleanup"));
+        when(computer.getConnectedSince()).thenReturn(1L);
+        when(computer.getOfflineCause()).thenReturn(null, cause);
+
+        assertFalse(node.claimCleanupDeletion(computer));
+        assertTrue(readSavedAgent(node).hasDisconnectGracePeriod());
+    }
+
+    @Test
+    public void committedCleanupDoesNotStartGracePeriodAndCanBeRetried() throws Exception {
+        JCloudsSlave node = provisionAgentWithGracePeriod();
+        JCloudsComputer computer = node.getComputer();
+        computer.doScheduleTermination();
+        assertTrue(node.claimCleanupDeletion(computer));
+        assertFalse(node.claimCleanupDeletion(computer));
+        computer.setPendingDelete(false);
+
+        var listener = new JCloudsSlave.DisconnectGraceListener();
+        var cause = new OfflineCause.ChannelTermination(new IOException("Deletion already committed"));
+        listener.onOffline(computer, cause);
+        assertFalse(node.hasDisconnectGracePeriod());
+
+        node.releaseCleanupDeletion();
+        listener.onOffline(computer, cause);
+        assertTrue(readSavedAgent(node).hasDisconnectGracePeriod());
+    }
+
+    @Test
     public void cleanUpDisconnectedAgentAfterGracePeriodExpires() throws Exception {
         JCloudsSlave node = provisionAgentWithGracePeriod();
         JCloudsComputer computer = node.getComputer();
