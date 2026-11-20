@@ -1,11 +1,11 @@
 package jenkins.plugins.openstack.compute;
 
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Executor;
 import hudson.model.Result;
 import hudson.model.TaskListener;
-import hudson.slaves.OfflineCause;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,10 +42,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        // fixed value: 1000 millis
-        long cleanFreq = 1000;
-
-        return cleanFreq;
+        return Functions.getIsUnitTest() ? Long.MAX_VALUE : 1000;
     }
 
     @Override
@@ -105,12 +102,13 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             if ((System.currentTimeMillis() - cloud.getLastCleanTime()) < cloud.getCleanfreqToMillis()) continue;
             if (!comp.isIdle()) continue;
 
-            final OfflineCause offlineCause = comp.getNode().getFatalOfflineCause();
+            final JCloudsSlave node = comp.getNode();
+            if (node == null || !node.claimCleanupDeletion(comp)) continue;
             if (comp.isPendingDelete()) {
                 LOGGER.log(
                         Level.INFO, "Deleting pending node " + comp.getName() + ". Reason: " + comp.getOfflineCause());
                 deleteComputer(comp);
-            } else if (offlineCause != null) {
+            } else {
                 LOGGER.log(
                         Level.WARNING,
                         "Deleting broken node " + comp.getName() + " (" + getTerminalDiagnosis(comp) + "). Reason: "
@@ -119,6 +117,20 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                 deleteComputer(comp);
             }
         }
+    }
+
+    @Restricted(NoExternalUse.class)
+    public static boolean isHeld(String cloudName, String serverId) {
+        for (JCloudsComputer computer : JCloudsComputer.getAll()) {
+            JCloudsSlave node = computer.getNode();
+            if (node != null
+                    && computer.getId().getCloudName().equals(cloudName)
+                    && node.getServerId().equals(serverId)
+                    && node.hasDisconnectGracePeriod()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String getTerminalDiagnosis(JCloudsComputer comp) {
@@ -147,9 +159,11 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
     }
 
     private void deleteComputer(JCloudsComputer comp) {
+        JCloudsSlave node = comp.getNode();
         try {
             comp.deleteSlave();
         } catch (Throwable e) {
+            if (node != null) node.releaseCleanupDeletion();
             LOGGER.log(Level.WARNING, "Failed to disconnect and delete " + comp.getName(), e);
         }
     }
@@ -179,7 +193,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             List<Server> servers = jc.getOpenstack().getRunningNodes();
             for (Server server : servers) {
                 ServerScope scope = ServerScope.extract(server);
-                if (scope.isOutOfScope(server)) {
+                if (scope.isOutOfScope(server) && !isHeld(jc.name, server.getId())) {
                     LOGGER.info("Server " + server.getName() + " run out of its scope " + scope + ". Terminating: "
                             + server);
                     AsyncResourceDisposer.get().dispose(new DestroyMachine(jc.name, server.getId()));
@@ -227,6 +241,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
             try { // Double check server does not exist before interrupting jobs
                 Server explicitLookup = cloud.getOpenstack().getServerById(id);
+                if (isHeld(cloudName, id)) continue;
                 if (Openstack.isOccupied(explicitLookup)) {
                     LOGGER.severe(getClass().getSimpleName() + " incorrectly detected orphaned computer for "
                             + explicitLookup);

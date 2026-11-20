@@ -152,6 +152,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     @RequirePOST
     public HttpResponse doDoDelete() {
         checkPermission(Permission.DELETE);
+        JCloudsSlave node = getNode();
+        if (node != null) node.clearDisconnectGracePeriod();
         try {
             deleteSlave();
             return new HttpRedirect("..");
@@ -165,6 +167,8 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     public HttpRedirect doScheduleTermination() {
         checkPermission(Permission.DELETE);
         setPendingDelete(true);
+        JCloudsSlave node = getNode();
+        if (node != null) node.clearDisconnectGracePeriod();
         return new HttpRedirect(".");
     }
 

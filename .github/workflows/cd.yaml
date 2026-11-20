@@ -17,13 +17,6 @@ on:
         # Note: Change this default to true,
         #       if the checkbox should be checked by default.
         default: false
-  # If you don't want any automatic trigger in general, then
-  # the following check_run trigger lines should all be commented.
-  # Note: Consider the use case #2 config for 'validate_only' below
-  #       as an alternative option!
-  check_run:
-    types:
-      - completed
 
 permissions:
   checks: read

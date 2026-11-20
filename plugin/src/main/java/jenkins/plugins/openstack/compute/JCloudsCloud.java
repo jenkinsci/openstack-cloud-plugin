@@ -328,7 +328,13 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     public Collection<NodeProvisioner.PlannedNode> provision(CloudState cs, int excessWorkload) {
         Label label = cs.getLabel();
         excessWorkload = Math.min(excessWorkload, MaxProvisioningExcessWorkLoadCap);
-        Queue<JCloudsSlaveTemplate> templateProvider = getAvailableTemplateProvider(label, excessWorkload);
+        Queue<JCloudsSlaveTemplate> templateProvider;
+        try {
+            templateProvider = getAvailableTemplateProvider(label, excessWorkload);
+        } catch (LoginFailure ex) {
+            LOGGER.log(Level.WARNING, "Skipping provisioning for OpenStack cloud " + name + ": " + ex.getMessage());
+            return Collections.emptyList();
+        }
 
         List<PlannedNode> plannedNodeList = new ArrayList<>();
         while (excessWorkload > 0
@@ -635,13 +641,14 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
             try {
                 long parsedCleanFreq = Long.parseLong(value);
-                if (parsedCleanFreq == 0) {
-                    NumberFormatException nfe =
-                            new NumberFormatException("cleanfreq should be strictly greater than 0");
+                // Keep server-side validation consistent with the bounds in config.jelly.
+                if (parsedCleanFreq < 10 || parsedCleanFreq > 1200) {
+                    NumberFormatException nfe = new NumberFormatException("cleanfreq must be between 10 and 1200");
                     throw nfe;
                 }
             } catch (NumberFormatException ex) {
-                return FormValidation.error(ex, "Clean frequency must be an integer strictly greater than 0 (>=1)");
+                return FormValidation.error(
+                        ex, "Cleanup frequency must be a whole number between 10 and 1200 seconds.");
             }
             return FormValidation.ok();
         }

@@ -26,6 +26,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import hudson.ExtensionList;
 import hudson.model.Item;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.UnprotectedRootAction;
 import hudson.model.User;
 import hudson.security.ACL;
@@ -78,6 +79,54 @@ public class JCloudsCloudTest {
 
     @Rule
     public PluginTestRule j = new PluginTestRule();
+
+    @Test
+    public void provisioningContinuesAfterCloudLoginFailure() throws Exception {
+        String label = "shared";
+        JCloudsCloud cloud = new JCloudsCloud(
+                "unavailable",
+                "https://example.com",
+                false,
+                "zone",
+                10000,
+                j.defaultSlaveOptions(),
+                List.of(j.dummySlaveTemplate(label)),
+                "missing-credentials");
+
+        j.jenkins.clouds.add(cloud);
+        JCloudsCloud healthyCloud = j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(j.dummySlaveTemplate(label)));
+
+        Cloud.CloudState state = new Cloud.CloudState(Label.get(label), 0);
+        assertEquals(0, cloud.provision(state, 1).size());
+        assertEquals(healthyCloud.name, j.provision(healthyCloud, label).getId().getCloudName());
+    }
+
+    @Test
+    public void validateCleanupFrequency() {
+        DescriptorImpl desc = j.getCloudDescriptor();
+
+        for (String value : new String[] {
+            "-1",
+            "-10",
+            "-9223372036854775808",
+            "0",
+            "1",
+            "9",
+            "1201",
+            "3600",
+            "9223372036854775807",
+            "",
+            " ",
+            "abc",
+            "1.5",
+            "9223372036854775808"
+        }) {
+            assertEquals(value, FormValidation.Kind.ERROR, desc.doCheckCleanfreq(value).kind);
+        }
+        for (String value : new String[] {"10", "11", "60", "1199", "1200"}) {
+            assertEquals(value, FormValidation.Kind.OK, desc.doCheckCleanfreq(value).kind);
+        }
+    }
 
     @Test
     public void failToTestConnection() {
@@ -378,10 +427,12 @@ public class JCloudsCloudTest {
         final JCloudsCloud cloudProvision = getCloudWhereUserIsAuthorizedTo(Cloud.PROVISION, template);
         cloudProvision.setCleanfreq(120); // to be sure not runned during test
         j.executeOnServer(new DoProvision(cloudProvision, template));
+        waitForNodeCount(1);
 
         final JCloudsCloud itemConfigure = getCloudWhereUserIsAuthorizedTo(Item.CONFIGURE, template);
         itemConfigure.setCleanfreq(120); // to be sure not runned during test
         j.executeOnServer(new DoProvision(itemConfigure, template));
+        waitForNodeCount(2);
 
         final JCloudsCloud jenkinsRead = getCloudWhereUserIsAuthorizedTo(Jenkins.READ, template);
         jenkinsRead.setCleanfreq(120); // to be sure not runned during test
@@ -390,6 +441,14 @@ public class JCloudsCloudTest {
             fail("Expected 'AccessDeniedException' exception hasn't been thrown");
         } catch (AccessDeniedException3 ex) {
             // Expected
+        }
+
+        // Finish CloudStatistics persist while Jenkins is still running. Otherwise an in-flight
+        // Timer persist rewrites CloudStatistics.xml during JenkinsRule teardown.
+        for (Node node : new ArrayList<>(j.jenkins.getNodes())) {
+            if (node instanceof JCloudsSlave slave) {
+                slave.terminate();
+            }
         }
     }
 
@@ -564,6 +623,17 @@ public class JCloudsCloudTest {
                         any(OpenstackCredential.class),
                         any(String.class),
                         any(Long.class));
+    }
+
+    private static void waitForNodeCount(int expected) throws InterruptedException {
+        final long deadline = System.currentTimeMillis() + 20_000;
+        while (Jenkins.get().getNodes().size() < expected) {
+            if (System.currentTimeMillis() > deadline) {
+                fail("Timed out waiting for " + expected + " node(s), have "
+                        + Jenkins.get().getNodes());
+            }
+            Thread.sleep(200);
+        }
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(

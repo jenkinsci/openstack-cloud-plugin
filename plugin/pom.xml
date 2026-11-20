@@ -2,8 +2,8 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.jenkins-ci.plugins.openstack-cloud</groupId>
-    <artifactId>parent</artifactId>
+    <groupId>org.jenkins-ci.plugins</groupId>
+    <artifactId>openstack-cloud-parent</artifactId>
     <version>${changelist}</version>
   </parent>
 
@@ -22,12 +22,17 @@
     <url>https://github.com/${gitHubRepo}</url>
   </scm>
 
+  <properties>
+    <!-- Only this module should be published to repo.jenkins-ci.org/releases -->
+    <maven.deploy.skip>false</maven.deploy.skip>
+  </properties>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
-        <version>5601.v59f37270a_349</version>
+        <version>6210.v69ea_fd8a_f010</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -100,6 +105,10 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>caffeine-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins</groupId>
+      <artifactId>commons-lang3-api</artifactId>
     </dependency>
 
     <dependency>
@@ -223,7 +232,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
-      <version>1.9.5</version>
+      <version>1.10.19</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

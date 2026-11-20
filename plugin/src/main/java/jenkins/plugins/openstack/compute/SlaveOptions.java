@@ -37,10 +37,11 @@ import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.slaveopts.BootSource;
 import jenkins.plugins.openstack.compute.slaveopts.LauncherFactory;
-import org.apache.commons.lang.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
 /**
  * Configured options for a slave to create.
@@ -88,6 +89,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
     // Slave attributes
     private final Integer retentionTime;
+    private Integer disconnectGraceHours;
 
     private final @CheckForNull Boolean configDrive;
 
@@ -160,6 +162,18 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         return nodeProperties;
     }
 
+    public Integer getDisconnectGraceHours() {
+        return disconnectGraceHours;
+    }
+
+    @DataBoundSetter
+    public void setDisconnectGraceHours(Integer hours) {
+        if (hours != null && hours < 0) {
+            throw new IllegalArgumentException("Disconnect grace period must be nonnegative");
+        }
+        disconnectGraceHours = hours;
+    }
+
     public Integer getRetentionTime() {
         return retentionTime;
     }
@@ -188,6 +202,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 b.nodeProperties,
                 b.retentionTime,
                 b.configDrive);
+        setDisconnectGraceHours(b.disconnectGraceHours);
     }
 
     @DataBoundConstructor
@@ -264,6 +279,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .fsRoot(_override(this.fsRoot, o.fsRoot))
                 .launcherFactory(_override(this.launcherFactory, o.launcherFactory))
                 .nodeProperties(_override(this.nodeProperties, o.nodeProperties))
+                .disconnectGraceHours(_override(this.disconnectGraceHours, o.disconnectGraceHours))
                 .retentionTime(_override(this.retentionTime, o.retentionTime))
                 .configDrive(_override(this.configDrive, o.configDrive))
                 .build();
@@ -294,6 +310,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .fsRoot(_erase(this.fsRoot, defaults.fsRoot))
                 .launcherFactory(_erase(this.launcherFactory, defaults.launcherFactory))
                 .nodeProperties(_erase(this.nodeProperties, defaults.nodeProperties))
+                .disconnectGraceHours(disconnectGraceHours)
                 .retentionTime(_erase(this.retentionTime, defaults.retentionTime))
                 .configDrive(_erase(this.configDrive, defaults.configDrive))
                 .build();
@@ -353,6 +370,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         if (!Objects.equals(fsRoot, that.fsRoot)) return false;
         if (!Objects.equals(launcherFactory, that.launcherFactory)) return false;
         if (!Objects.equals(nodeProperties, that.nodeProperties)) return false;
+        if (!Objects.equals(disconnectGraceHours, that.disconnectGraceHours)) return false;
         if (!Objects.equals(retentionTime, that.retentionTime)) return false;
         return Objects.equals(configDrive, that.configDrive);
     }
@@ -375,6 +393,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
         result = 31 * result + (fsRoot != null ? fsRoot.hashCode() : 0);
         result = 31 * result + (launcherFactory != null ? launcherFactory.hashCode() : 0);
         result = 31 * result + (nodeProperties != null ? nodeProperties.hashCode() : 0);
+        result = 31 * result + Objects.hashCode(disconnectGraceHours);
         result = 31 * result + (retentionTime != null ? retentionTime.hashCode() : 0);
         result = 31 * result + (configDrive != null ? configDrive.hashCode() : 0);
         return result;
@@ -401,6 +420,7 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
                 .fsRoot(fsRoot)
                 .launcherFactory(launcherFactory)
                 .nodeProperties(nodeProperties)
+                .disconnectGraceHours(disconnectGraceHours)
                 .retentionTime(retentionTime)
                 .configDrive(configDrive);
     }
@@ -435,6 +455,13 @@ public class SlaveOptions implements Describable<SlaveOptions>, Serializable {
 
         private @CheckForNull LauncherFactory launcherFactory;
         private @CheckForNull List<? extends NodeProperty<?>> nodeProperties;
+        private Integer disconnectGraceHours;
+
+        public Builder disconnectGraceHours(Integer hours) {
+            disconnectGraceHours = hours;
+            return this;
+        }
+
         private @CheckForNull Integer retentionTime;
         private @CheckForNull Boolean configDrive;
 
