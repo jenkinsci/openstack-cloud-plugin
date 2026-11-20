@@ -508,9 +508,11 @@ public final class PluginTestRule extends JenkinsRule {
     }
 
     public Openstack fakeOpenstackFactory() {
-        return fakeOpenstackFactory(mock(
-                Openstack.class,
-                withSettings().defaultAnswer(RETURNS_SMART_NULLS).serializable()));
+        return fakeOpenstackFactory(mockOpenstack());
+    }
+
+    private static Openstack mockOpenstack() {
+        return mock(Openstack.class, RETURNS_SMART_NULLS);
     }
 
     public Openstack fakeOpenstackFactory(final Openstack os) {
@@ -807,9 +809,7 @@ public final class PluginTestRule extends JenkinsRule {
                 .launcherFactory(LauncherFactory.JNLP.JNLP)
                 .build();
 
-        private final transient Openstack os = mock(
-                Openstack.class,
-                withSettings().defaultAnswer(RETURNS_SMART_NULLS).serializable());
+        private final transient Openstack os = mockOpenstack();
 
         public MockJCloudsCloud(JCloudsSlaveTemplate... templates) {
             this(DEFAULTS, templates);
