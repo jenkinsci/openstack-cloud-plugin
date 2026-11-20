@@ -42,6 +42,99 @@ public class JCloudsRetentionStrategyTest {
     }
 
     @Test
+    public void retainDisconnectedAgentWhenRetentionRunsBeforeOfflineListener() throws Exception {
+        assertRetentionBeforeOfflineListener(4, true);
+    }
+
+    @Test
+    public void zeroGraceStillAllowsAutomaticDeletion() throws Exception {
+        assertRetentionBeforeOfflineListener(0, false);
+    }
+
+    private void assertRetentionBeforeOfflineListener(int graceHours, boolean retained) throws Exception {
+        SlaveOptions options = j.defaultSlaveOptions()
+                .getBuilder()
+                .fsRoot(j.jenkins.getRootDir().toPath().resolve("agent").toString())
+                .retentionTime(1)
+                .disconnectGraceHours(graceHours)
+                .build();
+        JCloudsCloud cloud =
+                j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+        JCloudsSlave node = j.provision(cloud, "label");
+        JCloudsComputer computer = node.getComputer();
+        java.util.concurrent.Future<?> disconnected;
+
+        // Hold the node monitor to delay grace initialization after the channel closes.
+        synchronized (node) {
+            disconnected = computer.disconnect(
+                    new OfflineCause.ChannelTermination(new java.io.IOException("Lost connection")));
+            long timeout = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+            while (!(computer.getOfflineCause() instanceof OfflineCause.ChannelTermination)
+                    && System.nanoTime() < timeout) {
+                Thread.sleep(10);
+            }
+            assertTrue(computer.getOfflineCause() instanceof OfflineCause.ChannelTermination);
+            assertFalse(node.hasDisconnectGracePeriod());
+            checkAfter(computer, 61_000);
+            assertEquals(!retained, computer.isPendingDelete());
+            assertEquals(retained, node.hasDisconnectGracePeriod());
+        }
+        disconnected.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertEquals(retained, node.hasDisconnectGracePeriod());
+        j.triggerOpenstackSlaveCleanup();
+        assertSame(retained ? node : null, j.jenkins.getNode(node.getNodeName()));
+    }
+
+    @Test
+    public void automaticPendingMarkerDoesNotHideChannelLossFromCleanup() throws Exception {
+        assertPendingDeletionWithChannelLoss(false);
+    }
+
+    @Test
+    public void explicitTerminationOverridesAnAutomaticPendingMarker() throws Exception {
+        assertPendingDeletionWithChannelLoss(true);
+    }
+
+    private void assertPendingDeletionWithChannelLoss(boolean explicitTermination) throws Exception {
+        SlaveOptions options = j.defaultSlaveOptions()
+                .getBuilder()
+                .fsRoot(j.jenkins.getRootDir().toPath().resolve("agent").toString())
+                .retentionTime(1)
+                .disconnectGraceHours(4)
+                .build();
+        JCloudsCloud cloud =
+                j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+        JCloudsSlave node = j.provision(cloud, "label");
+        JCloudsComputer computer = node.getComputer();
+        java.util.concurrent.Future<?> disconnected;
+        synchronized (node) {
+            checkAfter(computer, 61_000);
+            assertTrue(computer.isPendingDelete());
+            if (explicitTermination) {
+                computer.doScheduleTermination();
+                // A finishing build must not reclassify the administrator's request as automatic.
+                computer.scheduleAutomaticDeletion();
+            }
+            disconnected = computer.disconnect(
+                    new OfflineCause.ChannelTermination(new java.io.IOException("Lost after retention marking")));
+            long timeout = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+            while (!(computer.getChannelOfflineCause() instanceof OfflineCause.ChannelTermination)
+                    && System.nanoTime() < timeout) {
+                Thread.sleep(10);
+            }
+            assertTrue(computer.getChannelOfflineCause() instanceof OfflineCause.ChannelTermination);
+            assertTrue(computer.isPendingDelete());
+            assertEquals(!explicitTermination, JCloudsCleanupThread.isHeld(cloud.name, node.getServerId()));
+            assertEquals(explicitTermination, node.claimCleanupDeletion(computer));
+            assertEquals(!explicitTermination, node.hasDisconnectGracePeriod());
+            node.releaseCleanupDeletion();
+        }
+        disconnected.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        j.triggerOpenstackSlaveCleanup();
+        assertSame(explicitTermination ? null : node, j.jenkins.getNode(node.getNodeName()));
+    }
+
+    @Test
     public void scheduleSlaveDelete() throws Exception {
         int retentionTime = 1; // minute
 
@@ -62,6 +155,27 @@ public class JCloudsRetentionStrategyTest {
         checkAfter(computer, 1000 * 61);
 
         assertTrue("Slave should be scheduled for deletion", computer.isPendingDelete());
+    }
+
+    @Test
+    public void directDeletionOverridesActiveGracePeriod() throws Exception {
+        SlaveOptions options = j.defaultSlaveOptions()
+                .getBuilder()
+                .fsRoot(j.jenkins.getRootDir().toPath().resolve("agent").toString())
+                .disconnectGraceHours(4)
+                .build();
+        JCloudsCloud cloud =
+                j.configureSlaveLaunchingWithFloatingIP(j.dummyCloud(options, j.dummySlaveTemplate("label")));
+        JCloudsSlave node = j.provision(cloud, "label");
+        JCloudsComputer computer = node.getComputer();
+        computer.disconnect(new OfflineCause.ChannelTermination(new java.io.IOException("Lost connection")))
+                .get(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertTrue(node.hasDisconnectGracePeriod());
+
+        computer.doDoDelete();
+
+        assertFalse(node.hasDisconnectGracePeriod());
+        assertNull(j.jenkins.getNode(node.getNodeName()));
     }
 
     /**

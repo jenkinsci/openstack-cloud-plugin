@@ -75,7 +75,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
                     LOGGER.log(Level.WARNING, "Failed to dump node config", e);
                 }
             }
-            c.setPendingDelete(true);
+            node.scheduleAutomaticDeletion(c);
         }
     }
 

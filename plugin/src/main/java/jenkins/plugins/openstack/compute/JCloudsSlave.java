@@ -457,18 +457,34 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
 
     private volatile long disconnectGraceDeadline;
     private transient boolean cleanupDeletionStarted;
+    private transient boolean automaticDeletionPending;
+
+    synchronized void scheduleAutomaticDeletion(JCloudsComputer computer) {
+        if (computer.isPendingDelete()) return;
+        initializeDisconnectGracePeriod(computer);
+        if (!hasDisconnectGracePeriod()) {
+            automaticDeletionPending = true;
+            computer.setPendingDelete(true);
+        }
+    }
+
+    private void initializeDisconnectGracePeriod(JCloudsComputer computer) {
+        OfflineCause cause = computer.getChannelOfflineCause();
+        if (computer.getConnectedSince() > 0 && cause instanceof OfflineCause.ChannelTermination) {
+            recordDisconnectGracePeriod(computer, cause.getTimestamp());
+        }
+    }
+
+    synchronized boolean initializeAndCheckDisconnectGracePeriod(JCloudsComputer computer) {
+        initializeDisconnectGracePeriod(computer);
+        return hasDisconnectGracePeriod();
+    }
 
     synchronized boolean claimCleanupDeletion(JCloudsComputer computer) {
-        OfflineCause cause = computer.getOfflineCause();
         // The channel is cleared before onOffline runs, so cleanup may observe the loss first.
-        if (computer.getConnectedSince() > 0 && cause instanceof OfflineCause.ChannelTermination) {
-            recordDisconnectGracePeriod(computer, cause.getTimestamp());
-        }
+        initializeDisconnectGracePeriod(computer);
         OfflineCause fatalCause = getFatalOfflineCause();
-        cause = computer.getOfflineCause();
-        if (computer.getConnectedSince() > 0 && cause instanceof OfflineCause.ChannelTermination) {
-            recordDisconnectGracePeriod(computer, cause.getTimestamp());
-        }
+        initializeDisconnectGracePeriod(computer);
         if (cleanupDeletionStarted
                 || hasDisconnectGracePeriod()
                 || !computer.isIdle()
@@ -499,7 +515,7 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         if (hours == null
                 || hours <= 0
                 || disconnectGraceDeadline != 0
-                || computer.isPendingDelete()
+                || (computer.isPendingDelete() && !automaticDeletionPending)
                 || cleanupDeletionStarted) {
             return;
         }
@@ -515,6 +531,11 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
             disconnectGraceDeadline = 0;
             saveDisconnectGracePeriod();
         }
+    }
+
+    synchronized void prepareExplicitDeletion() {
+        automaticDeletionPending = false;
+        clearDisconnectGracePeriod();
     }
 
     private void saveDisconnectGracePeriod() {
