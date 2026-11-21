@@ -468,6 +468,14 @@ public class JCloudsSlave extends AbstractCloudSlave implements TrackedItem {
         }
     }
 
+    synchronized void scheduleSingleUseDeletion(JCloudsComputer computer) {
+        if (computer.isPendingDelete()) return;
+        initializeDisconnectGracePeriod(computer);
+        // Preserve the one-time request even while grace defers termination.
+        automaticDeletionPending = true;
+        computer.setPendingDelete(true);
+    }
+
     private void initializeDisconnectGracePeriod(JCloudsComputer computer) {
         OfflineCause cause = computer.getChannelOfflineCause();
         if (computer.getConnectedSince() > 0 && cause instanceof OfflineCause.ChannelTermination) {

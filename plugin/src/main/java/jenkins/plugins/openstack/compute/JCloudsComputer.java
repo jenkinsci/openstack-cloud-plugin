@@ -142,13 +142,18 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         // If the retention time for this computer is zero, this means it
         // should not be re-used: mark the node as "pending delete".
         if (getRetentionTime() == 0 && !isUserOffline()) {
-            scheduleAutomaticDeletion();
+            scheduleSingleUseDeletion();
         }
     }
 
     /*package*/ void scheduleAutomaticDeletion() {
         JCloudsSlave node = getNode();
         if (node != null) node.scheduleAutomaticDeletion(this);
+    }
+
+    /*package*/ void scheduleSingleUseDeletion() {
+        JCloudsSlave node = getNode();
+        if (node != null) node.scheduleSingleUseDeletion(this);
     }
 
     // Hide /configure view inherited from Computer

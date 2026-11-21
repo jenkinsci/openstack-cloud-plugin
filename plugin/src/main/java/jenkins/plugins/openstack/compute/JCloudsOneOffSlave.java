@@ -34,7 +34,7 @@ public class JCloudsOneOffSlave extends BuildWrapper {
                     @Override
                     public boolean tearDown(AbstractBuild build, final BuildListener listener)
                             throws IOException, InterruptedException {
-                        ((JCloudsComputer) c).scheduleAutomaticDeletion();
+                        ((JCloudsComputer) c).scheduleSingleUseDeletion();
                         return true;
                     }
                 };
