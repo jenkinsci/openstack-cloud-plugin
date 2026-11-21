@@ -126,7 +126,7 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
             if (node != null
                     && computer.getId().getCloudName().equals(cloudName)
                     && node.getServerId().equals(serverId)
-                    && node.hasDisconnectGracePeriod()) {
+                    && node.initializeAndCheckDisconnectGracePeriod(computer)) {
                 return true;
             }
         }
