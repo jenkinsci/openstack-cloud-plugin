@@ -37,14 +37,12 @@ public class JCloudsSlaveTest {
         final String nodeName = "name1";
         final Server mockMetadata = mockServer(nodeName, expectedIpAddress);
         final String labelString = "";
-        final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
-        when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
-        when(mockSlaveOptions.getNodeProperties()).thenReturn(null);
+        final SlaveOptions slaveOptions = SlaveOptions.builder().numExecutors(1).build();
         final Map<String, String> expectedEnvVars =
                 ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, slaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
@@ -64,17 +62,17 @@ public class JCloudsSlaveTest {
         final String nodeName = "name2";
         final Server mockMetadata = mockServer(nodeName, expectedIpAddress);
         final String labelString = "foo bar";
-        final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
-        when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
         final NodeProperty<Node> stubNP1 = PluginTestRule.mkNodeProperty(1);
         final NodeProperty<Node> stubNP2 = PluginTestRule.mkNodeProperty(2);
-        final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(stubNP1, stubNP2);
-        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
+        final SlaveOptions slaveOptions = SlaveOptions.builder()
+                .numExecutors(1)
+                .nodeProperties(ImmutableList.of(stubNP1, stubNP2))
+                .build();
         final Map<String, String> expectedEnvVars =
                 ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, slaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
@@ -95,8 +93,6 @@ public class JCloudsSlaveTest {
         final String nodeName = "name3";
         final Server mockMetadata = mockServer(nodeName, expectedIpAddress);
         final String labelString = "thing";
-        final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
-        when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
         final NodeProperty<Node> stubNP1 = PluginTestRule.mkNodeProperty(1);
         final String envVar1Name = "VarName1";
         final String envVar1Value = "Value1";
@@ -106,8 +102,10 @@ public class JCloudsSlaveTest {
                 new EnvironmentVariablesNodeProperty.Entry(envVar1Name, envVar1Value),
                 new EnvironmentVariablesNodeProperty.Entry(envVar2Name, envVar2Value));
         final NodeProperty<Node> stubNP3 = PluginTestRule.mkNodeProperty(3);
-        final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(stubNP1, envVarNP, stubNP3);
-        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
+        final SlaveOptions slaveOptions = SlaveOptions.builder()
+                .numExecutors(1)
+                .nodeProperties(ImmutableList.of(stubNP1, envVarNP, stubNP3))
+                .build();
         final Map<String, String> expectedEnvVars = ImmutableMap.of(
                 envVar1Name,
                 envVar1Value,
@@ -117,7 +115,7 @@ public class JCloudsSlaveTest {
                 expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, slaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
@@ -138,17 +136,17 @@ public class JCloudsSlaveTest {
         final String nodeName = "name4";
         final Server mockMetadata = mockServer(nodeName, expectedIpAddress);
         final String labelString = "";
-        final SlaveOptions mockSlaveOptions = mock(SlaveOptions.class);
-        when(mockSlaveOptions.getNumExecutors()).thenReturn(1);
         final NodeProperty<Node> templateNP1 = PluginTestRule.mkNodeProperty(1);
         final NodeProperty<Node> templateNP2 = PluginTestRule.mkNodeProperty(2);
-        final List<NodeProperty<?>> listOfNodeProperties = ImmutableList.of(templateNP1, templateNP2);
-        when(mockSlaveOptions.getNodeProperties()).thenReturn(listOfNodeProperties);
+        final SlaveOptions slaveOptions = SlaveOptions.builder()
+                .numExecutors(1)
+                .nodeProperties(ImmutableList.of(templateNP1, templateNP2))
+                .build();
         final Map<String, String> expectedEnvVars =
                 ImmutableMap.of(EXPECTED_IP_ADDRESS_ENV_VAR_NAME, expectedIpAddress);
 
         // When
-        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, mockSlaveOptions);
+        JCloudsSlave instance = new JCloudsSlave(stubId, mockMetadata, labelString, slaveOptions);
 
         // Then
         final List<NodeProperty<?>> actualNPs = instance.getNodeProperties().toList();
