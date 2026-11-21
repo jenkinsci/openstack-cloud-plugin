@@ -150,7 +150,7 @@ public class JCloudsCleanupThreadTest {
         JCloudsComputer computer = mock(JCloudsComputer.class);
         var cause = new OfflineCause.ChannelTermination(new IOException("Listener has not run yet"));
         when(computer.getConnectedSince()).thenReturn(1L);
-        when(computer.getOfflineCause()).thenReturn(cause);
+        when(computer.getChannelOfflineCause()).thenReturn(cause);
 
         assertFalse(node.claimCleanupDeletion(computer));
         assertTrue(readSavedAgent(node).hasDisconnectGracePeriod());
@@ -162,7 +162,7 @@ public class JCloudsCleanupThreadTest {
         JCloudsComputer computer = mock(JCloudsComputer.class);
         var cause = new OfflineCause.ChannelTermination(new IOException("Connection lost during cleanup"));
         when(computer.getConnectedSince()).thenReturn(1L);
-        when(computer.getOfflineCause()).thenReturn(null, cause);
+        when(computer.getChannelOfflineCause()).thenReturn(null, cause);
 
         assertFalse(node.claimCleanupDeletion(computer));
         assertTrue(readSavedAgent(node).hasDisconnectGracePeriod());

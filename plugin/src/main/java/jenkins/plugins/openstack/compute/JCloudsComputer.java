@@ -88,6 +88,11 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         return getOfflineCause() instanceof PendingTermination;
     }
 
+    /*package*/ @CheckForNull
+    OfflineCause getChannelOfflineCause() {
+        return offlineCause;
+    }
+
     /*package*/ boolean isUserOffline() {
         return getOfflineCause() instanceof OfflineCause.UserCause;
     }
@@ -137,8 +142,18 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         // If the retention time for this computer is zero, this means it
         // should not be re-used: mark the node as "pending delete".
         if (getRetentionTime() == 0 && !isUserOffline()) {
-            setPendingDelete(true);
+            scheduleSingleUseDeletion();
         }
+    }
+
+    /*package*/ void scheduleAutomaticDeletion() {
+        JCloudsSlave node = getNode();
+        if (node != null) node.scheduleAutomaticDeletion(this);
+    }
+
+    /*package*/ void scheduleSingleUseDeletion() {
+        JCloudsSlave node = getNode();
+        if (node != null) node.scheduleSingleUseDeletion(this);
     }
 
     // Hide /configure view inherited from Computer
@@ -152,8 +167,9 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
     @RequirePOST
     public HttpResponse doDoDelete() {
         checkPermission(Permission.DELETE);
+        setPendingDelete(true);
         JCloudsSlave node = getNode();
-        if (node != null) node.clearDisconnectGracePeriod();
+        if (node != null) node.prepareExplicitDeletion();
         try {
             deleteSlave();
             return new HttpRedirect("..");
@@ -168,7 +184,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> impleme
         checkPermission(Permission.DELETE);
         setPendingDelete(true);
         JCloudsSlave node = getNode();
-        if (node != null) node.clearDisconnectGracePeriod();
+        if (node != null) node.prepareExplicitDeletion();
         return new HttpRedirect(".");
     }
 
